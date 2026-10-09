@@ -1,19 +1,7 @@
-# Six-pillar detection tier - imported from their own packages, never
-# vendored (repackaging drift is defect class P4). Without these installed,
-# the swarm still routes: every absent pillar declares itself UNARMED on the
-# audit log (see dispatcher/hub.py, dispatcher/pillars.py) instead of
-# crashing - but a production deployment should run fully armed.
-#
-# Verified 2026-07-17: a bare clone without these packages previously
-# dead-lettered 100% of swarm traffic (98 test failures) via a hard import
-# in hub.ingest_spoke_trace. That import is now fail-declared, and this file
-# exists so nobody deploys unarmed by accident.
+# Core test runner
 pytest>=8.0
-# Ed25519 signing/verification on every authority lane - found by the
-# FIRST CI run (2026-07-18): absent from this file, 237 of 391 tests
-# fail in a clean environment because every signed-hub fixture needs it.
-# The container this file was authored in had it globally - the exact
-# invisible-dependency class this file exists to prevent.
+
+# Cryptographic signing & verification (Ed25519) across all authority lanes
 cryptography>=42
 
 open-mind @ git+https://github.com/QuietFireAI/open-mind.git
