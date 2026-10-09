@@ -13,6 +13,7 @@ You now have a dedicated, 21-member specialized digital operations team working 
 * **Every agent has one specific job** (e.g., showing logistics, document collection, compliance review).
 * **Every message follows an approved closed track** (no unauthorized cross-talk).
 * **High-stakes decisions are guarded by hard stops** that never proceed without your explicit review and cryptographic authorization.
+* **Every client has an isolated physical vault** so documents, contracts, and notes never mix between clients.
 
 ListingAssistants takes over the crushing administrative burden of real estate—organizing paperwork, tracking contingency deadlines, reminding parties of pending disclosures, coordinating vendor appointments, and drafting marketing copy—so you can focus on what actually builds your business: **client relationships, expert negotiation, and closing deals.**
 
@@ -48,7 +49,72 @@ flowchart TD
 
 ---
 
-## 3. Meet Your 21 Digital Team Members
+## 3. The "One Client, One Drawer" Privacy Vault
+
+In a busy real estate practice, you are constantly juggling multiple buyers, sellers, and escrows simultaneously. The catastrophic failure mode of traditional AI tools is **data cross-contamination**—mentioning Buyer A's maximum budget in a disclosure for Seller B, or attaching Client C's pre-approval letter to Client D's transaction file.
+
+ListingAssistants permanently eliminates this risk through our physical **"One Client, One Drawer" Architecture**:
+
+```mermaid
+flowchart TD
+    Client["Client Contact Identified"] --> Vault["Client Drawer Vault (drawers/{client_id})"]
+    Vault --> Sub1["raw/ (Original Client Submissions)"]
+    Vault --> Sub2["working/ (Agent Drafts & Notes)"]
+    Vault --> Sub3["delivered/ (Executed Disclosures & Contracts)"]
+    Vault --> Sub4["metadata/ (Wait-States, Hashes & Permissions)"]
+    Vault --> Guard["Anti-Commingling Enforcement Guard"]
+    Guard -->|Illegal Cross-Client Access Attempt| Breach["BLOCKED: ComminglingBreachError (Logged to Audit)"]
+```
+
+### What This Means For You:
+1. **Dedicated Client Drawer:** The moment a client is entered into the system, ListingAssistants provisions an isolated physical and logical drawer (`drawers/<client_id>/`).
+2. **Strict Compartmentalization:** When an agent (such as Agent 04 drafting copy, or Agent 08 collecting disclosures) does work, it is physically restricted to that client's drawer. It cannot read, write, or leak files from any other client's drawer.
+3. **Cryptographic Fingerprinting:** Every document, PDF, disclosure, or photo uploaded is SHA-256 fingerprinted. If a document is ever modified, tampered with, or moved, the system detects it immediately.
+4. **Complete Chain of Custody:** If a client or licensing board asks, *"Who had access to my confidential financial statements?"*, you can produce a tamper-evident audit report proving exactly which agent handled each file and when.
+
+---
+
+## 4. Real-Time Decision Alerts & The Morning Recap (HITL Resumption)
+
+ListingAssistants is built to do the heavy lifting while keeping **you in total command**. When an agent encounters a high-stakes fork in the road—such as a counteroffer decision, an ambiguous repair request, or a missing lead consent—it does not guess, nor does it freeze forever in a digital black hole.
+
+It initiates our formal **Human-in-the-Loop (HITL) Resumption Protocol**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Client / Third Party
+    participant Spoke as Assistant Agent
+    participant Notifier as Real-Time Notifier
+    actor Agent as You (Human Agent)
+    participant PA as Agent 18 (Personal Assistant)
+
+    Client->>Spoke: Sends ambiguous / high-stakes request
+    Spoke->>Spoke: Halts execution into WaitState (Saved to Drawer)
+    Spoke->>Notifier: Emits instant alert (SMS / Webhook / Push)
+    Notifier->>Agent: "Action Required: Client 742 needs repair sign-off"
+    alt Immediate Decision
+        Agent->>Spoke: Submits decision via console/tool
+        Spoke->>Spoke: Resumes exact task state and completes work
+    else Decision Pending Next Morning
+        PA->>Agent: 08:00 AM Morning Dossier recaps pending decision
+        Agent->>Spoke: Submits decision during morning review
+        Spoke->>Spoke: Resumes and closes loop
+    end
+```
+
+### 1. Instant Real-Time Notifications
+When an agent reaches a decision boundary that requires human authority, it immediately freezes its exact execution context into a `WaitState` file in that client's drawer and emits an **instant real-time alert** to your phone via SMS, mobile push, or webhook. You know about the decision within seconds, not at the end of the day.
+
+### 2. Deterministic Resumption (No Starting Over)
+When you review the situation and make your decision, you submit your approval or directive. The agent **resumes immediately from the exact point it paused**. It doesn't lose its train of thought, it doesn't re-ask questions, and it doesn't re-run earlier steps.
+
+### 3. The 08:00 AM Morning Dossier Recap
+If an alert came in while you were sleeping or in a closing meeting, **Agent 18 (Personal Assistant)** automatically sweeps the system at 08:00 AM and places every unresolved decision right at the top of your morning agenda. Nothing is ever forgotten, dropped, or buried in an email thread.
+
+---
+
+## 5. Meet Your 21 Digital Team Members
 
 Think of ListingAssistants as your boutique brokerage front office:
 
@@ -80,27 +146,42 @@ Think of ListingAssistants as your boutique brokerage front office:
 [ GOVERNANCE, RISK & PERSONAL ASSISTANT ]
   Agent 00: Human Principal       - YOU. The licensed broker-in-charge.
   Agent 17: Fair Housing Officer  - Reviews every marketing word against federal, state, and local law.
-  Agent 18: Personal Assistant    - Delivers your morning agenda, flags wait-states, and prevents double-booking.
+  Agent 18: Personal Assistant    - Delivers your morning agenda, flags wait-states, and recaps open decisions.
 ```
 
 ---
 
-## 4. A Day in the Life with ListingAssistants
+## 6. Dual-Engine Intelligence: JEV AI & Nous Hermes
+
+Behind the scenes, ListingAssistants utilizes two specialized artificial intelligence engines working in tandem to protect and elevate your business:
+
+### 1. JEV AI Decision Platform (The Mathematical Coprocessor)
+* **What it does:** JEV AI handles cold, deterministic mathematical and rule-based calculations. It evaluates multi-attribute lead qualification rubrics (Agent 02) and arbitrates complex showing schedule overlaps (Agent 06).
+* **Why it matters to you:** Unlike standard chatbots that might calculate numbers unpredictably, JEV AI evaluates verified documentation strictly. For example, if a buyer claims they have a \$600,000 budget, but their verified pre-approval letter states \$450,000, JEV AI strictly anchors to the pre-approval letter. Furthermore, if a lead score sits exactly on a boundary threshold, JEV AI drops conservatively to the lower tier for human review rather than prematurely elevating a borderline lead.
+
+### 2. Nous Hermes Cognitive Engine (The Creative Real Estate Associate)
+* **What it does:** Nous Hermes powers your creative drafting—authoring compelling listing descriptions (Agent 04) and client messages (Agent 11).
+* **Trained in Your Office's Voice:** We treat Nous Hermes like an exceptionally bright college graduate starting their first job at your firm. Through our built-in broker onboarding curriculum, Hermes has been pre-trained on the 2024 NAR settlement guidelines, Fair Housing mandates, wire fraud defense, and your brokerage's distinctive marketing standards. It never sounds like a generic robot—it speaks like an experienced member of your team.
+
+---
+
+## 7. A Day in the Life with ListingAssistants
 
 ### 08:00 AM — The Morning Intelligence Briefing
 When you open your phone or workstation, **Agent 18** has assembled your morning dossier:
 * **Contract Deadlines:** *"742 Evergreen Terrace: Loan contingency removal deadline is 5:00 PM tomorrow. Agent 08 has the lender pre-approval letter on file; buyer removal form pending."*
 * **Showing Schedule:** *"Three showings scheduled today for 123 Maple Street (1:00 PM, 2:30 PM, 4:00 PM) — all with 30-minute cleaning buffers and confirmed agent IDs."*
-* **Action Required (Your Queue):** *"One new HOT lead requested a pricing assessment on Elm Street — lead dossier prepared for your personal review."*
+* **Pending Human Decisions:** *"Two decisions awaiting your sign-off: (1) Pricing inquiry on 456 Elm St; (2) Repair credit authorization on 789 Oak Ave."*
 
 ### 11:00 AM — Taking a New Listing (Playbook P01)
 You just signed a listing agreement for $750,000:
 1. You submit the signed onboarding package through the console.
-2. **Agent 05** creates the draft MLS listing record.
-3. **Agent 09** pulls your preferred photography vendor from your approved roster and prepares the booking request.
-4. **Agent 04** drafts compelling property remarks emphasizing the quartz countertops and southern exposure.
-5. **Agent 17** automatically reviews the remarks for Fair Housing compliance.
-6. The listing remains in draft until photos arrive and **you give final sign-off**.
+2. A private **Client Drawer** is provisioned for the seller.
+3. **Agent 05** creates the draft MLS listing record.
+4. **Agent 09** pulls your preferred photography vendor from your approved roster and prepares the booking request.
+5. **Agent 04** drafts compelling property remarks emphasizing architectural craftsmanship.
+6. **Agent 17** automatically reviews the remarks for Fair Housing compliance.
+7. The listing remains in draft until photos arrive and **you give final sign-off**.
 
 ### 02:00 PM — Showing Logistics (Playbook P06)
 A buyer's agent requests a showing for tomorrow at 2:00 PM:
@@ -113,11 +194,11 @@ A buyer's agent requests a showing for tomorrow at 2:00 PM:
 A contract is in escrow:
 1. **Agent 07** maps out the contract timeline: Earnest money due in 3 days, Inspection contingency due in 10 days, Appraisal due in 14 days, Closing in 30 days.
 2. **Agent 08** automatically follows up with the buyer's agent on Day 2 for the escrow receipt.
-3. When the inspection report arrives, Agent 07 logs the file and notifies you immediately. **It will never offer repair concessions or comment on inspection findings**—repair negotiations remain 100% in your hands.
+3. When the inspection report arrives, Agent 07 logs the file in the client drawer and alerts you immediately. **It will never offer repair concessions or comment on inspection findings**—repair negotiations remain 100% in your hands.
 
 ---
 
-## 5. What Happens When Things Go Wrong (Fail-Safe Protections)
+## 8. What Happens When Things Go Wrong (Fail-Safe Protections)
 
 ### The Angry Client Protocol (Playbook P14)
 If a client sends an upset text or email (*"I am furious that our open house didn't generate 20 offers!"*):
@@ -130,9 +211,10 @@ If a message template is missing a key piece of information (e.g. the closing da
 
 ---
 
-## 6. Best Practices for Getting the Most from ListingAssistants
+## 9. Best Practices for Getting the Most from ListingAssistants
 
-1. **Review Your Morning Briefing First:** Spend 3 minutes at the start of each day checking Agent 18's briefing to see what items are waiting on third parties.
+1. **Review Your Morning Briefing First:** Spend 3 minutes at the start of each day checking Agent 18's briefing to see what items are waiting on third parties or human decisions.
 2. **Keep Your Vendor Roster Fresh:** Regularly update your photographer and inspector contact lists so Agent 09 books your preferred partners.
 3. **Trust the Guardrails:** When the system holds a message or escalates an inquiry, it is doing so to shield your license and ensure fiduciary excellence.
 4. **Personalize Your Voice:** You can supply your brokerage's specific handbook and style guide to our onboarding system, ensuring your digital assistants speak in your distinct brand voice.
+5. **Inspect Client Drawers with Confidence:** Every client record, draft, and communication is permanently organized inside their drawer, ready for compliance audit at any moment.

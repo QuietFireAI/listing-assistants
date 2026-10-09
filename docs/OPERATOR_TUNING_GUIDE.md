@@ -1,12 +1,12 @@
 # ListingAssistants Operator & System Architect Guide
-### Model Fine-Tuning, Context Ingestion, JEV AI Configuration, and Appliance Deployment
+### Model Fine-Tuning, Context Ingestion, JEV AI Configuration, Drawer Isolation, HITL Protocols, and Appliance Deployment
 *(Confidential System Manual for the Platform Owner & Architect — [ListingAssistants.com](https://ListingAssistants.com))*
 
 ---
 
 ## 1. Executive Architecture Overview
 
-This manual provides the technical operational blueprint for deploying, tuning, and adapting **ListingAssistants**. 
+This manual provides the complete technical operational blueprint for deploying, tuning, and adapting **ListingAssistants**. 
 
 The system is architected to transition seamlessly across two deployment phases:
 1. **Stage 1: Cloud VM Validation:** Initial staging, validation of decision tuples, testing MCP sockets, and calibrating lead-scoring weights.
@@ -27,6 +27,8 @@ flowchart TD
         Drobo --> Hub
         Apricorn["Apricorn Encrypted USB Drive"] -->|Ed25519 Signed| Verifier["tools/verify_update_pack.py"]
         Verifier --> HermesHost
+        Drawers["Client Drawer Vaults\n(drawers/<client_id>/)"] --> Drobo
+        HITL["HITL Wait-State Protocol\n(dispatcher/hitl_protocol.py)"] --> RealTimeAlerts["Real-Time Notifier\n(SMS / Webhook / Push)"]
     end
 
     Staging -->|Field Deployment| Production
@@ -131,7 +133,81 @@ Lead qualification does not make arbitrary guesses; it evaluates against a signe
 
 ---
 
-## 4. Appliance Storage on Drobo NAS (`dispatcher/persistence_sqlite.py`)
+## 4. "One Client, One Drawer" Multi-Tenant Isolation & Anti-Commingling
+
+### The Architecture Problem: Why This Was Engineered
+In multi-client operations, different agents handle different clients at different times. Commingling client records (e.g. leaking Buyer A's financial statements into Seller B's escrow package) is a fatal regulatory breach and grounds for license revocation.
+
+The **Client Drawer System** ([`dispatcher/client_drawer.py`](file:///C:/Users/halfm/.gemini/antigravity/scratch/listing-agents/dispatcher/client_drawer.py)) establishes strict physical and logical compartmentalization:
+
+```
+drawers/
+  └── <client_id>/
+      ├── raw/          <- Original client uploads, intake notes, signed PDFs
+      ├── working/      <- In-progress marketing copy, draft forms, scratch analysis
+      ├── delivered/    <- Formally delivered disclosures, receipts, counteroffers
+      ├── audit/        <- Append-only access logs and modification records
+      └── metadata/     <- wait_state.json, manifest.json, cryptographic fingerprints
+```
+
+### Key Technical Mechanisms:
+1. **Deterministic Path Scoping:** All filesystem operations inside a client context are restricted to `drawers/<client_id>/`.
+2. **Cryptographic SHA-256 Fingerprinting:** Every ingested file is digested with SHA-256 and registered in the `client_drawer_files` SQLite table.
+3. **Fail-Closed Anti-Commingling Enforcement:** If any agent attempts to reference, read, write, or copy a file path belonging to another `client_id`, the system raises `ComminglingBreachError` immediately and locks the interaction into the audit trail.
+4. **Inspection Tooling:** Operators can verify any client drawer at any time using:
+   ```bash
+   python tools/inspect_client_drawer.py <client_id> --verify-hashes
+   ```
+
+---
+
+## 5. Human-in-the-Loop (HITL) Resumption Protocol & Real-Time Alerts
+
+### The Architecture Problem: Why This Was Engineered
+Autonomous swarms frequently freeze when hitting approval gates (e.g. pricing, repair credits, wire transfers). Traditional implementations suffer from two major flaws:
+1. **The Frozen Black Hole:** Work halts, but there is no mechanism to resume the agent without restarting the entire workflow from scratch.
+2. **Silent Failure:** The agent halts, but the human is not informed in real time, only discovering the block hours or days later.
+
+The **HITL Resumption Protocol** ([`dispatcher/hitl_protocol.py`](file:///C:/Users/halfm/.gemini/antigravity/scratch/listing-agents/dispatcher/hitl_protocol.py)) solves this with a complete lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Running : Spoke Execution
+    Running --> Halted_WaitState : Gate / Policy Halt Encountered
+    Halted_WaitState --> AlertEmitted : RealtimeNotifier Dispatched (SMS/Webhook/Push)
+    AlertEmitted --> OpenInQueue : Recorded in metadata/wait_state.json
+    OpenInQueue --> AM_Briefing : Rolled up into Agent 18 Morning Dossier
+    OpenInQueue --> Resolved_Approved : Operator Submits Decision via CLI/UI
+    OpenInQueue --> Resolved_Rejected : Operator Rejects Action
+    Resolved_Approved --> Resumed : Exact Spoke State Reconstituted & Executed
+    Resumed --> [*] : Task Completed
+```
+
+### Key Technical Mechanisms:
+1. **Serialized `WaitState`:** Captures `wait_id`, `client_id`, `spoke_id`, `action_name`, `halt_reason`, `payload`, and `status="PENDING"` in the client drawer.
+2. **Immediate Real-Time Dispatch (`RealtimeNotifier`):**
+   * Emits an instant high-priority notification via configurable channels: SMS (Twilio adapter), Webhook, or Mobile Push.
+   * Real-time notifications ensure the human agent can intervene immediately on urgent escrows.
+3. **Deterministic Resumption (`HitlProtocol.resume_task`):**
+   * Loads the saved execution state and provides human directives (`decision="APPROVED"`, modified payload, notes).
+   * Reinvokes the exact stopped spoke without repeating prior actions.
+4. **Daily Morning Roll-Up:**
+   * Agent 18 sweeps all open `WaitState` records across all client drawers during the 08:00 AM briefing, ensuring no blocked task is ever lost.
+5. **Operator Queue Management Tooling:**
+   ```bash
+   # List all pending human decisions across drawers
+   python tools/manage_hitl_queue.py list
+
+   # Inspect specific decision details
+   python tools/manage_hitl_queue.py show <wait_id>
+
+   # Resolve and resume execution
+   python tools/manage_hitl_queue.py resolve <wait_id> --action APPROVED --notes "Proceed with $5k credit"
+   ```
+
+---
+
+## 6. Appliance Storage on Drobo NAS (`dispatcher/persistence_sqlite.py`)
 
 ### Hardware Storage Strategy
 * **Appliance Host:** Runs Linux or Windows on an embedded server / micro-PC.
@@ -148,6 +224,8 @@ Lead qualification does not make arbitrary guesses; it evaluates against a signe
    * Tracks opt-ins per channel (`{"sms": "yes", "email": "yes", "phone": "no"}`).
 3. **`financial_ledger` (Agent 15):**
    * Zero-tolerance ($0.00 variance) ledger recording contract sales prices, commission rates, escrow deductions, and net proceeds.
+4. **`client_drawers` & `client_drawer_files`:**
+   * Authoritative registry of all client drawers, directory roots, file paths, and SHA-256 checksums.
 
 ### Code Initialization
 ```python
@@ -167,7 +245,7 @@ storage.record_crm_interaction(
 
 ---
 
-## 5. Air-Gapped Field Updates via Apricorn Encrypted Flash Drives
+## 7. Air-Gapped Field Updates via Apricorn Encrypted Flash Drives
 
 When the appliance is deployed in the field without internet access, updates to code, configurations, or model weights are delivered via physical **Apricorn Aegis Secure Key** encrypted USB flash drives.
 
@@ -226,9 +304,9 @@ export ALLOW_INSECURE_DEV_UPDATE=1
 
 ---
 
-## 6. Daily Maintenance Sweeps & Verification
+## 8. Daily Maintenance Sweeps & System Verification
 
-The appliance requires a daily clock trigger to evaluate time-based boundaries (contingency deadlines, 7-day vendor holdups, quiet-hour releases, and morning briefings).
+The appliance requires a daily clock trigger to evaluate time-based boundaries (contingency deadlines, 7-day vendor holdups, quiet-hour releases, morning briefings, and HITL wait-state rollups).
 
 Add one line to crontab or Windows Task Scheduler:
 ```bash
@@ -236,7 +314,8 @@ python tools/run_sweeps.py
 ```
 
 ### Verifying System Health at Any Time
-* **Full test suite:** `python -m pytest tests_listing/` (552 tests, 100% pass)
+* **Full test suite:** `python -m pytest tests_listing/` (558 tests, 100% pass)
 * **MCP Stdio protocol:** `python tools/mcp_roundtrip.py`
 * **End-to-End simulation:** `python tools/run_demo.py`
+* **Client drawer integrity:** `python tools/inspect_client_drawer.py <client_id> --verify-hashes`
 * **Audit chain check:** Run `hub.audit.verify_chain()` to prove that zero records have been altered.
