@@ -25,6 +25,53 @@ Unlike conventional, unconstrained LLM chat wrappers that hallucinate prices, le
 
 ---
 
+## For the Managing Broker & Team Leader: Why Not Just Use ChatGPT or Claude?
+
+If you are a Managing Broker, Broker of Record, or top-producing team leader, your natural first question is:  
+> *"Claude and ChatGPT are already incredible writers. Why can't my agents just use a $20/month subscription?"*
+
+Here is the unvarnished reality of using unconstrained frontier chatbots in a licensed real estate fiduciary practice:
+
+```
+┌──────────────────────────────────────┬────────────────────────────────────────────────────────┐
+│ The $20/Month Frontier Chatbot Trap   │ The Governed ListingAssistants Chassis                 │
+├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
+│ • "AI makes mistakes. Check my work" │ • Hardware-Enforced Legal Brakes:                      │
+│   (Micro-print disclaimer shifts all │   It is physically impossible for the AI to publish an │
+│   legal liability onto your license) │   MLS remark without verified Fair Housing clearance.  │
+├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
+│ • Commingling & Context Bleed:       │ • "One-Client-One-Drawer" Vaults:                      │
+│   Chatbots share memory across chats.│   Client A's divorce and financials are isolated in    │
+│   Seller A's minimum price leaks     │   a dedicated filesystem vault. Zero cross-client      │
+│   into Buyer B's disclosures.        │   data bleeding or conversational contamination.       │
+├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
+│ • Hallucinated Price Guidance:       │ • Fiduciary Pricing Firewall:                          │
+│   Chatbots try to be helpful and     │   The AI is hard-coded to refuse valuation. If a buyer │
+│   improvise price opinions or terms. │   asks "What's the lowest they'll take?", it halts live│
+│                                      │   and escalates to the licensed human broker.          │
+├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
+│ • The Wire Fraud Cyber Threat:       │ • Wire Fraud Zero-Tolerance Shield:                    │
+│   Chatbots summarize incoming emails │   The instant any email mentions routing numbers, the  │
+│   and accidentally relay fake wire   │   conversation locks down and rings the broker's phone.│
+│   instructions to anxious buyers.    │   It never transmits bank wiring instructions.         │
+├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
+│ • 180 Administrative Deadlines:      │ • 21 Specialized Back-Office Operators:                │
+│   Chatbots don't track earnest money │   Dedicated agents track 3-day earnest money deposits, │
+│   receipts, inspection contingency   │   10-day inspection windows, and deliver an 08:00 AM   │
+│   deadlines, or vendor calendars.    │   morning dossier of pending milestones.               │
+└──────────────────────────────────────┴────────────────────────────────────────────────────────┘
+```
+
+### The Three Questions Every Broker Should Ask:
+1. **"Can this software get my license suspended?"**  
+   *No.* Recreational AI hallucinates freely. ListingAssistants is built on the **Restricted Speed Doctrine**: when any agent encounters ambiguous information or an unapproved communication track, it comes to a slow, graceful stop and holds for human authorization.
+2. **"Does my client's confidential data train a public cloud model?"**  
+   *No.* All documents, drafts, and communications live in private, encrypted client drawers (`drawers/<client_id>/`). When paired with local models (like Nous Hermes on your own hardware), zero bytes leave your office.
+3. **"Does this replace my agents or my transaction coordinator?"**  
+   *No.* It liberates them. It eliminates the 70% secretarial drag—chasing signatures, organizing disclosures, tracking timelines—allowing your human team to focus 100% on high-touch client relationships, negotiation, and closing transactions.
+
+---
+
 ## Architectural Identity: Under the Hood
 
 ### What ListingAssistants Is (And Is NOT)
@@ -296,6 +343,18 @@ python tools/dashboard.py --html
 * **Operational Playbooks & Coaches Guide:**
   * [`docs/SWARM_COACHES_PLAYBOOK.md`](docs/SWARM_COACHES_PLAYBOOK.md) — Plain-English guide to all 24 playbooks and 227 decision tuples.
   * [`docs/PLAYBOOKS.md`](docs/PLAYBOOKS.md) — Technical triggers, inputs, and human-in-the-loop gates for Playbooks P01 through P24.
+
+---
+
+## Fiduciary Terms of Use & Supervisory Boundaries
+
+> [!IMPORTANT]
+> ### The Licensed Human Supervisory Standard
+> **ListingAssistants** is an administrative and workflow execution chassis designed to assist licensed real estate professionals. It does **not** practice real estate, offer legal advice, or perform statutory appraisals.
+> 
+> * **Supervisory Role of Agent 00 (Human Principal):** Under state real estate licensing law and the NAR Code of Ethics, the licensed Broker of Record and designated agent retain ultimate fiduciary responsibility for all client representations, contractual obligations, and statutory disclosures.
+> * **Zero Autonomous Valuation:** ListingAssistants will never establish listing prices, offer recommendations, or negotiate financial concessions without an Ed25519 cryptographic authorization from the Human Principal.
+> * **Restricted Speed / Fail-Closed Design:** Unlike consumer LLMs that provide micro-print disclaimers while hallucinating answers, ListingAssistants is engineered to fail closed: in the event of conflicting documents, unverified identity signatures, or unroutable intents, the system legally halts into a human review queue rather than improvising.
 
 ---
 

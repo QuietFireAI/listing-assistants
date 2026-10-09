@@ -350,3 +350,15 @@ If a message template is missing a key piece of information (e.g. the closing da
 3. **Trust the Guardrails:** When the system holds a message or escalates an inquiry, it is doing so to shield your license and ensure fiduciary excellence.
 4. **Personalize Your Voice:** You can supply your brokerage's specific handbook and style guide to our onboarding system, ensuring your digital assistants speak in your distinct brand voice.
 5. **Inspect Client Drawers with Confidence:** Every client record, draft, and communication is permanently organized inside their drawer, ready for compliance audit at any moment.
+
+---
+
+## 10. Fiduciary Terms of Use & Supervisory Boundaries
+
+> [!IMPORTANT]
+> ### The Licensed Human Supervisory Standard
+> **ListingAssistants** is an administrative and workflow execution chassis designed to assist licensed real estate professionals. It does **not** practice real estate, offer legal advice, or perform statutory appraisals.
+> 
+> * **Supervisory Role of Agent 00 (Human Principal):** Under state real estate licensing law and the NAR Code of Ethics, the licensed Broker of Record and designated agent retain ultimate fiduciary responsibility for all client representations, contractual obligations, and statutory disclosures.
+> * **Zero Autonomous Valuation:** ListingAssistants will never establish listing prices, offer recommendations, or negotiate financial concessions without an Ed25519 cryptographic authorization from the Human Principal.
+> * **Restricted Speed / Fail-Closed Design:** Unlike consumer LLMs that provide micro-print disclaimers while hallucinating answers, ListingAssistants is engineered to fail closed: in the event of conflicting documents, unverified identity signatures, or unroutable intents, the system legally halts into a human review queue rather than improvising.
