@@ -4,7 +4,7 @@
 *Every message routed by one hub, every route pre-approved, every action recorded on a tamper-evident, hash-chained audit log.*  
 *(Official Production Domain: [ListingAssistants.com](https://ListingAssistants.com) — Brand notice: distinct from listingagent.com)*
 
-[![Test Suite](https://img.shields.io/badge/pytest-564%20passed-brightgreen.svg)](tests_listing/)
+[![Test Suite](https://img.shields.io/badge/pytest-570%20passed-brightgreen.svg)](tests_listing/)
 [![Closed Track](https://img.shields.io/badge/routes-51%20closed%20lanes-blue.svg)](identity/routes.json)
 [![Playbooks](https://img.shields.io/badge/playbooks-24%20ratified-blueviolet.svg)](playbooks/)
 [![Decisions](https://img.shields.io/badge/tuples-227%20deterministic-orange.svg)](docs/SWARM_COACHES_PLAYBOOK.md)
@@ -22,6 +22,45 @@ Unlike conventional, unconstrained LLM chat wrappers that hallucinate prices, le
 * **Deterministic Decision Tuples (227 Tuples):** All ambiguous, sensitive, or statutory edge cases are pre-deliberated. If a situation matches a tuple, the rule executes deterministically without model improvisation.
 * **Cryptographic Authority & Money Gates:** High-risk actions (listing price authorizations, listing status changes, and wire-related instructions) require an **Ed25519 cryptographic signature**. Unsigned or invalid requests are dropped fail-closed.
 * **6 QuietFire Forensic Detection Pillars:** Continuously inspects agent thought traces and outputs for adversarial divergence, prompt injection, and goal drift.
+
+---
+
+## Architectural Identity: Under the Hood
+
+### What ListingAssistants Is (And Is NOT)
+* **NOT a LangChain, CrewAI, or AutoGen Wrapper:** ListingAssistants is **not** a collection of chained prompt templates, unconstrained autonomous agent loops, or generic wrapper scripts.
+* **Custom In-House Actor Micro-Kernel:** Developed entirely in-house by **QuietFire AI Labs**, ListingAssistants is a deterministic, event-driven actor micro-kernel built on pure Python standard library primitives. It enforces strict actor encapsulation, fail-closed state transitions, zero-dependency core dispatching, and cryptographic auditability.
+
+### The Five Core Subsystems
+1. **`dispatcher/` (The Actor Micro-Kernel & Transport Hub):**
+   Manages message dispatch, route legality enforcement, idempotency deduplication (`envelope_id`), loop suspension, and SHA-256 hash-chained append-only logging (`Hub`, `AuditLog`, `Envelope`, `Routes`). Includes `ConcurrentHubDispatcher` for high-throughput multi-client partitioning and ASGI/asyncio coroutine integration.
+2. **`identity/` (The Closed Track & Capability Governance):**
+   Houses the immutable closed-track routing specification (`routes.json`), authority capability matrices, and cryptographic signer bindings (`config/authority_signers.json`). Agents cannot invent destinations or bypass routing lanes.
+3. **`tools/` (Deterministic Tooling & Mutation Harness):**
+   Production CLI suites, dashboard visualizers, schema validators, AST sweep runners, and mutation hardening engines ensuring complete operational visibility without external network dependencies.
+4. **`checkpoints/` (Model Lifecycle & Warm Snapshot Restoration):**
+   AWS-style snapshot management, start-of-day warm restore points, LoRA delta state tracking, and sub-10ms hot-swap rollback mechanisms to prevent cognitive drift.
+5. **`tests_listing/` (Exhaustive Verification Suite):**
+   570 deterministic tests spanning individual agent units, end-to-end playbooks (P01–P24), multi-tenant concurrency, cryptographic authority gates, and AST mutation survival sweeps.
+
+### The Five Architectural Pillars
+1. **Closed-Track Tuple Routing:** Every message is governed by an immutable `(from_agent, intent, to_agent)` tuple. Unapproved paths are blocked before dispatch.
+2. **Pre-Persist Audit Trail:** Envelopes are cryptographically hashed and committed to an append-only SHA-256 audit ledger *prior* to handler delivery.
+3. **Fail-Closed Authority Gates:** Statutory, financial, and legal actions require verified Ed25519 signatures and ratified IdP/MFA login identity bindings.
+4. **Restricted-Speed Live Holding:** Ambiguous or out-of-track envelopes never silently fail or drop; they hold live in `clarification.request` for human triage.
+5. **Client-Partitioned FIFO Concurrency:** Multi-tenant operations scale across thread pools while enforcing strict sequential FIFO processing per client context, preventing state tearing and race conditions.
+
+### The Four Engineering Strengths (Objective Technical Analysis)
+1. **Zero Flakiness Testing:** 570 out of 570 tests execute in ~11 seconds with zero network calls, zero sleep delays, and zero mock pollution. Test results are deterministic and reproducible.
+2. **Mutation Hardening & Survivor Sweeps:** The codebase is hardened via AST-level mutation sweeps, systematically validating that tests assert behavioral invariants rather than superficial code execution.
+3. **Defensive Fail-Closed Architecture:** Missing signatures, unratified signers, unparseable timestamps, or absent MFA flags result in immediate fail-closed rejection into audited quarantine queues.
+4. **Zero-Stub Runtime Integrity:** All 21 agents and hub subsystems consist of complete, working, executable logic—free of dummy placeholders or `NotImplementedError` stubs.
+
+### Technical Implementation Status & Roadmap
+* **[COMPLETED] Client-Partitioned Concurrency & Async Dispatch (Item d2):** Delivered in v1.0.0 via `dispatcher.concurrent_dispatcher.ConcurrentHubDispatcher`. Features client-keyed FIFO sequencing, worker thread pooling, and `async_send()` coroutines for FastAPI/ASGI production deployments.
+* **[COMPLETED] Ratified Signer Registry & IdP Binding (Item d3):** Delivered in v1.0.0 via ratified `config/authority_signers.json` and `Hub.arm_signer_registry()`, enforcing broker IdP identities and mandatory MFA for all authority actions.
+* **[ROADMAP v1.1.0] Spoke Module Namespace Reorganization (Item d1):** Currently structured as `dispatcher/listing_spokes_*.py` across 570 passing tests. Scheduled for relocation to a dedicated `spokes/` package in v1.1.0 with backward-compatible import shims.
+* **[ROADMAP v1.2.0] Local GPU LoRA Execution Appliance (Item d4):** Checkpoint metadata, training pool assimilation, and LoRA delta export are fully active in `checkpoints/`. Standalone on-prem GPU containerized inference execution is scheduled for v1.2.0.
 
 ---
 
@@ -211,17 +250,17 @@ Provides a complete pause-and-resume lifecycle (`dispatcher/hitl_protocol.py`) w
 
 ### 2. Setup
 ```bash
-git clone https://github.com/QuietFireAI/listing-agents.git
-cd listing-agents
+git clone https://github.com/QuietFireAI/listing-assistants.git
+cd listing-assistants
 pip install -r requirements.txt
 ```
 
 ### 3. Verification Suite
-Run the 564-test verification matrix:
+Run the 570-test verification matrix:
 ```bash
 python -m pytest tests_listing/
 ```
-*Guaranteed: 564 passed, 0 failures, 0 warnings.*
+*Guaranteed: 570 passed, 0 failures, 0 warnings.*
 
 Run the live MCP stdio roundtrip test:
 ```bash

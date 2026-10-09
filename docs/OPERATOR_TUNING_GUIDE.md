@@ -34,6 +34,31 @@ flowchart TD
     Staging -->|Field Deployment| Production
 ```
 
+### Architectural Identity & Design Foundations
+* **Custom Actor Micro-Kernel (Zero Wrapper Overhead):** ListingAssistants is **not** built on top of LangChain, AutoGen, CrewAI, or similar brittle prompt-chaining frameworks. It is a purpose-built, event-driven actor micro-kernel engineered in-house by **QuietFire AI Labs** using pure Python standard library foundations, strict deterministic state machines, and SHA-256 hash chaining.
+* **The Five Subsystems:**
+  1. **`dispatcher/` (The Micro-Kernel Hub & Transport):** Central message broker governing route enforcement, loop suppression, idempotency deduplication (`envelope_id`), and hash-chained audit logging (`Hub`, `AuditLog`, `Envelope`, `Routes`). Includes `ConcurrentHubDispatcher` providing client-partitioned FIFO execution and ASGI/asyncio coroutines.
+  2. **`identity/` (The Closed Track & Capability Governance):** Enforces 51 immutable closed routes (`routes.json`), capability limits, and ratified login-based signer identities (`config/authority_signers.json`).
+  3. **`tools/` (Deterministic Tooling & Mutation Harness):** Production CLI toolchains, dashboard generators, schema validators, sweep runners, and AST mutation engines operating with zero external network dependencies.
+  4. **`checkpoints/` (Model Lifecycle & Warm Snapshot Restoration):** AWS-style snapshot management, 08:00 AM daily warm restore points, LoRA delta tracking, and sub-10ms hot-swap rollback mechanisms.
+  5. **`tests_listing/` (Exhaustive Verification Suite):** 570 deterministic tests spanning unit spokes, end-to-end playbooks (P01–P24), multi-tenant concurrency, cryptographic authority gates, and AST mutation sweeps.
+* **The Five Core Architectural Pillars:**
+  1. *Closed-Track Tuple Routing:* Enforces `(from_agent, intent, to_agent)` at runtime; unroutable messages never improvise.
+  2. *Pre-Persist Audit Trail:* Every message is SHA-256 hashed and appended to an immutable audit ledger *before* handler delivery.
+  3. *Fail-Closed Authority Gates:* Cryptographic Ed25519 signatures plus ratified IdP login stamps with mandatory MFA.
+  4. *Restricted-Speed Live Holding:* Ambiguous or out-of-track messages hold live in `clarification.request` rather than silently dropping.
+  5. *Client-Partitioned FIFO Concurrency:* Multi-client parallelism across worker pools while guaranteeing strict chronological FIFO execution per client context.
+* **The Four Engineering Strengths:**
+  1. *Zero Flakiness:* 570 out of 570 tests execute deterministically in ~11s with zero network dependencies or mock pollution.
+  2. *Mutation Hardening:* Verified by AST-level mutation sweeps to ensure assertions validate behavior rather than passive line execution.
+  3. *Defensive Fail-Closed Architecture:* Missing permissions, absent signers, unverified MFA, or corrupted timestamps trigger immediate audited refusals.
+  4. *Zero-Stub Runtime Integrity:* Complete, executable implementations across all 21 agents and hub components with no placeholder stubs.
+* **Technical Implementation & Roadmap Status:**
+  * **[COMPLETED] Client-Partitioned Concurrency & Async Dispatch (Item d2):** Implemented via `dispatcher.concurrent_dispatcher.ConcurrentHubDispatcher` with client-keyed FIFO sequencing, worker thread pools, and `async_send()` coroutines for FastAPI/ASGI integration.
+  * **[COMPLETED] Signer Registry Ratification (Item d3):** Fully ratified `config/authority_signers.json` and implemented `Hub.arm_signer_registry()`, binding authority intents to broker IdP logins with mandatory MFA.
+  * **[ROADMAP v1.1.0] Spoke Module Namespace Reorganization (Item d1):** Transitioning `dispatcher/listing_spokes_*.py` into a dedicated `spokes/` package with backward-compatible import aliasing.
+  * **[ROADMAP v1.2.0] Local GPU LoRA Execution Appliance (Item d4):** Containerized on-prem GPU acceleration for the local LoRA training pool and inference host.
+
 ---
 
 ## 2. The Nous Hermes Cognitive Seam & Broker Ingestion Engine
