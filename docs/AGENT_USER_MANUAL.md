@@ -300,6 +300,21 @@ You do not need a computer science degree to know where your clients stand:
 * **Clear Funnel Tracking:** See at a glance which clients are in `INTAKE`, `QUALIFICATION`, `PRE-MARKET`, `ACTIVE MLS`, `IN ESCROW`, or `CLOSED`.
 * **Highlighted Alerts:** If an agent is paused waiting for your human decision, it is displayed in an unmistakable red banner with the exact wait ID and reason.
 
+### 3. The Pocket Dispatcher: Remote Supervision via WhatsApp, Signal & SMS
+Real estate professionals spend their days in the field—walking properties with clients, attending closings, and touring homes. You do not need to be seated at your office desk to manage your AI listing assistants:
+* **Your Machine Stays Grounded:** The sovereign appliance runs safely back at your office or home workstation. Confidential documents and private keys never leave your secure perimeter.
+* **Hermes in Your Pocket:** Through standard mobile messaging (WhatsApp, Signal, SMS, or Telegram), the Dispatcher stays connected with you in real time:
+  * **Instant Alerts:** When an agent pauses at a human decision gate (e.g. an inspection credit dispute or draft MLS copy ready for review), your phone buzzes immediately.
+  * **One-Tap Execution:** Reply `APPROVE`, `MODIFY: credit=2500`, `HOLD`, or `REJECT` directly from your phone while between showings.
+  * **Natural Field Inquiries:** Text Hermes naturally on the road: *"What showings are scheduled for 100 Oak Lane this afternoon?"* or *"Summarize the inspection items on Elm Street."* Hermes consults the client drawers inside private `<think>` tags and texts back concise, accurate answers in seconds.
+
+### 4. The One-Click Support Lifeline: "Escalate to Support"
+If you receive an alert and aren't sure how to resolve it, or feel anxious about an ambiguous contract clause, you never have to guess or troubleshoot alone:
+* **One-Click Lifeline:** Simply select or reply **`ESCALATE`** (or `ESCALATE_TO_SUPPORT`).
+* **Instant Diagnostic Snapshot:** The system compiles a redacted forensic snapshot of the client drawer, document hashes, and agent deliberation logs into `drawers/<client_id>/audit/`.
+* **Dispatches Support Ticket:** Generates ticket `TICKET-<WAIT_ID>` and routes it directly to the **QuietFire Support Desk**.
+* **Fails Closed Safely:** Your agent parks safely in an escalated hold state while our technical support team investigates, ensuring no mistakes are made.
+
 ---
 
 ## 8. A Day in the Life with ListingAssistants

@@ -193,3 +193,34 @@ def test_hitl_standardized_decisions_and_forensic_snapshot():
         assert close_res["status"] == "system_closed"
         assert ws2.status == "SYSTEM_CLOSED"
 
+
+def test_hitl_escalate_to_support():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        hub = make_test_hub(tmpdir)
+        drawer_mgr = ClientDrawerManager(tmpdir)
+        drawer_mgr.provision_drawer("ctx-support-101", "Charlie Test", "101 Maple Way")
+        hitl = HITLManager(hub=hub, drawer_manager=drawer_mgr)
+
+        ws = hitl.pause_operation(
+            client_context_id="ctx-support-101",
+            agent_id="07",
+            paused_intent="closing.concession",
+            reason="Ambiguous addendum clause regarding buyer repair allowance.",
+            original_payload={"clause": "Seller credits buyer $4,500 pending HVAC check"},
+            required_decision="APPROVE_CREDIT"
+        )
+
+        res = hitl.resume_operation(
+            wait_id=ws.wait_id,
+            human_decision="ESCALATE_TO_SUPPORT",
+            human_payload={"user_notes": "Unclear if HVAC check passed; need QuietFire assistance."}
+        )
+
+        assert res["status"] == "escalated_to_support"
+        assert res["decision"] == "ESCALATE_TO_SUPPORT"
+        assert res["ticket_id"].startswith("TICKET-")
+        assert "Diagnostic package packaged" in res["message"]
+        assert ws.status == "ESCALATED_TO_SUPPORT"
+        assert ws.resolution["ticket_id"] == res["ticket_id"]
+        assert ws.resolution["snapshot_id"] is not None
+

@@ -259,12 +259,38 @@ Operator CLI tool providing AWS-style snapshot controls:
 * `python tools/restore_point.py --restore baseline` — Instant hot-swap rollback to Golden Baseline.
 * `python tools/restore_point.py --exam baseline_v1.0.0` — Runs the Golden Broker Regression Exam.
 
-### 6. Human-in-the-Loop (HITL) Resumption Protocol & Forensic Snapshots
-Provides a complete pause-and-resume lifecycle (`dispatcher/hitl_protocol.py`) when agents hit human authorization gates:
-* Serializes task state to `WaitState` and fires immediate real-time notifications via SMS (Twilio), webhook, or push.
-* Standardized decision actions: `APPROVE`, `APPROVE_WITH_OVERRIDE`, `REJECT`, `HOLD`, `CLOSE_SYSTEM`.
-* Morning 08:00 AM unresolved decision roll-up dossier via Agent 18.
-* Forensic diagnostic snapshot generator: `tools/snapshot_drawer.py`.
+### 6. The Human Decision Cockpit: Approve, Reject, Hold, or One-Click "Escalate to Support"
+Provides a complete pause-and-resume lifecycle (`dispatcher/hitl_protocol.py`) when agents hit human authorization gates or encounter ambiguous contract language:
+* **Standardized Human Decisions:**
+  * `APPROVE` — Validates the proposed action and resumes agent execution along ratified tracks.
+  * `APPROVE_WITH_OVERRIDE` / `MODIFY` — Allows the broker to inject specific numeric values (e.g. updating an inspection concession from \$5,000 to \$3,000) and resumes.
+  * `REJECT` — Aborts the proposed transaction step safely without side effects.
+  * `HOLD` — Moves the task into a siding track awaiting further client or title information.
+  * `CLOSE_SYSTEM` — Immediate emergency circuit breaker shutdown in event of detected security or wire anomalies.
+  * `ESCALATE_TO_SUPPORT` — **The One-Click Support Lifeline:** When a broker is uncertain, busy, or leery of making an operational mistake, they click/reply "Escalate to Support". The system instantly:
+    1. Compiles a redacted forensic diagnostic snapshot (`drawers/<client_id>/audit/`) with file hashes and agent deliberation traces.
+    2. Generates an institutional support ticket (`TICKET-<ID>`).
+    3. Routes the ticket to the QuietFire Support Desk SLA queue (`hub.escalate("escalation.complaint")`).
+    4. Safely parks the agent on hold until support engineering assists.
+
+### 7. The Field Cockpit: Pocket Dispatcher & Remote Hermes Interaction
+**Real estate brokers do not sit behind dual desktop monitors all day.** They are in the field: walking properties with sellers, hosting open houses, meeting appraisers, and driving between showings. An AI system that forces an agent to sit in an office chair to click buttons is an operational failure.
+
+ListingAssistants decouples the **heavy sovereign execution engine** from the **mobile communication layer**:
+* **The On-Premise Anchor:** The local appliance (office workstation, Drobo NAS, or local GPU mini-PC) houses the sovereign client drawers, JEV AI coprocessor, SQLite audit ledgers, and Nous Hermes model weights. Confidential client PII, pre-approval letters, and wire instructions never sit on a public third-party cloud.
+* **Transport-Agnostic Mobile Bridge:** Hermes and the Dispatcher Hub can be spoken to remotely across the broker's preferred messaging transport—whether **WhatsApp**, **Signal**, **encrypted SMS/webhooks**, or **Telegram**:
+  1. **Instant Field Alerts:** When Agent 04 drafts remarks or Agent 07 flags an inspection repair credit addendum, the broker's phone buzzes immediately with the exact context and decision choices.
+  2. **One-Tap Actioning:** The broker replies directly from their phone (`APPROVE`, `MODIFY: credit=2500`, or `ESCALATE`) while waiting for an elevator or sitting at a traffic light.
+  3. **Conversational Hermes Inquiries:** The broker texts natural-language queries to their office assistant while on the road:
+     * *"What showings are scheduled for 100 Oak Lane this afternoon?"*
+     * *"Summarize the inspection report flags for Elm Street."*
+     * Hermes deliberates inside `<think>` tags, verifies data against the client drawer, passes the epistemic taint gate, and returns a crisp, plain-English summary to the broker's phone within seconds.
+
+### 8. Target Market Economics: Why a $500/Month Retainer Makes Total Financial Sense
+ListingAssistants is **not a $29/month self-serve toy or a fragile GoHighLevel wrapper**. It is a hardened enterprise operating system backed by active engineering support:
+* **High-Producing Solo Agents (15–35 deals/year, $150k–$350k GCI):** A single prevented escrow delay, one saved commission dispute, or 5 reclaimed administrative hours per week covers the entire $6,000 annual retainer multiple times over.
+* **Mega-Agent Teams (35–80 deals/year, 3–7 producing agents):** Replaces the overhead and turnover of a $4,000/month full-time administrative assistant or $500/file transactional coordinator with 24/7 automated compliance, Fair Housing tripwires, and institutional audit trails—backed by human support.
+* **Boutique Brokerages (10–25 agents):** Provides turnkey statutory broker supervision, wire fraud tripwires, and verifiable compliance records that protect the broker's license and lower E&O insurance risk.
 
 ---
 

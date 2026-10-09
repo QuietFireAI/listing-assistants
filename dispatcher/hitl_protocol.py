@@ -33,6 +33,7 @@ DECISION_REJECT_AND_ABORT = "REJECT_AND_ABORT"
 DECISION_HOLD = "HOLD"
 DECISION_HOLD_IN_SIDING = "HOLD_IN_SIDING"
 DECISION_CLOSE_SYSTEM = "CLOSE_SYSTEM"
+DECISION_ESCALATE_TO_SUPPORT = "ESCALATE_TO_SUPPORT"
 
 VALID_DECISIONS = {
     DECISION_APPROVE,
@@ -45,6 +46,7 @@ VALID_DECISIONS = {
     DECISION_HOLD,
     DECISION_HOLD_IN_SIDING,
     DECISION_CLOSE_SYSTEM,
+    DECISION_ESCALATE_TO_SUPPORT,
 }
 
 
@@ -254,6 +256,43 @@ class HITLManager:
                 "wait_id": wait_id,
                 "decision": DECISION_CLOSE_SYSTEM,
                 "agent_id": ws.agent_id
+            }
+
+        # Handle ESCALATE_TO_SUPPORT (One-Click Support Lifeline)
+        if norm_decision == DECISION_ESCALATE_TO_SUPPORT:
+            ws.status = "ESCALATED_TO_SUPPORT"
+            notes = f"Escalated to Support by {human_agent_id}: {human_payload.get('user_notes', '')}"
+            snapshot = self.create_forensic_snapshot(
+                ws.client_context_id,
+                wait_id=wait_id,
+                notes=notes
+            )
+            ticket_id = f"TICKET-{wait_id[:8].upper()}"
+            ws.resolution = {
+                "decision": DECISION_ESCALATE_TO_SUPPORT,
+                "human_agent_id": human_agent_id,
+                "human_payload": human_payload,
+                "resolved_at": time.time(),
+                "ticket_id": ticket_id,
+                "snapshot_id": snapshot.get("snapshot_id")
+            }
+            if self.hub and hasattr(self.hub, "escalate"):
+                self.hub.escalate("escalation.complaint", {
+                    "ticket_id": ticket_id,
+                    "wait_id": wait_id,
+                    "agent_id": ws.agent_id,
+                    "client_context_id": ws.client_context_id,
+                    "reason": ws.reason,
+                    "snapshot_id": snapshot.get("snapshot_id"),
+                    "action": "escalated_to_support"
+                })
+            return {
+                "status": "escalated_to_support",
+                "wait_id": wait_id,
+                "decision": DECISION_ESCALATE_TO_SUPPORT,
+                "agent_id": ws.agent_id,
+                "ticket_id": ticket_id,
+                "message": "Diagnostic package packaged and dispatched to QuietFire Support Desk."
             }
 
         # Handle Overrides / Updated Values (APPROVE_WITH_OVERRIDE / MODIFY / CONTINUE_WITH_UPDATE)
