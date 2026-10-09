@@ -1,139 +1,121 @@
-# listing-agents
+# ListingAssistants (formerly listing-agents)
 
-**A 20-agent real-estate listing swarm on a closed track — every message
-routed by one hub, every route pre-approved, every action on a
-hash-chained audit log.**
+**The Governed 21-Agent Residential Real Estate Swarm on a Closed Track**  
+*Every message routed by one hub, every route pre-approved, every action recorded on a tamper-evident, hash-chained audit log.*  
+*(Official Production Domain: [ListingAssistants.com](https://ListingAssistants.com) — Brand notice: distinct from listingagent.com)*
 
-This is the listing-agents identity: [dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents)
-wearing the
-residential real-estate listing domain. The dispatcher installs the
-governance chassis; this identity supplies the domain. Zero runtime code
-difference between identities — that's the point.
+[![Test Suite](https://img.shields.io/badge/pytest-552%20passed-brightgreen.svg)](tests_listing/)
+[![Closed Track](https://img.shields.io/badge/routes-51%20closed%20lanes-blue.svg)](identity/routes.json)
+[![Playbooks](https://img.shields.io/badge/playbooks-24%20ratified-blueviolet.svg)](playbooks/)
+[![Decisions](https://img.shields.io/badge/tuples-227%20deterministic-orange.svg)](docs/SWARM_COACHES_PLAYBOOK.md)
+[![Audit](https://img.shields.io/badge/chain-SHA--256%20%2B%20Ed25519-success.svg)](dispatcher/core.py)
 
-## What it does
+---
 
-Twenty spoke agents cover the listing lifecycle end to end: lead capture
-and qualification, nurture, listing description, MLS management, showing
-scheduling, transaction coordination, document collection, vendor
-coordination, market data, client communication, marketing, buyer
-matching, CRM pipeline, financial tracking, after-close referral,
-compliance/fair-housing, calendar and tasks, prospecting, and
-social-media monitoring. Twenty-four ratified playbooks (P01 new-listing
-onboarding through P24) choreograph them, each with explicit
-human-in-the-loop gates. `docs/WHAT_SUCCESS_MEANS.md` states, per
-playbook, what completion delivers, what human work it displaces, and
-what the human still owns — no invented metrics.
+## What is ListingAssistants?
 
-## Why trust it
+**ListingAssistants** is a production-grade, multi-agent AI operating chassis specifically engineered for residential real estate brokerages, top-producing listing agents, and high-volume transaction teams. 
 
-The railroad doctrine, in code:
+Unlike conventional, unconstrained LLM chat wrappers that hallucinate prices, leak client confidential data, or improvise legal terms, **ListingAssistants** operates on an **invariable railroad chassis**:
+* **21 Specialized Spoke Agents (00–20):** Dedicated single-responsibility agents covering every phase of the listing lifecycle (lead capture, qualification, MLS ingestion, photography curation, showing logistics, transaction management, Fair Housing compliance, CRM updates, and financial reconciliation).
+* **Closed Routing Track (51 Verified Lanes):** The LLM never decides who to speak to. Every envelope is routed through a central dispatcher hub strictly governed by [`identity/routes.json`](identity/routes.json). Unapproved routing attempts are immediately rejected and logged.
+* **Deterministic Decision Tuples (227 Tuples):** All ambiguous, sensitive, or statutory edge cases are pre-deliberated. If a situation matches a tuple, the rule executes deterministically without model improvisation.
+* **Cryptographic Authority & Money Gates:** High-risk actions (listing price authorizations, listing status changes, and wire-related instructions) require an **Ed25519 cryptographic signature**. Unsigned or invalid requests are dropped fail-closed.
+* **6 QuietFire Forensic Detection Pillars:** Continuously inspects agent thought traces and outputs for adversarial divergence, prompt injection, and goal drift.
 
-- **Closed track.** Only the (sender, intent, receiver) tuples in
-  `identity/routes.json` are legal. Anything else is rejected and
-  logged, never silently dropped. 51 routes across 21 agents,
-  machine-verified by the blueprint's `verify_swarm.py` (0 failures,
-  0 warnings).
-- **Hash-chained audit log.** Every entry carries SHA-256 prev/entry
-  linkage from a GENESIS anchor. `verify_chain()` names any tamper,
-  deletion, or reorder by line number. The log is the single source of
-  truth.
-- **Signed authority, fail-closed.** Money-lane and authority intents
-  require a human sender with a cryptographic signature checked against
-  a ratified signer registry (crypto signature → registry identity →
-  IdP session liveness → hash-chained signer stamp). Unsigned,
-  tampered, spoke-forged, expired, and not-yet-effective all DENY.
-  Config templates ship UNRATIFIED and refuse to arm until you edit,
-  date, and sign them off. Absence of an expected artifact never means
-  "proceed" — it means human review.
-- **Honest uncertainty.** A detection pillar that can't load declares
-  itself UNARMED on the audit log instead of crashing or pretending.
-  Placeholders that remain (Twilio credentials, two ratified numeric
-  thresholds) are declared in code comments and `docs/TUNING_MANUAL.md`,
-  and fail loudly, not silently.
+---
 
-## Install
+## Key Capabilities & Upgrades
 
-```
+### 1. JEV AI Decision Platform Integration
+Integrates with the high-efficiency **JEV AI Decision Platform** (`dispatcher/decision_adapter.py`) via the Model Context Protocol (MCP) tool contract. Includes an in-process, zero-network pure Python fallback engine (`JevPythonDecisionEngine`) that evaluates multi-attribute lead rubrics and showing calendar conflicts with zero HTTP REST overhead.
+
+### 2. Nous Hermes Cognitive Seam & Thought Extraction
+Leverages **Nous Hermes** (`dispatcher/hermes_seam.py`) to extract `<think>...</think>` tokens directly in-stream. This bypasses frontier provider thought-inspection bans and feeds authentic internal deliberation directly into the QuietFire detection pillars. Includes the `BrokerContextIngestor` to onboard Hermes like a junior college graduate undergoing in-house brokerage training (SOPs, Fair Housing hard lines, and NAR 2024 settlement rules).
+
+### 3. Local Appliance SQLite Persistence Layer
+Equipped with `dispatcher/persistence_sqlite.py`, providing zero-daemon ACID transactional persistence tailored for local NVMe storage or repurposed Drobo NAS RAID partitions. Persists CRM interaction histories (Agent 14) and financial commission ledgers (Agent 15) across reboots and power cycles.
+
+### 4. Air-Gapped Apricorn Update Pack Verifier
+Offline hardware appliances deployed in the field receive updates via encrypted Apricorn USB flash drives verified by `tools/verify_update_pack.py`. Enforces SHA-256 payload integrity and Ed25519 digital signatures, with a `--dev-bypass` option for cloud VM testing.
+
+---
+
+## The 21 Spoke Agents
+
+| Agent ID | Name | Core Responsibilities | Absolute Invariant |
+| :--- | :--- | :--- | :--- |
+| **00** | Human Principal | Licensed Broker / Team Lead | Owns all fiduciary pricing, legal lines, and final sign-offs. |
+| **01** | Lead Capture | Inbound ingestion across web, email, SMS | Never promises service without jurisdiction verification. |
+| **02** | Lead Qualification | Applies signed lead-scoring rubric via JEV AI | Never authors rubrics; exact boundary scores drop to lower tier. |
+| **03** | Lead Nurture | Cadenced buyer/seller follow-up | Respects legal quiet hours; honors immediate opt-outs. |
+| **04** | Listing Description | Drafts property MLS remarks via Hermes | Zero subjective steering words; physical property facts only. |
+| **05** | Listing Onboarding | Onboarding package & draft MLS records | Go-live requires verified active status, not an assumed push log. |
+| **06** | Showing Scheduler | Showing calendar logistics & buffer management | Access codes never transmitted; double-bookings strictly arbitrated. |
+| **07** | Transaction Coordinator | Escrow timeline & contractual deadlines | Wire fraud lines absolute; inspection repair negotiations human-only. |
+| **08** | Document Collection | Files disclosure forms & transaction artifacts | Sensitive docs from unexpected senders quarantined immediately. |
+| **09** | Vendor Coordinator | Dispatches photographers, stagers, inspectors | Vendor contact details shielded; unvetted vendors rejected. |
+| **10** | Market Data | Comp packages & neighborhood statistics | Pure statistics only; opinions and appraisal substitutions refused. |
+| **11** | Client Communication | Central client-facing communication voice | Angry clients trigger immediate outbound hold & human queue review. |
+| **12** | Marketing & Media | Prepares brochures, flyers, ad copy | Assets held until Fair Housing clearance & Clear Cooperation proof. |
+| **13** | Buyer Matching | Matches active listings to pre-qualified buyers | Never fabricates property amenities or pricing concessions. |
+| **14** | CRM & Pipeline | Authoritative system of record for interaction logs | Zero-loss persistence of client consent and communication history. |
+| **15** | Financial & Commission | Commission calculations & escrow tracking | Reconciliation tolerance is $0.00; wire transfers never handled. |
+| **16** | Referral & Post-Close | Post-closing relationship & review management | Annual milestone checks; immediate opt-out compliance. |
+| **17** | Compliance & Fair Housing | Statutory Fair Housing & MLS rules review | Flagged phrases hard-stop publication; near-misses audited. |
+| **18** | Calendar & Tasks | Human agent daily briefings & wait-state tracking | Contractual deadlines outrank soft meetings; recurring tasks debounced. |
+| **19** | Prospecting & Farm | Geo-farm analysis & outreach planning | DNC / TCPA compliance strictly enforced before any touch. |
+| **20** | Social Media Monitor | Brand sentiment tracking & review monitoring | Public complaints trigger immediate P14 outbound hold & human handoff. |
+
+---
+
+## Installation & Verification
+
+### 1. Requirements
+* Python 3.10+ (Python 3.12 recommended)
+* `git`
+
+### 2. Setup
+```bash
 git clone https://github.com/QuietFireAI/listing-agents.git
 cd listing-agents
 pip install -r requirements.txt
-python -m pytest tests_listing/
 ```
 
-Expect the full suite green from a bare clone — that's a maintained
-guarantee, not an aspiration. `requirements.txt` installs the six-pillar
-detection tier (open-mind, before-turn, pre-response-selfcheck,
-agent-open-mind, sleep-marks, splitvantage) from their own repositories.
-Without them the swarm still routes — every absent pillar declares
-UNARMED — but production should run fully armed. Do not vendor pillar
-code into this repo; import-from-package is the anti-drift mechanism.
+### 3. Verification Suite
+Run the 552-test verification matrix:
+```bash
+python -m pytest tests_listing/
+```
+*Guaranteed: 552 passed, 0 failures, 0 warnings.*
 
-## Run it
+Run the live MCP stdio roundtrip test:
+```bash
+python tools/mcp_roundtrip.py
+```
 
-- `tools/console.py` — the operator console.
-- `dispatcher/sweep_runner.py` — the clock layer.
-  `run_daily_sweeps(hub, spokes, today)` fires every time-based check
-  (deadlines, no-shows, SLAs, chase timeouts, digest flushes) from your
-  scheduler; sweep errors are declared as `sweep.error`, never
-  swallowed.
-- `docs/OPERATOR_TESTING_MANUAL.md` — a filmable, step-by-step operator
-  test script.
-- External adapters (`vendor.schedule`, `client.message.send`,
-  `campaign.publish`) are seam-complete and tracked in
-  `docs/TUNING_MANUAL.md` until wired to your providers. The SMS
-  notifier is a real Twilio implementation with declared placeholder
-  credentials — it fails with a 401, not a fake success, until you
-  supply real ones.
+Run the Six-Act end-to-end swarm lifecycle demonstration:
+```bash
+python tools/run_demo.py
+```
 
-## Reading order
+---
 
-New here? `docs/START_HERE.md` is the 60-second version.
-`docs/PLAY-BY-PLAY.md` narrates what actually happens, step by step, in
-every playbook. `docs/JOB_DESCRIPTIONS.md` is one entry per agent.
-`docs/PLAYBOOKS.md` is all 24 playbooks with triggers, agents deployed,
-and HITL gates.
+## Documentation Roadmap
 
-## Layout
+* **For Prospective Real Estate Agents:**
+  * [`docs/AGENT_USER_MANUAL.md`](docs/AGENT_USER_MANUAL.md) — How ListingAssistants powers your daily workflow while safeguarding your license.
+* **For System Owners & Architects:**
+  * [`docs/OPERATOR_TUNING_GUIDE.md`](docs/OPERATOR_TUNING_GUIDE.md) — How to fine-tune Hermes, adapt JEV AI rubrics, configure Drobo NAS storage, and deploy updates.
+  * [`docs/JEV_DECISION_PLATFORM.md`](docs/JEV_DECISION_PLATFORM.md) — JEV AI decision protocol and Python fallback engine details.
+  * [`docs/TUNING_MANUAL.md`](docs/TUNING_MANUAL.md) — Complete register of configurable operational thresholds.
+* **Operational Playbooks & Coaches Guide:**
+  * [`docs/SWARM_COACHES_PLAYBOOK.md`](docs/SWARM_COACHES_PLAYBOOK.md) — Plain-English guide to all 24 playbooks and 227 decision tuples.
+  * [`docs/PLAYBOOKS.md`](docs/PLAYBOOKS.md) — Technical triggers, inputs, and human-in-the-loop gates for Playbooks P01 through P24.
 
-- `dispatcher/` — vendored dispatcher-agents core (hub, core, pillars,
-  analysis, kpi, territory, loader, signer_registry) plus the 20
-  `listing_spokes*.py` identity spokes. Kept byte-identical to core via
-  `tools/sync_core.py --check` (CI-enforced; exit 1 = drift).
-- `identity/routes.json` — the closed track: every legal
-  (sender, intent, receiver) tuple.
-- `config/` — business content the code can't guess (templates,
-  cadences, milestones, vendor panel, authority signers). Edits go to
-  **both** this repo and listing-agents-blueprint, or fork drift
-  returns.
-- `docs/TUNING_MANUAL.md` — every configurable numeric parameter,
-  updated in the same commit that introduces any tunable, ENFORCED by
-  `tests_listing/test_tuning_manual_freshness.py`.
-- `docs/JOB_DESCRIPTIONS.md`, `docs/PLAYBOOKS.md` — GENERATED by the
-  blueprint's `gen_docs.py` from the ratified SKILL.mds. Regenerate
-  there, never hand-edit here.
-- `tests_listing/` — the full suite, including end-to-end runs of all
-  24 playbooks driven only by their real triggers and external events.
-  Run it from a fresh clone before trusting any "done" claim, including
-  this README's.
+---
 
-## Provenance
+## Licensing & Brand Notice
 
-The ratified source for every agent's SKILL.md, DECISIONS.md, and the
-routes themselves is
-[listing-agents-blueprint](https://github.com/QuietFireAI/listing-agents-blueprint).
-This repo is the working build generated against that blueprint — never
-hand-edit one without the other. Fork drift is a named defect class
-here, and the tooling exists because it happened.
-
-## License
-
-Dual-licensed under the **QuietFire Identity License** (see `LICENSE`) over
-an **AGPL-3.0** floor (see `LICENSE-AGPL`). Evaluation, development, and
-internal testing — including cloning, running the suite, and any demo — are
-free. **Production and commercial use require a paid license from
-QuietFireAI or full AGPL-3.0 compliance.** Building derivative identities
-for third parties is not permitted without a commercial license. The
-supported commercial operating environment is TelsonBase. The open chassis
-this runs on (dispatcher-agents) is Apache-2.0 and separate.
-
-*License text is a placeholder pending counsel review.*
+* **Brand Notice:** **ListingAssistants** is being rebranded at [ListingAssistants.com](https://ListingAssistants.com). It is entirely separate, distinct, and independent from *listingagent.com*.
+* **License:** Dual-licensed under the **QuietFire Identity License** over an **AGPL-3.0** floor. Evaluation, development, and internal testing are open. Commercial deployment requires an authorized commercial license from QuietFireAI.

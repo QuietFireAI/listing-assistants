@@ -8,6 +8,9 @@ showing.no_show, showing.feedback_response all originate here).
 """
 from __future__ import annotations
 
+import json
+import os
+
 from .core import Envelope
 
 SOURCE_VERIFIED = "source_verified"
@@ -89,11 +92,27 @@ class Spoke11ClientCommunication:
 
     # TUNABLE (owner-ratified 2026-07-16): quiet_hours=(21, 8).
     # See docs/TUNING_MANUAL.md to change.
+    @staticmethod
+    def _load_message_templates() -> dict[str, dict]:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "config", "message_templates.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return {e["template_id"]: e for e in data.get("entries", []) if "template_id" in e}
+            except Exception:
+                pass
+        return {}
+
     def __init__(self, hub, quiet_hours: tuple[int, int] = (21, 8),
-                 exempt_alert_classes: set[str] | None = None):
+                 exempt_alert_classes: set[str] | None = None,
+                 message_templates: dict[str, dict] | None = None):
         self.hub = hub
         self.quiet_hours = quiet_hours  # (start_hour, end_hour), wraps midnight
         self.exempt_alert_classes = exempt_alert_classes or set()
+        self.approved_templates = message_templates or self._load_message_templates()
         self.pending_conflict: dict[str, list] = {}  # ctx -> conflicting statuses
         self.pending_showing_requests: dict[str, dict] = {}  # ctx -> held request
         self.awaiting_human_response: dict[str, bool] = {}  # ctx -> escalated, awaiting human

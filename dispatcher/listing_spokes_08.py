@@ -8,6 +8,10 @@ integration test, not just parallel assumption on both sides.
 """
 from __future__ import annotations
 
+import json
+import os
+import re
+
 from .core import Envelope
 
 SOURCE_VERIFIED = "source_verified"
@@ -76,10 +80,30 @@ class Spoke08DocumentCollection:
 
     # TUNABLE (owner-ratified 2026-07-16): document_chase_cap=3.
     # See docs/TUNING_MANUAL.md to change.
+    @staticmethod
+    def _load_cadence_document_chase_cap() -> int | None:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "config", "cadence_settings.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    for entry in data.get("entries", []):
+                        if entry.get("cadence_id") == "document_chase":
+                            ceiling_str = str(entry.get("ceiling", ""))
+                            m = re.search(r"(\d+)\s+attempts", ceiling_str)
+                            if m:
+                                return int(m.group(1))
+            except Exception:
+                pass
+        return None
+
     def __init__(self, hub, expected_senders: dict[str, set[str]] | None = None,
                  document_chase_cap: int = 3):
         self.hub = hub
-        self.document_chase_cap = document_chase_cap
+        loaded = self._load_cadence_document_chase_cap()
+        self.document_chase_cap = loaded if (loaded is not None and document_chase_cap == 3) else document_chase_cap
         self.filed_documents: dict[str, list[dict]] = {}  # ctx -> filed docs
         self.pending_requests: dict[str, dict[str, dict]] = {}  # ctx -> {doc_type: {chase_count}}
         # per-context, per-doc-type set of senders this transaction expects -

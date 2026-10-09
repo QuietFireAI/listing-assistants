@@ -107,13 +107,25 @@ Same stdio server, in `claude_desktop_config.json`:
 ## Governance note (why the surface is deliberately narrow)
 
 Both Hermes and OpenClaw extend agents by letting the host LLM decide
-when to call a tool. Exposing this identity's 14 internal agents as 14
+when to call a tool. Exposing this identity's 21 internal agents as 21
 free tools would hand routing back to the host and dissolve the closed
 track — the identity would become a toolbox wearing the name, not a
 governed system. The four-tool front door is the fix: the host can only
 submit intents; the hub enforces the track, the signatures, the $0.00
 rule, and the sealed custody internally. **The MCP shell is the open
 socket; the governed hub is the licensed cartridge.**
+
+## JEV AI Decision Platform MCP Integration
+
+When using the JEV AI Decision Platform coprocessor, configure the JEV MCP tool in your environment:
+```yaml
+# MCP tool configuration for JEV Decision Platform
+mcp_servers:
+  jev_decision:
+    command: python3
+    args: ["-m", "jev_decision_service.server"]
+```
+If the external JEV MCP server is offline or in an air-gapped hardware deployment, `dispatcher/decision_adapter.py` seamlessly falls back to the in-process `JevPythonDecisionEngine` with zero network overhead.
 
 ## License
 

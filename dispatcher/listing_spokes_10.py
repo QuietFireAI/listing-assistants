@@ -97,6 +97,10 @@ class Spoke10MarketData:
         self.pressed_for_opinion: dict[str, int] = {}  # ctx -> count
         hub.register("10", self.handle)
 
+    def get_subject_property(self, ctx: str) -> list[dict]:
+        """Returns subject property facts recorded from 05 listing.data."""
+        return self.mls_feed.get(ctx, [])
+
     def handle(self, env: Envelope):
         ctx = env.client_context_id
         payload = env.payload
@@ -108,6 +112,11 @@ class Spoke10MarketData:
         if env.intent == "data.request":
             requester = env.from_agent
             message = str(payload.get("message", "")).lower()
+
+            if payload.get("mode") == "subject":
+                self.hub.send(_env("10", requester, "data.package", ctx,
+                                   {"mode": "subject", "facts": self.get_subject_property(ctx)}))
+                return
 
             # tuple 3: opinion request -> refuse, escalate if pressed
             if any(w in message for w in _OPINION_WORDS):

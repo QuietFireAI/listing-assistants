@@ -27,6 +27,7 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
 import uuid
 
 # --- locate the identity this wrapper serves -------------------------------
@@ -70,7 +71,8 @@ def _boot_conformance():
     #    authority envelope is rejected by the hub.
     signer = Ed25519Signer()
     verifier = Ed25519Verifier(signer.public_key_bytes())
-    probe_audit = AuditLog(f"/tmp/conformance-{uuid.uuid4().hex[:8]}.jsonl")
+    probe_audit = AuditLog(
+        os.path.join(tempfile.gettempdir(), f"conformance-{uuid.uuid4().hex[:8]}.jsonl"))
     hub = Hub(routes, probe_audit,
               signature_verifier=verifier.verifier())
     hub.register("human", lambda e: None)
@@ -119,7 +121,8 @@ class GovernedIdentity:
 
     def __init__(self, routes, signer, verifier):
         self.signer = signer
-        self.audit_path = f"/tmp/{IDENTITY_NAME}-mcp-{uuid.uuid4().hex[:8]}.jsonl"
+        self.audit_path = os.path.join(
+            tempfile.gettempdir(), f"{IDENTITY_NAME}-mcp-{uuid.uuid4().hex[:8]}.jsonl")
         self.hub = Hub(routes, AuditLog(self.audit_path),
                        signature_verifier=verifier.verifier())
         self.external = []

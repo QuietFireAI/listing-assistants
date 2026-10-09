@@ -6,6 +6,9 @@ checked first, on every inbound event, regardless of type.
 """
 from __future__ import annotations
 
+import json
+import os
+
 from .core import Envelope
 
 SOURCE_VERIFIED = "source_verified"
@@ -80,6 +83,24 @@ class Spoke07TransactionCoordinator:
     # financing_contingency deadline-alert special case - those are
     # genuinely distinct logic per milestone, not lookup data, and stay
     # in Python. See docs/TUNING_MANUAL.md to change.
+    @staticmethod
+    def _load_transaction_milestone_config() -> dict[str, dict] | None:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "config", "transaction_milestones.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    entries = data.get("entries", [])
+                    if entries:
+                        return {e["milestone"]: {"needs_document": e.get("needs_document", False),
+                                                 "vendor_kind": e.get("vendor_kind")}
+                                for e in entries if "milestone" in e}
+            except Exception:
+                pass
+        return None
+
     _DEFAULT_TRANSACTION_MILESTONES = {
         "inspection": {"needs_document": True, "vendor_kind": "inspector"},
         "appraisal": {"needs_document": True, "vendor_kind": "appraiser"},
@@ -94,8 +115,10 @@ class Spoke07TransactionCoordinator:
                  transaction_milestone_config: dict[str, dict] | None = None):
         self.hub = hub
         self.vendor_holdup_days = vendor_holdup_days
-        self.transaction_milestone_config = (transaction_milestone_config or
-                                             self._DEFAULT_TRANSACTION_MILESTONES)
+        self.transaction_milestone_config = (
+            transaction_milestone_config or
+            self._load_transaction_milestone_config() or
+            self._DEFAULT_TRANSACTION_MILESTONES)
         self.timelines: dict[str, dict] = {}  # ctx -> {milestone: {deadline, satisfied, artifact}}
         self.offer_status: dict[str, dict] = {}  # ctx -> {stage, response_deadline}
         # tracks outstanding vendor.request per (ctx, milestone) -> date sent,

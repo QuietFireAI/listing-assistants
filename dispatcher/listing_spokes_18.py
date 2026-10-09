@@ -121,6 +121,12 @@ class Spoke18CalendarTask:
                     payload.get("waiting_on") == "showing_feedback":
                 self.showing_followup_seen.add(ctx)
             key = self._wait_key(env.from_agent, ctx, payload.get("waiting_on", ""))
+            task_id = payload.get("recurring_task_id") or payload.get("task_id")
+            if task_id:
+                task_date = (payload.get("completed_at") or payload.get("date") or
+                             payload.get("day") or payload.get("since"))
+                if task_date:
+                    self.recurring_task_last_seen[task_id] = str(task_date)
             if payload.get("resolved"):
                 self.waiting.pop(key, None)
                 self.hub.ingest_spoke_trace(
@@ -143,6 +149,8 @@ class Spoke18CalendarTask:
 
         if env.intent == "calendar.event":
             day = payload.get("day")
+            if payload.get("recurring_task_id"):
+                self.recurring_task_last_seen[payload["recurring_task_id"]] = str(day)
             # Doctrine is unconditional: "deadline blocks originating from
             # 07 are protected" - derived from source, not a trusted flag.
             # A payload could claim protected=False for a 07-sourced block

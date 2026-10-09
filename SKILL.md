@@ -1,16 +1,16 @@
 ---
 name: listing-agents
-description: Governed 14-agent real-estate listing swarm identity. Use when operating revenue-cycle work end to end - lead capture, listing onboarding, MLS, showings, marketing, fair-housing compliance - under a closed routing track with a hash-chained audit log, signed money, and sealed clinical custody. Load this skill to run, side-load, or supervise the listing identity on dispatcher-agents, Hermes, or OpenClaw.
+description: Governed 21-agent residential real estate listing swarm identity. Use when operating listing lifecycle work end to end - lead capture, listing onboarding, MLS, showings, transaction coordination, marketing, and fair-housing compliance - under a closed routing track with a hash-chained audit log, signed fiduciary actions, and 6 QuietFire forensic detection pillars. Load this skill to run, side-load, or supervise the listing identity on dispatcher-agents, Hermes, or OpenClaw.
 ---
 
-# listing-agents - Governed RCM Swarm Identity
+# listing-agents - Governed Residential Real Estate Swarm Identity
 
 ## What loading this skill gives an agent
 
-A complete, ratified operating identity: 14 spoke agents, 44 legal routes
-(`identity/routes.json` - the closed track), 14 playbooks (P01-P14) with
-explicit human gates, 83 predeliberated decision tuples, ratified config
-doctrine, and a working reference runtime with a 24-test e2e suite.
+A complete, ratified operating identity: 21 spoke agents (00-20), 51 legal routes
+(`identity/routes.json` - the closed track), 24 playbooks (P01-P24) with
+explicit human gates, 227 predeliberated decision tuples, ratified config
+doctrine, and a comprehensive test suite (538 tests, 624 mutation vectors).
 
 ## The absolute lines (enforced in code)
 
