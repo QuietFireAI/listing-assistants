@@ -104,15 +104,35 @@ You can train a LoRA adapter on these pairs using Unsloth, Axolotl, or vLLM in u
 
 ## 3. The JEV AI Decision Platform Configuration
 
-### Architecture & Fallback
-The **JEV AI Decision Platform Adapter** ([`dispatcher/decision_adapter.py`](file:///C:/Users/halfm/.gemini/antigravity/scratch/listing-agents/dispatcher/decision_adapter.py)) operates as a dual-channel coprocessor:
-1. **Primary:** Connects to the JEV AI MCP service over stdio (`tools/call_jev_decision`).
-2. **Zero-Network Fallback:** If MCP is unavailable or disconnected, executes `JevPythonDecisionEngine` in-process with zero network overhead.
+### Architecture & Dual-Channel Dispatch
+The **JEV AI Decision Platform Adapter** ([`dispatcher/decision_adapter.py`](file:///C:/Users/halfm/.gemini/antigravity/scratch/listing-agents/dispatcher/decision_adapter.py)) operates as an external, structured decision coprocessor designed for high-throughput, deterministic evaluation with zero HTTP REST overhead.
 
-### Tuning Lead Scoring Rubrics (Agent 02)
-Lead qualification does not make arbitrary guesses; it evaluates against a signed rubric schema.
+```mermaid
+flowchart TD
+    Spoke["Spoke Agent (02 Lead / 06 Showing)"] --> Adapter["JevDecisionAdapter\n(dispatcher/decision_adapter.py)"]
+    Adapter --> Mode{"JEV MCP Daemon Available?"}
+    
+    Mode -- "Yes (Cloud VM / MCP Socket)" --> MCP["JEV MCP Client\n(tool: call_jev_decision)"]
+    Mode -- "No / Offline Appliance" --> Fallback["JevPythonDecisionEngine\n(Pure Python In-Process)"]
+    
+    MCP --> Result["Structured Decision Result\n(tier, score, notes, provenance)"]
+    Fallback --> Result
+    Result --> Audit["Hub Audit Log (SHA-256 + Ed25519)"]
+```
 
-**Configurable Weights & Thresholds in `rubric` dict:**
+### Supported Decision Domains
+
+#### Domain 1: Lead Qualification (`lead_qualification`)
+Evaluated by **Agent 02 (Lead Qualification)** against an operator-signed rubric schema.
+
+* **Mathematical Scoring Formula:**
+  $$\text{Total Score} = S_{\text{budget}} + S_{\text{timeline}} + S_{\text{financing}}$$
+  Where:
+  * $S_{\text{budget}} = \text{budget\_weight} \times \min\left(1.0, \frac{\text{effective\_budget}}{\text{budget\_threshold}}\right)$
+  * $S_{\text{timeline}} = \text{timeline\_weight} \times \max\left(0.0, 1.0 - \frac{\text{timeline\_days}}{\text{timeline\_days\_threshold}}\right)$
+  * $S_{\text{financing}} = \text{financing\_weight} \times \begin{cases} 1.0 & \text{if preapproved} \\ 0.5 & \text{if prequalified} \\ 0.0 & \text{otherwise} \end{cases}$
+
+* **Tuning Knobs (`rubric` dictionary):**
 ```json
 {
   "budget_threshold": 500000,
@@ -125,11 +145,52 @@ Lead qualification does not make arbitrary guesses; it evaluates against a signe
 }
 ```
 
-**Key Operational Behaviors to Remember:**
-* **Doc Precedence:** If a verified pre-approval letter exists with amount `$450,000` but the buyer states their budget is `$600,000`, the pre-approval letter **wins**. Budget score evaluates against `$450,000`.
-* **Conservative Boundary Drop:** If a lead scores exactly `70` (the exact `hot_threshold`), the system **assigns `WARM`** (the lower tier) and flags the lead for human review. This prevents borderline leads from slipping into urgent SLA queues without confirmation.
-* **Environment Overrides:**
-  * To force pure Python evaluation during local debugging: set `JEV_FORCE_PYTHON=1`.
+* **Core Operational Invariants:**
+  1. **Document Precedence:** If a verified pre-approval letter exists (`preapproval_amount`), it **strictly overrides** any unverified self-reported buyer budget (`stated_budget`). Budget score calculates against the documented letter value.
+  2. **Conservative Boundary Drop:** If a lead scores exactly on the boundary (e.g. score = 70.0 when `hot_threshold = 70`), the engine drops the assignment to the **lower tier** (`WARM`) and flags the record for human review. Borderline scores are never auto-promoted.
+  3. **Null Data Protection:** If all input criteria are null, the engine returns `tier = "UNKNOWN"` rather than defaulting to `COLD`.
+
+#### Domain 2: Showing Conflict Arbitration (`showing_conflict`)
+Evaluated by **Agent 06 (Showing Scheduler)** when incoming tour requests contend for occupied property calendar slots.
+
+* **Arbitration Rules:**
+  1. **Contractual Milestone Protection:** Calendar events originating from Agent 07 (statutory home inspections, lender appraisals, loan contingency dates) strictly outrank soft showing bookings.
+  2. **Notice Window Enforcement:** Short-notice tour requests on occupied properties that breach the seller's minimum advance notice buffer (e.g. 24 hours) are rejected or held for human confirmation.
+  3. **Buffer-Aware Sequencing:** Showings within the buffer window (e.g. 30 minutes) are sequenced consecutively rather than double-booking the property.
+
+### Programmatic Invocation Example
+```python
+from dispatcher.decision_adapter import JevDecisionAdapter
+
+adapter = JevDecisionAdapter()
+
+# Evaluate incoming buyer lead
+result = adapter.evaluate_lead(
+    lead_data={
+        "stated_budget": 600000,
+        "preapproval_letter_amount": 450000,
+        "timeline_days": 14,
+        "financing_status": "preapproved"
+    },
+    rubric={
+        "budget_threshold": 500000,
+        "budget_weight": 40,
+        "timeline_days_threshold": 30,
+        "timeline_weight": 40,
+        "financing_weight": 20,
+        "hot_threshold": 70,
+        "warm_threshold": 40
+    }
+)
+
+print(f"Tier: {result['tier']}, Score: {result['score']}")
+# Output: Tier: WARM (Doc precedence anchored budget to 450k; boundary drop enforced)
+```
+
+### Environment Variables & Overrides
+* `JEV_FORCE_PYTHON=1`: Forces execution through the in-process `JevPythonDecisionEngine`, completely bypassing external MCP sockets. Essential for unit tests, air-gapped staging, and embedded hardware deployments.
+* `JEV_MCP_COMMAND`: Custom shell command or path for the standalone JEV AI MCP daemon when running in Stage 1 Cloud VM environments.
+
 
 ---
 

@@ -92,3 +92,12 @@ existing.
 | 2026-08-02 01:12:33 UTC | dispatcher-agents | `0bafaa9` | ABSOLUTE SIGNAL: disclosure gate (hold counterparty/public) + signed release_disclosure path (Ed25519+registry+MFA) + canonical rebuttal + FINANCIAL_CAPABILITY.md; 125 tests pass |
 | 2026-08-02 01:12:33 UTC | listing-agents | `aeb9a3d` | ABSOLUTE SIGNAL: sync gate/release, tag 3 external routes with audience, MANNERS Manner 15, rewrite 12 tests to hold->release->complete contract; 420 tests pass |
 | 2026-08-02 01:12:33 UTC | listing-agents | *(this commit)* | Demo: Act 1 + Act 4 reframed to show gate hold -> human signed release -> publish (video-ready); repo docs |
+| 2026-10-08 20:20:00 UTC | listing-agents | `audit-obj1-3` | Complete Forensic, DevOps, and Systemic Audits; 624 mutation hardening tests; 538 tests passing |
+| 2026-10-08 22:45:00 UTC | listing-agents | `feat-b1-jev` | Add JEV AI Decision Platform Adapter (MCP client + pure-Python deterministic fallback engine) |
+| 2026-10-08 23:10:00 UTC | listing-agents | `feat-b2-hermes` | Add Nous Hermes Cognitive Seam: in-stream `<think>` extraction + BrokerContextIngestor college-grad curriculum |
+| 2026-10-08 23:35:00 UTC | listing-agents | `feat-b3-sqlite` | Add Appliance SQLite Persistence Layer targeting Drobo NAS RAID partitions |
+| 2026-10-08 23:55:00 UTC | listing-agents | `feat-b4-apricorn` | Add Air-Gapped Apricorn Encrypted Flash Drive Update Verifier (Ed25519 + SHA-256) |
+| 2026-10-09 01:15:00 UTC | listing-agents | `feat-b5-drawers` | Add 'One Client, One Drawer' Architecture: isolated client vaults, anti-commingling fail-closed enforcement |
+| 2026-10-09 02:40:00 UTC | listing-agents | `feat-b6-hitl` | Add HITL Resumption Protocol: WaitState serialization, real-time alerts (SMS/webhook/push), AM briefing recap |
+| 2026-10-09 07:45:00 UTC | listing-agents | `docs-all-current` | Rebrand to ListingAssistants (ListingAssistants.com); complete User Manual & Tuning Guides; 558/558 tests passing |
+

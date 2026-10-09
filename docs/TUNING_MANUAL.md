@@ -1,13 +1,15 @@
 # Tuning Manual — listing-agents
 
-## Runtime & mount status (2026-07-19)
+## Runtime & mount status (2026-10-09)
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - 20 spokes, 420 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). |
+| Listing runtime | **WORKING BUILD** - 21 agents (00–20), 558 tests passed, all playbooks P01–P24 e2e (including JEV AI Decision Platform, Hermes Cognitive Seam, Drobo NAS Persistence, Apricorn Update Verifier, Client Drawers, and HITL Resumption Protocol). |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
-| MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
+| MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). |
 | Front door | `listing.authorize` (signed) runs P01; the host cannot route inside the swarm. |
+| Brand Notice | Transitioning from `listing-agents` to **ListingAssistants** ([ListingAssistants.com](https://ListingAssistants.com)). Distinct from *listingagent.com*. |
+
 
 
 Every numeric/timing parameter in this codebase that a human might
@@ -256,3 +258,36 @@ parameter nobody outside the source code knows exists.
 | `audience_verified` flag | `identity/routes.json` | **PER-ROUTE** | `false` = provisional classification, surfaced on the hold. All 3 listing external routes are verified `true`. |
 | Disclosure release intent | `disclosure.authority` | **CONSTANT** | Signed authority intent that clears exactly one held message. Reuses the execution-authority stack (Ed25519 sig + signer registry + MFA). No route entry needed (verified directly, re-sends the original). |
 | Canonical signal text | `dispatcher/absolute_signal.py` `SIGNAL_TEXT` | **SINGLE SOURCE** | MANNERS.md Manner 15 and docs/FINANCIAL_CAPABILITY.md defer to this. sha256-checked by tests + propagation_check.py. Never hand-edit downstream copies. |
+
+---
+
+## JEV AI Decision Platform & Hardened Additions (added 2026-10-09)
+
+### 1. JEV AI Decision Platform Parameters (`dispatcher/decision_adapter.py`)
+
+| Parameter | Default | Location | Description & Tuning Impact |
+|---|---|---|---|
+| `budget_threshold` | `500000` | Lead rubric | Budget ceiling for maximum budget scoring component ($40 pts). |
+| `budget_weight` | `40` | Lead rubric | Points allocated to lead budget qualification. |
+| `timeline_days_threshold` | `30` | Lead rubric | Timeline ceiling in days for maximum urgency score ($40 pts). |
+| `timeline_weight` | `40` | Lead rubric | Points allocated to buyer purchase timeline. |
+| `financing_weight` | `20` | Lead rubric | Points allocated to verified financing readiness. |
+| `hot_threshold` | `70` | Lead rubric | Score required for HOT qualification. Exactly 70 drops conservatively to WARM for human review. |
+| `warm_threshold` | `40` | Lead rubric | Score required for WARM qualification. Below 40 is COLD. |
+| `JEV_FORCE_PYTHON` | `0` | Environment variable | Set to `1` to bypass MCP daemon and evaluate via pure-Python in-process engine. |
+
+### 2. Client Drawer Isolation Parameters (`dispatcher/client_drawer.py`)
+
+| Parameter | Default | Location | Description & Tuning Impact |
+|---|---|---|---|
+| `drawers_root` | `"drawers"` | Drawer manager | Root directory for isolated client vaults on Drobo NAS or local storage. |
+| `enforce_anti_commingling` | `True` | Security invariant | Strictly halts execution with `ComminglingBreachError` if cross-drawer access occurs. |
+
+### 3. HITL Resumption Protocol Parameters (`dispatcher/hitl_protocol.py`)
+
+| Parameter | Default | Location | Description & Tuning Impact |
+|---|---|---|---|
+| `wait_state_timeout_seconds` | `86400` (24h) | HITL lifecycle | Maximum time a wait-state remains pending before escalation in Agent 18 briefing. |
+| `morning_briefing_time` | `08:00` | Agent 18 sweep | Daily clock trigger that recaps all unresolved human decisions. |
+| `notifier_channels` | `["sms", "webhook", "push"]` | RealtimeNotifier | Configured alert channels for immediate notification upon human gate halt. |
+

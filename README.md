@@ -4,7 +4,7 @@
 *Every message routed by one hub, every route pre-approved, every action recorded on a tamper-evident, hash-chained audit log.*  
 *(Official Production Domain: [ListingAssistants.com](https://ListingAssistants.com) — Brand notice: distinct from listingagent.com)*
 
-[![Test Suite](https://img.shields.io/badge/pytest-552%20passed-brightgreen.svg)](tests_listing/)
+[![Test Suite](https://img.shields.io/badge/pytest-558%20passed-brightgreen.svg)](tests_listing/)
 [![Closed Track](https://img.shields.io/badge/routes-51%20closed%20lanes-blue.svg)](identity/routes.json)
 [![Playbooks](https://img.shields.io/badge/playbooks-24%20ratified-blueviolet.svg)](playbooks/)
 [![Decisions](https://img.shields.io/badge/tuples-227%20deterministic-orange.svg)](docs/SWARM_COACHES_PLAYBOOK.md)
@@ -25,7 +25,7 @@ Unlike conventional, unconstrained LLM chat wrappers that hallucinate prices, le
 
 ---
 
-## Key Capabilities & Upgrades
+## Key Capabilities & Hardened Additions
 
 ### 1. JEV AI Decision Platform Integration
 Integrates with the high-efficiency **JEV AI Decision Platform** (`dispatcher/decision_adapter.py`) via the Model Context Protocol (MCP) tool contract. Includes an in-process, zero-network pure Python fallback engine (`JevPythonDecisionEngine`) that evaluates multi-attribute lead rubrics and showing calendar conflicts with zero HTTP REST overhead.
@@ -34,10 +34,17 @@ Integrates with the high-efficiency **JEV AI Decision Platform** (`dispatcher/de
 Leverages **Nous Hermes** (`dispatcher/hermes_seam.py`) to extract `<think>...</think>` tokens directly in-stream. This bypasses frontier provider thought-inspection bans and feeds authentic internal deliberation directly into the QuietFire detection pillars. Includes the `BrokerContextIngestor` to onboard Hermes like a junior college graduate undergoing in-house brokerage training (SOPs, Fair Housing hard lines, and NAR 2024 settlement rules).
 
 ### 3. Local Appliance SQLite Persistence Layer
-Equipped with `dispatcher/persistence_sqlite.py`, providing zero-daemon ACID transactional persistence tailored for local NVMe storage or repurposed Drobo NAS RAID partitions. Persists CRM interaction histories (Agent 14) and financial commission ledgers (Agent 15) across reboots and power cycles.
+Equipped with `dispatcher/persistence_sqlite.py`, providing zero-daemon ACID transactional persistence tailored for local NVMe storage or repurposed Drobo NAS RAID partitions. Persists CRM interaction histories (Agent 14), client drawer registers, and financial commission ledgers (Agent 15) across reboots and power cycles.
 
 ### 4. Air-Gapped Apricorn Update Pack Verifier
 Offline hardware appliances deployed in the field receive updates via encrypted Apricorn USB flash drives verified by `tools/verify_update_pack.py`. Enforces SHA-256 payload integrity and Ed25519 digital signatures, with a `--dev-bypass` option for cloud VM testing.
+
+### 5. "One Client, One Drawer" Privacy Vaults
+Eliminates confidential client data leakage and cross-contamination via strict filesystem and database isolation (`dispatcher/client_drawer.py`). Every client receives an isolated vault (`drawers/<client_id>/`). Attempts to access files across drawer boundaries raise `ComminglingBreachError` fail-closed. Verified via `tools/inspect_client_drawer.py`.
+
+### 6. Human-in-the-Loop (HITL) Resumption Protocol & Real-Time Alerts
+Provides a complete pause-and-resume lifecycle (`dispatcher/hitl_protocol.py`) when agents hit human authorization gates. Serializes task state to `WaitState`, fires immediate real-time notifications via SMS (Twilio), webhook, or push, deterministically resumes the exact halted spoke upon human directive, and recaps open decisions in Agent 18's 08:00 AM morning dossier. Managed via `tools/manage_hitl_queue.py`.
+
 
 ---
 
@@ -83,11 +90,11 @@ pip install -r requirements.txt
 ```
 
 ### 3. Verification Suite
-Run the 552-test verification matrix:
+Run the 558-test verification matrix:
 ```bash
 python -m pytest tests_listing/
 ```
-*Guaranteed: 552 passed, 0 failures, 0 warnings.*
+*Guaranteed: 558 passed, 0 failures, 0 warnings.*
 
 Run the live MCP stdio roundtrip test:
 ```bash

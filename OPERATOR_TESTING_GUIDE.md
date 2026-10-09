@@ -15,10 +15,10 @@ Repo: `github.com/QuietFireAI/listing-agents` @ `92187d6` or later.
 git clone https://github.com/QuietFireAI/listing-agents.git
 cd listing-agents
 pip install --break-system-packages -e ".[pillars,crypto]"   # pulls the 6 pillars + Ed25519
-python3 -m pytest tests_listing -q                            # expect: 420 passed
+python3 -m pytest tests_listing -q                            # expect: 558 passed
 ```
 
-If `420 passed` prints, the build is sound and nothing needs addressing before you
+If `558 passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 

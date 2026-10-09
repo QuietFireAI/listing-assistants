@@ -10,7 +10,7 @@ description: Governed 21-agent residential real estate listing swarm identity. U
 A complete, ratified operating identity: 21 spoke agents (00-20), 51 legal routes
 (`identity/routes.json` - the closed track), 24 playbooks (P01-P24) with
 explicit human gates, 227 predeliberated decision tuples, ratified config
-doctrine, and a comprehensive test suite (538 tests, 624 mutation vectors).
+doctrine, and a comprehensive test suite (558 tests, 624 mutation vectors).
 
 ## The absolute lines (enforced in code)
 

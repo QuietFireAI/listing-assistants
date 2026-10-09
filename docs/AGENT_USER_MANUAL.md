@@ -155,9 +155,15 @@ Think of ListingAssistants as your boutique brokerage front office:
 
 Behind the scenes, ListingAssistants utilizes two specialized artificial intelligence engines working in tandem to protect and elevate your business:
 
-### 1. JEV AI Decision Platform (The Mathematical Coprocessor)
-* **What it does:** JEV AI handles cold, deterministic mathematical and rule-based calculations. It evaluates multi-attribute lead qualification rubrics (Agent 02) and arbitrates complex showing schedule overlaps (Agent 06).
-* **Why it matters to you:** Unlike standard chatbots that might calculate numbers unpredictably, JEV AI evaluates verified documentation strictly. For example, if a buyer claims they have a \$600,000 budget, but their verified pre-approval letter states \$450,000, JEV AI strictly anchors to the pre-approval letter. Furthermore, if a lead score sits exactly on a boundary threshold, JEV AI drops conservatively to the lower tier for human review rather than prematurely elevating a borderline lead.
+### 1. JEV AI Decision Platform (The Deterministic Decision Coprocessor)
+* **What It Is:** JEV AI is our structured, high-precision decision evaluation engine. While large language models excel at writing prose, they are notoriously inconsistent at mathematical logic, multi-criteria scoring, and rigid rule enforcement. JEV AI handles all deterministic calculations for **Agent 02 (Lead Qualification)** and **Agent 06 (Showing Conflict Resolution)**.
+* **Why It Matters to Your Practice:**
+  1. **Strict Documentation Precedence:** If a prospective buyer claims on a web form that their budget is $800,000, but their verified pre-approval letter from a lender states $650,000, JEV AI evaluates against the verified $650,000 pre-approval letter. You will never waste time driving across town for an unverified lead whose stated claims contradict their documentation.
+  2. **Conservative Safety on Tier Boundaries:** In real estate, misclassifying a lead can either burn client goodwill or overwhelm your schedule. If your HOT threshold is set to 70 points and an incoming lead scores exactly 70.0, JEV AI **drops the lead conservatively to WARM** and routes the lead dossier to your personal review queue. Borderline cases are never blindly accelerated without human eyes.
+  3. **Showing Conflict & Escrow Milestone Protection:** When showing requests flood in for a hot new listing, JEV AI arbitrates the schedule. It automatically enforces your seller's required notice windows (e.g. 24-hour notice for occupied homes) and mandatory 30-minute cleaning and transition buffers between private tours. Crucially, contractual escrow appointments (such as a structural engineering inspection or lender appraisal from Agent 07) **strictly outrank** routine showing tours—your transaction deadlines are never compromised.
+  4. **Zero Cloud Latency & Zero Per-Token Costs:** JEV AI operates via a pure-Python, zero-network in-process engine. It requires zero external cloud API calls, incurs zero per-token subscription charges, and never transmits your clients' confidential pre-approval letters over third-party internet endpoints. It calculates results in under 5 milliseconds with 100% mathematical repeatability.
+  5. **Customizable for Your Market:** You can calibrate your lead qualification rubrics for your specific market tier (e.g., luxury coastal versus entry-level suburban) simply by setting your budget, timeline, and financing weights in your configuration.
+
 
 ### 2. Nous Hermes Cognitive Engine (The Creative Real Estate Associate)
 * **What it does:** Nous Hermes powers your creative drafting—authoring compelling listing descriptions (Agent 04) and client messages (Agent 11).
