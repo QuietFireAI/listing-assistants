@@ -103,3 +103,138 @@ def test_jev_adapter_fallback():
     res = adapter.evaluate_lead("ctx-fallback", {"stated_budget": 600_000}, rubric)
     assert res["status"] == "ok"
     assert res["engine"] == "python_fallback"
+
+
+def test_jev_confidence_underflow_triggers_deterministic_stop():
+    engine = JevPythonDecisionEngine(confidence_threshold=0.45)
+    rubric = {
+        "budget_threshold": 500_000,
+        "budget_weight": 40,
+        "timeline_days_threshold": 30,
+        "timeline_weight": 40,
+        "financing_weight": 20,
+        "hot_threshold": 70,
+        "warm_threshold": 40,
+    }
+    # Lead with explicit low confidence rating (0.38 < 0.45)
+    lead = {
+        "stated_budget": 650_000,
+        "timeline_days": 10,
+        "confidence": 0.38,
+    }
+    res = engine.evaluate_lead_rubric("ctx-underflow-01", lead, rubric)
+    assert res["status"] == "held_confidence_underflow"
+    assert res["is_confidence_underflow"] is True
+    assert res["confidence"] == 0.38
+    assert res["confidence_threshold"] == 0.45
+    assert res["tier"] == "HELD_FOR_CALIBRATION"
+    assert res["escalation_required"] is True
+    assert res["escalation_type"] == "escalation.confidence_underflow"
+    assert "JEV Calibration Hold" in res["broker_notice"]
+    assert "HIGH-PRIORITY CALIBRATION" in res["operator_notice"]
+    assert any("below default floor" in note for note in res["notes"])
+
+
+def test_jev_confidence_underflow_from_signal_conflicts():
+    engine = JevPythonDecisionEngine()
+    rubric = {
+        "budget_threshold": 500_000,
+        "budget_weight": 40,
+        "timeline_days_threshold": 30,
+        "timeline_weight": 40,
+        "financing_weight": 20,
+        "hot_threshold": 70,
+        "warm_threshold": 40,
+    }
+    # 1 signal present (base 0.50), but 2 conflicts:
+    # conflict 1: stated budget conflicts with preapproval doc
+    # conflict 2: stated urgency 'high' conflicts with no financing
+    # 0.50 - 2 * 0.15 = 0.20 < 0.45 floor
+    lead = {
+        "stated_budget": 600_000,
+        "preapproval_document": {"verified": True, "amount": 350_000},
+        "stated_urgency": "high",
+        "financing_progress": "none",
+    }
+    res = engine.evaluate_lead_rubric("ctx-underflow-conflicts", lead, rubric)
+    assert res["status"] == "held_confidence_underflow"
+    assert res["is_confidence_underflow"] is True
+    assert res["confidence"] < 0.45
+    assert "JEV Calibration Hold" in res["broker_notice"]
+
+
+def test_jev_confidence_underflow_all_unknown_inputs():
+    engine = JevPythonDecisionEngine()
+    rubric = {"budget_threshold": 500_000}
+    res = engine.evaluate_lead_rubric("ctx-unknown", {}, rubric)
+    assert res["status"] == "held_confidence_underflow"
+    assert res["is_confidence_underflow"] is True
+    assert res["tier"] == "UNKNOWN"
+    assert res["confidence"] == 0.0
+
+
+def test_jev_adapter_mcp_enforces_confidence_floor():
+    class MockMcpClient:
+        def call_tool(self, name, args):
+            return {
+                "status": "ok",
+                "confidence": 0.32,  # Below 0.45 floor
+                "tier": "WARM",
+                "score": 50
+            }
+
+    adapter = JevDecisionAdapter(mcp_client=MockMcpClient(), force_python=False, confidence_threshold=0.45)
+    rubric = {"budget_threshold": 500_000}
+    res = adapter.evaluate_lead("ctx-mcp-floor", {"stated_budget": 500_000}, rubric)
+    assert res["status"] == "held_confidence_underflow"
+    assert res["is_confidence_underflow"] is True
+    assert res["engine"] == "jev_mcp"
+    assert res["confidence"] == 0.32
+    assert res["tier"] == "HELD_FOR_CALIBRATION"
+    assert "JEV Calibration Hold" in res["broker_notice"]
+
+
+def test_jev_hitl_pause_confidence_underflow_dispatches_dual_notices():
+    from dispatcher.hitl_protocol import HITLManager
+
+    class MockHub:
+        def __init__(self):
+            self.escalations = []
+            self.traces = []
+
+        def escalate(self, queue, payload):
+            self.escalations.append((queue, payload))
+            return {"status": "escalated", "queue": queue}
+
+        def ingest_spoke_trace(self, agent_id, wait_id, thought, result):
+            self.traces.append((agent_id, wait_id, thought, result))
+
+    mock_hub = MockHub()
+    hitl = HITLManager(hub=mock_hub)
+
+    decision_result = {
+        "confidence": 0.39,
+        "confidence_threshold": 0.45,
+        "broker_notice": "JEV Calibration Hold: Data certainty scored at 0.39 (below 0.45 floor). Parked in siding for your quick review.",
+        "operator_notice": "HIGH-PRIORITY CALIBRATION: JEV confidence underflow (0.39 < 0.45) for context 'client-999'."
+    }
+
+    ws = hitl.pause_confidence_underflow("client-999", "03", decision_result)
+    assert ws.status == "PENDING"
+    assert ws.paused_intent == "jev.confidence_underflow"
+    assert ws.required_decision == "APPROVE_OR_RECALIBRATE"
+
+    # Verify broker notification logged
+    assert len(hitl.notification_log) == 1
+    notice = hitl.notification_log[0]
+    assert "[JEV CALIBRATION HOLD]" in notice["body"]
+    assert "0.39" in notice["body"]
+
+    # Verify operator escalation ping
+    assert len(mock_hub.escalations) == 1
+    queue, payload = mock_hub.escalations[0]
+    assert queue == "escalation.confidence_underflow"
+    assert payload["confidence"] == 0.39
+    assert payload["confidence_threshold"] == 0.45
+    assert "operator_fine_tuning_evaluation" in payload["action"]
+

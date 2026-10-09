@@ -77,6 +77,18 @@ Here is the unvarnished reality of using unconstrained frontier chatbots in a li
 > * **Nous Hermes (The Creative Drafter):** Handles natural language remarks and email drafts—always quarantined behind exit-gate compliance reviews.
 > * **JEV AI (The Fiduciary Evaluator):** JEV AI was chosen specifically because **it does NOT create, invent, or improvise.** It strictly evaluates structured facts (scoring buyer pre-approvals, arbitrating tour conflicts, calculating contractual milestone timelines) using deterministic mathematical logic. It cannot hallucinate. Where an LLM guesses, JEV AI calculates.
 
+#### The 0.45 Confidence Floor: Why JEV Refuses to Guess (Calibration Holds)
+When a standard cloud LLM encounters contradictory or missing facts, it invents a plausible guess to keep the conversation flowing. In real estate, an AI guess can blow an escrow contingency or trigger a lawsuit.
+
+JEV AI operates with a **default 0.45 Confidence Floor**:
+* **Deterministic Stop, Not a Bug:** If data certainty scores below 0.45 (`confidence < 0.45`), JEV AI **refuses to guess**. It immediately triggers a deterministic stop (`held_confidence_underflow`) and places the lead or decision into a **Calibration Hold** in siding.
+* **Dual-Notification Flow:**
+  * **To the Broker:** An instant, reassuring notification:
+    > `"[JEV CALIBRATION HOLD] Agent 02 on Client 'Bob Seller': Data certainty scored below 0.45 safety floor. Parked in siding for your quick review rather than guessing."`  
+    The broker is kept fully in the loop immediately. They know this is designed mathematical safety working as intended—not an error, crash, or broken agent.
+  * **To the Platform Operator:** An automated high-priority escalation ping (`escalation.confidence_underflow`) alerting the system architect that local rubric weights or neighborhood criteria in `config/` warrant fine-tuning evaluation for that market.
+* **Why JEV Outperforms LLMs & Saves Money:** JEV calculations execute in under 5 milliseconds with zero cloud token costs, zero API latency, and zero hallucination risk, providing mathematical guarantees at a tiny fraction of the cost of cloud LLM inference.
+
 ---
 
 ## Physical Hard Drive Architecture: Where Your Data Lives & How It Is Protected

@@ -24,11 +24,15 @@ class JevPythonDecisionEngine:
     Implements JEV AI decision evaluation rules natively in Python.
     """
 
+    def __init__(self, confidence_threshold: float = 0.45):
+        self.default_confidence_threshold = confidence_threshold
+
     def evaluate_lead_rubric(
         self,
         context_id: str,
         payload: dict,
-        rubric: dict
+        rubric: dict,
+        confidence_threshold: Optional[float] = None
     ) -> dict:
         """Evaluates a lead against a signed rubric using deterministic multi-attribute scoring.
 
@@ -36,30 +40,43 @@ class JevPythonDecisionEngine:
           - Preapproval document amount overrides stated budget if they conflict.
           - Verified financing progress outranks stated urgency 'high'.
           - Exact boundary scores assign the LOWER tier (fail-safe conservative rule).
+          - Confidence floor default is 0.45: ratings below this trigger a deterministic stop
+            (held in siding for broker/operator calibration) rather than guessing.
           - Unknown inputs return tier UNKNOWN rather than guessing.
         """
         notes: list[str] = []
+        data_conflicts: list[str] = []
         budget = payload.get("stated_budget")
         preapproval_doc = payload.get("preapproval_document")
         timeline_days = payload.get("timeline_days")
         financing_progress = payload.get("financing_progress")
         stated_urgency = payload.get("stated_urgency")
 
+        conf_floor = (
+            confidence_threshold
+            if confidence_threshold is not None
+            else rubric.get("confidence_threshold", self.default_confidence_threshold)
+        )
+
         # Conflict resolution: verified doc outranks stated budget
         if preapproval_doc and preapproval_doc.get("verified"):
             if budget is not None and budget != preapproval_doc.get("amount"):
-                notes.append(
+                conflict_msg = (
                     f"stated budget {budget} conflicts with pre-approval doc amount "
                     f"{preapproval_doc['amount']} - doc wins for scoring, conflict logged verbatim"
                 )
+                notes.append(conflict_msg)
+                data_conflicts.append(conflict_msg)
                 budget = preapproval_doc["amount"]
 
         # Conflict resolution: verifiable financing outranks stated urgency
         if stated_urgency == "high" and financing_progress in (None, "none"):
-            notes.append(
+            conflict_msg = (
                 "stated urgency 'high' conflicts with no financing progress - "
                 "weighting verifiable financing over stated urgency, conflict logged"
             )
+            notes.append(conflict_msg)
+            data_conflicts.append(conflict_msg)
 
         inputs = {
             "budget": budget,
@@ -69,12 +86,19 @@ class JevPythonDecisionEngine:
 
         if all(v is None for v in inputs.values()):
             return {
-                "status": "ok",
+                "status": "held_confidence_underflow",
+                "is_confidence_underflow": True,
+                "confidence": 0.0,
+                "confidence_threshold": conf_floor,
                 "tier": "UNKNOWN",
                 "score": None,
-                "notes": notes + ["all rubric inputs unknown - tier is UNKNOWN, not COLD"],
+                "notes": notes + ["all rubric inputs unknown - tier is UNKNOWN, triggered confidence stop"],
                 "decision_provenance": "jev_engine_python_v1",
-                "engine": "python_fallback"
+                "engine": "python_fallback",
+                "escalation_required": True,
+                "escalation_type": "escalation.confidence_underflow",
+                "broker_notice": "JEV Calibration Hold: No verifiable lead inputs found. Parked in siding.",
+                "operator_notice": f"HIGH-PRIORITY CALIBRATION: All rubric inputs unknown for context '{context_id}'."
             }
 
         score = 0
@@ -108,8 +132,51 @@ class JevPythonDecisionEngine:
         else:
             tier = "COLD"
 
+        # Determine confidence rating (0.0 to 1.0)
+        explicit_confidence = payload.get("confidence", payload.get("rating"))
+        if explicit_confidence is not None:
+            try:
+                confidence = float(explicit_confidence)
+            except (ValueError, TypeError):
+                confidence = 0.50
+        else:
+            missing_count = sum(1 for v in (budget, timeline_days, financing_progress) if v is None)
+            conflict_penalty = 0.25 * len(data_conflicts)
+            confidence = max(0.0, min(1.0, round(0.85 - (0.15 * missing_count) - conflict_penalty, 2)))
+
+        # Probabilistic / Confidence Stop Check (< 0.45 default floor)
+        if confidence < conf_floor:
+            underflow_note = (
+                f"JEV confidence rating {confidence:.2f} is below default floor {conf_floor:.2f} - "
+                f"triggered deterministic confidence stop. Parked in siding for review rather than guessing."
+            )
+            return {
+                "status": "held_confidence_underflow",
+                "is_confidence_underflow": True,
+                "confidence": confidence,
+                "confidence_threshold": conf_floor,
+                "tier": "HELD_FOR_CALIBRATION",
+                "score": score,
+                "notes": notes + [underflow_note],
+                "decision_provenance": "jev_engine_python_v1",
+                "engine": "python_fallback",
+                "escalation_required": True,
+                "escalation_type": "escalation.confidence_underflow",
+                "broker_notice": (
+                    f"JEV Calibration Hold: Lead confidence rated at {confidence:.2f} (below {conf_floor:.2f} safety floor). "
+                    f"Parked in siding for your quick review rather than guessing."
+                ),
+                "operator_notice": (
+                    f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({confidence:.2f} < {conf_floor:.2f}) "
+                    f"for context '{context_id}'. Rubric fine-tuning evaluation warranted."
+                ),
+            }
+
         return {
             "status": "ok",
+            "is_confidence_underflow": False,
+            "confidence": confidence,
+            "confidence_threshold": conf_floor,
             "tier": tier,
             "score": score,
             "notes": notes,
@@ -208,28 +275,48 @@ class JevDecisionAdapter:
     to the in-process pure Python engine.
     """
 
-    def __init__(self, mcp_client: Any = None, force_python: bool = False):
+    def __init__(self, mcp_client: Any = None, force_python: bool = False, confidence_threshold: float = 0.45):
         self.mcp_client = mcp_client
         self.force_python = force_python or (os.environ.get("JEV_FORCE_PYTHON", "0") == "1")
-        self.python_engine = JevPythonDecisionEngine()
+        self.confidence_threshold = confidence_threshold
+        self.python_engine = JevPythonDecisionEngine(confidence_threshold=confidence_threshold)
 
     def evaluate_lead(
         self,
         context_id: str,
         payload: dict,
-        rubric: dict
+        rubric: dict,
+        confidence_threshold: Optional[float] = None
     ) -> dict:
         """Evaluates a lead against a rubric via MCP or pure Python fallback."""
+        floor = confidence_threshold if confidence_threshold is not None else self.confidence_threshold
         if self.mcp_client is not None and not self.force_python:
             try:
                 # Primary: Attempt JEV MCP tool call
                 result = self._call_mcp_decision(
                     decision_type="lead_qualification",
                     context_id=context_id,
-                    payload={"lead": payload, "rubric": rubric}
+                    payload={"lead": payload, "rubric": rubric, "confidence_threshold": floor}
                 )
-                if result and result.get("status") == "ok":
+                if result and isinstance(result, dict):
                     result["engine"] = "jev_mcp"
+                    # Enforce confidence floor on MCP responses as well
+                    mcp_conf = result.get("confidence", 1.0)
+                    if mcp_conf < floor:
+                        result["status"] = "held_confidence_underflow"
+                        result["is_confidence_underflow"] = True
+                        result["confidence_threshold"] = floor
+                        result["tier"] = "HELD_FOR_CALIBRATION"
+                        result["escalation_required"] = True
+                        result["escalation_type"] = "escalation.confidence_underflow"
+                        result["broker_notice"] = (
+                            f"JEV Calibration Hold: Lead confidence rated at {mcp_conf:.2f} (below {floor:.2f} safety floor). "
+                            f"Parked in siding for your quick review rather than guessing."
+                        )
+                        result["operator_notice"] = (
+                            f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({mcp_conf:.2f} < {floor:.2f}) "
+                            f"for context '{context_id}'. Rubric fine-tuning evaluation warranted."
+                        )
                     return result
             except Exception as e:
                 logger.warning(
@@ -237,7 +324,7 @@ class JevDecisionAdapter:
                 )
 
         # Fallback: Deterministic pure Python engine
-        return self.python_engine.evaluate_lead_rubric(context_id, payload, rubric)
+        return self.python_engine.evaluate_lead_rubric(context_id, payload, rubric, confidence_threshold=floor)
 
     def resolve_showing_conflict(
         self,

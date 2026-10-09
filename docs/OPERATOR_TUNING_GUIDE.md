@@ -271,6 +271,59 @@ Evaluated by **Agent 02 (Lead Qualification)** against an operator-signed rubric
   1. **Document Precedence:** If a verified pre-approval letter exists (`preapproval_amount`), it **strictly overrides** any unverified self-reported buyer budget (`stated_budget`). Budget score calculates against the documented letter value.
   2. **Conservative Boundary Drop:** If a lead scores exactly on the boundary (e.g. score = 70.0 when `hot_threshold = 70`), the engine drops the assignment to the **lower tier** (`WARM`) and flags the record for human review. Borderline scores are never auto-promoted.
   3. **Null Data Protection:** If all input criteria are null, the engine returns `tier = "UNKNOWN"` rather than defaulting to `COLD`.
+  4. **The 0.45 Confidence Floor & Deterministic Stops:** If incoming data certainty falls below the safety floor (`confidence < 0.45`), the engine **refuses to guess**, triggering an immediate deterministic stop (`held_confidence_underflow`).
+
+### The 0.45 Confidence Floor & Operator Calibration Playbook
+
+#### 1. Why JEV AI Stops: Deterministic Safety vs. Runtime Bug
+In traditional LLM agent swarms, when context is ambiguous or contradictory, models hallucinate answers to maintain conversational momentum. In real estate fiduciary transactions, an ungrounded guess can lead to severe contract liability.
+
+JEV AI enforces a **0.45 Confidence Floor** (`confidence_threshold: 0.45`):
+* **Deterministic Stop:** When signal entropy is high (e.g. stated urgency contradicts lack of financing, preapproval documents contradict stated budgets, or key inputs are missing), certainty drops below `0.45`.
+* **Mathematical Refusal:** JEV halts with `status = "held_confidence_underflow"`, `is_confidence_underflow = True`, and `tier = "HELD_FOR_CALIBRATION"`.
+* **Zero Panic Guarantee:** This is **NOT** a code bug, unhandled exception, or agent crash. It is an intentional mathematical brake designed to protect the broker.
+
+#### 2. Dual-Notification Dispatch Architecture
+When an underflow stop occurs, `HITLManager.pause_confidence_underflow()` triggers a split notification:
+
+```mermaid
+flowchart TD
+    JEV["JEV AI Evaluator (< 0.45 Confidence)"] --> Stop["Deterministic Stop: held_confidence_underflow"]
+    Stop --> Pause["HITLManager.pause_confidence_underflow()"]
+    
+    Pause --> Broker["Broker Real-Time Alert (SMS / Mobile)"]
+    Broker --> B_Msg["Reassuring Operational Notice:\n'[JEV CALIBRATION HOLD] Data certainty scored at 0.38\n(below 0.45 floor). Parked in siding for your review\nrather than guessing.'"]
+    
+    Pause --> Operator["Operator Escalation Queue (escalation.confidence_underflow)"]
+    Operator --> O_Msg["High-Priority Calibration Alert:\n'HIGH-PRIORITY CALIBRATION: JEV confidence underflow\n(0.38 < 0.45) for client. Rubric fine-tuning evaluation warranted.'"]
+    
+    Pause --> Drawer["Client Drawer Vault (drawers/ctx/timeline/)"]
+    Drawer --> D_Rec["wait-ctx-02-xxx_pause.json\n(Cryptographically chained forensic snapshot)"]
+```
+
+#### 3. Operator Calibration & Fine-Tuning Playbook
+When an operator receives an `escalation.confidence_underflow` ping, follow this diagnostic workflow:
+
+1. **Inspect Drawer Artifact:** View `drawers/<client_id>/timeline/<wait_id>_pause.json` to inspect the exact payload, score, and confidence calculation.
+2. **Identify Entropy Source:** Check `notes` array:
+   * Did stated budget conflict with pre-approval doc amount?
+   * Was stated urgency "high" while financing progress was missing?
+   * Are critical market fields missing from the intake web form?
+3. **Calibrate Market Rubric:** If underflow stops frequently occur in a specific market segment (e.g. all-cash luxury buyers who omit mortgage pre-approvals, or rural acreage with longer timelines), calibrate the rubric weights in `config/`:
+   ```json
+   {
+     "budget_threshold": 1200000,
+     "budget_weight": 50,
+     "timeline_days_threshold": 60,
+     "timeline_weight": 30,
+     "financing_weight": 20,
+     "confidence_threshold": 0.40
+   }
+   ```
+4. **Resume Operation:** The operator or broker resumes execution cleanly via:
+   * `APPROVE`: Override hold and process lead as-is.
+   * `CONTINUE_WITH_UPDATE`: Inject verified missing data (e.g. proof of cash funds).
+   * `RECALIBRATE_RUBRIC`: Re-evaluate the lead using newly calibrated rubric weights.
 
 #### Domain 2: Showing Conflict Arbitration (`showing_conflict`)
 Evaluated by **Agent 06 (Showing Scheduler)** when incoming tour requests contend for occupied property calendar slots.

@@ -34,6 +34,7 @@ DECISION_HOLD = "HOLD"
 DECISION_HOLD_IN_SIDING = "HOLD_IN_SIDING"
 DECISION_CLOSE_SYSTEM = "CLOSE_SYSTEM"
 DECISION_ESCALATE_TO_SUPPORT = "ESCALATE_TO_SUPPORT"
+DECISION_RECALIBRATE_RUBRIC = "RECALIBRATE_RUBRIC"
 
 VALID_DECISIONS = {
     DECISION_APPROVE,
@@ -47,6 +48,7 @@ VALID_DECISIONS = {
     DECISION_HOLD_IN_SIDING,
     DECISION_CLOSE_SYSTEM,
     DECISION_ESCALATE_TO_SUPPORT,
+    DECISION_RECALIBRATE_RUBRIC,
 }
 
 
@@ -107,10 +109,17 @@ class HITLManager:
 
     def dispatch_realtime_notice(self, ws: WaitState) -> dict:
         """Sends an immediate real-time alert (SMS/webhook/push) whenever a human decision is needed."""
-        alert_body = (
-            f"[DECISION REQUIRED] Agent {ws.agent_id} halted on Client '{ws.client_context_id}'. "
-            f"Reason: {ws.reason}. Action required: {ws.required_decision}. Wait ID: {ws.wait_id}"
-        )
+        if ws.paused_intent == "jev.confidence_underflow" or "confidence" in ws.reason.lower():
+            alert_body = (
+                f"[JEV CALIBRATION HOLD] Agent {ws.agent_id} on Client '{ws.client_context_id}': "
+                f"{ws.original_payload.get('broker_notice', ws.reason)}. "
+                f"Action required: {ws.required_decision}. Wait ID: {ws.wait_id}"
+            )
+        else:
+            alert_body = (
+                f"[DECISION REQUIRED] Agent {ws.agent_id} halted on Client '{ws.client_context_id}'. "
+                f"Reason: {ws.reason}. Action required: {ws.required_decision}. Wait ID: {ws.wait_id}"
+            )
         record = {
             "type": "decision_required",
             "wait_id": ws.wait_id,
@@ -203,6 +212,59 @@ class HITLManager:
                     filename=f"{wait_id}_pause.json",
                     content=json.dumps(ws.to_dict(), indent=2)
                 )
+            except Exception:
+                pass
+
+        return ws
+
+    def pause_confidence_underflow(
+        self,
+        client_context_id: str,
+        agent_id: str,
+        decision_result: dict,
+        paused_intent: str = "jev.confidence_underflow"
+    ) -> WaitState:
+        """Called when JEV AI triggers a deterministic confidence underflow stop (< 0.45).
+        Dispatches dual notifications:
+          1. Reassuring real-time alert to broker (held in siding for verification rather than guessing).
+          2. High-priority escalation ping to operator queue for rubric calibration evaluation.
+        """
+        conf = decision_result.get("confidence", 0.0)
+        floor = decision_result.get("confidence_threshold", 0.45)
+        reason = f"JEV confidence rating {conf:.2f} below safety floor {floor:.2f}"
+        broker_msg = decision_result.get(
+            "broker_notice",
+            f"JEV Calibration Hold: Data certainty scored at {conf:.2f} (below {floor:.2f} floor). "
+            f"Parked in siding for your quick review rather than guessing."
+        )
+        operator_msg = decision_result.get(
+            "operator_notice",
+            f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({conf:.2f} < {floor:.2f}) "
+            f"for context '{client_context_id}'. Rubric fine-tuning evaluation warranted."
+        )
+
+        ws = self.pause_operation(
+            client_context_id=client_context_id,
+            agent_id=agent_id,
+            paused_intent=paused_intent,
+            reason=reason,
+            original_payload={**decision_result, "broker_notice": broker_msg, "operator_notice": operator_msg},
+            required_decision="APPROVE_OR_RECALIBRATE"
+        )
+
+        # High-priority escalation ping to operator/platform tuning queue
+        if self.hub and hasattr(self.hub, "escalate"):
+            try:
+                self.hub.escalate("escalation.confidence_underflow", {
+                    "wait_id": ws.wait_id,
+                    "client_context_id": client_context_id,
+                    "agent_id": agent_id,
+                    "confidence": conf,
+                    "confidence_threshold": floor,
+                    "reason": reason,
+                    "operator_notice": operator_msg,
+                    "action": "operator_fine_tuning_evaluation"
+                })
             except Exception:
                 pass
 

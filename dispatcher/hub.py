@@ -100,6 +100,7 @@ class Hub:
             "clarification.request": [], "integrity.violation": [],
             "escalation.legal_line": [], "escalation.hot_lead": [],
             "escalation.complaint": [], "escalation.system_error": [],
+            "escalation.confidence_underflow": [],
             "dead.letter": []}
         self._lock = threading.RLock()
         # pillar seams
