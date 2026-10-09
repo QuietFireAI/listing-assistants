@@ -314,12 +314,38 @@ Real estate professionals spend their days in the field—walking properties wit
   * **One-Tap Execution:** Reply `APPROVE`, `MODIFY: credit=2500`, `HOLD`, or `REJECT` directly from your phone while between showings.
   * **Natural Field Inquiries:** Text Hermes naturally on the road: *"What showings are scheduled for 100 Oak Lane this afternoon?"* or *"Summarize the inspection items on Elm Street."* Hermes consults the client drawers inside private `<think>` tags and texts back concise, accurate answers in seconds.
 
+#### What Happens Behind the Scenes: Three Real-World Field Scenarios
+
+When you are out living your life—standing in a grocery store checkout line, waiting in the school pickup queue, or sitting on the bleachers at your child's softball game—you don't have time to log into a laptop or parse a database. You text your assistant, slide your phone into your pocket, and receive a complete, verified answer in seconds:
+
+1. **Scenario 1: In the Grocery Store Checkout Line**
+   * **You Text:** *"What showings are scheduled for 100 Oak Lane this afternoon?"*
+   * **Behind the Scenes:** Mobile ingress delivers the query to the Hub. Hermes deliberates inside `<think>` tags and delegates to **Agent 06 (Showing Coordinator)**. Agent 06 inspects the verified calendar ledger in `drawers/ctx-100-oak/calendar/`. The **JEV AI Decision Coprocessor** verifies that scheduled tours honor the seller's mandatory 24-hour advance notice and 30-minute cleaning buffers. **Agent 08 (Document Collector)** confirms active buyer broker agreements are on file.
+   * **You Receive:** *"You have 2 confirmed private showings at 100 Oak Lane this afternoon: 1:30 PM with Sarah Jenkins (Re/Max, buyer pre-approval verified) and 3:30 PM with Mike Chang (Compass, 30-min cleaning buffer enforced). Electronic lockbox codes remain secured. No conflicting escrow appointments."*
+
+2. **Scenario 2: Waiting in the Car at School Pickup**
+   * **You Text:** *"Summarize the inspection report flags on Elm Street."*
+   * **Behind the Scenes:** Hermes identifies the property and inspection category. **Agent 08 (Document Collector)** retrieves `inspection_report.pdf` from the client drawer vault, verifying the document's SHA-256 hash. **Agent 07 (Transaction Coordinator)** extracts the inspector's physical defect flags and maps them against the contractual contingency deadline. **Agent 17 (Compliance Officer)** enforces statutory guardrails: factual defect extraction only; zero automated price or concession guessing.
+   * **You Receive:** *"Inspection summary for 456 Elm Street (Report SHA-256 verified): Electrical panel has double-tapped neutral breakers; 14-yr-old water heater with minor corrosion at supply valves; minor roof flashing gap near south chimney; sewer scope is 100% clean. Contract Alert: Inspection objection deadline is tomorrow at 5:00 PM. Agent 07 is holding in wait-state for your repair concession instructions."*
+
+3. **Scenario 3: Sitting on the Bleachers at a Youth Softball Game**
+   * **You Text:** *"Did the buyer's earnest money deposit clear title yet?"*
+   * **Behind the Scenes:** Hermes recognizes a financial milestone query and routes to **Agent 15 (Financial & Commission)** and **Agent 07 (Transaction Coordinator)**. **Agent 08 (Document Collector)** verifies that the Title Company's official Escrow Deposit Receipt was received and signed. Agent 15 validates the ledger balance ($15,000 required vs $15,000 received = $0.00 variance) while the wire fraud firewall prevents account details from ever transmitting over SMS. **Agent 14 (CRM Ledger)** updates the timeline to `EMD_VERIFIED`.
+   * **You Receive:** *"Yes. First American Title confirmed receipt of the $15,000 earnest money deposit today at 2:15 PM. Wire receipt is filed in Bob's client drawer. Agent 07 has advanced the milestone to 'EMD Cleared'. Financing contingency clock is active (18 calendar days remaining)."*
+
 ### 4. The One-Click Support Lifeline: "Escalate to Support"
 If you receive an alert and aren't sure how to resolve it, or feel anxious about an ambiguous contract clause, you never have to guess or troubleshoot alone:
 * **One-Click Lifeline:** Simply select or reply **`ESCALATE`** (or `ESCALATE_TO_SUPPORT`).
 * **Instant Diagnostic Snapshot:** The system compiles a redacted forensic snapshot of the client drawer, document hashes, and agent deliberation logs into `drawers/<client_id>/audit/`.
 * **Dispatches Support Ticket:** Generates ticket `TICKET-<WAIT_ID>` and routes it directly to the **QuietFire Support Desk**.
 * **Fails Closed Safely:** Your agent parks safely in an escalated hold state while our technical support team investigates, ensuring no mistakes are made.
+
+### 5. The External Provider Gateway: Bring-Your-Own-Key (BYOK) Integration
+Your business already operates across industry-standard real estate and productivity portals. ListingAssistants includes an on-premise **External Provider Gateway** (`config/integrations_template.json`) that connects to your existing software stack:
+* **Real Estate Portals & MLS Feeds:** Direct connectors for **Zillow** (Bridge Interactive), **Redfin**, **Realtor.com / ListHub**, and local **RESO MLS Web API** feeds.
+* **Workplace & Productivity Suites:** Two-way sync with **Google Workspace** (Gmail, Google Calendar, Drive) and **Microsoft 365** (Outlook, Exchange, OneDrive).
+* **Digital Signature & Escrow Portals:** Plug-in support for **DocuSign**, **Dotloop**, and title settlement platforms.
+* **Sovereign Credential Safety:** All API keys and OAuth tokens are stored locally on your private machine. They are never transmitted to third-party cloud servers, and are automatically redacted in all audit logs.
 
 ---
 

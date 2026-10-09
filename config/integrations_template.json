@@ -1,0 +1,81 @@
+{
+  "_comment": "ListingAssistants External Provider Gateway Onboarding Template. Provide API keys or OAuth credentials to enable automated ecosystem syncing. All keys remain local on-premise; zero cloud transmission.",
+  "real_estate_ecosystem": {
+    "zillow": {
+      "enabled": false,
+      "bridge_interactive_api_key": "YOUR_ZILLOW_BRIDGE_API_KEY",
+      "server_token": "YOUR_SERVER_TOKEN",
+      "syndication_auto_push": false
+    },
+    "redfin": {
+      "enabled": false,
+      "partner_feed_id": "YOUR_REDFIN_PARTNER_FEED_ID",
+      "access_token": "YOUR_REDFIN_ACCESS_TOKEN"
+    },
+    "realtor_listhub": {
+      "enabled": false,
+      "listhub_provider_code": "YOUR_LISTHUB_PROVIDER_CODE",
+      "client_id": "YOUR_CLIENT_ID"
+    },
+    "reso_mls_web_api": {
+      "enabled": false,
+      "board_name": "Local Board of Realtors / MLS",
+      "reso_endpoint": "https://reso.example-mls.com/odata/",
+      "access_token": "YOUR_RESO_OAUTH_BEARER_TOKEN",
+      "mls_agent_id": "YOUR_MLS_ID"
+    }
+  },
+  "workplace_suites": {
+    "google_workspace": {
+      "enabled": false,
+      "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+      "client_secret": "YOUR_GOOGLE_CLIENT_SECRET",
+      "authorized_user_email": "broker@yourfirm.com",
+      "services": {
+        "gmail_sync": true,
+        "google_calendar_showings": true,
+        "google_drive_drawer_backup": true
+      }
+    },
+    "microsoft_365": {
+      "enabled": false,
+      "tenant_id": "YOUR_MS365_TENANT_ID",
+      "client_id": "YOUR_MS365_APP_CLIENT_ID",
+      "client_secret": "YOUR_MS365_CLIENT_SECRET",
+      "authorized_user_email": "broker@yourfirm.com",
+      "services": {
+        "outlook_email_sync": true,
+        "outlook_calendar_showings": true,
+        "onedrive_drawer_backup": true
+      }
+    }
+  },
+  "digital_signature_and_escrow": {
+    "docusign": {
+      "enabled": false,
+      "account_id": "YOUR_DOCUSIGN_ACCOUNT_ID",
+      "integration_key": "YOUR_INTEGRATION_KEY",
+      "rsa_private_key_path": "identity/keys/docusign_private.key"
+    },
+    "dotloop": {
+      "enabled": false,
+      "api_key": "YOUR_DOTLOOP_API_KEY",
+      "profile_id": "YOUR_DOTLOOP_PROFILE_ID"
+    }
+  },
+  "mobile_communication_channels": {
+    "twilio": {
+      "enabled": false,
+      "account_sid": "YOUR_TWILIO_ACCOUNT_SID",
+      "auth_token": "YOUR_TWILIO_AUTH_TOKEN",
+      "sms_from_number": "+15555550101",
+      "whatsapp_from_number": "whatsapp:+14155238886",
+      "broker_mobile_number": "+15555550100"
+    },
+    "signal_messenger": {
+      "enabled": false,
+      "rest_api_endpoint": "http://127.0.0.1:8080",
+      "registered_number": "+15555550100"
+    }
+  }
+}

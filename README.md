@@ -285,16 +285,118 @@ ListingAssistants decouples the **heavy sovereign execution engine** from the **
 * **Transport-Agnostic Mobile Bridge:** Hermes and the Dispatcher Hub can be spoken to remotely across the broker's preferred messaging transport—whether **WhatsApp**, **Signal**, **encrypted SMS/webhooks**, or **Telegram**:
   1. **Instant Field Alerts:** When Agent 04 drafts remarks or Agent 07 flags an inspection repair credit addendum, the broker's phone buzzes immediately with the exact context and decision choices.
   2. **One-Tap Actioning:** The broker replies directly from their phone (`APPROVE`, `MODIFY: credit=2500`, or `ESCALATE`) while waiting for an elevator or sitting at a traffic light.
-  3. **Conversational Hermes Inquiries:** The broker texts natural-language queries to their office assistant while on the road:
-     * *"What showings are scheduled for 100 Oak Lane this afternoon?"*
-     * *"Summarize the inspection report flags for Elm Street."*
-     * Hermes deliberates inside `<think>` tags, verifies data against the client drawer, passes the epistemic taint gate, and returns a crisp, plain-English summary to the broker's phone within seconds.
+  3. **Conversational Hermes Inquiries:** The broker texts natural-language queries to their office assistant while on the road, receiving instant, factual summaries.
+
+#### What Happens Behind the Scenes: Three Real-World Field Scenarios
+
+When you are out living your life—standing in a grocery store checkout line, waiting in the school pickup queue, or sitting on the bleachers at your child's softball game—you don't have time to log into a laptop or parse a database. You text your assistant, slide your phone into your pocket, and receive a complete, verified answer in seconds.
+
+Here is what actually happens across your digital team in the background:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│               SCENARIO 1: STANDING IN THE GROCERY STORE CHECKOUT LINE                  │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOU TEXT: "What showings are scheduled for 100 Oak Lane this afternoon?"               │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ WHAT HAPPENS IN THE BACKGROUND ON YOUR OFFICE APPLIANCE:                               │
+│ 1. Mobile Ingress parses the incoming query and hands it to the Hub with context.      │
+│ 2. Hermes deliberates inside <think> tags: targets '100 Oak Lane' and 'this afternoon'.│
+│ 3. Dispatcher Hub routes the intent to Agent 06 (Showing Coordinator).                 │
+│ 4. Agent 06 inspects the verified calendar ledger in drawers/ctx-100-oak/calendar/.   │
+│ 5. JEV AI Decision Coprocessor verifies that confirmed appointments honor the seller's│
+│    mandatory 24-hr advance notice and 30-minute post-showing cleaning buffers.         │
+│ 6. Agent 08 (Document Collector) verifies buyer agents have signed representation      │
+│    agreements on file before access confirmation is logged.                            │
+│ 7. Hermes synthesizes the verified findings into a crisp, professional text.          │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOU RECEIVE: "You have 2 confirmed private showings at 100 Oak Lane this afternoon:    │
+│ • 1:30 PM: Sarah Jenkins (Re/Max, buyer pre-approval verified)                         │
+│ • 3:30 PM: Mike Chang (Compass, 30-min cleaning buffer enforced)                       │
+│ Electronic lockbox codes remain secured. No conflicting escrow appointments."          │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                 SCENARIO 2: WAITING IN THE CAR AT SCHOOL PICKUP LINE                   │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOU TEXT: "Summarize the inspection report flags on Elm Street."                       │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ WHAT HAPPENS IN THE BACKGROUND ON YOUR OFFICE APPLIANCE:                               │
+│ 1. Mobile Ingress routes query to Hub; Hermes identifies '456 Elm St' and inspection. │
+│ 2. Agent 08 (Document Collector) retrieves inspection_report.pdf from the sovereign   │
+│    client drawer vault, verifying the file's SHA-256 hash against the audit ledger.   │
+│ 3. Agent 07 (Transaction Coordinator) extracts the inspector's physical defect flags   │
+│    and maps them against the contractual contingency deadline.                         │
+│ 4. Agent 17 (Compliance Officer) enforces the fiduciary boundary: factual defect      │
+│    extraction only; no automated repair concessions or price guesses permitted.       │
+│ 5. Hermes structures the factual briefing inside <think> and emits the mobile summary. │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOU RECEIVE: "Inspection summary for 456 Elm Street (Report SHA-256 verified):        │
+│ • Electrical: Main panel has double-tapped neutral breakers (safety item)              │
+│ • Plumbing: 14-yr-old water heater with minor corrosion at supply valves               │
+│ • Exterior: Minor flashing gap near south chimney; sewer scope is 100% clean           │
+│ Contract Alert: Inspection objection deadline is tomorrow at 5:00 PM. Agent 07 is      │
+│ holding in wait-state for your repair concession instructions."                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│             SCENARIO 3: SITTING ON THE BLEACHERS AT A YOUTH SOFTBALL GAME              │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOU TEXT: "Did the buyer's earnest money deposit clear title yet?"                     │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ WHAT HAPPENS IN THE BACKGROUND ON YOUR OFFICE APPLIANCE:                               │
+│ 1. Mobile Ingress routes inquiry; Hermes recognizes escrow milestone financial check.  │
+│ 2. Dispatcher Hub queries Agent 15 (Financial & Commission) and Agent 07 (TC).         │
+│ 3. Agent 08 (Document Collector) verifies that the Title Company's official Escrow     │
+│    Deposit Receipt artifact was ingested and cryptographically signed.                 │
+│ 4. Agent 15 validates the ledger balance: $15,000 required vs $15,000 received ($0.00  │
+│    variance). Wire security firewall ensures account numbers are never transmitted.    │
+│ 5. Agent 14 (CRM Ledger) confirms the escrow status transitioned to 'EMD_VERIFIED'.    │
+│ 6. Hermes formats the instant confirmation for mobile display.                         │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ YOU RECEIVE: "Yes. First American Title confirmed receipt of the $15,000 earnest money │
+│ deposit today at 2:15 PM. Wire receipt is filed in Bob's client drawer. Agent 07 has   │
+│ advanced the milestone to 'EMD Cleared'. Financing contingency clock is active         │
+│ (18 calendar days remaining)."                                                         │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### 8. Target Market Economics: Why a $500/Month Retainer Makes Total Financial Sense
 ListingAssistants is **not a $29/month self-serve toy or a fragile GoHighLevel wrapper**. It is a hardened enterprise operating system backed by active engineering support:
 * **High-Producing Solo Agents (15–35 deals/year, $150k–$350k GCI):** A single prevented escrow delay, one saved commission dispute, or 5 reclaimed administrative hours per week covers the entire $6,000 annual retainer multiple times over.
 * **Mega-Agent Teams (35–80 deals/year, 3–7 producing agents):** Replaces the overhead and turnover of a $4,000/month full-time administrative assistant or $500/file transactional coordinator with 24/7 automated compliance, Fair Housing tripwires, and institutional audit trails—backed by human support.
 * **Boutique Brokerages (10–25 agents):** Provides turnkey statutory broker supervision, wire fraud tripwires, and verifiable compliance records that protect the broker's license and lower E&O insurance risk.
+
+### 9. The External Provider Gateway: Bring-Your-Own-Key (BYOK) Integration Ecosystem
+Licensed agents already rely on mission-critical real estate platforms and workplace suites. ListingAssistants is engineered with an on-premise **External Provider Gateway** (`dispatcher/provider_gateway.py` and `config/integrations_template.json`) that connects directly into your existing ecosystem once you provide your own API credentials:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        EXTERNAL PROVIDER GATEWAY ARCHITECTURE                          │
+├───────────────────────────────────┬────────────────────────────────────────────────────┤
+│ 1. REAL ESTATE ECOSYSTEM          │ • Zillow (Bridge Interactive MLS syndication feed) │
+│                                   │ • Redfin (Partner feed integration & inventory)    │
+│                                   │ • Realtor.com / Move (ListHub syndication mapping) │
+│                                   │ • Local Boards / RESO MLS Web API (Direct feeds)   │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ 2. WORKPLACE & PRODUCTIVITY       │ • Google Workspace (Gmail sync, Calendar, Drive)   │
+│    SUITES                         │ • Microsoft 365 (Outlook, Exchange, MS Calendar)   │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ 3. DIGITAL SIGNATURES & ESCROW    │ • DocuSign & Dotloop (Listing & disclosure forms)  │
+│                                   │ • Title Company Portals (Qualia / Stewart Title)   │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ 4. SECURE MOBILE CHANNELS         │ • Twilio (Verified WhatsApp & SMS notifications)   │
+│                                   │ • Signal Messenger REST (End-to-end encrypted)     │
+└───────────────────────────────────┴────────────────────────────────────────────────────┘
+```
+
+* **Sovereign Local Key Storage:** All API keys, OAuth refresh tokens, and private RSA keys live exclusively in your local `config/integrations.json` file on your private hardware. Keys are **never** synced to a public SaaS multi-tenant server.
+* **Strict Secret Redaction:** Keys are automatically masked in all logs, audit drawers, and CLI inspection outputs (e.g. `sk_...def`), preventing accidental credential leakage.
+* **Turnkey Onboarding Baseline:** The system ships with `config/integrations_template.json` pre-structured, ready for plug-and-play activation once operational validation is complete.
 
 ---
 
