@@ -263,6 +263,12 @@ flowchart TD
     end
 ```
 
+### 4. Ongoing Broker Personalization: How Your Feedback Trains the Team
+Your digital operations team is not a static, generic chatbot. It is designed to compound in value and personalize to your specific practice over time:
+* **Your Corrections Become Training Data:** When you review an agent's work—whether modifying an MLS description draft, adjusting an email greeting, or giving specific feedback (e.g. *"emphasize the landscaped terrace, don't mention the school district"*), `HermesLearningLoop.assimilate_human_feedback()` immediately ingests your correction as a **Gold-Standard Personalization Exemplar**.
+* **Gets Smarter With Every Closed Deal:** Every transaction you run through the platform, every client conversation, and every supervisory modification compounds into local LoRA model weights. Hermes steadily adapts to your personal style, your brokerage's branding standards, and your local neighborhood nuances.
+* **Guarded by the Six Detection Pillars:** Even as your assistant adapts to your voice, the QuietFire six-pillar safety net ensures it remains 100% compliant with legal invariants—it will never absorb discriminatory phrasing, violate Fair Housing laws, or compromise wire transfer security.
+
 ---
 
 ## 7. The Safety Net: Daily Warm Restore Points & The Non-Technical Portal

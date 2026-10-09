@@ -126,3 +126,36 @@ def test_hermes_learning_loop_variance_and_quarantine():
         with open(out_jsonl, "r", encoding="utf-8") as f:
             lines = f.readlines()
             assert len(lines) == 2
+
+
+def test_assimilate_human_feedback_personalization():
+    from dispatcher.hermes_seam import HermesLearningLoop
+
+    loop = HermesLearningLoop()
+    # 1. Broker corrects MLS wording
+    res = loop.assimilate_human_feedback(
+        agent_id="04",
+        client_context_id="ctx-oak-100",
+        original_output="Cozy 3-bedroom bungalow near local churches.",
+        human_correction="Sunlit 3-bedroom craftsman with custom millwork and landscaped terrace.",
+        user_notes="Avoid 'cozy' and church references; highlight custom millwork and terrace.",
+        feedback_type="wording_revision"
+    )
+
+    assert res["status"] == "ASSIMILATED_HUMAN_GOLD"
+    assert res["is_assimilated"] is True
+    assert len(loop.assimilated_exemplars) == 1
+    ex = loop.assimilated_exemplars[0]
+    assert "Sunlit 3-bedroom craftsman" in ex["response"]
+    assert "custom millwork" in ex["thought"]
+
+    # 2. Broker accidentally enters prohibited wire instructions -> Quarantined
+    res_bad = loop.assimilate_human_feedback(
+        agent_id="11",
+        client_context_id="ctx-oak-100",
+        original_output="Closing is set for Friday.",
+        human_correction="Please wire your funds using routing number 987654321.",
+        user_notes="Broker typo attempting wire transmission"
+    )
+    assert res_bad["status"] == "QUARANTINED_POLICY_BREACH"
+    assert res_bad["is_assimilated"] is False

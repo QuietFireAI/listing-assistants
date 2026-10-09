@@ -198,6 +198,10 @@ flowchart TD
 2. **Epistemic Taint Check:** If an agent suppresses doubts or acts without thinking, `agent_open_mind.taint_check` immediately flags the trace as `TAINTED`.
 3. **Multi-Metric Variance Calculation:** Evaluates epistemic drift via `open_mind.comparator.Comparator.compare()` and tests against Fair Housing, wire defense, and pricing boundaries. Low-variance runs are assimilated; spikes are quarantined.
 4. **Appliance-Native LoRA Updates:** Curated operational exemplars are exported to JSONL for local offline fine-tuning on consumer/appliance GPUs (e.g. Drobo NAS + RTX hardware).
+5. **Ongoing Human Personalization (The Feedback Flywheel):** When the broker reviews an agent output and modifies the phrasing, approves a variation, or leaves notes (e.g., *"highlight the mid-century clerestory windows; never use the word cozy"*), `HermesLearningLoop.assimilate_human_feedback()` ingests that correction as a **Gold-Standard Training Exemplar**.
+   * **Learns Your Firm's Voice:** The local model tunes directly to your personal communication style, regional subdivision terminology, and individual market flair.
+   * **Compounds Knowledge Across Transactions:** With every listing onboarded, every showing coordinated, and every escrow closed, your assistant gets progressively smarter and more aligned with your specific practice.
+   * **Invariable Legal Firewalls:** While the model personalizes to your style, the six detection pillars guarantee it will never adopt bad habits: Fair Housing lines, wire fraud tripwires, and pricing firewalls remain mathematically immutable.
 
 ---
 

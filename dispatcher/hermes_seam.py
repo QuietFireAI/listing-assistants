@@ -348,6 +348,67 @@ class HermesLearningLoop:
             "total_assimilated": len(self.assimilated_exemplars)
         }
 
+    def assimilate_human_feedback(
+        self,
+        agent_id: str,
+        client_context_id: str,
+        original_output: str,
+        human_correction: str,
+        user_notes: str = "",
+        feedback_type: str = "wording_revision"
+    ) -> dict:
+        """Assimilates explicit human broker feedback and phrasing corrections into
+        the training pool. Personalizes Hermes to the broker's specific voice, style,
+        and market nuances while preserving statutory invariants.
+        """
+        # Step 1: Ensure the human correction doesn't introduce statutory violations
+        policy_penalty = self.evaluate_policy_compliance(human_correction)
+        if policy_penalty >= 0.5:
+            status = "QUARANTINED_POLICY_BREACH"
+            return {
+                "status": status,
+                "is_assimilated": False,
+                "reason": "Human feedback conflicted with statutory non-negotiables (Fair Housing or Wire defense)."
+            }
+
+        status = "ASSIMILATED_HUMAN_GOLD"
+        thought = (
+            f"Adopting direct broker feedback for agent {agent_id}. "
+            f"User notes: '{user_notes}'. Revising phrasing to match broker preference: '{human_correction}'."
+        )
+        exemplar = {
+            "instruction": f"Apply broker preferred style and phrasing for Agent {agent_id}",
+            "context": f"Broker Personalization | Original: {original_output[:120]}",
+            "thought": thought,
+            "response": human_correction,
+            "agent_id": agent_id,
+            "client_context_id": client_context_id,
+            "feedback_type": feedback_type,
+            "variance": 0.05
+        }
+        self.assimilated_exemplars.append(exemplar)
+
+        n = len(self.assimilated_exemplars)
+        self.running_avg_variance = round(
+            ((self.running_avg_variance * (n - 1)) + 0.05) / n, 4
+        )
+
+        if self.logger and hasattr(self.logger, "log_training_update"):
+            self.logger.log_training_update(
+                agent_id=agent_id,
+                client_context_id=client_context_id,
+                topic=f"human_feedback_{feedback_type}",
+                variance=0.05,
+                status=status,
+                detail=f"Personalized to broker voice: {user_notes or human_correction[:40]}"
+            )
+        return {
+            "status": status,
+            "is_assimilated": True,
+            "total_assimilated": len(self.assimilated_exemplars),
+            "message": "Human feedback ingested as gold exemplar for local personalization."
+        }
+
     def export_operational_dataset(self, filepath: str):
         """Exports all assimilated live operational exemplars into JSONL format for LoRA fine-tuning."""
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
