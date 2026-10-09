@@ -62,17 +62,56 @@ class WaitState:
 
 
 class HITLManager:
-    """Orchestrates human decision wait-states and resumption dispatch."""
+    """Orchestrates human decision wait-states, real-time alerts, and resumption dispatch."""
 
-    def __init__(self, hub: Any = None, drawer_manager: Any = None):
+    def __init__(self, hub: Any = None, drawer_manager: Any = None, real_time_notifier: Any = None):
         self.hub = hub
         self.drawer_manager = drawer_manager
+        self.real_time_notifier = real_time_notifier
         self.active_waits: dict[str, WaitState] = {}  # wait_id -> WaitState
         self.resumption_handlers: dict[str, Callable[[WaitState, dict], Any]] = {}
+        self.notification_log: list[dict] = []
 
     def register_resumption_handler(self, agent_id: str, handler: Callable[[WaitState, dict], Any]):
         """Registers a spoke callback to be invoked when a human decision arrives."""
         self.resumption_handlers[agent_id] = handler
+
+    def dispatch_realtime_notice(self, ws: WaitState) -> dict:
+        """Sends an immediate real-time alert (SMS/webhook/push) whenever a human decision is needed."""
+        alert_body = (
+            f"[DECISION REQUIRED] Agent {ws.agent_id} halted on Client '{ws.client_context_id}'. "
+            f"Reason: {ws.reason}. Action required: {ws.required_decision}. Wait ID: {ws.wait_id}"
+        )
+        record = {
+            "type": "decision_required",
+            "wait_id": ws.wait_id,
+            "client_context_id": ws.client_context_id,
+            "agent_id": ws.agent_id,
+            "reason": ws.reason,
+            "required_decision": ws.required_decision,
+            "body": alert_body,
+            "timestamp": time.time()
+        }
+        self.notification_log.append(record)
+
+        if self.real_time_notifier and callable(self.real_time_notifier):
+            try:
+                record["notifier_result"] = self.real_time_notifier(record)
+            except Exception as e:
+                record["notifier_error"] = str(e)
+        elif self.hub and getattr(self.hub, "human_notifier", None):
+            try:
+                record["hub_notifier_result"] = self.hub.human_notifier("decision_required", {
+                    "client_context_id": ws.client_context_id,
+                    "agent": ws.agent_id,
+                    "reason": ws.reason,
+                    "wait_id": ws.wait_id,
+                    "trigger": f"DECISION REQUIRED: {ws.required_decision}"
+                })
+            except Exception as e:
+                record["hub_notifier_error"] = str(e)
+
+        return record
 
     def pause_operation(
         self,
@@ -95,6 +134,9 @@ class HITLManager:
             required_decision=required_decision
         )
         self.active_waits[wait_id] = ws
+
+        # Fire immediate real-time notification
+        self.dispatch_realtime_notice(ws)
 
         # Notify Agent 18 (Calendar & Task wait-state tracker)
         if self.hub and hasattr(self.hub, "send"):

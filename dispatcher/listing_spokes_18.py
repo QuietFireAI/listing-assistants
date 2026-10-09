@@ -137,7 +137,9 @@ class Spoke18CalendarTask:
             else:
                 self.waiting[key] = {"agent": env.from_agent, "ctx": ctx,
                                      "waiting_on": payload.get("waiting_on"),
-                                     "since": payload.get("since")}
+                                     "since": payload.get("since"),
+                                     "wait_id": payload.get("wait_id"),
+                                     "reason": payload.get("reason")}
                 self.hub.ingest_spoke_trace(
                     "18", env.envelope_id,
                     thought=f"{env.from_agent} is waiting on "
@@ -346,6 +348,13 @@ class Spoke18CalendarTask:
                 {"agent": w["agent"], "context": w["ctx"],
                  "waiting_on": w["waiting_on"], "since": w["since"]}
                 for w in self.waiting.values()],
+            "unresolved_decisions_recap": [
+                {"agent": w["agent"], "context": w["ctx"],
+                 "waiting_on": w["waiting_on"], "since": w["since"],
+                 "wait_id": w.get("wait_id"), "reason": w.get("reason")}
+                for w in self.waiting.values()
+                if "human" in str(w.get("waiting_on", "")).lower()
+            ],
             "deadline_conflicts_tracked": {
                 ctx: sources for ctx, sources in self.deadline_sources.items()
                 if len(set(sources.values())) > 1},

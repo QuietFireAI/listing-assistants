@@ -1,9 +1,23 @@
-"""Tests for Human-In-The-Loop (HITL) Pause, Wait-State, and Resumption Protocol."""
+"""Tests for Human-In-The-Loop (HITL) Pause, Real-Time Alert, Wait-State, and Resumption Protocol."""
 import os
 import tempfile
 import pytest
 from dispatcher.client_drawer import ClientDrawerManager
 from dispatcher.hitl_protocol import HITLManager, WaitState
+from dispatcher.listing_spokes_18 import Spoke18CalendarTask
+from dispatcher.core import Envelope, Routes, AuditLog
+from dispatcher.hub import Hub
+from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
+
+IDENTITY_ROUTES = os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json")
+
+
+def make_test_hub(tmp_path):
+    signer = Ed25519Signer()
+    verifier = Ed25519Verifier(signer.public_key_bytes())
+    return Hub(Routes(IDENTITY_ROUTES),
+               AuditLog(os.path.join(tmp_path, "audit.jsonl")),
+               signature_verifier=verifier.verifier())
 
 
 def test_hitl_pause_and_resumption_lifecycle():
@@ -69,6 +83,48 @@ def test_hitl_pause_and_resumption_lifecycle():
         timeline_files_after = drawer.list_files("timeline")
         assert len(timeline_files_after) == 2
         assert any("_resumed.json" in f["filename"] for f in timeline_files_after)
+
+
+def test_hitl_realtime_notification_and_am_recap():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        hub = make_test_hub(tmpdir)
+        spoke18 = Spoke18CalendarTask(hub)
+        hub.on_turn_start()
+
+        dispatched_alerts = []
+        def test_alert_sink(alert: dict):
+            dispatched_alerts.append(alert)
+            return {"sent": True}
+
+        hitl = HITLManager(hub=hub, real_time_notifier=test_alert_sink)
+
+        # 1. Agent 02 halts lead qualification -> immediate notification fired!
+        ws = hitl.pause_operation(
+            client_context_id="ctx-lead-999",
+            agent_id="02",
+            paused_intent="lead.tier",
+            reason="Lead score 70 on exact HOT/WARM boundary. Human review required.",
+            original_payload={"score": 70},
+            required_decision="TIER_OVERRIDE"
+        )
+
+        # Check real-time alert was received immediately
+        assert len(dispatched_alerts) == 1
+        alert = dispatched_alerts[0]
+        assert alert["type"] == "decision_required"
+        assert alert["client_context_id"] == "ctx-lead-999"
+        assert alert["agent_id"] == "02"
+        assert "DECISION REQUIRED" in alert["body"]
+        assert ws.wait_id in alert["body"]
+
+        # 2. Check Agent 18 Morning Briefing recaps the unresolved decision
+        briefing = spoke18.generate_briefing(briefing_type="morning")
+        recap = briefing.get("unresolved_decisions_recap", [])
+        assert len(recap) == 1
+        assert recap[0]["context"] == "ctx-lead-999"
+        assert recap[0]["agent"] == "02"
+        assert recap[0]["wait_id"] == ws.wait_id
+        assert "HOT/WARM boundary" in recap[0]["reason"]
 
 
 def test_hitl_resume_fails_on_unknown_wait_id():
