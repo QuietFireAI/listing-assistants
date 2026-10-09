@@ -497,8 +497,47 @@ python tools/run_sweeps.py
 ```
 
 ### Verifying System Health at Any Time
-* **Full test suite:** `python -m pytest tests_listing/` (558 tests, 100% pass)
+* **Full test suite:** `python -m pytest tests_listing/` (577 tests, 100% pass)
 * **MCP Stdio protocol:** `python tools/mcp_roundtrip.py`
 * **End-to-End simulation:** `python tools/run_demo.py`
 * **Client drawer integrity:** `python tools/inspect_client_drawer.py <client_id> --verify-hashes`
 * **Audit chain check:** Run `hub.audit.verify_chain()` to prove that zero records have been altered.
+
+---
+
+## 9. External Provider Gateway Architecture (`dispatcher/provider_gateway.py`)
+
+ListingAssistants connects directly to third-party industry platforms and office productivity suites via an on-premise **Bring-Your-Own-Key (BYOK)** gateway:
+
+### Supported Providers & Schema
+1. **Real Estate Ecosystem:** Zillow (Bridge Interactive syndication feed), Redfin, Realtor.com / Move (ListHub), and local RESO MLS Web API feeds.
+2. **Workplace Suites:** Google Workspace (Gmail sync, Google Calendar showing buffers, Google Drive) and Microsoft 365 (Graph API for Outlook, Exchange, MS Calendar).
+3. **Digital Signatures & Escrow:** DocuSign (RSA private key auth), Dotloop, and Title Company settlement feeds.
+4. **Mobile Channels:** Twilio (WhatsApp & SMS) and Signal Messenger REST daemon.
+
+### Security & Storage Invariants
+* **Sovereign Local Storage:** All credentials reside in `config/integrations.json` on the appliance disk. Zero third-party cloud synchronization.
+* **Strict Masking:** `ProviderGateway.mask_secret()` automatically sanitizes tokens (`sk_...def`) in audit logs and dashboard views.
+* **Turnkey Onboarding:** Operators provision new brokers simply by copying `config/integrations_template.json` to `config/integrations.json` and injecting the broker's API keys.
+
+---
+
+## 10. Remote Field Supervision & Background Swarm Orchestration
+
+When a broker operates remotely via mobile messaging (WhatsApp, Signal, SMS), natural-language inquiries trigger coordinated multi-agent orchestration across the Hub:
+
+* **Showing Logistics Query ("What showings are scheduled today?"):**
+  * `Mobile Ingress` -> `Hub` -> `Agent 06 (Showing Coordinator)`.
+  * `Agent 06` consults `drawers/<client_id>/calendar/` and SQLite schedule ledger.
+  * `JEV AI` validates 24-hr seller advance notice and 30-min cleaning buffers.
+  * `Agent 08` verifies buyer broker representation agreements.
+  * `Hermes` formats the mobile response with lockbox access codes protected.
+* **Defect Summary Query ("Summarize inspection flags"):**
+  * `Agent 08` retrieves `inspection_report.pdf` from drawer with SHA-256 validation.
+  * `Agent 07` extracts physical defect flags against the contingency calendar.
+  * `Agent 17` enforces statutory boundaries (pure defect extraction; zero unauthorized repair credit valuation).
+  * `Hermes` synthesizes concise 3-item defect briefing for the mobile screen.
+* **Escrow Verification Query ("Did earnest money clear?"):**
+  * `Agent 15` and `Agent 07` inspect Title Company Escrow Deposit Receipt.
+  * Verifies $0.00 ledger balance variance while wire fraud firewall shields account routing numbers.
+  * `Agent 14` advances CRM milestone to `EMD_VERIFIED`.
