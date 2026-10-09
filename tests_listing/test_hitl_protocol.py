@@ -136,3 +136,60 @@ def test_hitl_resume_fails_on_unknown_wait_id():
             human_payload={}
         )
     assert "not found" in str(exc_info.value)
+
+
+def test_hitl_standardized_decisions_and_forensic_snapshot():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        drawer_mgr = ClientDrawerManager(tmpdir)
+        drawer = drawer_mgr.provision_drawer("ctx-snap-777", "Alice Test", "777 Elm St")
+        hitl = HITLManager(drawer_manager=drawer_mgr)
+
+        # 1. Pause operation
+        ws = hitl.pause_operation(
+            client_context_id="ctx-snap-777",
+            agent_id="04",
+            paused_intent="marketing.copy",
+            reason="Contradiction in property bed count. Stoppage requires operator value update.",
+            original_payload={"beds": 3, "listing_price": 500000},
+            required_decision="CORRECT_BED_COUNT"
+        )
+
+        # 2. Test create_forensic_snapshot
+        snapshot = hitl.create_forensic_snapshot(
+            client_context_id="ctx-snap-777",
+            wait_id=ws.wait_id,
+            notes="Client confirmed 4 bedrooms, not 3."
+        )
+        assert snapshot["snapshot_id"].startswith("snap_ctx-snap-777_")
+        assert snapshot["json_path"] is not None
+        assert snapshot["markdown_path"] is not None
+        assert "Alice Test" in snapshot["markdown_content"] or "ctx-snap-777" in snapshot["markdown_content"]
+        assert "CORRECT_BED_COUNT" in snapshot["markdown_content"]
+
+        # 3. Resume with APPROVE_WITH_OVERRIDE / CONTINUE_WITH_UPDATE
+        res = hitl.resume_operation(
+            wait_id=ws.wait_id,
+            human_decision="APPROVE_WITH_OVERRIDE",
+            human_payload={"updated_fields": {"beds": 4}}
+        )
+        assert res["status"] == "resumed"
+        assert res["decision"] == "APPROVE_WITH_OVERRIDE"
+        assert ws.original_payload["beds"] == 4  # Overridden value merged cleanly
+
+        # 4. Test CLOSE_SYSTEM emergency shutdown
+        ws2 = hitl.pause_operation(
+            client_context_id="ctx-snap-777",
+            agent_id="15",
+            paused_intent="wire.instruction",
+            reason="Suspected wire fraud spoofing.",
+            original_payload={"wire_requested": True},
+            required_decision="EMERGENCY_GATE"
+        )
+        close_res = hitl.resume_operation(
+            wait_id=ws2.wait_id,
+            human_decision="CLOSE_SYSTEM",
+            human_payload={"reason": "Compromised title email"}
+        )
+        assert close_res["status"] == "system_closed"
+        assert ws2.status == "SYSTEM_CLOSED"
+

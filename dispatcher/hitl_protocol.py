@@ -16,9 +16,36 @@ Lifecycle:
 from __future__ import annotations
 
 import json
+import sys
 import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional
+
+
+# Standardized HITL Decisions
+DECISION_APPROVE = "APPROVE"
+DECISION_APPROVE_AS_IS = "APPROVE_AS_IS"
+DECISION_APPROVE_WITH_OVERRIDE = "APPROVE_WITH_OVERRIDE"
+DECISION_MODIFY = "MODIFY"
+DECISION_CONTINUE_WITH_UPDATE = "CONTINUE_WITH_UPDATE"
+DECISION_REJECT = "REJECT"
+DECISION_REJECT_AND_ABORT = "REJECT_AND_ABORT"
+DECISION_HOLD = "HOLD"
+DECISION_HOLD_IN_SIDING = "HOLD_IN_SIDING"
+DECISION_CLOSE_SYSTEM = "CLOSE_SYSTEM"
+
+VALID_DECISIONS = {
+    DECISION_APPROVE,
+    DECISION_APPROVE_AS_IS,
+    DECISION_APPROVE_WITH_OVERRIDE,
+    DECISION_MODIFY,
+    DECISION_CONTINUE_WITH_UPDATE,
+    DECISION_REJECT,
+    DECISION_REJECT_AND_ABORT,
+    DECISION_HOLD,
+    DECISION_HOLD_IN_SIDING,
+    DECISION_CLOSE_SYSTEM,
+}
 
 
 class WaitState:
@@ -43,7 +70,7 @@ class WaitState:
         self.original_payload = original_payload
         self.required_decision = required_decision
         self.created_at = created_at or time.time()
-        self.status = "PENDING"  # PENDING, RESOLVED, EXPIRED
+        self.status = "PENDING"  # PENDING, RESOLVED, EXPIRED, CLOSED
         self.resolution: Optional[dict] = None
 
     def to_dict(self) -> dict:
@@ -192,19 +219,52 @@ class HITLManager:
     def resume_operation(
         self,
         wait_id: str,
-        human_decision: str,  # "APPROVE", "REJECT", "MODIFY", "OVERRIDE"
+        human_decision: str,  # "APPROVE", "APPROVE_AS_IS", "APPROVE_WITH_OVERRIDE", "MODIFY", "CONTINUE_WITH_UPDATE", "REJECT", "HOLD", "CLOSE_SYSTEM"
         human_payload: dict,
         human_agent_id: str = "00",
         signature: Optional[str] = None
     ) -> dict:
-        """Called when the human makes their decision. Resumes the halted agent."""
+        """Called when the human makes their decision. Resumes the halted agent or executes system closure."""
         ws = self.active_waits.get(wait_id)
         if not ws:
             raise ValueError(f"WaitState {wait_id!r} not found or already resolved.")
 
+        # Normalize decision
+        norm_decision = human_decision.upper().strip()
+
+        # Handle Emergency CLOSE_SYSTEM
+        if norm_decision == DECISION_CLOSE_SYSTEM:
+            ws.status = "SYSTEM_CLOSED"
+            ws.resolution = {
+                "decision": DECISION_CLOSE_SYSTEM,
+                "human_agent_id": human_agent_id,
+                "human_payload": human_payload,
+                "resolved_at": time.time(),
+                "signature": signature
+            }
+            if self.hub and hasattr(self.hub, "ingest_spoke_trace"):
+                self.hub.ingest_spoke_trace(
+                    ws.agent_id,
+                    wait_id,
+                    thought=f"Emergency CLOSE_SYSTEM triggered by {human_agent_id}. Halting task completely.",
+                    result="system_closed"
+                )
+            return {
+                "status": "system_closed",
+                "wait_id": wait_id,
+                "decision": DECISION_CLOSE_SYSTEM,
+                "agent_id": ws.agent_id
+            }
+
+        # Handle Overrides / Updated Values (APPROVE_WITH_OVERRIDE / MODIFY / CONTINUE_WITH_UPDATE)
+        if norm_decision in (DECISION_APPROVE_WITH_OVERRIDE, DECISION_MODIFY, DECISION_CONTINUE_WITH_UPDATE):
+            updated_fields = human_payload.get("updated_fields", human_payload)
+            if isinstance(updated_fields, dict):
+                ws.original_payload.update(updated_fields)
+
         ws.status = "RESOLVED"
         ws.resolution = {
-            "decision": human_decision,
+            "decision": norm_decision,
             "human_agent_id": human_agent_id,
             "human_payload": human_payload,
             "resolved_at": time.time(),
@@ -232,8 +292,8 @@ class HITLManager:
             self.hub.ingest_spoke_trace(
                 ws.agent_id,
                 wait_id,
-                thought=f"Human decision received from {human_agent_id}: {human_decision}. Resuming operation.",
-                result=f"resumed: {human_decision}"
+                thought=f"Human decision received from {human_agent_id}: {norm_decision}. Resuming operation.",
+                result=f"resumed: {norm_decision}"
             )
 
         # Dispatch resumption to the owning spoke handler if registered
@@ -257,7 +317,135 @@ class HITLManager:
         return {
             "status": "resumed",
             "wait_id": wait_id,
-            "decision": human_decision,
+            "decision": norm_decision,
             "agent_id": ws.agent_id,
             "handler_result": handler_result
+        }
+
+    def create_forensic_snapshot(
+        self,
+        client_context_id: str,
+        wait_id: Optional[str] = None,
+        notes: str = ""
+    ) -> dict:
+        """Generates a complete forensic diagnostic snapshot ('screenshot') of drawer state,
+        active wait-states, file fingerprints, and recent notifications for operational troubleshooting.
+        """
+        snapshot_timestamp = time.time()
+        time_str = time.strftime("%Y%m%d_%H%M%S", time.localtime(snapshot_timestamp))
+        snapshot_id = f"snap_{client_context_id}_{time_str}"
+
+        ws = self.active_waits.get(wait_id) if wait_id else None
+        if not ws:
+            # Check if there is an active wait for this client
+            for active in self.active_waits.values():
+                if active.client_context_id == client_context_id and active.status == "PENDING":
+                    ws = active
+                    break
+
+        files_inventory = []
+        if self.drawer_manager and self.drawer_manager.has_drawer(client_context_id):
+            drawer = self.drawer_manager.get_drawer(client_context_id)
+            files_inventory = drawer.list_files()
+
+        client_notifications = [
+            n for n in self.notification_log
+            if n.get("client_context_id") == client_context_id
+        ]
+
+        snapshot_data = {
+            "snapshot_id": snapshot_id,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(snapshot_timestamp)),
+            "client_context_id": client_context_id,
+            "notes": notes,
+            "wait_state": ws.to_dict() if ws else None,
+            "files_inventory": files_inventory,
+            "notifications": client_notifications,
+            "platform_info": {
+                "python_version": sys.version.split()[0],
+                "active_waits_count": len(self.active_waits),
+                "storage_type": "ClientDrawer_SQLite_Drobo"
+            }
+        }
+
+        # Render human-readable Markdown 'Screenshot' Report
+        md_lines = [
+            f"# ListingAssistants Forensic Snapshot: {client_context_id}",
+            f"**Snapshot ID:** `{snapshot_id}`  ",
+            f"**Timestamp:** {snapshot_data['timestamp']}  ",
+            f"**Operator Notes:** {notes or 'N/A'}  ",
+            "",
+            "## 1. Active Wait-State Status",
+        ]
+        if ws:
+            md_lines.extend([
+                f"- **Wait ID:** `{ws.wait_id}`",
+                f"- **Halted Agent:** Agent {ws.agent_id}",
+                f"- **Paused Intent:** `{ws.paused_intent}`",
+                f"- **Reason for Stoppage:** {ws.reason}",
+                f"- **Required Decision:** `{ws.required_decision}`",
+                f"- **Status:** `{ws.status}`",
+                f"- **Payload at Pause:**",
+                "```json",
+                json.dumps(ws.original_payload, indent=2),
+                "```"
+            ])
+        else:
+            md_lines.append("- *(No pending wait-state currently active for this client)*")
+
+        md_lines.extend([
+            "",
+            "## 2. Drawer File Inventory & Cryptographic Hashes",
+            "| Filename | Category | Size (Bytes) | SHA-256 Digest |",
+            "|---|---|---|---|"
+        ])
+        if files_inventory:
+            for f in files_inventory:
+                md_lines.append(
+                    f"| {f.get('filename')} | {f.get('category')} | {f.get('size_bytes')} | `{f.get('sha256', '')[:16]}...` |"
+                )
+        else:
+            md_lines.append("| *(No files found in drawer)* | - | - | - |")
+
+        md_lines.extend([
+            "",
+            "## 3. Real-Time Alert Log",
+        ])
+        if client_notifications:
+            for n in client_notifications:
+                md_lines.append(
+                    f"- **[{time.strftime('%H:%M:%S', time.localtime(n.get('timestamp', 0)))}]** {n.get('body')}"
+                )
+        else:
+            md_lines.append("- *(No alerts recorded for this client)*")
+
+        md_report = "\n".join(md_lines)
+
+        json_path = None
+        md_path = None
+        if self.drawer_manager and self.drawer_manager.has_drawer(client_context_id):
+            try:
+                json_path = self.drawer_manager.record_agent_artifact(
+                    client_id=client_context_id,
+                    agent_id="00",
+                    category="timeline",
+                    filename=f"{snapshot_id}.json",
+                    content=json.dumps(snapshot_data, indent=2)
+                )
+                md_path = self.drawer_manager.record_agent_artifact(
+                    client_id=client_context_id,
+                    agent_id="00",
+                    category="timeline",
+                    filename=f"{snapshot_id}.md",
+                    content=md_report
+                )
+            except Exception:
+                pass
+
+        return {
+            "snapshot_id": snapshot_id,
+            "json_path": json_path,
+            "markdown_path": md_path,
+            "markdown_content": md_report,
+            "data": snapshot_data
         }
