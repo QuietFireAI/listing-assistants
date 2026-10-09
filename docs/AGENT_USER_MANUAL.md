@@ -109,8 +109,45 @@ flowchart TD
 ### What This Means For You:
 1. **Dedicated Client Drawer:** The moment a client is entered into the system, ListingAssistants provisions an isolated physical and logical drawer (`drawers/<client_id>/`).
 2. **Strict Compartmentalization:** When an agent (such as Agent 04 drafting copy, or Agent 08 collecting disclosures) does work, it is physically restricted to that client's drawer. It cannot read, write, or leak files from any other client's drawer.
-3. **Cryptographic Fingerprinting:** Every document, PDF, disclosure, or photo uploaded is SHA-256 fingerprinted. If a document is ever modified, tampered with, or moved, the system detects it immediately.
+3. **Cryptographic Fingerprinting (SHA-256):** Every document, contract, inspection PDF, or photo uploaded is SHA-256 fingerprinted. If an adversary, rogue script, or software error ever attempts to alter an inspection addendum or modify closing terms, the platform detects the hash mismatch and immediately halts. Your files cannot be silently altered or stolen from you.
 4. **Complete Chain of Custody:** If a client or licensing board asks, *"Who had access to my confidential financial statements?"*, you can produce a tamper-evident audit report proving exactly which agent handled each file and when.
+
+#### Physical Hard Drive Directory Structure
+```
+C:\ListingAssistants\ (or local Drobo NAS RAID partition)
+├── drawers/                               <-- PHYSICAL CLIENT DRAWER VAULTS (One Client, One Drawer)
+│   ├── ctx-100-oak-lane/                  <-- Dedicated Vault for Bob Seller
+│   │   ├── drawer_manifest.json           <-- Master inventory with SHA-256 cryptographic fingerprints
+│   │   ├── documents/                     <-- Original contracts, inspection PDFs, title commitments
+│   │   ├── artifacts/                     <-- MLS draft packages, comp analyses, marketing flyers
+│   │   ├── interactions/                  <-- Client communication transcripts & TCPA consent logs
+│   │   ├── financials/                    <-- Title escrow deposit receipts, commission net sheets
+│   │   ├── timeline/                      <-- Pause/resumption records (_pause.json, _resumed.json)
+│   │   └── audit/                         <-- Sovereign client activity log & forensic diagnostic snapshots
+│   └── ctx-456-elm-street/                <-- Dedicated Vault for Alice Buyer (Strictly Partitioned)
+│       └── ...
+├── data/
+│   └── listing_appliance.db               <-- LOCAL ZERO-DAEMON SQLite TRANSACTIONAL DATABASE
+│       ├── crm_interactions              <-- Complete CRM interaction ledger (Agent 14)
+│       ├── communication_consent          <-- Opt-in/opt-out TCPA/DNC statutory registry
+│       ├── client_drawer_files            <-- Master file index & SHA-256 verification table
+│       ├── commission_ledgers             <-- Commission calculations reconciled to $0.00
+│       └── showing_calendar               <-- Showing appointments & 30-minute buffer registry
+├── logs/
+│   ├── audit.jsonl                        <-- PRE-PERSIST SHA-256 HASH-CHAINED AUDIT LEDGER
+│   ├── stream.log                         <-- Plain-English human-readable operational event stream
+│   └── daily/
+│       └── eod_ledger_YYYY-MM-DD.md       <-- Automated End-of-Day Operations Dossiers
+├── checkpoints/                           <-- AWS-STYLE MODEL RESTORE POINTS & SNAPSHOTS
+│   ├── baseline_v1.0.0/                   <-- Factory immutable zero-drift base weights
+│   ├── restore_point_YYYY-MM-DD/          <-- 08:00 AM daily warm restore snapshots
+│   └── local_lora_training.jsonl          <-- Offline student fine-tuning training pool
+└── config/
+    └── integrations.json                  <-- BYOK credentials (masked in memory; zero cloud upload)
+```
+
+> **Zero Cloud Transmission vs. Mobile Carrier Communication:**  
+> When you text Hermes over WhatsApp or Signal from the road, you are transmitting an ephemeral supervisory *instruction* (e.g. `APPROVE`) or receiving a factual *summary*. 100% of your confidential client documents (tax records, W-2s, 45-page inspection reports, wire instructions) **remain strictly on your physical office machine**. Zero bytes of your client data ever touch public cloud training clusters.
 
 ---
 

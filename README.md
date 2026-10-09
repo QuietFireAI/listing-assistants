@@ -4,7 +4,7 @@
 *Every message routed by one hub, every route pre-approved, every action recorded on a tamper-evident, hash-chained audit log.*  
 *(Official Production Domain: [ListingAssistants.com](https://ListingAssistants.com) — Brand notice: distinct from listingagent.com)*
 
-[![Test Suite](https://img.shields.io/badge/pytest-570%20passed-brightgreen.svg)](tests_listing/)
+[![Test Suite](https://img.shields.io/badge/pytest-577%20passed-brightgreen.svg)](tests_listing/)
 [![Closed Track](https://img.shields.io/badge/routes-51%20closed%20lanes-blue.svg)](identity/routes.json)
 [![Playbooks](https://img.shields.io/badge/playbooks-24%20ratified-blueviolet.svg)](playbooks/)
 [![Decisions](https://img.shields.io/badge/tuples-227%20deterministic-orange.svg)](docs/SWARM_COACHES_PLAYBOOK.md)
@@ -48,7 +48,7 @@ Here is the unvarnished reality of using unconstrained frontier chatbots in a li
 │ • Hallucinated Price Guidance:       │ • Fiduciary Pricing Firewall:                          │
 │   Chatbots try to be helpful and     │   The AI is hard-coded to refuse valuation. If a buyer │
 │   improvise price opinions or terms. │   asks "What's the lowest they'll take?", it halts live│
-│                                      │   and escalates to the licensed human broker.          │
+│   into Buyer B's disclosures.        │   and escalates to the licensed human broker.          │
 ├──────────────────────────────────────┼────────────────────────────────────────────────────────┤
 │ • The Wire Fraud Cyber Threat:       │ • Wire Fraud Zero-Tolerance Shield:                    │
 │   Chatbots summarize incoming emails │   The instant any email mentions routing numbers, the  │
@@ -76,6 +76,67 @@ Here is the unvarnished reality of using unconstrained frontier chatbots in a li
 > **Why JEV AI Changes the Equation:** ListingAssistants purposefully couples two different engines:
 > * **Nous Hermes (The Creative Drafter):** Handles natural language remarks and email drafts—always quarantined behind exit-gate compliance reviews.
 > * **JEV AI (The Fiduciary Evaluator):** JEV AI was chosen specifically because **it does NOT create, invent, or improvise.** It strictly evaluates structured facts (scoring buyer pre-approvals, arbitrating tour conflicts, calculating contractual milestone timelines) using deterministic mathematical logic. It cannot hallucinate. Where an LLM guesses, JEV AI calculates.
+
+---
+
+## Physical Hard Drive Architecture: Where Your Data Lives & How It Is Protected
+
+In a licensed real estate practice, the greatest fear is two-fold: **the fear of what you might lose** (lost contracts, blown deadlines, corrupted files), and **the fear of what might be taken from you** (confidential client financial records stolen, wire routing compromised, or closing terms altered without your knowledge).
+
+ListingAssistants solves this by replacing fragile cloud databases with **sovereign physical filesystem isolation** and **zero-daemon local transactional persistence** directly on your local hard drive:
+
+```
+C:\ListingAssistants\ (or local Drobo NAS RAID partition)
+├── drawers/                               <-- PHYSICAL CLIENT DRAWER VAULTS (One Client, One Drawer)
+│   ├── ctx-100-oak-lane/                  <-- Isolated Directory Vault for Bob Seller
+│   │   ├── drawer_manifest.json           <-- Master inventory with SHA-256 cryptographic fingerprints
+│   │   ├── documents/                     <-- Original contracts, inspection PDFs, title commitments
+│   │   ├── artifacts/                     <-- MLS draft packages, comp analyses, marketing flyers
+│   │   ├── interactions/                  <-- Client communication transcripts & TCPA consent logs
+│   │   ├── financials/                    <-- Title escrow deposit receipts, commission net sheets
+│   │   ├── timeline/                      <-- Pause/resumption records (_pause.json, _resumed.json)
+│   │   └── audit/                         <-- Sovereign client activity log & forensic diagnostic snapshots
+│   └── ctx-456-elm-street/                <-- Isolated Directory Vault for Alice Buyer (Strictly Partitioned)
+│       └── ...
+├── data/
+│   └── listing_appliance.db               <-- LOCAL ZERO-DAEMON SQLite TRANSACTIONAL DATABASE
+│       ├── crm_interactions              <-- Complete CRM interaction ledger (Agent 14)
+│       ├── communication_consent          <-- Opt-in/opt-out TCPA/DNC statutory registry
+│       ├── client_drawer_files            <-- Master file index & SHA-256 verification table
+│       ├── commission_ledgers             <-- Commission calculations reconciled to $0.00
+│       └── showing_calendar               <-- Showing appointments & 30-minute buffer registry
+├── logs/
+│   ├── audit.jsonl                        <-- PRE-PERSIST SHA-256 HASH-CHAINED AUDIT LEDGER
+│   ├── stream.log                         <-- Plain-English human-readable operational event stream
+│   └── daily/
+│       └── eod_ledger_YYYY-MM-DD.md       <-- Automated End-of-Day Operations Dossiers
+├── checkpoints/                           <-- AWS-STYLE MODEL RESTORE POINTS & SNAPSHOTS
+│   ├── baseline_v1.0.0/                   <-- Factory immutable zero-drift base weights
+│   ├── restore_point_YYYY-MM-DD/          <-- 08:00 AM daily warm restore snapshots
+│   └── local_lora_training.jsonl          <-- Offline student fine-tuning training pool
+└── config/
+    └── integrations.json                  <-- BYOK credentials (masked in memory; zero cloud upload)
+```
+
+### The Three Vault Protections:
+
+#### 1. Cryptographic Tamper-Evidence: Protecting What Cannot Be Taken From You
+Real estate transactions involve hundreds of thousands of dollars in commission and immense legal liability. If an adversary, malicious insider, or rogue software script attempts to silently alter an inspection repair addendum (e.g. changing a \$2,500 credit to \$25,000) or manipulate a commission split, **how do you prove in court what the original document said?**
+* **Immutable SHA-256 Fingerprinting:** Every contract, inspection PDF, addendum, and photo placed into `documents/` is cryptographically hashed with SHA-256 upon arrival and indexed in `drawer_manifest.json` and the SQLite database.
+* **Instant Tamper Detection:** If a single byte of any file on your hard drive is altered outside the system, the platform detects the hash mismatch, immediately locks the file, and fires an alert. Your files cannot be silently altered or manipulated behind your back.
+* **Pre-Persist Hash-Chained Audit Ledger:** Every agent action is cryptographically chained (`hash = sha256(prev_hash + envelope)`) and committed to `logs/audit.jsonl` *before* the action executes. It is append-only; historical entries cannot be deleted or rewritten without breaking the cryptographic chain.
+
+#### 2. Physical Anti-Commingling (`ComminglingBreachError`)
+In consumer AI chatbots, prompts share a common context where Client A's data can accidentally bleed into Client B's communications.
+* In ListingAssistants (`dispatcher/client_drawer.py`), every client has an isolated physical folder.
+* If an agent working on `ctx-100-oak-lane` ever attempts to read or write a file in `ctx-456-elm-street`, the micro-kernel immediately throws a `ComminglingBreachError` and halts. Client A's confidential divorce status, bottom-line price, and financial disclosures can never cross-pollinate into Client B's file.
+
+#### 3. Zero Cloud Transmission vs. Mobile Carrier Communication
+> **"If I text my assistant over WhatsApp or Signal, doesn't that mean my data is in the cloud?"**  
+> **No.** There is a critical architectural distinction between your **Confidential Data Vault** and an **Ephemeral Mobile Wire**:
+> 
+> * **Your Heavy Data Vault (Zero Cloud Transmission):** 100% of your confidential client documents—45-page inspection reports, preliminary title commitments, buyer pre-approval letters, W-2s, tax returns, and bank wire routing numbers—**NEVER leave your local physical computer**. They never sit on AWS S3 buckets, never enter OpenAI or Anthropic training sets, and never reside in a third-party multi-tenant SaaS database.
+> * **The Mobile Carrier Pipe (Ephemeral Notification & Command):** When you text your assistant from the grocery store checkout line or a softball game, you are transmitting an ephemeral supervisory *instruction* (e.g. `APPROVE`, `MODIFY: credit=2500`) or receiving a distilled factual *summary* (e.g. *"2 showings confirmed at 1:30 PM and 3:30 PM"*). The heavy confidential files remain locked securely inside your office machine.
 
 ---
 
