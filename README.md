@@ -70,6 +70,13 @@ Here is the unvarnished reality of using unconstrained frontier chatbots in a li
 3. **"Does this replace my agents or my transaction coordinator?"**  
    *No.* It liberates them. It eliminates the 70% secretarial drag—chasing signatures, organizing disclosures, tracking timelines—allowing your human team to focus 100% on high-touch client relationships, negotiation, and closing transactions.
 
+### The Accountability Gap: Why JEV AI Over Pure LLMs
+> **The Legal Reality:** If an unconstrained frontier LLM hallucinating in the cloud causes an escrow deadline breach, leaks a seller's bottom-line price, or triggers a statutory Fair Housing complaint, the cloud AI provider will never apologize, pay your damages, or defend your license at a state commission hearing. Their Terms of Service explicitly disclaim all fiduciary liability.
+> 
+> **Why JEV AI Changes the Equation:** ListingAssistants purposefully couples two different engines:
+> * **Nous Hermes (The Creative Drafter):** Handles natural language remarks and email drafts—always quarantined behind exit-gate compliance reviews.
+> * **JEV AI (The Fiduciary Evaluator):** JEV AI was chosen specifically because **it does NOT create, invent, or improvise.** It strictly evaluates structured facts (scoring buyer pre-approvals, arbitrating tour conflicts, calculating contractual milestone timelines) using deterministic mathematical logic. It cannot hallucinate. Where an LLM guesses, JEV AI calculates.
+
 ---
 
 ## Architectural Identity: Under the Hood
@@ -261,31 +268,158 @@ Provides a complete pause-and-resume lifecycle (`dispatcher/hitl_protocol.py`) w
 
 ---
 
-## The 21 Spoke Agents
+## The 21 Specialized Spoke Agents: Why Single-Responsibility Beats "Super Agents"
 
-| Agent ID | Name | Core Responsibilities | Absolute Invariant |
-| :--- | :--- | :--- | :--- |
-| **00** | Human Principal | Licensed Broker / Team Lead | Owns all fiduciary pricing, legal lines, and final sign-offs. |
-| **01** | Lead Capture | Inbound ingestion across web, email, SMS | Never promises service without jurisdiction verification. |
-| **02** | Lead Qualification | Applies signed lead-scoring rubric via JEV AI | Never authors rubrics; exact boundary scores drop to lower tier. |
-| **03** | Lead Nurture | Cadenced buyer/seller follow-up | Respects legal quiet hours; honors immediate opt-outs. |
-| **04** | Listing Description | Drafts property MLS remarks via Hermes | Zero subjective steering words; physical property facts only. |
-| **05** | Listing Onboarding | Onboarding package & draft MLS records | Go-live requires verified active status, not an assumed push log. |
-| **06** | Showing Scheduler | Showing calendar logistics & buffer management | Access codes never transmitted; double-bookings strictly arbitrated. |
-| **07** | Transaction Coordinator | Escrow timeline & contractual deadlines | Wire fraud lines absolute; inspection repair negotiations human-only. |
-| **08** | Document Collection | Files disclosure forms & transaction artifacts | Sensitive docs from unexpected senders quarantined immediately. |
-| **09** | Vendor Coordinator | Dispatches photographers, stagers, inspectors | Vendor contact details shielded; unvetted vendors rejected. |
-| **10** | Market Data | Comp packages & neighborhood statistics | Pure statistics only; opinions and appraisal substitutions refused. |
-| **11** | Client Communication | Central client-facing communication voice | Angry clients trigger immediate outbound hold & human queue review. |
-| **12** | Marketing & Media | Prepares brochures, flyers, ad copy | Assets held until Fair Housing clearance & Clear Cooperation proof. |
-| **13** | Buyer Matching | Matches active listings to pre-qualified buyers | Never fabricates property amenities or pricing concessions. |
-| **14** | CRM & Pipeline | Authoritative system of record for interaction logs | Zero-loss persistence of client consent and communication history. |
-| **15** | Financial & Commission | Commission calculations & escrow tracking | Reconciliation tolerance is $0.00; wire transfers never handled. |
-| **16** | Referral & Post-Close | Post-closing relationship & review management | Annual milestone checks; immediate opt-out compliance. |
-| **17** | Compliance & Fair Housing | Statutory Fair Housing & MLS rules review | Flagged phrases hard-stop publication; near-misses audited. |
-| **18** | Calendar & Tasks | Human agent daily briefings & wait-state tracking | Contractual deadlines outrank soft meetings; recurring tasks debounced. |
-| **19** | Prospecting & Farm | Geo-farm analysis & outreach planning | DNC / TCPA compliance strictly enforced before any touch. |
-| **20** | Social Media Monitor | Brand sentiment tracking & review monitoring | Public complaints trigger immediate P14 outbound hold & human handoff. |
+In recreational AI, builders create a single "Super Agent" prompt and tell it to handle everything from writing ad copy to reading bank wires and negotiating offers. In a licensed real estate practice, that design is catastrophic: **cognitive overload, context pollution, and zero auditability.**
+
+ListingAssistants is engineered around the **Single-Responsibility Principle**. Every operational task in the lifecycle of a residential listing is isolated into a dedicated specialist agent with its own immutable behavioral boundary:
+
+### The Four Operational Divisions
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        THE 4 HIGH-COORDINATION DIVISIONS                               │
+├───────────────────────────────────┬────────────────────────────────────────────────────┤
+│ DIVISION 1: CLIENT RELATIONS &    │ • Agent 01: Lead Intake (24/7 Multi-channel)       │
+│ INBOUND FRONT DESK                │ • Agent 02: Lead Qualification (JEV AI Rubrics)    │
+│                                   │ • Agent 03: Lead Nurture (Quiet-hours compliant)   │
+│                                   │ • Agent 11: Client Communication (Central voice)   │
+│                                   │ • Agent 13: Buyer Matching (Inventory match)       │
+│                                   │ • Agent 16: Referral & Post-Close (Milestones)     │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ DIVISION 2: CREATIVE & MEDIA      │ • Agent 04: Listing Remarks (MLS Copywriter)       │
+│ PRODUCTION                        │ • Agent 05: Listing Onboarding (MLS Package)       │
+│                                   │ • Agent 09: Vendor Dispatch (Vetted photo/staging) │
+│                                   │ • Agent 12: Marketing & Media (Ad flyers/social)   │
+│                                   │ • Agent 19: Farm Prospector (Geo-turnover/DNC)     │
+│                                   │ • Agent 20: Reputation Sentinel (Review monitor)   │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ DIVISION 3: TRANSACTION & ESCROW  │ • Agent 06: Showing Coordinator (Buffer logistics) │
+│ OPERATIONS                        │ • Agent 07: Transaction Manager (Escrow timeline)  │
+│                                   │ • Agent 08: Document Collector (Disclosures/chase) │
+│                                   │ • Agent 10: Market Data (Comps & statistics only)  │
+│                                   │ • Agent 14: CRM Ledger (Zero-loss persistence)     │
+│                                   │ • Agent 15: Commission & Finance ($0.00 balance)   │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ DIVISION 4: GOVERNANCE, RISK &    │ • Agent 00: Human Principal (YOU - Broker/Lead)    │
+│ EXECUTIVE COMMAND                 │ • Agent 17: Fair Housing Officer (Statutory gate)  │
+│                                   │ • Agent 18: Personal Assistant (Morning Dossier)   │
+└───────────────────────────────────┴────────────────────────────────────────────────────┘
+```
+
+---
+
+### The 21 Spoke Register & Fiduciary Invariants
+
+| Agent ID | Name | Division | Core Responsibilities | Absolute Invariant (Cannot be overridden) |
+| :--- | :--- | :--- | :--- | :--- |
+| **00** | Human Principal | Executive | Licensed Broker of Record / Team Lead | Owns all fiduciary pricing, legal lines, and final sign-offs. |
+| **01** | Lead Capture | Relations | Inbound ingestion across web, email, SMS | Never promises service without jurisdiction verification. |
+| **02** | Lead Qualification | Relations | Applies signed lead-scoring rubric via JEV AI | Never authors rubrics; exact boundary scores drop to lower tier. |
+| **03** | Lead Nurture | Relations | Cadenced buyer/seller follow-up | Respects legal quiet hours; honors immediate opt-outs. |
+| **04** | Listing Description | Creative | Drafts property MLS remarks via Hermes | Zero subjective steering words; physical property facts only. |
+| **05** | Listing Onboarding | Creative | Onboarding package & draft MLS records | Go-live requires verified active status, not an assumed push log. |
+| **06** | Showing Scheduler | Escrow | Showing calendar logistics & buffer management | Access codes never transmitted; double-bookings strictly arbitrated. |
+| **07** | Transaction Coordinator | Escrow | Escrow timeline & contractual deadlines | Wire fraud lines absolute; inspection repair negotiations human-only. |
+| **08** | Document Collection | Escrow | Files disclosure forms & transaction artifacts | Sensitive docs from unexpected senders quarantined immediately. |
+| **09** | Vendor Coordinator | Creative | Dispatches photographers, stagers, inspectors | Vendor contact details shielded; unvetted vendors rejected. |
+| **10** | Market Data | Escrow | Comp packages & neighborhood statistics | Pure statistics only; opinions and appraisal substitutions refused. |
+| **11** | Client Communication | Relations | Central client-facing communication voice | Angry clients trigger immediate outbound hold & human queue review. |
+| **12** | Marketing & Media | Creative | Prepares brochures, flyers, ad copy | Assets held until Fair Housing clearance & Clear Cooperation proof. |
+| **13** | Buyer Matching | Relations | Matches active listings to pre-qualified buyers | Never fabricates property amenities or pricing concessions. |
+| **14** | CRM & Pipeline | Escrow | Authoritative system of record for interaction logs | Zero-loss persistence of client consent and communication history. |
+| **15** | Financial & Commission | Escrow | Commission calculations & escrow tracking | Reconciliation tolerance is $0.00; wire transfers never handled. |
+| **16** | Referral & Post-Close | Relations | Post-closing relationship & review management | Annual milestone checks; immediate opt-out compliance. |
+| **17** | Compliance & Fair Housing | Risk | Statutory Fair Housing & MLS rules review | Flagged phrases hard-stop publication; near-misses audited. |
+| **18** | Calendar & Tasks | Executive | Human agent daily briefings & wait-state tracking | Contractual deadlines outrank soft meetings; recurring tasks debounced. |
+| **19** | Prospecting & Farm | Creative | Geo-farm analysis & outreach planning | DNC / TCPA compliance strictly enforced before any touch. |
+| **20** | Social Media Monitor | Creative | Brand sentiment tracking & review monitoring | Public complaints trigger immediate P14 outbound hold & human handoff. |
+
+---
+
+## The 227 Decision Tuples & 24 Operational Playbooks
+
+### What is a Decision Tuple?
+A **Decision Tuple** is an immutable, pre-deliberated routing and policy rule: `(from_agent, intent, to_agent) + deterministic invariant`. 
+
+When an event occurs (e.g. an inspection repair request arrives), the system does **not** ask an LLM to improvise a reaction. It evaluates against the **227 ratified tuples**:
+* If the tuple exists and satisfies statutory invariants: it routes deterministically along verified tracks.
+* If the tuple requires human authorization (e.g. price change, repair credit): it halts into a `WaitState` for Agent 00.
+* If the intent is unknown or out-of-track: it holds live in `clarification.request`. It never improvises.
+
+### The 24 Master Playbooks (P01–P24)
+The entire operational lifecycle of residential real estate is codified into 24 end-to-end playbooks:
+
+| Playbook | Name | Primary Agents | Trigger Event | Mandatory Human Gate |
+| :--- | :--- | :--- | :--- | :--- |
+| **P01** | New Listing Onboarding | 00, 04, 05, 09, 17 | Signed listing agreement submitted | Fiduciary list price & broker go-live sign-off |
+| **P02** | Price Improvement Authorization | 00, 05, 10, 11, 14 | Seller authorizes price adjustment | Cryptographic Ed25519 signature + MFA required |
+| **P03** | Showing Request & Lockbox Shield | 06, 14, 18 | Buyer's agent requests private tour | Lockbox codes shielded behind secure gate |
+| **P04** | Open House Coordination | 06, 09, 12, 18 | Open house scheduled by broker | Vendor signpost & marketing material clearance |
+| **P05** | Offer Ingestion & Seller Summary | 00, 07, 10, 11 | Purchase offer PDF received | Valuation commentary prohibited; broker-led review |
+| **P06** | Showing Conflict Arbitration | 06, 07, 18 | Overlapping tour requests | Contractual escrow deadlines outrank soft tours |
+| **P07** | Escrow Milestone Timeline | 07, 08, 14, 18 | Mutual contract execution | Critical contingency dates mapped into vault |
+| **P08** | Inspection Contingency Tracking | 07, 08, 09, 18 | Inspection report filed to drawer | Repair requests remain 100% human-directed |
+| **P09** | Appraisal Contingency Review | 07, 10, 15, 18 | Appraisal report received | Valuation disputes escalated to human broker |
+| **P10** | Loan Commitment Verification | 07, 08, 14 | Lender loan approval issued | Contingency removal verified before status advance |
+| **P11** | Title & HOA Package Audit | 07, 08, 14 | Preliminary title / HOA docs arrive | Restrictive covenants flagged for broker review |
+| **P12** | Repair Request & Seller Credit | 00, 07, 11, 15 | Repair addendum submitted | Financial concessions require Ed25519 signature |
+| **P13** | Wire Fraud Threat Neutralization | 00, 07, 11 | Incoming message mentions wire details | Immediate conversation lockdown & human phone alert |
+| **P14** | Angry Client Outbound Freeze | 00, 11, 18 | Negative sentiment detected | Instant freeze on all outbound automated drips |
+| **P15** | Commission Disbursement Audit | 00, 14, 15 | Closing settlement statement arrives | Net sheet reconciliation must balance to exact $0.00 |
+| **P16** | Post-Close Client Review & Referral | 03, 14, 16 | Escrow record marked closed | Respects opt-outs; annual anniversary touches |
+| **P17** | Fair Housing Marketing Clearance | 04, 12, 17 | New marketing copy drafted | Zero steering terms; hard-stop on violations |
+| **P18** | Morning Operational Briefing | 00, 18 | 08:00 AM daily cron sweep | Consolidates all open wait-states and deadlines |
+| **P19** | Geo-Farm Prospecting & DNC Gate | 14, 19 | Neighborhood outreach list created | Strict TCPA and National Do-Not-Call scrubbing |
+| **P20** | Social Media Complaint Intercept | 11, 20 | Negative review or comment detected | Halts autonomous replies; alerts broker queue |
+| **P21** | Unrepresented Buyer Tour Screening | 02, 06, 14 | Buyer requests tour without agent | Enforces mandatory 2024 NAR buyer rep agreement |
+| **P22** | Closing Date Extension & Addendum | 00, 07, 14 | Closing delay requested | Extension addendum requires signed broker authority |
+| **P23** | Earnest Money Escrow Receipt Chase | 07, 08, 14 | Day 2 of escrow execution | Automated follow-up for official escrow receipt |
+| **P24** | Final Walk-Through & Possession | 06, 07, 18 | 48 hours prior to closing | Verifies walk-through completion before keys |
+
+---
+
+### Spotlight Walkthrough: Playbook P01 (New Listing Onboarding)
+
+To see how the 21 agents collaborate across closed tracks without ever speaking directly to one another, consider what happens when a new exclusive listing is signed:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Broker as Agent 00 (Human Broker)
+    participant Hub as Dispatcher Hub (Closed Track)
+    participant Drawer as Client Drawer Vault
+    participant A05 as Agent 05 (Listing Onboarding)
+    participant A09 as Agent 09 (Vendor Coordinator)
+    participant A04 as Agent 04 (MLS Copywriter)
+    participant A17 as Agent 17 (Fair Housing Officer)
+
+    Broker->>Hub: Submits signed listing contract (Ed25519 signed)
+    Hub->>Drawer: Provisions drawers/<property_id>/ (raw, working, delivered)
+    Hub->>A05: Dispatches intent: listing.onboard
+    A05->>Drawer: Extracts tax records, parcel ID, deed data
+    A05->>Hub: Emits intent: vendor.schedule (photos needed)
+    Hub->>A09: Routes vendor request (preferred vetted roster)
+    A09->>Broker: Queues photo schedule confirmation
+    A05->>Hub: Emits intent: remarks.draft
+    Hub->>A04: Triggers Hermes with Broker Curriculum in <think>
+    A04->>Hub: Emits draft MLS description
+    Hub->>A17: Routes intent: compliance.review (Mandatory Gate)
+    alt Fair Housing Violation Detected
+        A17->>Hub: Hard-Stop! Rejects flagged steering terms
+        Hub->>Broker: Escalates copy revision with exact line flagged
+    else Fair Housing Clean Pass
+        A17->>Hub: Issues compliance clearance stamp
+        Hub->>Drawer: Saves final draft to working/mls_package.json
+        Hub->>Broker: Presents Complete Listing Dossier for Final Go-Live Sign-Off
+    end
+```
+
+**Notice the Fiduciary Guarantees in Action:**
+1. **No Agent Speaks to Another Directly:** Everything flows through `Hub.send()`.
+2. **Every Turn is Persisted:** The drawer tracks every draft version with SHA-256 hashes.
+3. **The Compliance Officer Cannot be Bypassed:** Agent 04 cannot send copy directly to the MLS—it is forced along the closed track to Agent 17 first.
+4. **The Human Broker Holds the Final Switch:** The listing cannot go live until the licensed Human Principal gives final cryptographic clearance.
 
 ---
 

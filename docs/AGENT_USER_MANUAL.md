@@ -195,6 +195,11 @@ Think of ListingAssistants as your boutique brokerage front office:
 
 Behind the scenes, ListingAssistants utilizes two specialized artificial intelligence engines working in tandem to protect and elevate your business:
 
+> ### The Legal Accountability Gap: Why JEV AI Over Pure LLMs
+> If a frontier cloud AI (Claude, ChatGPT) hallucinating in the cloud miscalculates an earnest money deposit deadline, misreads a financing contingency date, or invents a non-existent property concession, **the cloud AI provider will never apologize, reimburse your client's lost earnest money, or defend your license at a state real estate commission hearing.** Their Terms of Service explicitly disclaim all liability.
+> 
+> **JEV AI was chosen specifically because it does NOT create, invent, or improvise.** Large language models are probabilistic text generators. JEV AI is a deterministic evaluation coprocessor: it evaluates verified documentation, scores multi-attribute qualification rubrics, and arbitrates calendar buffers using strict mathematical logic. Where a generative LLM guesses, JEV AI calculates.
+
 ### 1. JEV AI Decision Platform (The Deterministic Decision Coprocessor)
 * **What It Is:** JEV AI is our structured, high-precision decision evaluation engine. While large language models excel at writing prose, they are notoriously inconsistent at mathematical logic, multi-criteria scoring, and rigid rule enforcement. JEV AI handles all deterministic calculations for **Agent 02 (Lead Qualification)** and **Agent 06 (Showing Conflict Resolution)**.
 * **Why It Matters to Your Practice:**
