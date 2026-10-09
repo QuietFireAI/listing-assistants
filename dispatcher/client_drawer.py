@@ -30,7 +30,7 @@ class ClientDrawer:
     def __init__(self, client_id: str, drawer_root: str):
         self.client_id = client_id
         self.drawer_path = os.path.join(drawer_root, client_id)
-        self.categories = ["artifacts", "documents", "interactions", "financials", "timeline"]
+        self.categories = ["artifacts", "documents", "interactions", "financials", "timeline", "audit"]
         self._ensure_structure()
 
     def _ensure_structure(self):
