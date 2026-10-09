@@ -196,3 +196,50 @@ python -c "from dispatcher.hermes_seam import HermesLearningLoop; loop = HermesL
 * **Zero Cross-Client Commingling:** Client state is isolated exclusively inside the client's private filesystem drawer.
 * **Zero Context Drift:** Agents execute with freshly verified state; ephemeral prompt memory is purged after each turn.
 * **Continuous Cognitive Improvement:** The cognitive student (Hermes) learns from verified live operations through the `agent-open-mind` gate, with every update mathematically bounded by variance calculation.
+
+---
+
+## 7. The AWS Architecture / Windows System Restore Point Pattern for Model Weights
+
+In the **AWS Well-Architected Framework (Reliability Pillar)** and enterprise systems engineering, safety is achieved through **immutable golden baselines, automated point-in-time snapshots, and instant hot-swap rollbacks**. 
+
+ListingAssistants applies this exact architecture to its cognitive learning loop:
+
+```
+ [ Golden Base AMI ]                  [ Daily Automated Snapshot ]               [ Active Production Model ]
+  baseline_v1.0.0                      restore_point_2026-10-09                   lora_v1.0.4_afternoon
+ (Factory Zero-Drift)                 (08:00 AM Morning Restore Point)           (Live Operational LoRA)
+          │                                        │                                       │
+          │                                        │                                [Bad Habit Detected]
+          │                                        │                                       │
+          │◀────────────── Instant Hot-Swap Rollback (python tools/restore_point.py) ──────┘
+```
+
+### A. The Three Structural Layers:
+1. **The Factory Golden Baseline (`baseline_v1.0.0`):**
+   * Analogous to a pristine **AWS Golden AMI** or Windows factory image.
+   * Frozen, immutable baseline weights that can never be modified or overwritten.
+   * Guarantees that no matter what bad habit the student develops, the brokerage can return to zero-drift operation in under 10 milliseconds.
+2. **The 08:00 AM Daily Warm Restore Point (`restore_point_YYYY-MM-DD`):**
+   * Analogous to an **AWS automated daily EBS snapshot** or a Windows System Restore Point.
+   * Captured at the start of business each morning.
+   * If fine-tuning updates trained on afternoon negotiations develop subtle behavioral drift, the broker does not start over—they simply restore to that morning's clean operational state.
+3. **The Golden Broker Regression Exam (Automated Deployment Gate):**
+   * Analogous to a canary deployment health check.
+   * Tests candidate checkpoints across 4 deterministic fiduciary hard-lines (Fair Housing, Wire Fraud, Pricing Boundaries, and NAR 2024 mandates).
+   * Any checkpoint that fails even a single question is automatically quarantined (`QUARANTINED_EXAM_FAILED`) and blocked from live activation.
+
+### B. Operator Commands:
+```powershell
+# View all available restore points, current active model, and exam scores:
+python tools/restore_point.py --list
+
+# Capture today's morning warm restore point:
+python tools/restore_point.py --snapshot
+
+# Instant rollback to 08:00 AM morning restore point:
+python tools/restore_point.py --restore restore_point_2026-10-09
+
+# Emergency fallback to factory Golden Baseline:
+python tools/restore_point.py --restore baseline
+```

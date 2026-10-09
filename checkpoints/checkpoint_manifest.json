@@ -1,0 +1,43 @@
+{
+  "active_checkpoint_id": "baseline_v1.0.0",
+  "golden_baseline_id": "baseline_v1.0.0",
+  "created_at": "2026-10-09T12:52:31Z",
+  "checkpoints": {
+    "baseline_v1.0.0": {
+      "checkpoint_id": "baseline_v1.0.0",
+      "parent_id": null,
+      "created_at": "2026-10-09T12:52:31Z",
+      "status": "GOLDEN_BASELINE",
+      "exam_passed": true,
+      "exam_score": 100.0,
+      "adapter_path": "builtin://hermes-base",
+      "notes": "Pristine factory-stamped zero-drift master baseline. Warm fallback target."
+    },
+    "restore_point_2026-10-09": {
+      "checkpoint_id": "restore_point_2026-10-09",
+      "parent_id": "baseline_v1.0.0",
+      "created_at": "2026-10-09T12:52:36Z",
+      "status": "RESTORE_POINT",
+      "exam_passed": true,
+      "exam_score": 100.0,
+      "adapter_path": "builtin://hermes-base",
+      "notes": "Operator daily restore point (Captured from baseline_v1.0.0)",
+      "is_restore_point": true,
+      "date": "2026-10-09"
+    }
+  },
+  "history": [
+    {
+      "action": "INIT",
+      "checkpoint_id": "baseline_v1.0.0",
+      "timestamp": "2026-10-09T12:52:31Z",
+      "reason": "Initialized Golden Baseline snapshot"
+    },
+    {
+      "action": "CREATE_RESTORE_POINT",
+      "checkpoint_id": "restore_point_2026-10-09",
+      "source_id": "baseline_v1.0.0",
+      "timestamp": "2026-10-09T12:52:36Z"
+    }
+  ]
+}
