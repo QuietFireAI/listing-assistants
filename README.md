@@ -244,6 +244,10 @@ Provides a complete pause-and-resume lifecycle (`dispatcher/hitl_protocol.py`) w
 
 ## Installation & Verification
 
+> [!TIP]
+> **Setting up on a fresh Windows PC or Touchscreen All-in-One?**  
+> Follow the complete, step-by-step [Windows Quickstart Guide](QUICKSTART_WINDOWS.md) for cold-start PowerShell setup, execution policy tips, touchscreen dashboard launch, and test data ingestion.
+
 ### 1. Requirements
 * Python 3.10+ (Python 3.12 recommended)
 * `git`
