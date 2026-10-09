@@ -102,6 +102,14 @@ class HumanReadableLogger:
         msg = f"High-priority alert fired via {channel}: {reason}"
         return self.log_event("ALERT", msg, client_context_id=client_context_id)
 
+    def log_training_update(self, agent_id: str, client_context_id: str, topic: str, variance: float, status: str, detail: str = ""):
+        msg = f"Hermes Learning Loop [{topic}]: Variance={variance:.4f} -> Status: {status}"
+        if detail:
+            msg += f" | {detail}"
+        cat = "TRAIN_ALERT" if (variance >= 0.35 or "QUARANTINED" in status) else "TRAIN_UPDATE"
+        return self.log_event(cat, msg, client_context_id=client_context_id, agent_id=agent_id,
+                              details={"topic": topic, "variance": variance, "status": status})
+
     def generate_eod_report(self, date_str: Optional[str] = None) -> dict:
         """Compiles end-of-day operational report for all events recorded."""
         target_date = date_str or self._today_str()
