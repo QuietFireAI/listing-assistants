@@ -1,6 +1,16 @@
 # WHAT_SUCCESS_MEANS.md
+### The Broker's Definition of Operational Success
 
-## The question this document answers
+> ### ⚠️ CRITICAL FIDUCIARY NOTICE (FRONT AND CENTER)
+> **DISPATCHER AGENTS AND LISTING AGENTS ARE FUNDAMENTALLY INCAPABLE OF PERFORMING FINANCIAL TRANSACTIONS. IT IS NOT WIRED.**
+> 
+> * **Zero Financial Execution Wiring:** There is no payment SDK, no automated wire gateway, and no banking transfer execution path anywhere in this platform. The wiring does not exist.
+> * **Sole Human Fiduciary Responsibility:** Under state real estate licensing laws and the REALTOR® Code of Ethics, fiduciary responsibility belongs 100% to the licensed broker-in-charge (Agent 00). Fiduciary duty is legally non-delegable and cannot be transferred to an AI agent.
+> * **NEVER During Training Under Any Circumstances:** Under no circumstances—whether during broker onboarding, model training, prompt personalization, or local fine-tuning—is an agent ever permitted to handle financial authority. The user must maintain full fiduciary control. A user must NEVER attempt to delegate financial actions to an agent during training. Only after an agent has been formally deployed into production motion and has demonstrated repeated, verified proficiency in its assigned administrative tasks can an authorized human even release a held *text disclosure*—and even then, financial *execution* remains completely unwired.
+
+---
+
+## The Question This Document Answers
 
 Every other document in this repository answers some version of "is it
 correct?" This one answers the question a broker actually asks: when

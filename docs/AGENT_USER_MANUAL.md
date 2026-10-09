@@ -40,6 +40,13 @@ To understand why ListingAssistants never hallucinates or leaks confidential cli
 
 ---
 
+> ### ⚠️ CRITICAL FIDUCIARY INVARIANT (FRONT AND CENTER)
+> **DISPATCHER AGENTS AND LISTING AGENTS ARE FUNDAMENTALLY INCAPABLE OF PERFORMING FINANCIAL TRANSACTIONS. IT IS NOT WIRED.**
+> 
+> * **Zero Financial Execution Wiring:** There is no payment SDK, no automated wire gateway, and no banking transfer execution path anywhere in this software.
+> * **Sole Human Fiduciary Responsibility:** Under state real estate licensing law and the REALTOR® Code of Ethics, fiduciary responsibility belongs 100% to you, the licensed broker-in-charge (Agent 00). Fiduciary duty is legally non-delegable and cannot be transferred to an AI agent.
+> * **NEVER During Training Under Any Circumstances:** Under no circumstances—whether during broker onboarding, model training, prompt personalization, or local fine-tuning—is an agent ever permitted to handle financial authority. You must maintain full fiduciary control. You must NEVER attempt to delegate financial actions to an agent during training. Only after an agent has been formally deployed into production motion and has demonstrated repeated, verified proficiency in its assigned administrative tasks can you even release a held *text disclosure*—and even then, financial *execution* remains completely unwired.
+
 ## 2. The Four Fiduciary Guardrails (Our Promise to You)
 
 Your real estate license and your client's fiduciary trust are your most valuable assets. ListingAssistants is hard-coded with four non-negotiable legal firewalls:

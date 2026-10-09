@@ -69,6 +69,12 @@ Here is the unvarnished reality of using unconstrained frontier chatbots in a li
    *No.* All documents, drafts, and communications live in private, encrypted client drawers (`drawers/<client_id>/`). When paired with local models (like Nous Hermes on your own hardware), zero bytes leave your office.
 3. **"Does this replace my agents or my transaction coordinator?"**  
    *No.* It liberates them. It eliminates the 70% secretarial drag—chasing signatures, organizing disclosures, tracking timelines—allowing your human team to focus 100% on high-touch client relationships, negotiation, and closing transactions.
+4. **"Can an agent perform a financial transaction, wire funds, or disburse commission?"**  
+   ***ABSOLUTELY NOT. IT IS NOT WIRED.*** Neither Dispatcher agents nor listing agents have any financial execution wiring. There is no payment SDK, no automated wire gateway, and no banking execution pathway anywhere in this platform. Fiduciary responsibility belongs 100% to the licensed broker-in-charge. Under no circumstances—especially during training, onboarding, or fine-tuning—is an agent ever permitted to handle financial authority. Only after an agent has demonstrated proven proficiency in administrative tasks can a human release a held *text communication*—and even then, financial *execution* remains completely unwired.
+
+> ### ⚠️ CRITICAL FIDUCIARY INVARIANT
+> **DISPATCHER AGENTS AND LISTING AGENTS ARE FUNDAMENTALLY INCAPABLE OF PERFORMING FINANCIAL TRANSACTIONS. IT IS NOT WIRED.**  
+> Fiduciary duty is legally non-delegable. The licensed human broker maintains sole, unyielding responsibility for all client funds, escrow deposits, and pricing decisions.
 
 ### The Accountability Gap: Why JEV AI Over Pure LLMs
 > **The Legal Reality:** If an unconstrained frontier LLM hallucinating in the cloud causes an escrow deadline breach, leaks a seller's bottom-line price, or triggers a statutory Fair Housing complaint, the cloud AI provider will never apologize, pay your damages, or defend your license at a state commission hearing. Their Terms of Service explicitly disclaim all fiduciary liability.
