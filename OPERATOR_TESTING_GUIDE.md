@@ -15,10 +15,10 @@ Repo: `github.com/QuietFireAI/listing-agents` @ `92187d6` or later.
 git clone https://github.com/QuietFireAI/listing-agents.git
 cd listing-agents
 pip install --break-system-packages -e ".[pillars,crypto]"   # pulls the 6 pillars + Ed25519
-python3 -m pytest tests_listing -q                            # expect: 558 passed
+python3 -m pytest tests_listing -q                            # expect: 564 passed
 ```
 
-If `558 passed` prints, the build is sound and nothing needs addressing before you
+If `564 passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 
@@ -43,6 +43,57 @@ python3 tools/run_demo.py
 | 4 — **The Absolute Signal** | Campaign to the public HOLDS, human signs a release, THEN it publishes. | `held by the Absolute Signal: True` → `auto-published without a human? False` → `human signs a release` → `NOW campaign published: True` |
 | 5 — Pricing question | Any price question routes to a human, never answered by an agent. | `did any agent ANSWER the price question? False` |
 | 6 — The chain | Every event hash-linked; tamper is detectable. | `verify_chain(): ok=True … dead letters: 0` |
+| 7 — **Epistemic Learning Loop** | Sub-agent thoughts eavesdropped; variance computed; high variance quarantined. | `python tools/show_logs.py --tail 10` → shows `[TRAIN_UPDATE] Variance=0.0350 [ASSIMILATED]` |
+| 8 — **AWS-Style Daily Restore Point** | Daily 08:00 AM snapshot captured; one-command hot-swap rollback demonstrated. | `python tools/restore_point.py --list` → shows `baseline_v1.0.0` & `restore_point_YYYY-MM-DD` |
+| 9 — **Non-Technical Client Portal** | Interactive visual pipeline and client drawer inspection without stubs. | `python tools/dashboard.py` → renders real client stage and drawer paths |
+
+```mermaid
+flowchart TD
+    subgraph Spoke["Sub-Agent Execution (Agents 01-20)"]
+        A["Sub-Agent Triggered\n(Task Context)"] --> B["Deliberates Internally\n&lt;think&gt;...&lt;/think&gt;"]
+        B --> C["Emits Action / Output"]
+    end
+
+    subgraph Hub["Dispatcher Hub & Epistemic Gate"]
+        C --> D["Hub.ingest_spoke_trace()\n(Intercepts thought + result)"]
+        D --> E{"agent-open-mind\nTaint Gate"}
+        E -- "Thoughts Missing / Suppressed" --> F["TAINTED QUARANTINE\nIntegrity Alert & Siding"]
+        E -- "Thoughts Present" --> G["Comparator.compare()\nMeasures Epistemic Drift"]
+    end
+
+    subgraph Student["Hermes Continuous Learning Loop"]
+        G --> H["Variance Calculator\n(0.5 Drift + 0.5 Broker Policy)"]
+        H --> I{"Variance > 0.35\nor Policy Breach?"}
+        I -- "Yes (Spike / Violation)" --> J["QUARANTINED_HIGH_VARIANCE\nAlert Fired; Held from Training Pool"]
+        I -- "No (Clean Assimilation)" --> K["ASSIMILATED into Training Pool\nUpdates Running Avg Variance"]
+        K --> L["Export to Local LoRA JSONL\n(Fine-Tuning Student on TODAY's Ops)"]
+    end
+
+    subgraph Logs["Dual-Destination Ledger"]
+        J --> M["logs/stream.log\n& client drawer audit/activity.log"]
+        K --> M
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph Golden["Immutable Golden Anchor"]
+        G["baseline_v1.0.0\n(Factory Zero-Drift Base)"]
+    end
+
+    subgraph Snapshots["Daily Warm Restore Points"]
+        S1["restore_point_2026-10-08\n(08:00 AM Snapshot)"]
+        S2["restore_point_2026-10-09\n(08:00 AM Snapshot)"]
+    end
+
+    subgraph Live["Active Operational Model"]
+        L["lora_v1.0.4_afternoon\n(Trained on Today's Ops)"]
+    end
+
+    G --> S1 --> S2 --> L
+    L -.->|Bad Habit Detected\nInstant Rollback| S2
+    L -.->|Severe Drift\nEmergency Fallback| G
+```
 
 **The single strongest moment for the camera is Act 4.** Pause there. It shows the
 lock holding, the human's key turning, and only then the action completing. That is

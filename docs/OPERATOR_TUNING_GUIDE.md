@@ -100,6 +100,103 @@ Each entry produces a training example:
 ```
 You can train a LoRA adapter on these pairs using Unsloth, Axolotl, or vLLM in under 30 minutes on an RTX 4090 or local appliance GPU.
 
+### 2.2 Clean-Room Fiduciary Execution vs. Flawed Persistent Memory
+A major systemic hazard in multi-agent swarms is allowing sub-agents to accumulate conversational memory across multiple tasks and clients. In fiduciary environments, persistent conversational memory causes catastrophic drift:
+
+```mermaid
+flowchart TD
+    subgraph Flawed["Flawed Architecture: Persistent Conversational Memory"]
+        M1["Day 1: Client A (Divorce Sale, $800k)"] --> M2["Day 2: Client B (First-Time Buyer, $450k)"]
+        M2 --> M3["Day 3: Client C (Luxury Estate, $2.5M)"]
+        M3 --> FAIL["Context Degradation & Drift:\n• Confuses Client A disclosures with Client B\n• Stale price assumptions dominate attention weights\n• Commingling breach: Fair Housing violation"]
+    end
+
+    subgraph CleanRoom["Governed Architecture: Clean-Room Fiduciary Execution"]
+        D["Client Drawer Vault (drawers/client_id/)"] -->|Inject Fresh Verified State| SP["Warm In-Memory Handler (Agent 00-20)"]
+        SP -->|Deliberates in &lt;think&gt;...&lt;/think&gt;| TG{"agent-open-mind Taint Gate"}
+        TG -->|Clean Execution| CR["Update Drawer & Clear Ephemeral Scratchpad"]
+        TG -->|Extracted Reasoning| LL["Hermes Learning Loop (Offline Weight Tuning)"]
+    end
+```
+
+### 2.3 Continuous Learning Loop & Live Epistemic Surveillance
+The `HermesLearningLoop` (`dispatcher/hermes_seam.py`) intercepts every live sub-agent execution, runs an epistemic taint check via `agent_open_mind`, and calculates the mathematical variance:
+
+$$\text{Composite Variance} = \max\left(0.5 \cdot \text{Drift}_{\text{epistemic}} + 0.5 \cdot \text{Penalty}_{\text{policy}}, \, \text{Penalty}_{\text{policy}}\right)$$
+
+```mermaid
+flowchart TD
+    subgraph Spoke["Sub-Agent Execution (Agents 01-20)"]
+        A["Sub-Agent Triggered\n(Task Context)"] --> B["Deliberates Internally\n&lt;think&gt;...&lt;/think&gt;"]
+        B --> C["Emits Action / Output"]
+    end
+
+    subgraph Hub["Dispatcher Hub & Epistemic Gate"]
+        C --> D["Hub.ingest_spoke_trace()\n(Intercepts thought + result)"]
+        D --> E{"agent-open-mind\nTaint Gate"}
+        E -- "Thoughts Missing / Suppressed" --> F["TAINTED QUARANTINE\nIntegrity Alert & Siding"]
+        E -- "Thoughts Present" --> G["Comparator.compare()\nMeasures Epistemic Drift"]
+    end
+
+    subgraph Student["Hermes Continuous Learning Loop"]
+        G --> H["Variance Calculator\n(0.5 Drift + 0.5 Broker Policy)"]
+        H --> I{"Variance > 0.35\nor Policy Breach?"}
+        I -- "Yes (Spike / Violation)" --> J["QUARANTINED_HIGH_VARIANCE\nAlert Fired; Held from Training Pool"]
+        I -- "No (Clean Assimilation)" --> K["ASSIMILATED into Training Pool\nUpdates Running Avg Variance"]
+        K --> L["Export to Local LoRA JSONL\n(Fine-Tuning Student on TODAY's Ops)"]
+    end
+
+    subgraph Logs["Dual-Destination Ledger"]
+        J --> M["logs/stream.log\n& client drawer audit/activity.log"]
+        K --> M
+    end
+```
+
+```mermaid
+flowchart TD
+    subgraph Tier1["Tier 1: Episodic Ground Truth (Per-Client Drawer Vault)"]
+        D["drawers/&lt;client_id&gt;/"] -->|Injects fresh verified state| W["Warm In-Memory Handler (Agent 00-20)"]
+        W -->|Executes task inside &lt;think&gt;| TG{"agent-open-mind Taint Gate"}
+        TG -->|Valid execution| U["Updates Drawer State\n(Purges ephemeral scratchpad)"]
+    end
+
+    subgraph Tier2["Tier 2: Cognitive Weight Learning (Hermes Learning Loop)"]
+        TG -->|Extracts clean &lt;think&gt; + result| VC["Variance Calculator\n(Drift + Policy Compliance)"]
+        VC -->|Variance &lt; 0.35| AP["Assimilated Training Pool\n(Running avg variance tracked)"]
+        VC -->|Variance &gt;= 0.35| Q["Quarantined Spike\n(Fires TRAIN_ALERT)"]
+        AP -->|Export JSONL| LORA["Local LoRA Appliance Fine-Tuning\n(Updates Hermes model weights offline)"]
+    end
+```
+
+### 2.4 AWS Well-Architected Snapshot & Windows System Restore Point Pattern
+To ensure safe model fine-tuning on operational appliances, the system provides point-in-time recovery controls:
+
+```mermaid
+flowchart LR
+    subgraph Golden["Immutable Golden Anchor"]
+        G["baseline_v1.0.0\n(Factory Zero-Drift Base)"]
+    end
+
+    subgraph Snapshots["Daily Warm Restore Points"]
+        S1["restore_point_2026-10-08\n(08:00 AM Snapshot)"]
+        S2["restore_point_2026-10-09\n(08:00 AM Snapshot)"]
+    end
+
+    subgraph Live["Active Operational Model"]
+        L["lora_v1.0.4_afternoon\n(Trained on Today's Ops)"]
+    end
+
+    G --> S1 --> S2 --> L
+    L -.->|Bad Habit Detected\nInstant Rollback| S2
+    L -.->|Severe Drift\nEmergency Fallback| G
+```
+
+* **CLI Commands:**
+  * `python tools/restore_point.py --list` — Lists all checkpoints and active pointer.
+  * `python tools/restore_point.py --snapshot` — Captures 08:00 AM morning warm restore point.
+  * `python tools/restore_point.py --restore baseline` — Instant hot-swap fallback to Golden Baseline.
+  * `python tools/restore_point.py --exam baseline_v1.0.0` — Runs the Golden Broker Regression Exam.
+
 ---
 
 ## 3. The JEV AI Decision Platform Configuration
