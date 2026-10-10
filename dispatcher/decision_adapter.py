@@ -364,8 +364,10 @@ class JevDecisionAdapter:
             "Authorization": f"Bearer {self.api_key}",
             "User-Agent": "ListingAssistants-JEV/1.0"
         }
+        if not self.endpoint_url.lower().startswith("https://"):
+            raise ValueError(f"Insecure or invalid JEV endpoint scheme: {self.endpoint_url}")
         req = urllib.request.Request(self.endpoint_url, data=req_body, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
             data = resp.read().decode("utf-8")
             return json.loads(data)
 
