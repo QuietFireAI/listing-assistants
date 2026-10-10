@@ -233,21 +233,32 @@ flowchart LR
 
 ## 3. The JEV AI Decision Platform Configuration
 
-### Architecture & Dual-Channel Dispatch
-The **JEV AI Decision Platform Adapter** ([`dispatcher/decision_adapter.py`](file:///C:/Users/halfm/.gemini/antigravity/scratch/listing-agents/dispatcher/decision_adapter.py)) operates as an external, structured decision coprocessor designed for high-throughput, deterministic evaluation with zero HTTP REST overhead.
+### Architecture & Three-Tier Dispatch
+The **JEV AI Decision Platform Adapter** ([`dispatcher/decision_adapter.py`](file:///C:/Users/halfm/.gemini/antigravity/scratch/listing-agents/dispatcher/decision_adapter.py)) operates as a structured decision coprocessor with **100% explicit fallback transparency**:
 
 ```mermaid
 flowchart TD
     Spoke["Spoke Agent (02 Lead / 06 Showing)"] --> Adapter["JevDecisionAdapter\n(dispatcher/decision_adapter.py)"]
-    Adapter --> Mode{"JEV MCP Daemon Available?"}
+    Adapter --> KeyCheck{"JEV_API_KEY Configured?"}
     
-    Mode -- "Yes (Cloud VM / MCP Socket)" --> MCP["JEV MCP Client\n(tool: call_jev_decision)"]
-    Mode -- "No / Offline Appliance" --> Fallback["JevPythonDecisionEngine\n(Pure Python In-Process)"]
+    KeyCheck -- "Yes" --> LiveAPI["Tier 1: Live HTTPS REST Call\n(https://api.typesafe.ai/v1/decisions)\n[status: LIVE_JEV_API]"]
+    LiveAPI --> ConfCheck{"Confidence < 0.45 Safety Floor?"}
+    ConfCheck -- "Yes" --> CalHold["Deterministic Calibration Hold\n(Parked in Siding for Broker Review)"]
+    ConfCheck -- "No" --> ActiveResult["Active Live Decision Result"]
     
-    MCP --> Result["Structured Decision Result\n(tier, score, notes, provenance)"]
-    Fallback --> Result
-    Result --> Audit["Hub Audit Log (SHA-256 + Ed25519)"]
+    LiveAPI -. "Failover" .-> Fallback
+    KeyCheck -- "No" --> MCPCheck{"MCP Daemon Armed?"}
+    MCPCheck -- "Yes" --> MCP["Tier 2: In-Process JEV MCP Tool Call\n[status: LIVE_JEV_MCP]"]
+    MCPCheck -- "No" --> Fallback["Tier 3: Local Deterministic Fallback Rules\n(Pure Python In-Process)\n[status: FALLBACK_LOCAL_RULES]"]
+    
+    ActiveResult --> Audit["Hub Audit Log & Spoke Trace\n(Ed25519 & SHA-256 Ledger)"]
+    CalHold --> Audit
+    Fallback --> Audit
 ```
+
+> [!IMPORTANT]
+> **Explicit Fallback Transparency Invariant:**
+> When running without an active `JEV_API_KEY`, the system explicitly operates under **Local Fallback Mode**. Every decision output is stamped with `coprocessor_status: "FALLBACK_LOCAL_RULES"`, `is_fallback: true`, and an explanation warning. Dispatcher Agent 00 logs `jev.unarmed_fallback` on boot. The operator and broker are never misled into believing an external cloud service ran when local fallback rules executed.
 
 ### Supported Decision Domains
 

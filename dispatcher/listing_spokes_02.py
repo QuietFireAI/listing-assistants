@@ -94,6 +94,8 @@ class Spoke02LeadQualification:
         # deployment overrides this via the same signed config.update path
         # once cadence_settings.json is ratified.
         self.hot_lead_sla_seconds = hot_lead_sla_seconds
+        from .decision_adapter import JevDecisionAdapter
+        self.decision_adapter = JevDecisionAdapter()
         hub.register("02", self.handle)
 
     def _score(self, payload: dict) -> tuple[str, int | None, list[str]]:
@@ -344,10 +346,15 @@ class Spoke02LeadQualification:
             self._record_tier(ctx, tier)
             oscillating = self._oscillating_third_time(ctx)
 
+            cop_status = self.decision_adapter.get_coprocessor_status()
+            cop_mode = cop_status.get("mode", "FALLBACK_LOCAL_RULES")
+            is_cop_fallback = cop_status.get("is_fallback", True)
+
             self.hub.ingest_spoke_trace(
                 "02", env.envelope_id,
                 thought=f"scored: tier={tier} score={score} "
-                        f"rubric_version={self.rubric_version}; notes={notes}",
+                        f"rubric_version={self.rubric_version}; notes={notes} "
+                        f"| coprocessor_status={cop_mode} (is_fallback={is_cop_fallback})",
                 result=f"tier={tier}")
 
             if oscillating:

@@ -316,8 +316,12 @@ flowchart LR
 
 ## Key Capabilities & Hardened Additions
 
-### 1. JEV AI Decision Platform Integration
-Integrates with the high-efficiency **JEV AI Decision Platform** (`dispatcher/decision_adapter.py`) via the Model Context Protocol (MCP) tool contract. Includes an in-process, zero-network pure Python fallback engine (`JevPythonDecisionEngine`) that evaluates multi-attribute lead rubrics and showing calendar conflicts with zero HTTP REST overhead.
+### 1. JEV AI Decision Platform Integration (Live API & Explicit Fallback)
+Integrates with the high-efficiency **JEV AI Decision Platform** (`dispatcher/decision_adapter.py`) using a three-tier operational hierarchy:
+1. **Tier 1 (Live Cloud API):** Direct HTTPS REST client to `https://api.typesafe.ai/v1/decisions` when an authenticated `JEV_API_KEY` is provided.
+2. **Tier 2 (In-Process / Local MCP):** Model Context Protocol tool invocation (`jev_evaluate_decision`).
+3. **Tier 3 (Local Fallback Mode):** In-process, zero-network pure Python deterministic fallback engine (`JevPythonDecisionEngine`) evaluating multi-attribute lead rubrics and showing calendar conflicts offline.
+* **100% Explicit Fallback Transparency:** Whenever operating without live keys or offline, every decision output is stamped with `coprocessor_status: "FALLBACK_LOCAL_RULES"`, `is_fallback: true`, and an explanatory warning. Dispatcher Agent 00 logs `jev.unarmed_fallback` on boot so operators always know whether decisions came from the live model or local deterministic rules.
 
 ### 2. Nous Hermes Cognitive Seam & Thought Extraction
 Leverages **Nous Hermes** (`dispatcher/hermes_seam.py`) to extract `<think>...</think>` tokens directly in-stream. This bypasses frontier provider thought-inspection bans and feeds authentic internal deliberation directly into the QuietFire detection pillars. Includes the `BrokerContextIngestor` to onboard Hermes like a junior college graduate undergoing in-house brokerage training.

@@ -95,6 +95,9 @@ class JevPythonDecisionEngine:
                 "notes": notes + ["all rubric inputs unknown - tier is UNKNOWN, triggered confidence stop"],
                 "decision_provenance": "jev_engine_python_v1",
                 "engine": "python_fallback",
+                "coprocessor_status": "FALLBACK_LOCAL_RULES",
+                "is_fallback": True,
+                "fallback_warning": "DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES (Live JEV coprocessor unconfigured or offline)",
                 "escalation_required": True,
                 "escalation_type": "escalation.confidence_underflow",
                 "broker_notice": "JEV Calibration Hold: No verifiable lead inputs found. Parked in siding.",
@@ -160,6 +163,9 @@ class JevPythonDecisionEngine:
                 "notes": notes + [underflow_note],
                 "decision_provenance": "jev_engine_python_v1",
                 "engine": "python_fallback",
+                "coprocessor_status": "FALLBACK_LOCAL_RULES",
+                "is_fallback": True,
+                "fallback_warning": "DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES (Live JEV coprocessor unconfigured or offline)",
                 "escalation_required": True,
                 "escalation_type": "escalation.confidence_underflow",
                 "broker_notice": (
@@ -181,7 +187,10 @@ class JevPythonDecisionEngine:
             "score": score,
             "notes": notes,
             "decision_provenance": "jev_engine_python_v1",
-            "engine": "python_fallback"
+            "engine": "python_fallback",
+            "coprocessor_status": "FALLBACK_LOCAL_RULES",
+            "is_fallback": True,
+            "fallback_warning": "DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES (Live JEV coprocessor unconfigured or offline)"
         }
 
     def resolve_scheduling_conflict(
@@ -360,6 +369,16 @@ class JevDecisionAdapter:
             data = resp.read().decode("utf-8")
             return json.loads(data)
 
+    def get_coprocessor_status(self) -> dict:
+        """Returns the current operational readiness and live/fallback state of the coprocessor."""
+        if self.force_python:
+            return {"mode": "FALLBACK_LOCAL_RULES", "is_fallback": True, "reason": "JEV_FORCE_PYTHON active"}
+        if self.api_key:
+            return {"mode": "LIVE_JEV_API", "is_fallback": False, "endpoint": self.endpoint_url}
+        if self.mcp_client is not None:
+            return {"mode": "LIVE_JEV_MCP", "is_fallback": False, "endpoint": "MCP_IN_PROCESS"}
+        return {"mode": "FALLBACK_LOCAL_RULES", "is_fallback": True, "reason": "JEV_API_KEY unconfigured (local fallback active)"}
+
     def evaluate_lead(
         self,
         context_id: str,
@@ -369,6 +388,7 @@ class JevDecisionAdapter:
     ) -> dict:
         """Evaluates a lead against a rubric via Live HTTPS, MCP, or pure Python fallback."""
         floor = confidence_threshold if confidence_threshold is not None else self.confidence_threshold
+        failover_reason = None
 
         # Priority 1: Live HTTPS REST call to JEV if API key is provided
         if self.api_key and not self.force_python:
@@ -380,12 +400,13 @@ class JevDecisionAdapter:
                 )
                 if result and isinstance(result, dict):
                     result["engine"] = "jev_live_api"
+                    result["coprocessor_status"] = "LIVE_JEV_API"
+                    result["is_fallback"] = False
                     self._check_confidence_floor(result, floor, context_id)
                     return result
             except Exception as e:
-                logger.warning(
-                    f"Live JEV API call failed: {e}. Falling back to secondary/local engine."
-                )
+                failover_reason = f"Live JEV API call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
 
         # Priority 2: Attempt JEV MCP tool call if client provided
         if self.mcp_client is not None and not self.force_python:
@@ -397,15 +418,20 @@ class JevDecisionAdapter:
                 )
                 if result and isinstance(result, dict):
                     result["engine"] = "jev_mcp"
+                    result["coprocessor_status"] = "LIVE_JEV_MCP"
+                    result["is_fallback"] = False
                     self._check_confidence_floor(result, floor, context_id)
                     return result
             except Exception as e:
-                logger.warning(
-                    f"JEV MCP tool call failed: {e}. Falling back to Python decision engine."
-                )
+                failover_reason = f"JEV MCP tool call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
 
         # Priority 3: Deterministic pure Python engine (100% offline fallback)
-        return self.python_engine.evaluate_lead_rubric(context_id, payload, rubric, confidence_threshold=floor)
+        res = self.python_engine.evaluate_lead_rubric(context_id, payload, rubric, confidence_threshold=floor)
+        res["coprocessor_status"] = "FALLBACK_LOCAL_RULES"
+        res["is_fallback"] = True
+        res["fallback_reason"] = failover_reason or "JEV_API_KEY unconfigured (local fallback active)"
+        return res
 
     def resolve_showing_conflict(
         self,
@@ -415,6 +441,8 @@ class JevDecisionAdapter:
         buffer_minutes: int = 30
     ) -> dict:
         """Resolves showing schedule conflicts via Live HTTPS, MCP, or pure Python fallback."""
+        failover_reason = None
+
         # Priority 1: Live HTTPS REST call to JEV if API key is provided
         if self.api_key and not self.force_python:
             try:
@@ -429,11 +457,12 @@ class JevDecisionAdapter:
                 )
                 if result and isinstance(result, dict) and result.get("status") == "ok":
                     result["engine"] = "jev_live_api"
+                    result["coprocessor_status"] = "LIVE_JEV_API"
+                    result["is_fallback"] = False
                     return result
             except Exception as e:
-                logger.warning(
-                    f"Live JEV API call failed: {e}. Falling back to secondary/local engine."
-                )
+                failover_reason = f"Live JEV API call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
 
         # Priority 2: Attempt JEV MCP tool call if client provided
         if self.mcp_client is not None and not self.force_python:
@@ -449,16 +478,21 @@ class JevDecisionAdapter:
                 )
                 if result and result.get("status") == "ok":
                     result["engine"] = "jev_mcp"
+                    result["coprocessor_status"] = "LIVE_JEV_MCP"
+                    result["is_fallback"] = False
                     return result
             except Exception as e:
-                logger.warning(
-                    f"JEV MCP tool call failed: {e}. Falling back to Python decision engine."
-                )
+                failover_reason = f"JEV MCP tool call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
 
         # Priority 3: Deterministic pure Python engine
-        return self.python_engine.resolve_scheduling_conflict(
+        res = self.python_engine.resolve_scheduling_conflict(
             context_id, requested_slot, existing_slots, buffer_minutes
         )
+        res["coprocessor_status"] = "FALLBACK_LOCAL_RULES"
+        res["is_fallback"] = True
+        res["fallback_reason"] = failover_reason or "JEV_API_KEY unconfigured (local fallback active)"
+        return res
 
     def _call_mcp_decision(
         self,
