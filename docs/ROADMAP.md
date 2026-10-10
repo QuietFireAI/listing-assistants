@@ -47,7 +47,21 @@ The `v1.1.2` cycle addresses physical production boundaries, credentials, and li
 
 ---
 
-## 3. Guiding Invariant for v1.1.2 and Beyond
+## 3. Future Horizon: Commercial Real Estate (CRE) Archetype (`v2.0.0`)
+
+Commercial real estate represents vastly higher deal values, but fundamentally different statutory, financial, and diligence frameworks:
+
+* **Why CRE is Built on the Same Core Chassis:**
+  * The central hub (`hub.py`), the closed-track message routing (`identity/routes.json`), the Ed25519 cryptographic authority gates, and the tamper-evident SHA-256 audit ledger are 100% reusable and sector-agnostic.
+* **What Changes in the Commercial Archetype:**
+  * **From Lead/MLS to Offering Memorandums (OM):** Commercial transactions do not rely on standard consumer MLS boards. They center on Confidentiality Agreements (NDAs), Offering Memorandums, and loop platforms (Crexi, CoStar, LoopNet).
+  * **Financial Modeling Engine (Spoke 18 Expansion):** Commercial diligence requires Net Operating Income (NOI), Cap Rate calculations, Debt Service Coverage Ratios (DSCR), lease abstraction (Triple Net vs Gross), and rent roll auditing rather than simple CMA comp adjustments.
+  * **Statutory Shift:** Residential is heavily governed by Fair Housing, RESPA, and NAR residential rules. Commercial is governed by securities laws, accredited investor thresholds, environmental diligence (Phase I/II ESA), and zoning/entitlement gates.
+* **Roadmap Status:** Added to backlog as **Archetype Extension: ListingAssistants Commercial**.
+
+---
+
+## 4. Guiding Invariant for v1.1.2 and Beyond
 
 > **The Zero-Improvisation Standard:**  
 > If an external provider, network link, or hardware volume is unconfigured, unreachable, or untrusted, the system **never fakes success**. It transitions explicitly to verified local fallbacks, tags all outputs with `is_fallback: True`, logs the exact reason to the tamper-evident ledger, and halts at the licensed human broker's gate.
