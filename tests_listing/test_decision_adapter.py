@@ -238,3 +238,97 @@ def test_jev_hitl_pause_confidence_underflow_dispatches_dual_notices():
     assert payload["confidence_threshold"] == 0.45
     assert "operator_fine_tuning_evaluation" in payload["action"]
 
+
+def test_jev_adapter_live_api_success(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123")
+    assert adapter.api_key == "jev_test_key_live_123"
+
+    mock_response = {
+        "status": "ok",
+        "confidence": 0.88,
+        "tier": "HOT",
+        "score": 95,
+        "notes": ["Evaluated by live JEV AI platform"]
+    }
+
+    # Mock _call_http_decision
+    monkeypatch.setattr(adapter, "_call_http_decision", lambda decision_type, context_id, payload: mock_response)
+
+    rubric = {"budget_threshold": 500_000}
+    res = adapter.evaluate_lead("ctx-live-01", {"stated_budget": 600_000}, rubric)
+    assert res["status"] == "ok"
+    assert res["engine"] == "jev_live_api"
+    assert res["confidence"] == 0.88
+    assert res["tier"] == "HOT"
+
+
+def test_jev_adapter_live_api_confidence_underflow_enforced(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123", confidence_threshold=0.45)
+
+    mock_response = {
+        "status": "ok",
+        "confidence": 0.35,  # Below 0.45 floor
+        "tier": "WARM",
+        "score": 50
+    }
+
+    monkeypatch.setattr(adapter, "_call_http_decision", lambda decision_type, context_id, payload: mock_response)
+
+    rubric = {"budget_threshold": 500_000}
+    res = adapter.evaluate_lead("ctx-live-underflow", {"stated_budget": 500_000}, rubric)
+    assert res["status"] == "held_confidence_underflow"
+    assert res["is_confidence_underflow"] is True
+    assert res["engine"] == "jev_live_api"
+    assert res["confidence"] == 0.35
+    assert res["tier"] == "HELD_FOR_CALIBRATION"
+    assert "JEV Calibration Hold" in res["broker_notice"]
+
+
+def test_jev_adapter_live_api_network_failure_falls_back(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123")
+
+    def failing_http(*args, **kwargs):
+        raise ConnectionResetError("Connection refused by remote host")
+
+    monkeypatch.setattr(adapter, "_call_http_decision", failing_http)
+
+    rubric = {
+        "budget_threshold": 500_000,
+        "budget_weight": 40,
+        "timeline_days_threshold": 30,
+        "timeline_weight": 40,
+        "financing_weight": 20,
+        "hot_threshold": 70,
+        "warm_threshold": 40,
+    }
+    lead = {
+        "stated_budget": 650_000,
+        "timeline_days": 15,
+        "financing_progress": "preapproved",
+    }
+    # Must seamlessly fall back to local pure-Python engine rather than crashing
+    res = adapter.evaluate_lead("ctx-failover", lead, rubric)
+    assert res["status"] == "ok"
+    assert res["engine"] == "python_fallback"
+    assert res["tier"] == "HOT"
+    assert res["score"] == 100
+
+
+def test_jev_adapter_showing_conflict_live_api(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123")
+
+    mock_response = {
+        "status": "ok",
+        "action": "displace_existing",
+        "displaced_slot": {"slot_id": "s-1"},
+        "reason": "protected_outranks_soft"
+    }
+
+    monkeypatch.setattr(adapter, "_call_http_decision", lambda decision_type, context_id, payload: mock_response)
+
+    res = adapter.resolve_showing_conflict("ctx-sched", {"time": "2026-10-15T14:00:00"}, [])
+    assert res["status"] == "ok"
+    assert res["engine"] == "jev_live_api"
+    assert res["action"] == "displace_existing"
+
+

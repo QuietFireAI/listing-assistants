@@ -271,15 +271,94 @@ class JevPythonDecisionEngine:
 
 class JevDecisionAdapter:
     """Primary JEV AI decision adapter.
-    Dispatches to MCP client if configured and available, falling back seamlessly
-    to the in-process pure Python engine.
+    Dispatches to:
+      1. Live JEV AI HTTPS REST endpoint if JEV_API_KEY is configured.
+      2. MCP client if configured and available.
+      3. In-process pure Python deterministic engine (100% offline fallback).
     """
 
-    def __init__(self, mcp_client: Any = None, force_python: bool = False, confidence_threshold: float = 0.45):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        endpoint_url: Optional[str] = None,
+        mcp_client: Any = None,
+        force_python: bool = False,
+        confidence_threshold: float = 0.45,
+        timeout: float = 3.0
+    ):
+        self.api_key = (
+            api_key
+            or os.environ.get("JEV_API_KEY")
+            or self._load_api_key_from_config()
+        )
+        self.endpoint_url = (
+            endpoint_url
+            or os.environ.get("JEV_ENDPOINT_URL")
+            or "https://api.typesafe.ai/v1/decisions"
+        )
         self.mcp_client = mcp_client
         self.force_python = force_python or (os.environ.get("JEV_FORCE_PYTHON", "0") == "1")
         self.confidence_threshold = confidence_threshold
+        self.timeout = timeout
         self.python_engine = JevPythonDecisionEngine(confidence_threshold=confidence_threshold)
+
+    def _load_api_key_from_config(self) -> Optional[str]:
+        """Loads JEV_API_KEY from config/integrations.json if present."""
+        try:
+            cfg_path = os.path.join(os.path.dirname(__file__), "..", "config", "integrations.json")
+            if not os.path.exists(cfg_path):
+                cfg_path = os.path.join(os.path.dirname(__file__), "..", "config", "integrations_template.json")
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                key = (data.get("ai_coprocessors", {}).get("jev_ai", {}).get("api_key") or "").strip()
+                if key and not key.startswith("YOUR_") and key != "PLACEHOLDER":
+                    return key
+        except Exception:
+            pass
+        return None
+
+    def _check_confidence_floor(self, result: dict, floor: float, context_id: str) -> None:
+        """Enforces the 0.45 safety floor on external responses, ensuring deterministic calibration hold."""
+        conf = result.get("confidence", 1.0)
+        if conf < floor:
+            result["status"] = "held_confidence_underflow"
+            result["is_confidence_underflow"] = True
+            result["confidence_threshold"] = floor
+            result["tier"] = "HELD_FOR_CALIBRATION"
+            result["escalation_required"] = True
+            result["escalation_type"] = "escalation.confidence_underflow"
+            result["broker_notice"] = (
+                f"JEV Calibration Hold: Lead confidence rated at {conf:.2f} (below {floor:.2f} safety floor). "
+                f"Parked in siding for your quick review rather than guessing."
+            )
+            result["operator_notice"] = (
+                f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({conf:.2f} < {floor:.2f}) "
+                f"for context '{context_id}'. Rubric fine-tuning evaluation warranted."
+            )
+
+    def _call_http_decision(self, decision_type: str, context_id: str, payload: dict) -> dict:
+        """Executes live HTTPS POST request against JEV AI decision endpoint."""
+        import urllib.request
+        import urllib.error
+
+        req_body = json.dumps({
+            "model": os.environ.get("JEV_MODEL", "jev-1.13.0"),
+            "decision_type": decision_type,
+            "context_id": context_id,
+            "payload": payload,
+            "confidence_threshold": payload.get("confidence_threshold", self.confidence_threshold)
+        }).encode("utf-8")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            "User-Agent": "ListingAssistants-JEV/1.0"
+        }
+        req = urllib.request.Request(self.endpoint_url, data=req_body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            data = resp.read().decode("utf-8")
+            return json.loads(data)
 
     def evaluate_lead(
         self,
@@ -288,11 +367,29 @@ class JevDecisionAdapter:
         rubric: dict,
         confidence_threshold: Optional[float] = None
     ) -> dict:
-        """Evaluates a lead against a rubric via MCP or pure Python fallback."""
+        """Evaluates a lead against a rubric via Live HTTPS, MCP, or pure Python fallback."""
         floor = confidence_threshold if confidence_threshold is not None else self.confidence_threshold
+
+        # Priority 1: Live HTTPS REST call to JEV if API key is provided
+        if self.api_key and not self.force_python:
+            try:
+                result = self._call_http_decision(
+                    decision_type="lead_qualification",
+                    context_id=context_id,
+                    payload={"lead": payload, "rubric": rubric, "confidence_threshold": floor}
+                )
+                if result and isinstance(result, dict):
+                    result["engine"] = "jev_live_api"
+                    self._check_confidence_floor(result, floor, context_id)
+                    return result
+            except Exception as e:
+                logger.warning(
+                    f"Live JEV API call failed: {e}. Falling back to secondary/local engine."
+                )
+
+        # Priority 2: Attempt JEV MCP tool call if client provided
         if self.mcp_client is not None and not self.force_python:
             try:
-                # Primary: Attempt JEV MCP tool call
                 result = self._call_mcp_decision(
                     decision_type="lead_qualification",
                     context_id=context_id,
@@ -300,30 +397,14 @@ class JevDecisionAdapter:
                 )
                 if result and isinstance(result, dict):
                     result["engine"] = "jev_mcp"
-                    # Enforce confidence floor on MCP responses as well
-                    mcp_conf = result.get("confidence", 1.0)
-                    if mcp_conf < floor:
-                        result["status"] = "held_confidence_underflow"
-                        result["is_confidence_underflow"] = True
-                        result["confidence_threshold"] = floor
-                        result["tier"] = "HELD_FOR_CALIBRATION"
-                        result["escalation_required"] = True
-                        result["escalation_type"] = "escalation.confidence_underflow"
-                        result["broker_notice"] = (
-                            f"JEV Calibration Hold: Lead confidence rated at {mcp_conf:.2f} (below {floor:.2f} safety floor). "
-                            f"Parked in siding for your quick review rather than guessing."
-                        )
-                        result["operator_notice"] = (
-                            f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({mcp_conf:.2f} < {floor:.2f}) "
-                            f"for context '{context_id}'. Rubric fine-tuning evaluation warranted."
-                        )
+                    self._check_confidence_floor(result, floor, context_id)
                     return result
             except Exception as e:
                 logger.warning(
                     f"JEV MCP tool call failed: {e}. Falling back to Python decision engine."
                 )
 
-        # Fallback: Deterministic pure Python engine
+        # Priority 3: Deterministic pure Python engine (100% offline fallback)
         return self.python_engine.evaluate_lead_rubric(context_id, payload, rubric, confidence_threshold=floor)
 
     def resolve_showing_conflict(
@@ -333,7 +414,28 @@ class JevDecisionAdapter:
         existing_slots: list[dict],
         buffer_minutes: int = 30
     ) -> dict:
-        """Resolves showing schedule conflicts via MCP or pure Python fallback."""
+        """Resolves showing schedule conflicts via Live HTTPS, MCP, or pure Python fallback."""
+        # Priority 1: Live HTTPS REST call to JEV if API key is provided
+        if self.api_key and not self.force_python:
+            try:
+                result = self._call_http_decision(
+                    decision_type="showing_conflict",
+                    context_id=context_id,
+                    payload={
+                        "requested_slot": requested_slot,
+                        "existing_slots": existing_slots,
+                        "buffer_minutes": buffer_minutes
+                    }
+                )
+                if result and isinstance(result, dict) and result.get("status") == "ok":
+                    result["engine"] = "jev_live_api"
+                    return result
+            except Exception as e:
+                logger.warning(
+                    f"Live JEV API call failed: {e}. Falling back to secondary/local engine."
+                )
+
+        # Priority 2: Attempt JEV MCP tool call if client provided
         if self.mcp_client is not None and not self.force_python:
             try:
                 result = self._call_mcp_decision(
@@ -353,6 +455,7 @@ class JevDecisionAdapter:
                     f"JEV MCP tool call failed: {e}. Falling back to Python decision engine."
                 )
 
+        # Priority 3: Deterministic pure Python engine
         return self.python_engine.resolve_scheduling_conflict(
             context_id, requested_slot, existing_slots, buffer_minutes
         )

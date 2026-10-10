@@ -77,5 +77,15 @@
       "rest_api_endpoint": "http://127.0.0.1:8080",
       "registered_number": "+15555550100"
     }
+  },
+  "ai_coprocessors": {
+    "jev_ai": {
+      "enabled": false,
+      "api_key": "YOUR_JEV_API_KEY",
+      "endpoint_url": "https://api.typesafe.ai/v1/decisions",
+      "model": "jev-1.13.0",
+      "confidence_threshold": 0.45,
+      "timeout_seconds": 3.0
+    }
   }
 }
