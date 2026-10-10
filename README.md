@@ -692,6 +692,8 @@ python tools/dashboard.py --html
 * **Operational Playbooks & Coaches Guide:**
   * [`docs/SWARM_COACHES_PLAYBOOK.md`](docs/SWARM_COACHES_PLAYBOOK.md) — Plain-English guide to all 24 playbooks and 227 decision tuples.
   * [`docs/PLAYBOOKS.md`](docs/PLAYBOOKS.md) — Technical triggers, inputs, and human-in-the-loop gates for Playbooks P01 through P24.
+* **Engineering Roadmap & Milestones:**
+  * [`docs/ROADMAP.md`](docs/ROADMAP.md) — Target milestone `v1.1.2`: Physical production hardening (Drobo RAID, Apricorn hardware handshake) and BYOK credential validation (RESO MLS, Twilio A2P 10DLC, DocuSign).
 
 ---
 
