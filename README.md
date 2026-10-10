@@ -4,7 +4,7 @@
 *Every message routed by one hub, every route pre-approved, every action recorded on a tamper-evident, hash-chained audit log.*  
 *(Official Production Domain: [ListingAssistants.com](https://ListingAssistants.com) — Brand notice: distinct from listingagent.com)*
 
-[![Test Suite](https://img.shields.io/badge/pytest-577%20passed-brightgreen.svg)](tests_listing/)
+[![Test Suite](https://img.shields.io/badge/pytest-586%20passed-brightgreen.svg)](tests_listing/)
 [![Closed Track](https://img.shields.io/badge/routes-51%20closed%20lanes-blue.svg)](identity/routes.json)
 [![Playbooks](https://img.shields.io/badge/playbooks-24%20ratified-blueviolet.svg)](playbooks/)
 [![Decisions](https://img.shields.io/badge/tuples-227%20deterministic-orange.svg)](docs/SWARM_COACHES_PLAYBOOK.md)
