@@ -243,3 +243,15 @@ python tools/restore_point.py --restore restore_point_2026-10-09
 # Emergency fallback to factory Golden Baseline:
 python tools/restore_point.py --restore baseline
 ```
+
+---
+
+## 8. The Compounding Intellectual Property Asset (The AWS Play)
+
+In traditional cloud hyperscaler models (AWS Bedrock, OpenAI, Anthropic), the service provider captures double-value: they charge you for compute, while using aggregate interaction exhaust to enrich their foundational base models.
+
+ListingAssistants flips the economics directly to the operator:
+
+* **Compounding Model Equity:** As the swarm processes hundreds of transaction edge cases—resolving local municipal inspection nuances, complex seller disclosures, and title exceptions—the fine-tuned adapter weights (`lora_checkpoints/`) become a proprietary, specialized corporate asset.
+* **Asset Valuation & Defense:** Unlike generic, prompt-engineered wrappers that can be cloned overnight, an operational chassis backed by verified local restore points, 227 ratified decision tuples, and thousands of real-world audited deliberations represents an appreciating balance-sheet asset.
+* **The $200 Technology Platform Fee:** The $200 per-closed-file fee covers not just the immediate 24/7 transaction coordination, but the right to execute against this continuously improving, high-fidelity cognitive asset without incurring public cloud token inflation.
