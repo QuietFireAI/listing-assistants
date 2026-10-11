@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""manage_hitl_queue.py - Human-In-The-Loop Queue Inspection & Resumption CLI.
+"""manage_hitl_queue.py - Human-In-The-Loop wait-state inspection CLI.
 
-Allows the licensed human broker (Agent 00) to:
-  1. View all active wait-states across all client drawers.
-  2. Inspect the exact trigger and why the agent stopped.
-  3. Submit an authoritative human decision (APPROVE, REJECT, MODIFY, OVERRIDE)
-     that deterministically resumes the halted agent.
+Lists the wait-states recorded in client drawer timelines
+(drawers/<client_id>/timeline/<wait_id>_pause.json). The record's status is
+updated when a decision is applied, so a resolved wait no longer lists as
+PENDING.
+
+What this tool does NOT do: apply decisions. A decision must be a signed
+'hitl.decision.authority' envelope applied by the running process that holds
+the hub and the wait (HITLManager.resume_operation). A standalone CLI has no
+access to that process, so --decide refuses with an explanation and a nonzero
+exit. Fixed 2026-10-11 (audit HITL-1): --decide previously printed
+"[SUCCESS] ... Agent resumed." without doing anything, even for wait ids
+that did not exist.
 
 Usage:
-  python tools/manage_hitl_queue.py --list
-  python tools/manage_hitl_queue.py --decide <wait_id> --decision APPROVE --notes "Approved by broker"
+  python tools/manage_hitl_queue.py --list [--client CLIENT_ID] [--root DRAWERS_DIR]
 """
 from __future__ import annotations
 
@@ -18,64 +24,53 @@ import json
 import os
 import sys
 
-# Locate root
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-
-from dispatcher.client_drawer import ClientDrawerManager
-from dispatcher.hitl_protocol import HITLManager
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Human-In-The-Loop (HITL) Queue & Resumption Manager.")
-    parser.add_argument("--list", action="store_true", help="List all pending human decisions")
+def list_pending(drawers_root: str, client: str | None) -> list[dict]:
+    pending = []
+    if not os.path.isdir(drawers_root):
+        return pending
+    for c in sorted(os.listdir(drawers_root)):
+        if client and c != client:
+            continue
+        t_dir = os.path.join(drawers_root, c, "timeline")
+        if not os.path.isdir(t_dir):
+            continue
+        for f in sorted(os.listdir(t_dir)):
+            if f.endswith("_pause.json"):
+                with open(os.path.join(t_dir, f), "r", encoding="utf-8") as jf:
+                    data = json.load(jf)      # a corrupt record is an error, not skipped
+                if data.get("status") == "PENDING":
+                    pending.append(data)
+    return pending
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="List pending HITL wait-states recorded in client drawers.")
+    parser.add_argument("--list", action="store_true", help="List pending human decisions (default)")
     parser.add_argument("--client", help="Filter by client context ID")
-    parser.add_argument("--decide", help="Wait ID to resolve and resume")
-    parser.add_argument("--decision", choices=["APPROVE", "REJECT", "MODIFY", "OVERRIDE"], default="APPROVE",
-                        help="Decision to apply (default: APPROVE)")
-    parser.add_argument("--notes", default="Human principal verified", help="Notes / reason for the decision")
-    parser.add_argument("--agent", default="00", help="Human agent ID (default: 00)")
-    args = parser.parse_args()
+    parser.add_argument("--root", default=os.path.join(ROOT, "drawers"), help="Drawer root directory")
+    parser.add_argument("--decide", help=argparse.SUPPRESS)
+    parser.add_argument("--decision", help=argparse.SUPPRESS)
+    args = parser.parse_args(argv)
 
-    # For standalone CLI inspection, inspect drawers/timeline for wait-state records
-    drawers_root = os.path.join(ROOT, "drawers")
-    drawer_manager = ClientDrawerManager(drawers_root) if os.path.exists(drawers_root) else None
+    if args.decide:
+        print("[REFUSED] This CLI cannot apply decisions.\n"
+              "A decision must be a signed 'hitl.decision.authority' envelope applied by the\n"
+              "running process that holds the hub and the wait "
+              "(HITLManager.resume_operation).\nNothing was recorded.", file=sys.stderr)
+        return 2
 
-    if args.list or not args.decide:
-        print("\n================================================================================")
-        print("  HUMAN-IN-THE-LOOP (HITL) PENDING DECISIONS QUEUE")
-        print("================================================================================")
-        pending = []
-        if os.path.exists(drawers_root):
-            for c in os.listdir(drawers_root):
-                t_dir = os.path.join(drawers_root, c, "timeline")
-                if os.path.isdir(t_dir):
-                    for f in os.listdir(t_dir):
-                        if f.endswith("_pause.json"):
-                            try:
-                                with open(os.path.join(t_dir, f), "r") as jf:
-                                    data = json.load(jf)
-                                    if data.get("status") == "PENDING":
-                                        pending.append(data)
-                            except Exception:
-                                pass
-
-        if not pending:
-            print("  (Queue is clear. No agents currently waiting on human direction.)")
-        else:
-            print(f"  {'WAIT ID':<32} {'CLIENT':<16} {'AGENT':<6} {'REQUIRED DECISION'}")
-            print("  " + "-" * 76)
-            for p in pending:
-                print(f"  {p['wait_id']:<32} {p['client_context_id']:<16} {p['agent_id']:<6} {p['required_decision']}")
-                print(f"    Reason: {p['reason']}")
-        print("================================================================================\n")
-        return 0
-
-    print(f"\n[HITL] Submitting human decision for wait ID: {args.decide}")
-    print(f"  Decision: {args.decision}")
-    print(f"  Signed By: Agent {args.agent}")
-    print(f"  Notes: {args.notes}")
-    print("  [SUCCESS] Decision recorded. Resumption envelope dispatched. Agent resumed.\n")
+    pending = list_pending(args.root, args.client)
+    print("\n  HUMAN-IN-THE-LOOP PENDING DECISIONS (from drawer timelines)")
+    print("  " + "-" * 76)
+    if not pending:
+        print("  (No PENDING wait-state records found under " + args.root + ")")
+    for p in pending:
+        print(f"  {p['wait_id']:<40} {p['client_context_id']:<16} agent {p['agent_id']:<4} {p['required_decision']}")
+        print(f"    Reason: {p['reason']}")
+    print()
     return 0
 
 
