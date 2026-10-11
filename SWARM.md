@@ -8,7 +8,7 @@ defect, not a change.
 
 ## Manifest (generated)
 - Agents: 21 (00-dispatcher + 20 spokes)
-- Routes: 51 entries, 50 distinct intents
+- Routes: 52 entries, 51 distinct intents
 - Playbooks: P01-P24 (24 playbooks) (playbooks/)
 - Layer stack: MANNERS.md → DISPATCHER_CORE.md → identity/ → DECISIONS.md
   (per agent) → playbooks/ → agent SKILL.md files

@@ -240,6 +240,9 @@ class Spoke13BuyerSearchMatch:
                            {"mode": "neighborhood", "license_scope": "internal"}))
 
     def handle(self, env: Envelope):
+        if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
+            from .clock import handle_tick
+            return handle_tick(self, "13", env)
         ctx = env.client_context_id
         payload = env.payload
 

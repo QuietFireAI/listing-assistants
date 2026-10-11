@@ -144,8 +144,7 @@ class GovernedIdentity:
         self.hub.on_turn_start()
 
     # Spoke modules known to this wrapper, by detection (not by folder name).
-    KNOWN = {"medbilling_spokes": "_wire_medbilling",
-             "listing_spokes": "_wire_listing"}
+    KNOWN = {"listing_spokes": "_wire_listing"}
 
     def _wire_spokes(self):
         """Mount real spokes by DETECTING which spoke module is present in
@@ -156,7 +155,7 @@ class GovernedIdentity:
         import glob
         disp = os.path.join(ROOT, "dispatcher")
         for path in glob.glob(os.path.join(disp, "*_spokes.py")):
-            name = os.path.basename(path)[:-3]  # e.g. medbilling_spokes
+            name = os.path.basename(path)[:-3]  # e.g. listing_spokes
             if name in self.KNOWN:
                 try:
                     mod = __import__(f"dispatcher.{name}", fromlist=["*"])
@@ -165,39 +164,6 @@ class GovernedIdentity:
                 self.spoke_mod = mod
                 getattr(self, self.KNOWN[name])(mod)
                 return
-
-    def _wire_medbilling(self, m):
-        seq = [{"day": 0, "step": "statement", "template": "statement"},
-               {"day": 30, "step": "reminder_1", "template": "reminder"},
-               {"day": 60, "step": "reminder_2", "template": "reminder"},
-               {"day": 90, "step": "final_notice", "template": "final_notice"}]
-        s = {
-            "01": m.Spoke01EncounterIntake(self.hub, provider_roster={"dr-a"},
-                                           auth_required_codes=set()),
-            "02": m.Spoke02ClaimScrubbing(self.hub,
-                                          edit_tables={"version": "e1",
-                                                       "rules": []}),
-            "03": m.Spoke03Eligibility(self.hub, payer_db={}),
-            "04": m.Spoke04PatientComm(self.hub, templates={
-                "statement": "Your balance is {balance}.",
-                "opt_out_confirmed": "We will stop billing reminders."}),
-            "05": m.Spoke05DocCollection(self.hub),
-            "06": m.Spoke06PriorAuth(self.hub),
-            "07": m.Spoke07Submission(self.hub),
-            "08": m.Spoke08PaymentPosting(self.hub, contract_rules={
-                "CO45": {"rule_id": "PAYER1-CO45"}}),
-            "09": m.Spoke09DenialMgmt(self.hub,
-                                      taxonomy={"CO50": "medical_necessity"}),
-            "10": m.Spoke10ARFollowup(self.hub),
-            "11": m.Spoke11PatientBilling(self.hub, contact_sequence=seq),
-            "12": m.Spoke12ComplianceDeadlines(self.hub),
-            "13": m.Spoke13Records(self.hub),
-            "14": m.Spoke14DailyOps(self.hub),
-        }
-        for aid, sp in s.items():
-            if aid != "01":
-                self.hub.register(aid, sp.handle)
-        self.spokes = s
 
     def _wire_listing(self, _m):
         """Wire the full listing swarm (18 spokes) exactly as the e2e
@@ -304,23 +270,6 @@ class GovernedIdentity:
                     "reason": f"'{intent}' is not a legal front-door intent "
                               f"for listing; the signed lane is "
                               f"'listing.authorize'"}
-        if modname.endswith("medbilling_spokes"):
-            if intent == "encounter.capture":
-                self.spokes["03"].db[ctx] = {"status":
-                                             payload.get("eligibility",
-                                                         "active")}
-                self.spokes["01"].capture(ctx, payload["encounter"])
-                st = self.spokes["02"].claims.get(ctx, {})
-                return {"ok": True, "context_id": ctx,
-                        "released": st.get("released", False),
-                        "held_reason": st.get("held_reason"),
-                        "codes": st.get("codes"),
-                        "audit_entries": len(self.hub.audit.read())}
-            if intent == "remit.post":
-                self.spokes["08"].post_remit(ctx, payload["remit"])
-                return {"ok": True, "context_id": ctx,
-                        "ledger": self.spokes["08"].ledger.get(ctx),
-                        "audit_entries": len(self.hub.audit.read())}
         return {"ok": False, "context_id": ctx,
                 "reason": f"'{intent}' is not a legal front-door intent for "
                           f"{IDENTITY_NAME}; call identity.describe for the "
@@ -330,8 +279,11 @@ class GovernedIdentity:
         """The signed-money lane, explicit and separate. Without a real
         signature the hub rejects it - proving the gate to the caller."""
         ctx = context_id or f"mcp-{uuid.uuid4().hex[:8]}"
+        if not payload.get("to"):
+            return {"ok": False, "context_id": ctx, "hub_status": None,
+                    "reason": "payload.to (the receiving agent) is required"}
         env = Envelope(from_agent="human",
-                       to_agent=payload.get("to", "08"),
+                       to_agent=payload["to"],
                        intent=intent, client_context_id=ctx,
                        payload=payload,
                        provenance={"source": "mcp-host",
@@ -394,7 +346,8 @@ def build_server(identity):
         types.Tool(
             name="identity.authority",
             description=("The signed-money lane, kept explicit and separate. "
-                         "Authority intents (write-offs, refunds, etc.) "
+                         "Authority intents (listing.change.authorized, "
+                         "config.update) "
                          "require a valid signature; without one the hub "
                          "rejects - and returns the rejection so you can see "
                          "the gate working."),

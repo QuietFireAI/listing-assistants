@@ -278,6 +278,9 @@ class Spoke14CRMPipeline:
         return proposals
 
     def handle(self, env: Envelope):
+        if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
+            from .clock import handle_tick
+            return handle_tick(self, "14", env)
         ctx = env.client_context_id
 
         if env.intent == "record.request":
@@ -431,6 +434,9 @@ class Spoke01LeadCapture:
         return None
 
     def handle(self, env: Envelope):
+        if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
+            from .clock import handle_tick
+            return handle_tick(self, "01", env)
         if env.intent in ("lead.signal", "lead.inbound"):
             payload = env.payload
             ctx = env.client_context_id

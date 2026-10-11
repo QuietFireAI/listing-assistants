@@ -177,10 +177,15 @@ def cmd_session(args):
             what = a.get("what")
             if what == "queues":
                 r = {k: v for k, v in hub.queues.items() if v}
-            elif what == "briefing":
-                r = spokes["18"].generate_briefing("morning")
-            elif what == "eod":
-                r = spokes["14"].generate_report("eod")
+            elif what in ("briefing", "eod"):
+                # through the hub as a clock.tick (owner rule 2026-10-11:
+                # no direct calls into an agent)
+                from dispatcher.clock import send_tick
+                agent, check = ("18", "morning_briefing") if what == "briefing" else ("14", "eod_report")
+                day = a.get("today") or datetime.date.today().isoformat()
+                out = send_tick(hub, agent, day, checks=[check])
+                r = (out["results"][0]["result"] if out["results"]
+                     else {"error": f"clock.tick not delivered: {out['hub']}"})
             elif what == "external":
                 r = external
             elif what == "anchor":

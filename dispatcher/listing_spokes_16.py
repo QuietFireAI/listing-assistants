@@ -133,6 +133,9 @@ class Spoke16AfterCloseReferral:
         return f"sent:{due}"
 
     def handle(self, env: Envelope):
+        if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
+            from .clock import handle_tick
+            return handle_tick(self, "16", env)
         ctx = env.client_context_id
         payload = env.payload
 

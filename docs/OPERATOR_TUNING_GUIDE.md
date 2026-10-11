@@ -81,7 +81,11 @@ records `signer.unarmed` and checks the cryptographic signature only.
 Time-based checks (contract deadlines, document chases, vendor no-shows,
 SLA timers, the morning briefing) run when something calls
 `run_daily_sweeps(hub, spokes, today)` from `dispatcher/sweep_runner.py`.
-Call it once a day inside the process that holds the swarm.
+It reaches each agent with a `clock.tick` envelope through the hub, so
+every tick is persisted, acknowledged and on the audit log like any other
+message; nothing calls an agent directly. The checks per agent are listed
+in `dispatcher/clock.py`. Call it once a day inside the process that holds
+the swarm.
 
 `tools/run_sweeps.py` is the reference caller:
 

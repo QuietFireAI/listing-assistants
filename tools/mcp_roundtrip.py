@@ -56,9 +56,8 @@ async def main():
                  f"{d['governance']['signed_authority_required']},"
                  f" tolerance={d['governance']['reconciliation_tolerance']}")
 
-            line("\n[identity.submit] host pushes an encounter at the front"
+            line("\n[identity.submit] host pushes a listing authorization at the front"
                  " door; the hub routes and gates it:")
-            enc = None  # listing uses listing.authorize, payload inline below
             r = await call("identity.submit",
                            {"intent": "listing.authorize",
                             "payload": {"new_listing": {"beds": 3, "sqft": 2000, "price": 500000, "features": ["garage"], "photo_detected_features": ["garage"]}, "authorize_go_live": True, "today": "2026-07-01"}})

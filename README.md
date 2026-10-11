@@ -43,8 +43,9 @@ model.
 
 ## How it stays accountable
 
-- **Closed track.** Only the 51 (sender, intent, receiver) routes in
-  `identity/routes.json` are legal. Anything else is rejected and logged;
+- **Closed track.** Only the 52 routes in `identity/routes.json` (151
+  sender-intent-receiver lanes) are legal, and every message to or from an
+  agent travels on one of them, including the daily clock (`clock.tick`). Anything else is rejected and logged;
   a well-formed message on an unknown route is held for a human.
 - **Hash-chained audit log.** Every entry links to the previous one by
   SHA-256 from a genesis anchor. `verify_chain()` names the first line that
