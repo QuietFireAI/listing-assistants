@@ -451,3 +451,59 @@ def test_lead_reply_to_04_and_12_is_delivered_logged_and_held(tmp_path, owner):
     held = [q for q in hub.queues["clarification.request"] if q["from_agent"] == owner]
     assert len(held) == 1 and held[0]["payload"]["verbatim"] == "Please drop the word cozy"
     assert any(t["agent"] == owner and t["result"] == "held: client_reply_needs_human" for t in hub.spoke_traces)
+
+
+# --- post-fix mutation run (2026-10-11): lead.reply call sites -------------------
+
+def _full(tmp_path):
+    sys.path.insert(0, os.path.dirname(__file__))
+    from test_playbooks_e2e_all import full_swarm
+    return full_swarm(str(tmp_path))[0]
+
+
+def _lead_replies(hub):
+    return [e for e in hub.audit.read() if e["kind"] == "envelope.persisted" and e["intent"] == "lead.reply"]
+
+
+def test_mixed_advice_routine_reply_default_owner_is_13(tmp_path):
+    hub = _full(tmp_path)
+    hub.send(client_reply("ctx-mix", {"message": "should i offer 400k? also send the hoa docs",
+                                      "has_routine_component": True}))
+    [lr] = _lead_replies(hub)
+    assert lr["to_agent"] == "13" and lr["client_context_id"] == "ctx-mix"
+    assert lr["payload"] == {"message": "should i offer 400k? also send the hoa docs", "split": "routine_only"}
+
+
+def test_negative_tone_reply_goes_to_named_owner_with_p14_route(tmp_path):
+    hub = _full(tmp_path)
+    hub.send(client_reply("ctx-neg", {"message": "this is getting frustrating", "negative_tone": True,
+                                      "owning_agent": "16"}))
+    [lr] = _lead_replies(hub)
+    assert lr["to_agent"] == "16" and lr["client_context_id"] == "ctx-neg"
+    assert lr["payload"] == {"message": "this is getting frustrating", "route": "P14_complaint_intake"}
+
+
+def test_unhandled_owner_trace_names_agent_11_and_the_envelope(tmp_path):
+    hub = _full(tmp_path)
+    env = client_reply("ctx-u", {"message": "hi", "owning_agent": "07"})
+    hub.send(env)
+    t = [t for t in hub.spoke_traces if t.get("result") == "held: lead_reply_owner_unhandled"][-1]
+    assert t["agent"] == "11" and t["envelope_id"] == env.envelope_id and "'07'" in t["thought"]
+
+
+def test_04_and_12_report_their_state_for_the_client(tmp_path):
+    sys.path.insert(0, os.path.dirname(__file__))
+    from test_playbooks_e2e_all import full_swarm
+    hub, _s, spokes, _e = full_swarm(str(tmp_path))
+    spokes["04"].drafts["ctx-d"] = {"draft": "x"}
+    spokes["12"].published["ctx-p"] = {"content": "x"}
+    hub.send(client_reply("ctx-d", {"message": "tweak it", "owning_agent": "04"}))
+    hub.send(client_reply("ctx-p", {"message": "pause ads", "owning_agent": "12"}))
+    hub.send(client_reply("ctx-n", {"message": "hello", "owning_agent": "04"}))
+    held = {q["client_context_id"]: q["payload"] for q in hub.queues["clarification.request"]}
+    assert held["ctx-d"]["agent_state"] == {"draft_pending_verdict": True} and held["ctx-d"]["agent"] == "04"
+    assert held["ctx-n"]["agent_state"] == {"draft_pending_verdict": False}
+    assert held["ctx-p"]["agent_state"] == {"published": True, "pending_review": False}
+    for aid, ctx in (("04", "ctx-d"), ("12", "ctx-p")):
+        t = [t for t in hub.spoke_traces if t["agent"] == aid and t["result"] == "held: client_reply_needs_human"]
+        assert t and ctx in t[-1]["thought"]
