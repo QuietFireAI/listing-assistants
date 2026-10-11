@@ -22,9 +22,7 @@ UNKNOWN = "unknown"
 # Component #6 is binding: this agent applies the rubric, it never
 # authors or drifts it - backfilling a missing threshold with a baked-in
 # default is authoring, however small.
-REQUIRED_RUBRIC_KEYS = {"budget_threshold", "budget_weight",
-                       "timeline_days_threshold", "timeline_weight",
-                       "financing_weight", "hot_threshold", "warm_threshold"}
+from .lead_rubric import REQUIRED_RUBRIC_KEYS  # noqa: E402  (single definition, shared with the JEV fallback)
 
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN):
@@ -94,102 +92,18 @@ class Spoke02LeadQualification:
         # deployment overrides this via the same signed config.update path
         # once cadence_settings.json is ratified.
         self.hot_lead_sla_seconds = hot_lead_sla_seconds
-        from .decision_adapter import JevDecisionAdapter
-        self.decision_adapter = JevDecisionAdapter()
         hub.register("02", self.handle)
 
     def _score(self, payload: dict) -> tuple[str, int | None, list[str]]:
         """Returns (tier, score_or_None, notes). Tier is UNKNOWN if the
         rubric is absent OR all scoring inputs are unknown - these are
-        different reasons but the same tier, per tuple #12."""
-        notes = []
+        different reasons but the same tier, per tuple #12. The scoring
+        itself lives in dispatcher/lead_rubric.py (extracted unchanged
+        2026-10-11 so the JEV fallback engine can no longer diverge)."""
         if self.rubric is None:
             return "UNKNOWN", None, ["no rubric active - scoring halted"]
-
-        def _unwrap(v):
-            """Agent 01's capture schema wraps stated fields as
-            {"value": ..., "source": "stated_by_party"} - its documented
-            source-attribution format. Found by the first end-to-end
-            playbook run (2026-07-18): this method compared that dict
-            against an int threshold, raising TypeError on every real
-            01-originated lead - the handler crashed, the hub
-            dead-lettered the lead, and no tier was ever produced. This
-            agent's own tests fed flat hand-built payloads, so the crash
-            was invisible until real traffic flowed. Unwrapping a
-            DOCUMENTED schema is reading, not interpreting."""
-            if isinstance(v, dict) and "value" in v and "source" in v:
-                return v["value"]
-            return v
-
-        budget = _unwrap(payload.get("budget"))
-        preapproval_doc = payload.get("preapproval_doc")  # {"amount":..., "expired": bool}
-        timeline_days = _unwrap(payload.get("timeline_days"))
-        stated_urgency = _unwrap(payload.get("stated_urgency"))  # e.g. "high"/"low"/None
-        financing_progress = _unwrap(payload.get("financing_progress"))  # e.g. "preapproved"/"none"/None
-
-        # tuple: financing letter present but expired -> treat as no
-        # verification (stated_by_party at best)
-        if preapproval_doc and preapproval_doc.get("expired"):
-            notes.append("pre-approval letter expired - treated as no "
-                        "financing verification")
-            financing_progress = financing_progress or "none"
-            preapproval_doc = None
-
-        # tuple: budget vs pre-approval doc conflict -> doc wins
-        if preapproval_doc and budget and preapproval_doc.get("amount"):
-            if abs(preapproval_doc["amount"] - budget) > 0:
-                notes.append(
-                    f"stated budget {budget} conflicts with pre-approval "
-                    f"doc amount {preapproval_doc['amount']} - doc wins for "
-                    f"scoring, conflict logged verbatim")
-                budget = preapproval_doc["amount"]
-
-        # tuple: stated urgency vs financing signal conflict -> financing wins
-        if stated_urgency == "high" and financing_progress in (None, "none"):
-            notes.append(
-                "stated urgency 'high' conflicts with no financing "
-                "progress - weighting verifiable financing over stated "
-                "urgency, conflict logged")
-
-        inputs = {"budget": budget, "timeline_days": timeline_days,
-                 "financing_progress": financing_progress}
-        if all(v is None for v in inputs.values()):
-            return "UNKNOWN", None, notes + ["all rubric inputs unknown - "
-                                             "tier is UNKNOWN, not COLD"]
-
-        r = self.rubric
-        score = 0
-        if budget is not None and budget >= r.get("budget_threshold", 500_000):
-            score += r.get("budget_weight", 40)
-        if timeline_days is not None and timeline_days <= r.get("timeline_days_threshold", 30):
-            score += r.get("timeline_weight", 40)
-        if financing_progress == "preapproved":
-            score += r.get("financing_weight", 20)
-
-        hot = r.get("hot_threshold", 70)
-        warm = r.get("warm_threshold", 40)
-
-        # tuple: boundary score -> lower tier + flag for human. Checked
-        # FIRST, before the normal >= bands - a score sitting exactly on
-        # a threshold must actually get the lower tier, not just a note
-        # saying it did while the higher tier gets assigned anyway.
-        if score == hot:
-            tier = "WARM"
-            notes.append(f"score {score} sits exactly on a tier boundary "
-                        f"(HOT/WARM) - assigned the lower tier (WARM), "
-                        f"flagged for human")
-        elif score == warm:
-            tier = "COLD"
-            notes.append(f"score {score} sits exactly on a tier boundary "
-                        f"(WARM/COLD) - assigned the lower tier (COLD), "
-                        f"flagged for human")
-        elif score > hot:
-            tier = "HOT"
-        elif score > warm:
-            tier = "WARM"
-        else:
-            tier = "COLD"
-
+        from .lead_rubric import score_lead
+        tier, score, notes, _conflicts = score_lead(payload, self.rubric)
         return tier, score, notes
 
     def _record_tier(self, ctx: str, tier: str):
@@ -346,15 +260,10 @@ class Spoke02LeadQualification:
             self._record_tier(ctx, tier)
             oscillating = self._oscillating_third_time(ctx)
 
-            cop_status = self.decision_adapter.get_coprocessor_status()
-            cop_mode = cop_status.get("mode", "FALLBACK_LOCAL_RULES")
-            is_cop_fallback = cop_status.get("is_fallback", True)
-
             self.hub.ingest_spoke_trace(
                 "02", env.envelope_id,
                 thought=f"scored: tier={tier} score={score} "
-                        f"rubric_version={self.rubric_version}; notes={notes} "
-                        f"| coprocessor_status={cop_mode} (is_fallback={is_cop_fallback})",
+                        f"rubric_version={self.rubric_version}; notes={notes}",
                 result=f"tier={tier}")
 
             if oscillating:

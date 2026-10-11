@@ -23,7 +23,7 @@ def test_jev_lead_rubric_scoring_hot():
     assert result["status"] == "ok"
     assert result["tier"] == "HOT"
     assert result["score"] == 100
-    assert result["decision_provenance"] == "jev_engine_python_v1"
+    assert result["decision_provenance"] == "lead_rubric_v1"
 
 
 def test_jev_lead_rubric_boundary_score_assigns_lower_tier():
@@ -240,7 +240,7 @@ def test_jev_hitl_pause_confidence_underflow_dispatches_dual_notices():
 
 
 def test_jev_adapter_live_api_success(monkeypatch):
-    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123")
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123", allow_external=True)
     assert adapter.api_key == "jev_test_key_live_123"
 
     mock_response = {
@@ -263,7 +263,7 @@ def test_jev_adapter_live_api_success(monkeypatch):
 
 
 def test_jev_adapter_live_api_confidence_underflow_enforced(monkeypatch):
-    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123", confidence_threshold=0.45)
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123", confidence_threshold=0.45, allow_external=True)
 
     mock_response = {
         "status": "ok",
@@ -285,7 +285,7 @@ def test_jev_adapter_live_api_confidence_underflow_enforced(monkeypatch):
 
 
 def test_jev_adapter_live_api_network_failure_falls_back(monkeypatch):
-    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123")
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123", allow_external=True)
 
     def failing_http(*args, **kwargs):
         raise ConnectionResetError("Connection refused by remote host")
@@ -315,7 +315,7 @@ def test_jev_adapter_live_api_network_failure_falls_back(monkeypatch):
 
 
 def test_jev_adapter_showing_conflict_live_api(monkeypatch):
-    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123")
+    adapter = JevDecisionAdapter(api_key="jev_test_key_live_123", allow_external=True)
 
     mock_response = {
         "status": "ok",
@@ -332,3 +332,105 @@ def test_jev_adapter_showing_conflict_live_api(monkeypatch):
     assert res["action"] == "displace_existing"
 
 
+
+
+# ---------------------------------------------------------------------------
+# Added 2026-10-11 (audit JEV-1..4). These prove the fail-closed behavior and
+# that the fallback engine and Agent 02 can no longer score the same lead
+# differently.
+# ---------------------------------------------------------------------------
+FULL_RUBRIC = {"budget_threshold": 500_000, "budget_weight": 40,
+               "timeline_days_threshold": 30, "timeline_weight": 40,
+               "financing_weight": 20, "hot_threshold": 70, "warm_threshold": 40}
+
+
+def test_external_result_without_confidence_is_held_not_passed(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="k", allow_external=True)
+    monkeypatch.setattr(adapter, "_call_http_decision",
+                        lambda *a: {"status": "ok", "tier": "HOT", "score": 100})
+    res = adapter.evaluate_lead("ctx-noconf", {"stated_budget": 900_000}, FULL_RUBRIC)
+    assert res["status"] == "held_confidence_underflow"
+    assert res["confidence"] == 0.0 and res["tier"] == "HELD_FOR_CALIBRATION"
+
+
+def test_external_result_with_garbage_confidence_is_held(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="k", allow_external=True)
+    monkeypatch.setattr(adapter, "_call_http_decision",
+                        lambda *a: {"status": "ok", "tier": "HOT", "confidence": "very high"})
+    res = adapter.evaluate_lead("ctx-garbage", {"stated_budget": 900_000}, FULL_RUBRIC)
+    assert res["status"] == "held_confidence_underflow" and res["confidence"] == 0.0
+
+
+def test_api_key_without_opt_in_never_calls_out(monkeypatch):
+    adapter = JevDecisionAdapter(api_key="k")          # allow_external defaults False
+
+    def boom(*a, **k):
+        raise AssertionError("lead data sent off-box without allow_external=True")
+    monkeypatch.setattr(adapter, "_call_http_decision", boom)
+    res = adapter.evaluate_lead("ctx-local", {"stated_budget": 900_000, "timeline_days": 10,
+                                              "financing_progress": "preapproved"}, FULL_RUBRIC)
+    assert res["engine"] == "python_fallback" and res["tier"] == "HOT"
+    status = adapter.get_coprocessor_status()
+    assert "allow_external=False" in status["reason"]
+
+
+def test_fallback_engine_matches_agent02_on_agent01_schema():
+    """The same 01-shaped lead must get the same tier and score from the
+    fallback engine and from Agent 02 (was WARM 60 vs HOT 100, or TypeError)."""
+    from dispatcher.lead_rubric import score_lead
+    from dispatcher.listing_spokes_02 import Spoke02LeadQualification
+
+    class _NullHub:
+        def register(self, *a):
+            pass
+    agent02 = Spoke02LeadQualification(_NullHub())
+    agent02.rubric = dict(FULL_RUBRIC)
+    leads = [
+        {"budget": {"value": 650_000, "source": "stated_by_party"}, "timeline_days": 15,
+         "financing_progress": "preapproved"},
+        {"budget": {"value": 450_000, "source": "stated_by_party"},
+         "preapproval_doc": {"amount": 700_000}, "timeline_days": 60},
+        {"budget": 800_000, "preapproval_doc": {"amount": 800_000, "expired": True},
+         "timeline_days": 10},
+        {"stated_budget": 800_000, "preapproval_document": {"amount": 300_000, "verified": False},
+         "timeline_days": 10, "financing_progress": "preapproved"},
+    ]
+    engine = JevPythonDecisionEngine()
+    for lead in leads:
+        t02, s02, _ = agent02._score(lead)
+        tier, score, _, _ = score_lead(lead, FULL_RUBRIC)
+        res = engine.evaluate_lead_rubric("ctx-parity", lead, FULL_RUBRIC)
+        assert (tier, score) == (t02, s02), lead
+        assert res["score"] == s02, lead
+        if res["status"] == "ok":
+            assert res["tier"] == t02, lead
+
+
+def test_expired_letter_is_not_financing_verification():
+    from dispatcher.lead_rubric import score_lead
+    tier, score, notes, _ = score_lead(
+        {"budget": 800_000, "preapproval_doc": {"amount": 800_000, "expired": True},
+         "timeline_days": 10, "financing_progress": "preapproved"}, FULL_RUBRIC)
+    # letter ignored; stated financing_progress is kept (the tuple only fills 'none' when absent)
+    assert any("expired" in n for n in notes)
+    tier2, score2, _, _ = score_lead(
+        {"budget": 800_000, "preapproval_doc": {"amount": 800_000, "expired": True},
+         "timeline_days": 10}, FULL_RUBRIC)
+    assert score2 == 80 and tier2 == "HOT"
+
+
+def test_all_unknown_is_unknown_hold_not_cold():
+    res = JevPythonDecisionEngine().evaluate_lead_rubric("ctx-u", {}, FULL_RUBRIC)
+    assert res["status"] == "held_confidence_underflow" and res["tier"] == "UNKNOWN"
+    assert res["score"] is None
+
+
+def test_partial_rubric_is_held_not_filled_with_defaults():
+    """Agent 02 rejects a partial rubric; the fallback engine used to score it
+    with built-in defaults. It now holds, matching 02."""
+    res = JevPythonDecisionEngine().evaluate_lead_rubric(
+        "ctx-partial", {"stated_budget": 900_000, "timeline_days": 5}, {"budget_threshold": 500_000})
+    assert res["status"] == "held_confidence_underflow" and res["tier"] == "UNKNOWN"
+    assert res["score"] is None and "rubric incomplete" in res["notes"][0]
+    adapter = JevDecisionAdapter()
+    assert adapter.evaluate_lead("ctx-partial", {"stated_budget": 900_000}, {})["tier"] == "UNKNOWN"

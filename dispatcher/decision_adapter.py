@@ -1,519 +1,307 @@
-"""decision_adapter - JEV AI Decision Platform Adapter with Pure Python Fallback.
+"""decision_adapter - JEV (TypeSafe AI) decision-coprocessor adapter with a local fallback.
 
-Provides a unified decision coprocessor interface for the QuietFireAI swarm.
-Integrates with JEV AI via:
-  1. Primary: Model Context Protocol (MCP) tool invocation (tools/call_jev_decision).
-  2. Fallback: In-process pure-Python deterministic decision engine (JevPythonDecisionEngine),
-     requiring zero network connections and zero HTTP REST overhead.
+STATUS (stated plainly, 2026-10-11 audit):
+  - No spoke calls this adapter. Lead tiers are produced by Agent 02 from
+    dispatcher/lead_rubric.py; showing slots by Agent 06's own rules. The
+    adapter is an integration seam, exercised by its own tests.
+  - The live request schema below (decision_type / payload / model
+    "jev-1.13.0") has NOT been validated against TypeSafe's published API;
+    the tests mock the HTTP and MCP calls.
 
-Designed for stage 1 cloud VM validation and final air-gapped on-premise hardware
-appliances (Hermes + Drobo NAS).
+Tiers, in order:
+  1. Live HTTPS to JEV - only when an API key is configured AND the caller
+     opts in with allow_external=True. Lead data leaves the machine on this
+     tier, so it is never enabled by a key alone. (Audit JEV-6.)
+  2. An injected MCP client (caller-supplied; may be local).
+  3. Local deterministic fallback (JevPythonDecisionEngine), which scores
+     leads with the SAME function Agent 02 uses (lead_rubric.score_lead), so
+     the two can no longer disagree. (Audit JEV-3.)
+
+Every result carries coprocessor_status / is_fallback. A live or MCP result
+without a numeric confidence is held at the floor - missing confidence is
+treated as 0.0, never as 1.0. (Audit JEV-4.)
+
+The hub's boot line (jev.unarmed_fallback / jev.armed_live) lives in the
+vendored core hub.py and reads only the JEV_API_KEY environment variable;
+get_coprocessor_status() here is the authoritative mode for this adapter.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
+
+from .lead_rubric import REQUIRED_RUBRIC_KEYS, score_lead
 
 logger = logging.getLogger(__name__)
 
+_FALLBACK_WARNING = ("DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES "
+                     "(live JEV coprocessor not in use)")
+
+
+def _hold(result: dict, confidence: float, floor: float, context_id: str, tier: str) -> dict:
+    result.update({
+        "status": "held_confidence_underflow",
+        "is_confidence_underflow": True,
+        "confidence": confidence,
+        "confidence_threshold": floor,
+        "tier": tier,
+        "escalation_required": True,
+        "escalation_type": "escalation.confidence_underflow",
+        "broker_notice": (f"JEV Calibration Hold: Lead confidence rated at {confidence:.2f} "
+                          f"(below {floor:.2f} safety floor). Parked in siding for your review."),
+        "operator_notice": (f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow "
+                            f"({confidence:.2f} < {floor:.2f}) for context '{context_id}'. "
+                            f"Rubric fine-tuning evaluation warranted."),
+    })
+    return result
+
 
 class JevPythonDecisionEngine:
-    """In-process, zero-network deterministic decision engine.
-    Implements JEV AI decision evaluation rules natively in Python.
-    """
+    """In-process, zero-network deterministic decision engine."""
 
     def __init__(self, confidence_threshold: float = 0.45):
         self.default_confidence_threshold = confidence_threshold
 
-    def evaluate_lead_rubric(
-        self,
-        context_id: str,
-        payload: dict,
-        rubric: dict,
-        confidence_threshold: Optional[float] = None
-    ) -> dict:
-        """Evaluates a lead against a signed rubric using deterministic multi-attribute scoring.
+    def evaluate_lead_rubric(self, context_id: str, payload: dict, rubric: dict,
+                             confidence_threshold: Optional[float] = None) -> dict:
+        """Scores with lead_rubric.score_lead (Agent 02's rules) and adds a
+        confidence rating; below the floor the result is a calibration hold."""
+        floor = (confidence_threshold if confidence_threshold is not None
+                 else rubric.get("confidence_threshold", self.default_confidence_threshold))
+        missing_keys = sorted(REQUIRED_RUBRIC_KEYS - set(rubric or {}))
+        if missing_keys:
+            base = {"score": None, "notes": [f"rubric incomplete (missing {', '.join(missing_keys)}) - "
+                                               f"scoring halted, no defaults filled in"],
+                    "decision_provenance": "lead_rubric_v1", "engine": "python_fallback",
+                    "coprocessor_status": "FALLBACK_LOCAL_RULES", "is_fallback": True,
+                    "fallback_warning": _FALLBACK_WARNING}
+            return _hold(base, 0.0, floor, context_id, "UNKNOWN")
+        tier, score, notes, conflicts = score_lead(payload, rubric)
+        base = {"score": score, "notes": list(notes), "decision_provenance": "lead_rubric_v1",
+                "engine": "python_fallback", "coprocessor_status": "FALLBACK_LOCAL_RULES",
+                "is_fallback": True, "fallback_warning": _FALLBACK_WARNING}
+        if tier == "UNKNOWN":
+            base["notes"].append("all rubric inputs unknown - tier is UNKNOWN, triggered confidence stop")
+            return _hold(base, 0.0, floor, context_id, "UNKNOWN")
 
-        Rules:
-          - Preapproval document amount overrides stated budget if they conflict.
-          - Verified financing progress outranks stated urgency 'high'.
-          - Exact boundary scores assign the LOWER tier (fail-safe conservative rule).
-          - Confidence floor default is 0.45: ratings below this trigger a deterministic stop
-            (held in siding for broker/operator calibration) rather than guessing.
-          - Unknown inputs return tier UNKNOWN rather than guessing.
-        """
-        notes: list[str] = []
-        data_conflicts: list[str] = []
-        budget = payload.get("stated_budget")
-        preapproval_doc = payload.get("preapproval_document")
-        timeline_days = payload.get("timeline_days")
-        financing_progress = payload.get("financing_progress")
-        stated_urgency = payload.get("stated_urgency")
-
-        conf_floor = (
-            confidence_threshold
-            if confidence_threshold is not None
-            else rubric.get("confidence_threshold", self.default_confidence_threshold)
-        )
-
-        # Conflict resolution: verified doc outranks stated budget
-        if preapproval_doc and preapproval_doc.get("verified"):
-            if budget is not None and budget != preapproval_doc.get("amount"):
-                conflict_msg = (
-                    f"stated budget {budget} conflicts with pre-approval doc amount "
-                    f"{preapproval_doc['amount']} - doc wins for scoring, conflict logged verbatim"
-                )
-                notes.append(conflict_msg)
-                data_conflicts.append(conflict_msg)
-                budget = preapproval_doc["amount"]
-
-        # Conflict resolution: verifiable financing outranks stated urgency
-        if stated_urgency == "high" and financing_progress in (None, "none"):
-            conflict_msg = (
-                "stated urgency 'high' conflicts with no financing progress - "
-                "weighting verifiable financing over stated urgency, conflict logged"
-            )
-            notes.append(conflict_msg)
-            data_conflicts.append(conflict_msg)
-
-        inputs = {
-            "budget": budget,
-            "timeline_days": timeline_days,
-            "financing_progress": financing_progress
-        }
-
-        if all(v is None for v in inputs.values()):
-            return {
-                "status": "held_confidence_underflow",
-                "is_confidence_underflow": True,
-                "confidence": 0.0,
-                "confidence_threshold": conf_floor,
-                "tier": "UNKNOWN",
-                "score": None,
-                "notes": notes + ["all rubric inputs unknown - tier is UNKNOWN, triggered confidence stop"],
-                "decision_provenance": "jev_engine_python_v1",
-                "engine": "python_fallback",
-                "coprocessor_status": "FALLBACK_LOCAL_RULES",
-                "is_fallback": True,
-                "fallback_warning": "DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES (Live JEV coprocessor unconfigured or offline)",
-                "escalation_required": True,
-                "escalation_type": "escalation.confidence_underflow",
-                "broker_notice": "JEV Calibration Hold: No verifiable lead inputs found. Parked in siding.",
-                "operator_notice": f"HIGH-PRIORITY CALIBRATION: All rubric inputs unknown for context '{context_id}'."
-            }
-
-        score = 0
-        if budget is not None and budget >= rubric.get("budget_threshold", 500_000):
-            score += rubric.get("budget_weight", 40)
-        if timeline_days is not None and timeline_days <= rubric.get("timeline_days_threshold", 30):
-            score += rubric.get("timeline_weight", 40)
-        if financing_progress == "preapproved":
-            score += rubric.get("financing_weight", 20)
-
-        hot = rubric.get("hot_threshold", 70)
-        warm = rubric.get("warm_threshold", 40)
-
-        # Boundary checks: exact boundary scores get the lower tier
-        if score == hot:
-            tier = "WARM"
-            notes.append(
-                f"score {score} sits exactly on a tier boundary (HOT/WARM) - "
-                f"assigned the lower tier (WARM), flagged for human"
-            )
-        elif score == warm:
-            tier = "COLD"
-            notes.append(
-                f"score {score} sits exactly on a tier boundary (WARM/COLD) - "
-                f"assigned the lower tier (COLD), flagged for human"
-            )
-        elif score > hot:
-            tier = "HOT"
-        elif score > warm:
-            tier = "WARM"
-        else:
-            tier = "COLD"
-
-        # Determine confidence rating (0.0 to 1.0)
-        explicit_confidence = payload.get("confidence", payload.get("rating"))
-        if explicit_confidence is not None:
+        explicit = payload.get("confidence", payload.get("rating"))
+        if explicit is not None:
             try:
-                confidence = float(explicit_confidence)
-            except (ValueError, TypeError):
-                confidence = 0.50
+                confidence = float(explicit)
+            except (TypeError, ValueError):
+                confidence = 0.0
+                base["notes"].append(f"unreadable confidence {explicit!r} - treated as 0.0")
         else:
-            missing_count = sum(1 for v in (budget, timeline_days, financing_progress) if v is None)
-            conflict_penalty = 0.25 * len(data_conflicts)
-            confidence = max(0.0, min(1.0, round(0.85 - (0.15 * missing_count) - conflict_penalty, 2)))
+            missing = sum(1 for k in ("budget_present", "timeline_present", "financing_present")
+                          if not _present(payload, k))
+            confidence = max(0.0, min(1.0, round(0.85 - 0.15 * missing - 0.25 * len(conflicts), 2)))
 
-        # Probabilistic / Confidence Stop Check (< 0.45 default floor)
-        if confidence < conf_floor:
-            underflow_note = (
-                f"JEV confidence rating {confidence:.2f} is below default floor {conf_floor:.2f} - "
-                f"triggered deterministic confidence stop. Parked in siding for review rather than guessing."
-            )
-            return {
-                "status": "held_confidence_underflow",
-                "is_confidence_underflow": True,
-                "confidence": confidence,
-                "confidence_threshold": conf_floor,
-                "tier": "HELD_FOR_CALIBRATION",
-                "score": score,
-                "notes": notes + [underflow_note],
-                "decision_provenance": "jev_engine_python_v1",
-                "engine": "python_fallback",
-                "coprocessor_status": "FALLBACK_LOCAL_RULES",
-                "is_fallback": True,
-                "fallback_warning": "DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES (Live JEV coprocessor unconfigured or offline)",
-                "escalation_required": True,
-                "escalation_type": "escalation.confidence_underflow",
-                "broker_notice": (
-                    f"JEV Calibration Hold: Lead confidence rated at {confidence:.2f} (below {conf_floor:.2f} safety floor). "
-                    f"Parked in siding for your quick review rather than guessing."
-                ),
-                "operator_notice": (
-                    f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({confidence:.2f} < {conf_floor:.2f}) "
-                    f"for context '{context_id}'. Rubric fine-tuning evaluation warranted."
-                ),
-            }
+        if confidence < floor:
+            base["notes"].append(
+                f"JEV confidence rating {confidence:.2f} is below default floor {floor:.2f} - "
+                f"triggered deterministic confidence stop. Parked in siding for review.")
+            return _hold(base, confidence, floor, context_id, "HELD_FOR_CALIBRATION")
+        return {**base, "status": "ok", "is_confidence_underflow": False,
+                "confidence": confidence, "confidence_threshold": floor, "tier": tier}
 
-        return {
-            "status": "ok",
-            "is_confidence_underflow": False,
-            "confidence": confidence,
-            "confidence_threshold": conf_floor,
-            "tier": tier,
-            "score": score,
-            "notes": notes,
-            "decision_provenance": "jev_engine_python_v1",
-            "engine": "python_fallback",
-            "coprocessor_status": "FALLBACK_LOCAL_RULES",
-            "is_fallback": True,
-            "fallback_warning": "DECISION EVALUATED UNDER LOCAL DETERMINISTIC FALLBACK RULES (Live JEV coprocessor unconfigured or offline)"
-        }
-
-    def resolve_scheduling_conflict(
-        self,
-        context_id: str,
-        requested_slot: dict,
-        existing_slots: list[dict],
-        buffer_minutes: int = 30
-    ) -> dict:
-        """Arbitrates showing schedule double-bookings and overlaps.
-
-        Rules:
-          - Protected deadline slots (from Agent 07) always outrank regular showings.
-          - If new request is protected, existing regular showing is displaced.
-          - If new request is regular and conflicts with an existing confirmed showing,
-            the existing showing is preserved and alternative times are requested.
-        """
+    def resolve_scheduling_conflict(self, context_id: str, requested_slot: dict,
+                                    existing_slots: list[dict], buffer_minutes: int = 30) -> dict:
+        """Protected (Agent 07) slots outrank soft bookings; a soft request that
+        conflicts with an existing booking is held for an alternative."""
         import datetime
-
         req_time_str = requested_slot.get("time")
         is_protected = requested_slot.get("protected", False)
-
         if not req_time_str:
-            return {
-                "status": "error",
-                "action": "reject",
-                "reason": "missing_requested_time",
-                "engine": "python_fallback"
-            }
-
+            return {"status": "error", "action": "reject", "reason": "missing_requested_time",
+                    "engine": "python_fallback"}
         try:
             req_dt = datetime.datetime.fromisoformat(req_time_str)
-        except Exception:
-            return {
-                "status": "error",
-                "action": "reject",
-                "reason": "invalid_iso_time",
-                "engine": "python_fallback"
-            }
-
+        except ValueError:
+            return {"status": "error", "action": "reject", "reason": "invalid_iso_time",
+                    "engine": "python_fallback"}
         displaced = None
         for slot in existing_slots:
-            slot_time_str = slot.get("time")
-            if not slot_time_str:
-                continue
             try:
-                slot_dt = datetime.datetime.fromisoformat(slot_time_str)
-            except Exception:
-                continue
-
-            diff_sec = abs((req_dt - slot_dt).total_seconds())
-            if diff_sec < (buffer_minutes * 60):
-                # Conflict detected!
+                slot_dt = datetime.datetime.fromisoformat(slot.get("time") or "")
+            except ValueError:
+                return {"status": "error", "action": "reject",
+                        "reason": f"existing slot has unreadable time {slot.get('time')!r}",
+                        "engine": "python_fallback"}
+            if abs((req_dt - slot_dt).total_seconds()) < buffer_minutes * 60:
                 if is_protected and not slot.get("protected", False):
-                    # Protected outranks soft booking
                     displaced = slot
                     break
-                else:
-                    return {
-                        "status": "ok",
-                        "action": "conflict_held",
-                        "conflicting_slot": slot,
-                        "displaced_slot": None,
-                        "reason": "slot_occupied_by_existing_booking",
-                        "decision_provenance": "jev_engine_python_v1",
-                        "engine": "python_fallback"
-                    }
-
+                return {"status": "ok", "action": "conflict_held", "conflicting_slot": slot,
+                        "displaced_slot": None, "reason": "slot_occupied_by_existing_booking",
+                        "decision_provenance": "jev_engine_python_v1", "engine": "python_fallback"}
         if displaced:
-            return {
-                "status": "ok",
-                "action": "displace_existing",
-                "displaced_slot": displaced,
-                "reason": "protected_deadline_outranks_soft_booking",
-                "decision_provenance": "jev_engine_python_v1",
-                "engine": "python_fallback"
-            }
+            return {"status": "ok", "action": "displace_existing", "displaced_slot": displaced,
+                    "reason": "protected_deadline_outranks_soft_booking",
+                    "decision_provenance": "jev_engine_python_v1", "engine": "python_fallback"}
+        return {"status": "ok", "action": "schedule_approved", "displaced_slot": None,
+                "decision_provenance": "jev_engine_python_v1", "engine": "python_fallback"}
 
-        return {
-            "status": "ok",
-            "action": "schedule_approved",
-            "displaced_slot": None,
-            "decision_provenance": "jev_engine_python_v1",
-            "engine": "python_fallback"
-        }
+
+def _present(payload: dict, which: str) -> bool:
+    if which == "budget_present":
+        return payload.get("budget", payload.get("stated_budget")) is not None or \
+            bool(payload.get("preapproval_doc") or payload.get("preapproval_document"))
+    if which == "timeline_present":
+        return payload.get("timeline_days") is not None
+    return payload.get("financing_progress") is not None
 
 
 class JevDecisionAdapter:
-    """Primary JEV AI decision adapter.
-    Dispatches to:
-      1. Live JEV AI HTTPS REST endpoint if JEV_API_KEY is configured.
-      2. MCP client if configured and available.
-      3. In-process pure Python deterministic engine (100% offline fallback).
-    """
+    """Live JEV (opt-in) -> injected MCP client -> local fallback."""
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        endpoint_url: Optional[str] = None,
-        mcp_client: Any = None,
-        force_python: bool = False,
-        confidence_threshold: float = 0.45,
-        timeout: float = 3.0
-    ):
-        self.api_key = (
-            api_key
-            or os.environ.get("JEV_API_KEY")
-            or self._load_api_key_from_config()
-        )
-        self.endpoint_url = (
-            endpoint_url
-            or os.environ.get("JEV_ENDPOINT_URL")
-            or "https://api.typesafe.ai/v1/decisions"
-        )
+    def __init__(self, api_key: Optional[str] = None, endpoint_url: Optional[str] = None,
+                 mcp_client: Any = None, force_python: bool = False,
+                 confidence_threshold: float = 0.45, timeout: float = 3.0,
+                 allow_external: bool = False):
+        self.config_error: Optional[str] = None
+        self.api_key = api_key or os.environ.get("JEV_API_KEY") or self._load_api_key_from_config()
+        if self.api_key and (self.api_key.startswith("YOUR_") or self.api_key == "PLACEHOLDER"):
+            self.api_key = None
+        self.endpoint_url = (endpoint_url or os.environ.get("JEV_ENDPOINT_URL")
+                             or "https://api.typesafe.ai/v1/decisions")
         self.mcp_client = mcp_client
         self.force_python = force_python or (os.environ.get("JEV_FORCE_PYTHON", "0") == "1")
+        self.allow_external = allow_external
         self.confidence_threshold = confidence_threshold
         self.timeout = timeout
         self.python_engine = JevPythonDecisionEngine(confidence_threshold=confidence_threshold)
 
     def _load_api_key_from_config(self) -> Optional[str]:
-        """Loads JEV_API_KEY from config/integrations.json if present."""
+        cfg_path = os.path.join(os.path.dirname(__file__), "..", "config", "integrations.json")
+        if not os.path.exists(cfg_path):
+            return None
         try:
-            cfg_path = os.path.join(os.path.dirname(__file__), "..", "config", "integrations.json")
-            if not os.path.exists(cfg_path):
-                cfg_path = os.path.join(os.path.dirname(__file__), "..", "config", "integrations_template.json")
-            if os.path.exists(cfg_path):
-                with open(cfg_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                key = (data.get("ai_coprocessors", {}).get("jev_ai", {}).get("api_key") or "").strip()
-                if key and not key.startswith("YOUR_") and key != "PLACEHOLDER":
-                    return key
-        except Exception:
-            pass
-        return None
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError) as e:
+            self.config_error = f"config/integrations.json unreadable: {e!r}"
+            logger.warning(self.config_error)
+            return None
+        key = (data.get("ai_coprocessors", {}).get("jev_ai", {}).get("api_key") or "").strip()
+        return key or None
 
-    def _check_confidence_floor(self, result: dict, floor: float, context_id: str) -> None:
-        """Enforces the 0.45 safety floor on external responses, ensuring deterministic calibration hold."""
-        conf = result.get("confidence", 1.0)
-        if conf < floor:
-            result["status"] = "held_confidence_underflow"
-            result["is_confidence_underflow"] = True
-            result["confidence_threshold"] = floor
-            result["tier"] = "HELD_FOR_CALIBRATION"
-            result["escalation_required"] = True
-            result["escalation_type"] = "escalation.confidence_underflow"
-            result["broker_notice"] = (
-                f"JEV Calibration Hold: Lead confidence rated at {conf:.2f} (below {floor:.2f} safety floor). "
-                f"Parked in siding for your quick review rather than guessing."
-            )
-            result["operator_notice"] = (
-                f"HIGH-PRIORITY CALIBRATION: JEV confidence underflow ({conf:.2f} < {floor:.2f}) "
-                f"for context '{context_id}'. Rubric fine-tuning evaluation warranted."
-            )
-
-    def _call_http_decision(self, decision_type: str, context_id: str, payload: dict) -> dict:
-        """Executes live HTTPS POST request against JEV AI decision endpoint."""
-        import urllib.request
-        import urllib.error
-
-        req_body = json.dumps({
-            "model": os.environ.get("JEV_MODEL", "jev-1.13.0"),
-            "decision_type": decision_type,
-            "context_id": context_id,
-            "payload": payload,
-            "confidence_threshold": payload.get("confidence_threshold", self.confidence_threshold)
-        }).encode("utf-8")
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "ListingAssistants-JEV/1.0"
-        }
-        if not self.endpoint_url.lower().startswith("https://"):
-            raise ValueError(f"Insecure or invalid JEV endpoint scheme: {self.endpoint_url}")
-        req = urllib.request.Request(self.endpoint_url, data=req_body, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310
-            data = resp.read().decode("utf-8")
-            return json.loads(data)
+    def _live_enabled(self) -> bool:
+        return bool(self.api_key) and self.allow_external and not self.force_python
 
     def get_coprocessor_status(self) -> dict:
-        """Returns the current operational readiness and live/fallback state of the coprocessor."""
         if self.force_python:
             return {"mode": "FALLBACK_LOCAL_RULES", "is_fallback": True, "reason": "JEV_FORCE_PYTHON active"}
-        if self.api_key:
+        if self._live_enabled():
             return {"mode": "LIVE_JEV_API", "is_fallback": False, "endpoint": self.endpoint_url}
         if self.mcp_client is not None:
-            return {"mode": "LIVE_JEV_MCP", "is_fallback": False, "endpoint": "MCP_IN_PROCESS"}
-        return {"mode": "FALLBACK_LOCAL_RULES", "is_fallback": True, "reason": "JEV_API_KEY unconfigured (local fallback active)"}
+            return {"mode": "LIVE_JEV_MCP", "is_fallback": False, "endpoint": "injected MCP client"}
+        if self.api_key and not self.allow_external:
+            return {"mode": "FALLBACK_LOCAL_RULES", "is_fallback": True,
+                    "reason": "JEV_API_KEY present but allow_external=False (lead data stays local)"}
+        return {"mode": "FALLBACK_LOCAL_RULES", "is_fallback": True,
+                "reason": self.config_error or "JEV_API_KEY unconfigured (local fallback active)"}
 
-    def evaluate_lead(
-        self,
-        context_id: str,
-        payload: dict,
-        rubric: dict,
-        confidence_threshold: Optional[float] = None
-    ) -> dict:
-        """Evaluates a lead against a rubric via Live HTTPS, MCP, or pure Python fallback."""
-        floor = confidence_threshold if confidence_threshold is not None else self.confidence_threshold
-        failover_reason = None
+    def _check_confidence_floor(self, result: dict, floor: float, context_id: str) -> None:
+        """Enforces the floor on external results. Missing or non-numeric
+        confidence is 0.0 (hold), never a pass."""
+        raw = result.get("confidence")
+        try:
+            conf = float(raw)
+        except (TypeError, ValueError):
+            conf = 0.0
+            result.setdefault("notes", []).append(f"external result confidence {raw!r} unreadable - treated as 0.0")
+        if conf < floor:
+            _hold(result, conf, floor, context_id, "HELD_FOR_CALIBRATION")
 
-        # Priority 1: Live HTTPS REST call to JEV if API key is provided
-        if self.api_key and not self.force_python:
-            try:
-                result = self._call_http_decision(
-                    decision_type="lead_qualification",
-                    context_id=context_id,
-                    payload={"lead": payload, "rubric": rubric, "confidence_threshold": floor}
-                )
-                if result and isinstance(result, dict):
-                    result["engine"] = "jev_live_api"
-                    result["coprocessor_status"] = "LIVE_JEV_API"
-                    result["is_fallback"] = False
-                    self._check_confidence_floor(result, floor, context_id)
-                    return result
-            except Exception as e:
-                failover_reason = f"Live JEV API call failed: {e}. Failover to local fallback rules."
-                logger.warning(failover_reason)
+    def _call_http_decision(self, decision_type: str, context_id: str, payload: dict) -> dict:
+        import urllib.request
+        if not self.endpoint_url.lower().startswith("https://"):
+            raise ValueError(f"Insecure or invalid JEV endpoint scheme: {self.endpoint_url}")
+        req_body = json.dumps({
+            "model": os.environ.get("JEV_MODEL", "jev-1.13.0"),
+            "decision_type": decision_type, "context_id": context_id, "payload": payload,
+            "confidence_threshold": payload.get("confidence_threshold", self.confidence_threshold),
+        }).encode("utf-8")
+        req = urllib.request.Request(self.endpoint_url, data=req_body, method="POST", headers={
+            "Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}",
+            "User-Agent": "ListingAssistants-JEV/1.0"})
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310 (scheme checked above)
+            return json.loads(resp.read().decode("utf-8"))
 
-        # Priority 2: Attempt JEV MCP tool call if client provided
-        if self.mcp_client is not None and not self.force_python:
-            try:
-                result = self._call_mcp_decision(
-                    decision_type="lead_qualification",
-                    context_id=context_id,
-                    payload={"lead": payload, "rubric": rubric, "confidence_threshold": floor}
-                )
-                if result and isinstance(result, dict):
-                    result["engine"] = "jev_mcp"
-                    result["coprocessor_status"] = "LIVE_JEV_MCP"
-                    result["is_fallback"] = False
-                    self._check_confidence_floor(result, floor, context_id)
-                    return result
-            except Exception as e:
-                failover_reason = f"JEV MCP tool call failed: {e}. Failover to local fallback rules."
-                logger.warning(failover_reason)
-
-        # Priority 3: Deterministic pure Python engine (100% offline fallback)
-        res = self.python_engine.evaluate_lead_rubric(context_id, payload, rubric, confidence_threshold=floor)
-        res["coprocessor_status"] = "FALLBACK_LOCAL_RULES"
-        res["is_fallback"] = True
-        res["fallback_reason"] = failover_reason or "JEV_API_KEY unconfigured (local fallback active)"
-        return res
-
-    def resolve_showing_conflict(
-        self,
-        context_id: str,
-        requested_slot: dict,
-        existing_slots: list[dict],
-        buffer_minutes: int = 30
-    ) -> dict:
-        """Resolves showing schedule conflicts via Live HTTPS, MCP, or pure Python fallback."""
-        failover_reason = None
-
-        # Priority 1: Live HTTPS REST call to JEV if API key is provided
-        if self.api_key and not self.force_python:
-            try:
-                result = self._call_http_decision(
-                    decision_type="showing_conflict",
-                    context_id=context_id,
-                    payload={
-                        "requested_slot": requested_slot,
-                        "existing_slots": existing_slots,
-                        "buffer_minutes": buffer_minutes
-                    }
-                )
-                if result and isinstance(result, dict) and result.get("status") == "ok":
-                    result["engine"] = "jev_live_api"
-                    result["coprocessor_status"] = "LIVE_JEV_API"
-                    result["is_fallback"] = False
-                    return result
-            except Exception as e:
-                failover_reason = f"Live JEV API call failed: {e}. Failover to local fallback rules."
-                logger.warning(failover_reason)
-
-        # Priority 2: Attempt JEV MCP tool call if client provided
-        if self.mcp_client is not None and not self.force_python:
-            try:
-                result = self._call_mcp_decision(
-                    decision_type="showing_conflict",
-                    context_id=context_id,
-                    payload={
-                        "requested_slot": requested_slot,
-                        "existing_slots": existing_slots,
-                        "buffer_minutes": buffer_minutes
-                    }
-                )
-                if result and result.get("status") == "ok":
-                    result["engine"] = "jev_mcp"
-                    result["coprocessor_status"] = "LIVE_JEV_MCP"
-                    result["is_fallback"] = False
-                    return result
-            except Exception as e:
-                failover_reason = f"JEV MCP tool call failed: {e}. Failover to local fallback rules."
-                logger.warning(failover_reason)
-
-        # Priority 3: Deterministic pure Python engine
-        res = self.python_engine.resolve_scheduling_conflict(
-            context_id, requested_slot, existing_slots, buffer_minutes
-        )
-        res["coprocessor_status"] = "FALLBACK_LOCAL_RULES"
-        res["is_fallback"] = True
-        res["fallback_reason"] = failover_reason or "JEV_API_KEY unconfigured (local fallback active)"
-        return res
-
-    def _call_mcp_decision(
-        self,
-        decision_type: str,
-        context_id: str,
-        payload: dict
-    ) -> dict:
-        """Executes tool call against JEV AI MCP endpoint."""
+    def _call_mcp_decision(self, decision_type: str, context_id: str, payload: dict) -> dict:
         if hasattr(self.mcp_client, "call_tool"):
-            res = self.mcp_client.call_tool(
-                "jev_evaluate_decision",
-                {
-                    "decision_type": decision_type,
-                    "context_id": context_id,
-                    "payload": payload
-                }
-            )
+            res = self.mcp_client.call_tool("jev_evaluate_decision", {
+                "decision_type": decision_type, "context_id": context_id, "payload": payload})
             if isinstance(res, dict):
                 return res
-            elif hasattr(res, "content"):
+            if hasattr(res, "content"):
                 return json.loads(res.content[0].text)
         raise RuntimeError("No compatible call_tool method found on MCP client")
+
+    def evaluate_lead(self, context_id: str, payload: dict, rubric: dict,
+                      confidence_threshold: Optional[float] = None) -> dict:
+        floor = confidence_threshold if confidence_threshold is not None else self.confidence_threshold
+        failover_reason = None
+        body = {"lead": payload, "rubric": rubric, "confidence_threshold": floor}
+        if self._live_enabled():
+            try:
+                result = self._call_http_decision("lead_qualification", context_id, body)
+                if isinstance(result, dict) and result:
+                    result.update({"engine": "jev_live_api", "coprocessor_status": "LIVE_JEV_API",
+                                   "is_fallback": False})
+                    self._check_confidence_floor(result, floor, context_id)
+                    return result
+                failover_reason = "Live JEV API returned no result object"
+            except Exception as e:
+                failover_reason = f"Live JEV API call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
+        if self.mcp_client is not None and not self.force_python:
+            try:
+                result = self._call_mcp_decision("lead_qualification", context_id, body)
+                if isinstance(result, dict) and result:
+                    result.update({"engine": "jev_mcp", "coprocessor_status": "LIVE_JEV_MCP",
+                                   "is_fallback": False})
+                    self._check_confidence_floor(result, floor, context_id)
+                    return result
+                failover_reason = "JEV MCP returned no result object"
+            except Exception as e:
+                failover_reason = f"JEV MCP tool call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
+        res = self.python_engine.evaluate_lead_rubric(context_id, payload, rubric, confidence_threshold=floor)
+        res["fallback_reason"] = failover_reason or self.get_coprocessor_status().get("reason")
+        return res
+
+    def resolve_showing_conflict(self, context_id: str, requested_slot: dict,
+                                 existing_slots: list[dict], buffer_minutes: int = 30) -> dict:
+        failover_reason = None
+        body = {"requested_slot": requested_slot, "existing_slots": existing_slots,
+                "buffer_minutes": buffer_minutes}
+        if self._live_enabled():
+            try:
+                result = self._call_http_decision("showing_conflict", context_id, body)
+                if isinstance(result, dict) and result.get("status") == "ok":
+                    result.update({"engine": "jev_live_api", "coprocessor_status": "LIVE_JEV_API",
+                                   "is_fallback": False})
+                    return result
+                failover_reason = "Live JEV API result not ok"
+            except Exception as e:
+                failover_reason = f"Live JEV API call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
+        if self.mcp_client is not None and not self.force_python:
+            try:
+                result = self._call_mcp_decision("showing_conflict", context_id, body)
+                if isinstance(result, dict) and result.get("status") == "ok":
+                    result.update({"engine": "jev_mcp", "coprocessor_status": "LIVE_JEV_MCP",
+                                   "is_fallback": False})
+                    return result
+                failover_reason = "JEV MCP result not ok"
+            except Exception as e:
+                failover_reason = f"JEV MCP tool call failed: {e}. Failover to local fallback rules."
+                logger.warning(failover_reason)
+        res = self.python_engine.resolve_scheduling_conflict(context_id, requested_slot,
+                                                             existing_slots, buffer_minutes)
+        res.update({"coprocessor_status": "FALLBACK_LOCAL_RULES", "is_fallback": True,
+                    "fallback_reason": failover_reason or self.get_coprocessor_status().get("reason")})
+        return res
