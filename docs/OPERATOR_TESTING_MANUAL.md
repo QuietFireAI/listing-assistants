@@ -17,10 +17,10 @@ footage wasn't staged.
 ## One-time setup (Scene 0)
 
 ```
-git clone https://github.com/QuietFireAI/listing-agents.git
-cd listing-agents
+git clone https://github.com/QuietFireAI/listing-assistants.git
+cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 558 passed
+python -m pytest tests_listing/          # expect: __TESTCOUNT__ passed
 python tools/console.py init             # generates YOUR signing key
 ```
 
@@ -34,13 +34,14 @@ into the payloads below (the placeholders are marked `<...>`); each
 scene is one script file you run with
 `python tools/console.py session <file>`.
 
-**State Persistence Across Invocations:** In addition to the continuous
-audit log, live client state, CRM records, and HITL wait-states are
-transactionally persisted into the local Drobo NAS / SQLite storage
-(`dispatcher/persistence_sqlite.py`) and isolated client drawers
-(`dispatcher/client_drawer.py`). Pending timelines and wait-states survive
-reboots and session interruptions. Multi-day scenarios can also run
-inside one session using `sweep` with advancing dates.
+**How state carries between sessions.** Each console session is one
+continuous swarm. The audit log accumulates across sessions, so your record
+survives, but live spoke state (open waits, pending timelines) does not yet
+rehydrate between invocations. Multi-day scenarios therefore run inside one
+session using `sweep` with advancing dates, which is how the clock works in
+production anyway. State rehydration from the log is named future work. (The
+SQLite store in `dispatcher/persistence_sqlite.py` is not wired to the spokes
+yet, so it does not change this.)
 
 ---
 

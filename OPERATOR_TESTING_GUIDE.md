@@ -5,15 +5,15 @@ client/listing data. Written so every step produces something visible worth
 narrating. Nothing here asks you to trust the system — each act ends in a check
 you can point a camera at.
 
-Repo: `github.com/QuietFireAI/listing-agents` @ `92187d6` or later.
+Repo: `github.com/QuietFireAI/listing-assistants` @ `92187d6` or later.
 
 ---
 
 ## 0. One-time setup (off camera)
 
 ```bash
-git clone https://github.com/QuietFireAI/listing-agents.git
-cd listing-agents
+git clone https://github.com/QuietFireAI/listing-assistants.git
+cd listing-assistants
 pip install --break-system-packages -e ".[pillars,crypto]"   # pulls the 6 pillars + Ed25519
 python3 -m pytest tests_listing -q                            # expect: 564 passed
 ```

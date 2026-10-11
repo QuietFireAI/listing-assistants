@@ -1,17 +1,23 @@
-# ListingAssistants Operational Playbooks (P01–P24)
-### Standard Operating Procedures for the 21-Agent Governed Swarm
+# PLAYBOOKS.md - the 24 ListingAssistants playbooks (P01-P24)
 
-> ### ⚠️ CRITICAL FIDUCIARY NOTICE (FRONT AND CENTER)
-> **DISPATCHER AGENTS AND LISTING AGENTS ARE FUNDAMENTALLY INCAPABLE OF PERFORMING FINANCIAL TRANSACTIONS. IT IS NOT WIRED.**
-> 
-> * **Zero Financial Execution Wiring:** There is no payment SDK, no automated wire gateway, and no banking transfer execution path anywhere in this platform. The wiring does not exist.
-> * **Sole Human Fiduciary Responsibility:** Under state real estate licensing laws and the REALTOR® Code of Ethics, fiduciary responsibility belongs 100% to the licensed broker-in-charge (Agent 00). Fiduciary duty is legally non-delegable and cannot be transferred to an AI agent.
-> * **NEVER During Training Under Any Circumstances:** Under no circumstances—whether during broker onboarding, model training, prompt personalization, or local fine-tuning—is an agent ever permitted to handle financial authority. The user must maintain full fiduciary control. A user must NEVER attempt to delegate financial actions to an agent during training. Only after an agent has been formally deployed into production motion and has demonstrated repeated, verified proficiency in its assigned administrative tasks can an authorized human even release a held *text disclosure*—and even then, financial *execution* remains completely unwired.
+One entry per playbook: trigger, agents deployed, and human-in-the-loop
+gates. Each playbook's executable definition is its end-to-end test,
+`test_pNN_*` in `tests_listing/test_playbooks_e2e.py` and
+`tests_listing/test_playbooks_e2e_all.py`, run against the same hub the
+swarm uses.
+
+The "Agents touched (from step tables)" lines and step ids such as 2e or 3b
+refer to per-playbook step tables. Those tables are not in this repository;
+where a summary's agent list and the "Agents touched" list differ, the e2e
+test shows which agents a run actually involves.
+
+> **Fiduciary notice.** Price, terms, and every movement of money stay with the
+> licensed broker and the client. ListingAssistants coordinates the work around
+> those decisions. Its default build contains no payment, transfer, or wire
+> capability, and any disclosure of a client's position to the other side waits
+> for the broker's signed release. Details: [FINANCIAL_CAPABILITY.md](FINANCIAL_CAPABILITY.md).
 
 ---
-
-This document indexes all 24 production playbooks governing the 21-member operations team.
-One entry per playbook: trigger, agents deployed, and human-in-the-loop (HITL) gates.
 
 ## Playbook P01 - New Listing Onboarding
 

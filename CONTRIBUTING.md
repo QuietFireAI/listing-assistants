@@ -19,8 +19,8 @@ Because ListingAssistants operates in a highly regulated domain (residential rea
 ## 2. Development Setup
 
 ```bash
-git clone https://github.com/QuietFireAI/listing-agents.git
-cd listing-agents
+git clone https://github.com/QuietFireAI/listing-assistants.git
+cd listing-assistants
 pip install -r requirements.txt
 ```
 

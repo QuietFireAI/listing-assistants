@@ -53,13 +53,13 @@ mcp_servers:
     command: python3
     args: ["-m", "dispatcher.identity_mcp"]
     env:
-      IDENTITY_ROOT: /absolute/path/to/listing-agents
-      PYTHONPATH: /absolute/path/to/listing-agents
+      IDENTITY_ROOT: /absolute/path/to/listing-assistants
+      PYTHONPATH: /absolute/path/to/listing-assistants
 ```
 
 Then in a Hermes session: `/reload-mcp`, and the four `identity.*` tools
 are available. (Hermes can also consume the identity as a SKILL.md tap —
-`hermes skills tap add QuietFireAI/listing-agents` — but the MCP mount
+`hermes skills tap add QuietFireAI/listing-assistants` — but the MCP mount
 is what carries the governed runtime, not just the instructions.)
 
 ## OpenClaw
@@ -74,8 +74,8 @@ OpenClaw MCP config (via the UI's MCP section or the config file):
       "command": "python3",
       "args": ["-m", "dispatcher.identity_mcp"],
       "env": {
-        "IDENTITY_ROOT": "/absolute/path/to/listing-agents",
-        "PYTHONPATH": "/absolute/path/to/listing-agents"
+        "IDENTITY_ROOT": "/absolute/path/to/listing-assistants",
+        "PYTHONPATH": "/absolute/path/to/listing-assistants"
       }
     }
   }
@@ -96,8 +96,8 @@ Same stdio server, in `claude_desktop_config.json`:
       "command": "python3",
       "args": ["-m", "dispatcher.identity_mcp"],
       "env": {
-        "IDENTITY_ROOT": "/absolute/path/to/listing-agents",
-        "PYTHONPATH": "/absolute/path/to/listing-agents"
+        "IDENTITY_ROOT": "/absolute/path/to/listing-assistants",
+        "PYTHONPATH": "/absolute/path/to/listing-assistants"
       }
     }
   }
@@ -107,7 +107,7 @@ Same stdio server, in `claude_desktop_config.json`:
 ## Governance note (why the surface is deliberately narrow)
 
 Both Hermes and OpenClaw extend agents by letting the host LLM decide
-when to call a tool. Exposing this identity's 21 internal agents as 21
+when to call a tool. Exposing this identity's 20 agents (plus the dispatcher) as separate
 free tools would hand routing back to the host and dissolve the closed
 track — the identity would become a toolbox wearing the name, not a
 governed system. The four-tool front door is the fix: the host can only
@@ -115,17 +115,21 @@ submit intents; the hub enforces the track, the signatures, the $0.00
 rule, and the sealed custody internally. **The MCP shell is the open
 socket; the governed hub is the licensed cartridge.**
 
-## JEV AI Decision Platform MCP Integration
+## Optional JEV decision adapter
 
-When using the JEV AI Decision Platform coprocessor, configure the JEV MCP tool in your environment:
-```yaml
-# MCP tool configuration for JEV Decision Platform
-mcp_servers:
-  jev_decision:
-    command: python3
-    args: ["-m", "jev_decision_service.server"]
-```
-If the external JEV MCP server is offline or in an air-gapped hardware deployment, `dispatcher/decision_adapter.py` seamlessly falls back to the in-process `JevPythonDecisionEngine` with zero network overhead.
+`dispatcher/decision_adapter.py` is a separate, optional adapter for the
+external JEV decision service. No spoke calls it, and nothing in this MCP
+server starts or mounts a JEV service. It can be used three ways:
+
+- **Local (default):** `JevPythonDecisionEngine` scores leads in-process
+  with the same rules as Agent 02 (`dispatcher/lead_rubric.py`).
+- **Injected MCP client:** pass `mcp_client=` an object with
+  `call_tool("jev_evaluate_decision", args)`; you supply and run the server.
+- **Live HTTPS:** requires `JEV_API_KEY` **and** `allow_external=True`.
+  Lead data leaves the machine in this mode, so it is off unless you opt in.
+
+In every mode a result below the confidence floor (default 0.45), or with
+no readable confidence, is returned as a hold for human review.
 
 ## License
 

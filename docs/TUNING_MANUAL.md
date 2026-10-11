@@ -1,15 +1,14 @@
 # Tuning Manual — listing-agents
 
-## Runtime & mount status (2026-10-09)
+## Runtime & mount status (2026-10-11)
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - 21 agents (00–20), 558 tests passed, all playbooks P01–P24 e2e (including JEV AI Decision Platform, Hermes Cognitive Seam, Drobo NAS Persistence, Apricorn Update Verifier, Client Drawers, and HITL Resumption Protocol). |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, __TESTCOUNT__ tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). The JEV adapter, Hermes seam, SQLite store, update-pack verifier, client drawers and HITL protocol have unit tests; no playbook e2e test exercises them, because no spoke calls them. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
-| MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). |
+| MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` (signed) runs P01; the host cannot route inside the swarm. |
-| Brand Notice | Transitioning from `listing-agents` to **ListingAssistants** ([ListingAssistants.com](https://ListingAssistants.com)). Distinct from *listingagent.com*. |
-
+| Brand | ListingAssistants ([ListingAssistants.com](https://ListingAssistants.com)), formerly `listing-agents`. |
 
 
 Every numeric/timing parameter in this codebase that a human might
@@ -261,33 +260,56 @@ parameter nobody outside the source code knows exists.
 
 ---
 
-## JEV AI Decision Platform & Hardened Additions (added 2026-10-09)
+## Parameters of the optional modules (revised 2026-10-11)
 
-### 1. JEV AI Decision Platform Parameters (`dispatcher/decision_adapter.py`)
+These modules are not called by any spoke. Their parameters matter only
+when your own code uses them.
 
-| Parameter | Default | Location | Description & Tuning Impact |
-|---|---|---|---|
-| `budget_threshold` | `500000` | Lead rubric | Budget ceiling for maximum budget scoring component ($40 pts). |
-| `budget_weight` | `40` | Lead rubric | Points allocated to lead budget qualification. |
-| `timeline_days_threshold` | `30` | Lead rubric | Timeline ceiling in days for maximum urgency score ($40 pts). |
-| `timeline_weight` | `40` | Lead rubric | Points allocated to buyer purchase timeline. |
-| `financing_weight` | `20` | Lead rubric | Points allocated to verified financing readiness. |
-| `hot_threshold` | `70` | Lead rubric | Score required for HOT qualification. Exactly 70 drops conservatively to WARM for human review. |
-| `warm_threshold` | `40` | Lead rubric | Score required for WARM qualification. Below 40 is COLD. |
-| `JEV_FORCE_PYTHON` | `0` | Environment variable | Set to `1` to bypass MCP daemon and evaluate via pure-Python in-process engine. |
+### Lead rubric (`dispatcher/lead_rubric.py`, used by Agent 02 and the JEV fallback)
 
-### 2. Client Drawer Isolation Parameters (`dispatcher/client_drawer.py`)
+The rubric arrives as a signed `config.update` to Agent 02. All seven keys
+are required; a rubric missing any of them is rejected by Agent 02 and held
+by the JEV fallback. There are no built-in defaults.
 
-| Parameter | Default | Location | Description & Tuning Impact |
-|---|---|---|---|
-| `drawers_root` | `"drawers"` | Drawer manager | Root directory for isolated client vaults on Drobo NAS or local storage. |
-| `enforce_anti_commingling` | `True` | Security invariant | Strictly halts execution with `ComminglingBreachError` if cross-drawer access occurs. |
+| Key | Meaning |
+|---|---|
+| `budget_threshold` | budget at or above this earns `budget_weight` |
+| `budget_weight` | points for budget |
+| `timeline_days_threshold` | timeline at or below this many days earns `timeline_weight` |
+| `timeline_weight` | points for timeline |
+| `financing_weight` | points when financing progress is `preapproved` |
+| `hot_threshold` | score above this is HOT; exactly equal drops to WARM and is flagged for a human |
+| `warm_threshold` | score above this is WARM; exactly equal drops to COLD and is flagged |
 
-### 3. HITL Resumption Protocol Parameters (`dispatcher/hitl_protocol.py`)
+### JEV adapter (`dispatcher/decision_adapter.py`)
 
-| Parameter | Default | Location | Description & Tuning Impact |
-|---|---|---|---|
-| `wait_state_timeout_seconds` | `86400` (24h) | HITL lifecycle | Maximum time a wait-state remains pending before escalation in Agent 18 briefing. |
-| `morning_briefing_time` | `08:00` | Agent 18 sweep | Daily clock trigger that recaps all unresolved human decisions. |
-| `notifier_channels` | `["sms", "webhook", "push"]` | RealtimeNotifier | Configured alert channels for immediate notification upon human gate halt. |
+| Parameter | Default | Effect |
+|---|---|---|
+| `confidence_threshold` | `0.45` | results below it (or with no readable confidence) are holds |
+| `allow_external` | `False` | live HTTPS calls happen only when this is `True` and a key is set |
+| `JEV_API_KEY` | unset | key for the live service |
+| `JEV_ENDPOINT_URL` | `https://api.typesafe.ai/v1/decisions` | must be `https://` |
+| `JEV_FORCE_PYTHON` | `0` | `1` forces the local engine |
+| `timeout` | `3.0` s | live call timeout; a failure falls back to the local engine |
 
+### Client drawers (`dispatcher/client_drawer.py`)
+
+| Parameter | Default | Effect |
+|---|---|---|
+| `storage_root` | (required) | directory holding one subdirectory per client |
+
+Client ids and file names must be single safe path segments; categories are
+a fixed set. A cross-client filing raises `ComminglingBreachError`. Files are
+stored unencrypted; `verify_hashes()` checks stored SHA-256 values on demand.
+
+### HITL protocol (`dispatcher/hitl_protocol.py`)
+
+No timing parameters. A wait stays PENDING until a signed
+`hitl.decision.authority` envelope resolves it; Agent 18's morning briefing
+lists unresolved waits whenever a briefing is generated.
+
+### Checkpoint manifest and SQLite store
+
+`dispatcher/model_checkpoint_manager.py` and `dispatcher/persistence_sqlite.py`
+have no tuning parameters beyond their file locations (`checkpoints_dir`,
+`db_path`). Keep `db_path` on a local disk.

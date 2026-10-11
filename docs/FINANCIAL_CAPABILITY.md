@@ -1,117 +1,179 @@
-# Financial Capability — Status, Controls, and Absolute Fiduciary Guardrails
-
-> ### ⚠️ CRITICAL FIDUCIARY NOTICE (FRONT AND CENTER)
-> **DISPATCHER AGENTS AND LISTING AGENTS ARE FUNDAMENTALLY INCAPABLE OF PERFORMING FINANCIAL TRANSACTIONS. IT IS NOT WIRED.**
-> 
-> * **Zero Financial Execution Wiring:** There is no payment SDK, no automated wire gateway, and no banking transfer execution path anywhere in this software. The wiring does not exist.
-> * **Sole Human Fiduciary Responsibility:** Under state real estate licensing law and the REALTOR® Code of Ethics, fiduciary responsibility belongs 100% to the licensed broker-in-charge. Fiduciary duty cannot be delegated to an AI agent.
-> * **NEVER During Training Under Any Circumstances:** Under no circumstances—whether during broker onboarding, model training, prompt personalization, or local fine-tuning—is an agent ever permitted to handle financial authority. The user must maintain full fiduciary control. A user must NEVER attempt to delegate financial actions to an agent during training. Only after an agent has been formally deployed into production motion and has demonstrated repeated, verified proficiency in its assigned administrative tasks can an authorized human even release a held *text disclosure*—and even then, financial *execution* remains completely unwired.
+# Financial Capability — status, controls, and how to engage it
 
 This is the document a held message points you to. If a ListingAssistants agent stopped
-and told you it could not send financial, pricing, or position-bearing content, it linked
-here. Nothing broke. The system did exactly what it was engineered to do.
+and told you it could not send financial or position-bearing content, it linked
+here. Nothing broke. The system did exactly what it is built to do.
 
-This document is written for the licensed broker-in-charge and for that
-brokerage's legal, risk management, or compliance reviewer. It states what the system
-cannot do, why, and where the boundaries are.
-
----
-
-## The Core Rule: Financial Execution Is Not Wired
-
-A ListingAssistants agent **cannot execute a financial transaction, cannot quote or negotiate a listing price, and cannot reveal a client's financial position without explicit, authenticated human authorization**.
-
-The default software appliance ships with financial execution capabilities completely absent:
-* There is no Stripe, Plaid, ACH, Fedwire, or banking API integration.
-* There is no dormant code path waiting to move money.
-* Turning on financial movement is not a toggle or setting—it is fundamentally unwired at the architectural level to protect the brokerage from liability.
+This document is written to be read by a prospective operator and by that
+operator's security or compliance reviewer. It states what the system cannot
+do, why, and where the real risks are — including the ones a reviewer would
+otherwise have to find on their own.
 
 ---
 
-## The Four Non-Negotiable Financial Firewalls
+## The one-line version
 
-Real estate transactions involve the transfer of substantial personal wealth, legal contingency deadlines, and high-stakes fiduciary liabilities. The platform enforces four non-negotiable financial firewalls:
-
-### 1. Fiduciary Pricing Firewall (Zero Autonomous Valuation)
-* **Rule:** No agent within the swarm will ever set, invent, suggest, discount, or negotiate property prices, offer amounts, counteroffers, or concession figures.
-* **Mechanism:** Valuation belongs exclusively to the licensed human broker (Agent 00). Inquiries regarding bottom-line prices, acceptable offer floors, or property valuation are immediately halted, logged to `escalation.legal_line`, and routed to the human broker.
-
-### 2. Wire Fraud Zero-Tolerance Shield
-* **Rule:** Wire fraud is the #1 cyber threat in residential real estate. ListingAssistants strictly forbids transmitting bank routing numbers, account details, or wire instructions over email, SMS, or chat.
-* **Mechanism:** Any inbound or outbound communication mentioning wire instructions, wiring changes, or routing numbers triggers an immediate conversation lock and alerts the broker. Clients are instructed that wire verification must occur strictly via authenticated voice contact or encrypted title closing portals.
-
-### 3. Strict Pre-Approval Document Precedence (JEV AI)
-* **Rule:** Self-reported buyer budgets never override verified documentation.
-* **Mechanism:** When scoring buyer qualification (Agent 02), the JEV AI decision coprocessor strictly anchors purchasing power to the verified pre-approval letter amount filed in the client drawer. Stated claims of higher budgets are logged verbatim as discrepancies but ignored for financial scoring.
-
-### 4. Earnest Money Deposit (EMD) & Closing Ledger Tracking
-* **Rule:** Earnest money deposits, contingency releases, and commission splits must reconcile to $0.00 against verified escrow receipts.
-* **Mechanism:** Handled by Agent 07 (Transaction Coordinator) and Agent 15 (Commission & Finance). Figures pass into the ledger verbatim from title company escrow receipts and final settlement statements—never re-typed, estimated, or approximated.
+A ListingAssistants agent **cannot execute a financial transaction, and cannot reveal a
+financial position, without a deliberate human authorization** — and financial
+*execution* additionally requires a **different, signed software build**. The
+default build ships with the execution capability absent, not merely disabled.
 
 ---
 
-## Human Key Authorizes Disclosures Only (Never Fund Transfers)
+## The two locks
 
-When a human broker signs an authorization key (`disclosure.authority`), **they are authorizing the release of held text communication, NEVER the execution of a financial transfer.**
+Financial action is guarded by two independent locks, in series, both held by
+humans. Neither the running system nor any agent can open either one alone.
 
-For example:
-* A broker signing off on a counteroffer letter authorizes Agent 11 to transmit that text to the buyer's agent.
-* The agent does **not** sign the contract, does **not** transfer earnest money, and does **not** disburse funds.
-* Fiduciary execution remains 100% in the hands of the licensed human principal.
+**Lock 1 — the build.** The capability to execute a financial transaction is not
+present in the default artifact. There is no payment SDK, no transfer handler,
+no dormant code path waiting to be switched on. Turning it on is not a
+configuration change or a permission grant — it requires installing a
+different, signed version of the software, deliberately, by a person. Nothing
+the running system can do can create a capability the build does not contain.
 
----
+**Lock 2 — the key.** Even in a build that carries the capability, each action
+requires a specific, authenticated authorization from the human principal, for
+that action, at that time. An agent cannot grant it, infer it, assume it, or
+reuse a prior one.
 
-## What "Held" Means for a Position Disclosure
-
-Execution is one half. **Disclosure is the other, and in daily practice the more critical one.** An agent never reveals to any party outside the principal it serves:
-
-- A seller's price floor, reserve, bottom line, net sheet, or motivation to negotiate
-- A buyer's maximum financing qualification, pre-approval ceiling, or urgency
-- A circumstance, pending divorce, estate sale pressure, or job relocation that weakens a principal's bargaining position
-- What a principal has already privately agreed to, declined, or considered internally
-
-Every outbound communication is classified at the routing switchboard by **who is on the far end**:
-* `principal` (the client the identity serves — e.g. the seller)
-* `counterparty` (the other side — a buyer's agent, tenant, appraiser, or closing attorney)
-* `public` (open feeds — MLS remarks, social media, ad networks)
-
-Messages to the principal pass freely. Messages to a counterparty or the public that touch financial, price, or legal positions **automatically hold for human broker review** (`disclosure.authority`) — every time, regardless of how the message is phrased. The gate keys on the recipient class at the routing layer, so no prompt-injection phrasing can bypass it.
+Update without key: nothing moves. Key without update: there is nothing to
+unlock. Both, separately, by a human, on purpose.
 
 ---
 
-## How to Release a Held Disclosure
+## What "held" means for a disclosure
 
-When a message is held at a financial or disclosure boundary:
+Execution is one half. **Disclosure is the other, and in practice the more
+common one.** An agent never reveals, to any party outside the principal it
+serves:
 
-1. The held message is assigned a unique `wait_id` and indexed in the client's drawer (`drawers/<client_id>/timeline/<wait_id>_pause.json`).
-2. An immediate real-time alert is dispatched to the broker's mobile device (WhatsApp, Signal, or SMS) detailing the reason and exact message context.
-3. The broker reviews the context and issues a signed decision (`APPROVE`, `APPROVE_WITH_OVERRIDE`, `MODIFY`, or `HOLD`).
-4. The system verifies the broker's cryptographic signature against `config/authority_signers.json` (including multi-factor authentication stamps), commits the event to the SHA-256 audit chain, and releases the single message once.
+- a price floor, ceiling, reserve, margin, spread, or the room a principal has
+  to move
+- a motivation, deadline, or circumstance that weakens a principal's position
+- a balance, payment history, or financial standing
+- what a principal has already agreed to, declined, or considered
 
----
+Every outbound message is classified by **who is on the far end**: the
+`principal` (the party the identity serves), a `counterparty` (the other side —
+a buyer's agent, a carrier, a payer), or the `public` (an open feed). Messages
+to the principal pass. Messages to a counterparty or the public **hold for human
+authorization** — every time, regardless of how the message is worded. The gate
+keys on the recipient, not on scanning the text for forbidden words, so there is
+no phrasing that slips past it.
 
-## Physical Hard Drive Vaulting of Financial Artifacts
-
-To prevent financial data leakage, all sensitive client financial artifacts are physically partitioned on the local workstation or Drobo NAS RAID partition:
-
-```
-drawers/<client_id>/financials/
-├── preapproval_letter_verified.pdf      <-- SHA-256 Fingerprinted
-├── proof_of_funds_statement.pdf         <-- Encrypted at rest
-├── title_earnest_money_receipt.pdf      <-- Verified escrow deposit receipt
-└── commission_net_sheet.json            <-- Reconciled to $0.00
-```
-
-* **Physical Isolation:** Financial documents live exclusively inside the client's dedicated folder.
-* **`ComminglingBreachError`:** If any agent working on Client A ever attempts to access financial artifacts in Client B's drawer, the actor micro-kernel throws an immediate `ComminglingBreachError`, logs the breach to the audit log, and halts.
-* **Zero Cloud Exposure:** Client W-2s, bank statements, and escrow numbers are never uploaded to cloud AI APIs, multi-tenant databases, or public model training sets.
+A missing or unrecognized recipient class does not pass — it holds. The default
+is the guarded state, never the permissive one.
 
 ---
 
-## Verifiable System Guarantees
+## How to engage a held message (the key, in practice)
 
-- **Zero Payment SDK:** Grep-verifiable absence of payment gateways or automated transfer code in the default codebase.
-- **Signed Authority Required:** All financial-authority routes (`listing.change.authorized`, `commission.split.ratified`) strictly require an authorized human sender with a verified signature.
-- **Pre-Persist Audit Chain:** Every financial hold and release is cryptographically hashed with SHA-256 and committed to `logs/audit.jsonl` *before* execution.
-- **Deterministic Mathematical Scoring:** Lead budgets and commission allocations are calculated deterministically via JEV AI and pure-Python ledgers, with zero LLM hallucination risk.
+When a message holds, a human with signing authority authorizes that specific
+message. Mechanically:
 
+1. The held message is recorded by id, with a canonical explanation of why it
+   stopped (this document, plus the engagement path).
+2. An authorized human issues a **signed `disclosure.authority`** naming that
+   exact held message.
+3. The system verifies the signature (and, when the signer registry is armed,
+   the signer's login and MFA), then releases that one message, once. The
+   authorization is written to the tamper-evident audit log.
+
+A release is an authority action held to the same bar as a financial-execution
+authorization. There is no weaker path.
+
+To turn on financial *execution* (Lock 1), engage support:
+`support/engage-financial-capability`. That is a deliberate, out-of-band process
+involving a signed build — not a setting.
+
+---
+
+## In a real estate brokerage
+
+These are the behaviors in the ListingAssistants agents that sit on top of
+the two locks. Each one is a code path with a test.
+
+- **Price and strategy questions go to the broker.** When a client message
+  asks for an opinion on price, an offer, or strategy ("what would you do",
+  "should I offer", "what's it worth", "negotiate"), Agent 11 escalates it to
+  `escalation.legal_line` with the client's words and sends only a template
+  acknowledgment. It never answers the question.
+- **Wire topics go to the broker.** Any client message mentioning wire
+  instructions, wiring details, a wire transfer, updated wire details or a
+  routing number is escalated to `escalation.legal_line` before anything else
+  is checked. The agents send no wire or account details on any channel.
+- **Documents outrank stated budgets.** When Agent 02 scores a lead, a
+  pre-approval document's amount replaces a different stated budget, and the
+  conflict is logged verbatim. An expired letter, or one marked unverified,
+  is not used.
+- **Ledger figures are carried, not typed.** Agent 15 reports the figures it
+  receives with their source attached. The SQLite store
+  (`dispatcher/persistence_sqlite.py`) keeps money as exact decimals and its
+  ledger tables are append-only. That store is not yet wired to Agent 15.
+- **Human decisions on paused work are signed.** A paused operation resumes
+  only on a signed `hitl.decision.authority` envelope verified by the hub
+  (`dispatcher/hitl_protocol.py`), bound to the paused client context.
+
+Who decides price, terms and fund movement: the licensed broker and the
+client. That responsibility stays with them.
+
+---
+
+## Where the real risk is (read this if you are the security reviewer)
+
+This section is deliberately honest. The system is strong against the threat it
+was built for and average against the threats it inherits. Both are named here.
+
+**Strong — action from inside the swarm.** A compromised or prompt-injected
+agent cannot release its own held message or execute a transaction. It holds no
+signing key; the key is held outside the running system. This is the property
+the architecture was designed around, and it holds.
+
+**Strong — hiding a breach.** The audit log is hash-chained. Any edit, deletion,
+or reordering fails verification loudly. An unauthorized release cannot be
+retroactively disguised as an authorized one.
+
+**Soft — signing-key hygiene (the main one).** Two signer tiers exist. The HMAC
+tier uses a shared secret: anyone who can read that key can forge a valid
+signature, and it proves only that *a* keyholder signed, not *which* human. The
+signer registry (login + MFA) is the second lock that mitigates this — but if an
+identity ships with the registry unarmed, verification is crypto-only, and on
+the HMAC tier that means shared-secret-only. In that state, **key theft is full
+compromise.** The system declares an unarmed registry on the audit log rather
+than passing silently, but *declared is not prevented.* Production should run the
+asymmetric **Ed25519** tier with per-signer public keys and an armed registry,
+so a stolen configuration file yields only public keys, which forge nothing.
+
+**Soft — the release channel is the attack surface.** Once the lock and key
+exist, security reduces to how well the signing key and MFA session are
+protected. A phished MFA session or a keylogged signer defeats the gate. No code
+prevents this; it is operational.
+
+**Soft — the build/publish pipeline.** "Execution requires a software update" is
+only as strong as the guarantee that no one can push a malicious build. Whoever
+controls the publish pipeline can add the capability. Signed-release attestation
+(sigstore) exists to bound this; a reviewer should confirm the deploy path
+enforces signature verification.
+
+**Soft — supply chain.** Pillar packages install from source repositories. A
+compromised upstream repo runs inside the hub. Pin to commit hashes, not branch
+tips.
+
+**Not solved by this layer — recipient identity.** The disclosure gate verifies
+the recipient *class* (counterparty vs principal). It does not verify recipient
+*identity* — that a balance bound for "the patient" reaches the correct patient.
+That binding is a separate control and is not claimed here.
+
+---
+
+## What is verifiable today
+
+- No payment SDK is present in the default build (grep-verifiable).
+- All financial-authority routes require a human sender and a verified signature.
+- The disclosure gate holds counterparty/public sends before persistence, emits
+  a byte-identical canonical rebuttal, and records the hold on the audit chain.
+- The release path reuses the execution-authority verification exactly, and is
+  one-shot (no replay). Every fail-closed branch is covered by a test.
+
+Each of these is asserted by an executable test, not by this document.

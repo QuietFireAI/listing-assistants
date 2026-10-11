@@ -1,16 +1,18 @@
 ---
 name: listing-agents
-description: Governed 21-agent residential real estate listing swarm identity. Use when operating listing lifecycle work end to end - lead capture, listing onboarding, MLS, showings, transaction coordination, marketing, and fair-housing compliance - under a closed routing track with a hash-chained audit log, signed fiduciary actions, and 6 QuietFire forensic detection pillars. Load this skill to run, side-load, or supervise the listing identity on dispatcher-agents, Hermes, or OpenClaw.
+description: Governed residential real estate listing swarm identity. Use when operating listing lifecycle work end to end - lead capture, listing onboarding, MLS, showings, transaction coordination, marketing, and fair-housing compliance - under a closed routing track with a hash-chained audit log, signed authority actions, and the six QuietFire pillar packages. 20 agents plus a dispatcher hub. Load this skill to run, side-load, or supervise the listing identity on dispatcher-agents, Hermes, or OpenClaw.
 ---
 
 # listing-agents - Governed Residential Real Estate Swarm Identity
 
 ## What loading this skill gives an agent
 
-A complete, ratified operating identity: 21 spoke agents (00-20), 51 legal routes
+A complete, ratified operating identity: a dispatcher hub (00) and 20 spoke
+agents (01-20), 51 legal routes
 (`identity/routes.json` - the closed track), 24 playbooks (P01-P24) with
 explicit human gates, 227 predeliberated decision tuples, ratified config
-doctrine, and a comprehensive test suite (558 tests, 624 mutation vectors).
+doctrine, and a test suite (__TESTCOUNT__ tests, including mutation-hardening
+tests and one end-to-end test per playbook).
 
 ## The absolute lines (enforced in code)
 
@@ -40,13 +42,13 @@ python -m pytest tests_listing/   # every playbook, every gate
 ```
 
 **On dispatcher-agents:** this repo IS the identity side-load - routes,
-configs, spokes, and docs mount directly; see DISPATCHER_CORE.md and
-INSTALL.md.
+configs, spokes, and docs mount directly. The vendored core files are
+listed in `tools/sync_core.py`; `python tools/sync_core.py --core <path> --check`
+confirms they match core.
 
-**On Hermes / OpenClaw:** see docs/SERVING_HERMES_OPENCLAW.md for the
-mounting contract - what your runtime must provide (append-only audit
-sink, Ed25519 verification, route enforcement) and what this identity
-provides (everything else).
+**On Hermes / OpenClaw / Claude Desktop:** see docs/MOUNTING.md - the
+identity runs as a stdio MCP server with a four-tool surface and a boot
+conformance gate.
 
 ## Key files
 
@@ -55,8 +57,9 @@ provides (everything else).
 - `identity/priority.json` - playbook classes (1 = statutory/same-turn).
 - `config/` - ratified doctrine + deployment content; UNRATIFIED
   templates fail closed by design.
-- `playbooks/P*/SKILL.md` - one skill per playbook, each with triggers,
-  phases, gates, and abort conditions.
+- `docs/PLAYBOOKS.md` - all 24 playbooks: trigger, agents, gates. Each
+  playbook's executable definition is its e2e test in
+  `tests_listing/test_playbooks_e2e*.py`.
 - `docs/TUNING_MANUAL.md` - every knob, every honest placeholder,
   TOP OF LIST first. Read before any deployment.
 - `docs/OPERATOR_TESTING_MANUAL.md` - the filmable verification script,
