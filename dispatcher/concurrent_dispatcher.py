@@ -1,14 +1,16 @@
-"""dispatcher.concurrent_dispatcher - Multi-tenant concurrent actor dispatcher.
+"""dispatcher.concurrent_dispatcher - per-context FIFO dispatch on worker threads.
 
-Architecture:
-- High-throughput concurrency across distinct client contexts (properties/deals).
-- Strict FIFO actor sequencing per client context (partition key: client_context_id):
-  prevents state tearing, out-of-order sequence counter attribution, and race conditions
-  on individual client drawers while allowing massive multi-tenant parallel throughput.
-- Dual interface:
-  1. Synchronous / ThreadPool Future API (dispatch, send).
-  2. Asyncio coroutine API (async_send) for event-loop native integration (FastAPI / ASGI).
-- Thread-safe actor coordination via worker pool and partition scheduling locks.
+- Envelopes for the same client_context_id are dispatched strictly in order.
+- Envelopes for different contexts are submitted to a thread pool.
+- Interfaces: a Future-returning dispatch/send and an asyncio async_send.
+
+Throughput (audit OPS-6 / RD-10, 2026-10-11): Hub.send holds one global lock
+through persistence, delivery and the receiving agent's handler, so hub work
+for different contexts still runs one at a time. Measured: 8 envelopes whose
+handlers each take 0.5 s complete in about 4 s, not about 0.5 s. This class
+keeps callers from blocking and preserves per-context order; it does not make
+the hub parallel. Changing that is a dispatcher-agents core decision (the lock
+protects audit-chain ordering and sequence numbers).
 """
 from __future__ import annotations
 import asyncio
@@ -27,7 +29,8 @@ class ConcurrentHubDispatcher:
     Key Invariant:
     Envelopes for the SAME `client_context_id` are executed strictly sequentially (FIFO)
     to protect audit chain monotonicity and client state integrity.
-    Envelopes for DIFFERENT `client_context_id`s execute concurrently across worker threads.
+    Envelopes for DIFFERENT `client_context_id`s are submitted concurrently, but the
+    hub serializes them under its global lock (see module docstring).
     """
 
     def __init__(self, hub: Hub, max_workers: int = 8):
