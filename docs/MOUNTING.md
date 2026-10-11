@@ -104,6 +104,18 @@ Same stdio server, in `claude_desktop_config.json`:
 }
 ```
 
+## Signing over MCP
+
+The server checks signatures on every authority action. It does not sign
+on a host's behalf: `identity.submit` with `listing.authorize`, and
+`identity.authority` without a broker signature, are refused with a reason.
+`python -m dispatcher.identity_mcp --demo-signing` makes the server sign
+those calls with its own boot key so `tools/mcp_roundtrip.py` can show the
+signed path; never pass that flag in a host configuration. A production
+signed lane, where the host forwards an envelope the broker signed with
+their own key, is not built yet; until then, signed actions go through
+`tools/console.py`.
+
 ## Governance note (why the surface is deliberately narrow)
 
 Both Hermes and OpenClaw extend agents by letting the host LLM decide

@@ -18,8 +18,19 @@ the signer registry, and the audit chain are intact. The governance
 guarantee travels with the server; it cannot be silently mounted broken.
 
 Usage:
-    python3 -m dispatcher.identity_mcp            # serve medbilling (this repo)
+    python3 -m dispatcher.identity_mcp                  # serve the identity
     IDENTITY_ROOT=/path python3 -m dispatcher.identity_mcp
+    python3 -m dispatcher.identity_mcp --demo-signing   # DEMO ONLY, see below
+
+Signing (fixed 2026-10-11, audit MCP-1): the server holds a key it generates
+at boot. Before this fix it used that key to sign `listing.authorize` and
+any `identity.authority` call carrying "DEMO_SIGN_WITH_SERVER_KEY" for
+whatever host asked, so over MCP an authority action proved only that the
+host asked, not that a human signed. Now the server signs nothing for a host
+unless it was started with --demo-signing (used by tools/mcp_roundtrip.py
+to show the signed path). Without it, both are refused with a reason. A
+production signed lane needs the host to present an envelope signed with the
+broker's own key; that protocol is not built yet.
 """
 from __future__ import annotations
 
@@ -119,8 +130,9 @@ class GovernedIdentity:
     """Builds the hub + spokes once, keeps state across submits within the
     server's lifetime, and exposes only front-door operations."""
 
-    def __init__(self, routes, signer, verifier):
+    def __init__(self, routes, signer, verifier, demo_signing: bool = False):
         self.signer = signer
+        self.demo_signing = demo_signing
         self.audit_path = os.path.join(
             tempfile.gettempdir(), f"{IDENTITY_NAME}-mcp-{uuid.uuid4().hex[:8]}.jsonl")
         self.hub = Hub(routes, AuditLog(self.audit_path),
@@ -239,6 +251,7 @@ class GovernedIdentity:
             "playbooks": priority,
             "governance": {
                 "signed_authority_required": True,
+                "server_signs_for_host": self.demo_signing,
                 "reconciliation_tolerance": "$0.00",
                 "audit": "hash-chained, tamper-evident (see identity.audit)",
                 "note": ("This is a governed identity, not a toolbox. The "
@@ -267,6 +280,11 @@ class GovernedIdentity:
         if modname.endswith("listing_spokes"):
             if intent == "listing.authorize":
                 # front door: the signed new-listing authorization (P01)
+                if not self.demo_signing:
+                    return {"ok": False, "context_id": ctx,
+                            "reason": "listing.authorize needs the broker's "
+                                      "signature; this server signs for a host "
+                                      "only in --demo-signing mode"}
                 from dispatcher.core import Envelope
                 env = Envelope(from_agent="human", to_agent="05",
                                intent="listing.change.authorized",
@@ -319,7 +337,7 @@ class GovernedIdentity:
                        provenance={"source": "mcp-host",
                                    "captured_at": "runtime",
                                    "verbatim_available": True})
-        if signature_hex == "DEMO_SIGN_WITH_SERVER_KEY":
+        if signature_hex == "DEMO_SIGN_WITH_SERVER_KEY" and self.demo_signing:
             # explicit demo affordance: server signs so a host can see the
             # signed path succeed. Production hosts present their OWN
             # signature; this is clearly labelled, not a hidden bypass.
@@ -427,7 +445,11 @@ async def _serve():
     sys.stderr.write(
         f"[identity_mcp] conformance PASSED for {IDENTITY_NAME}: "
         f"closed track + signer gate + audit chain intact\n")
-    identity = GovernedIdentity(routes, signer, verifier)
+    demo = "--demo-signing" in sys.argv[1:]
+    if demo:
+        sys.stderr.write("[identity_mcp] DEMO SIGNING ON: the server will sign "
+                         "authority actions for the host. Not for production.\n")
+    identity = GovernedIdentity(routes, signer, verifier, demo_signing=demo)
     server = build_server(identity)
     from mcp.server.stdio import stdio_server
     async with stdio_server() as (read, write):

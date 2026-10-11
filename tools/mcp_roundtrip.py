@@ -22,7 +22,9 @@ def line(s=""):
 async def main():
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "dispatcher.identity_mcp"],
+        # --demo-signing lets the server sign the authority call below so the
+        # signed path can be shown; a production mount never passes it.
+        args=["-m", "dispatcher.identity_mcp", "--demo-signing"],
         env={**os.environ, "PYTHONPATH": ROOT, "IDENTITY_ROOT": ROOT},
         cwd=ROOT)
 
