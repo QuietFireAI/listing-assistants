@@ -207,6 +207,8 @@ class HITLManager:
             try:
                 self.drawer_manager.record_agent_artifact(
                     client_id=client_context_id,
+
+                    acting_client_context_id=client_context_id,
                     agent_id=agent_id,
                     category="timeline",
                     filename=f"{wait_id}_pause.json",
@@ -407,6 +409,8 @@ class HITLManager:
             try:
                 self.drawer_manager.record_agent_artifact(
                     client_id=ws.client_context_id,
+
+                    acting_client_context_id=ws.client_context_id,
                     agent_id="00",
                     category="timeline",
                     filename=f"{wait_id}_resumed.json",
@@ -528,6 +532,8 @@ class HITLManager:
             try:
                 json_path = self.drawer_manager.record_agent_artifact(
                     client_id=client_context_id,
+
+                    acting_client_context_id=client_context_id,
                     agent_id="00",
                     category="timeline",
                     filename=f"{snapshot_id}.json",
@@ -535,6 +541,8 @@ class HITLManager:
                 )
                 md_path = self.drawer_manager.record_agent_artifact(
                     client_id=client_context_id,
+
+                    acting_client_context_id=client_context_id,
                     agent_id="00",
                     category="timeline",
                     filename=f"{snapshot_id}.md",

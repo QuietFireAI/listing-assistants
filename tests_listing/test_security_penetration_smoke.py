@@ -39,25 +39,109 @@ def make_hub(tmp_path):
 # ---------------------------------------------------------------------------
 # 1. Path-Traversal & Vault Isolation Smoke Tests
 # ---------------------------------------------------------------------------
+MALICIOUS_SEGMENTS = [
+    "../../etc/passwd",
+    "..\\..\\windows\\system32",
+    "ctx/../../../shadow",
+    "ctx-safe/../../outside_vault",
+    "..",
+    "/etc/passwd",
+    "a/b",
+    "",
+]
+
+
 def test_client_drawer_path_traversal_attack_blocked(tmp_path):
-    """Adversary attempts directory traversal via ../../etc/passwd in context ID."""
-    mgr = ClientDrawerManager(str(tmp_path))
-    malicious_contexts = [
-        "../../etc/passwd",
-        "..\\..\\windows\\system32",
-        "ctx/../../../shadow",
-        "ctx-safe/../../outside_vault"
-    ]
-    for bad_ctx in malicious_contexts:
+    """Traversal is refused on every entry point. Audit 2026-10-11 (D-3): the
+    previous version of this test only called get_drawer() on paths that did
+    not exist, so it passed whether or not traversal was blocked. These cases
+    target EXISTING drawers with real writes/reads, and assert nothing landed
+    outside its drawer."""
+    root = tmp_path / "drawers"
+    mgr = ClientDrawerManager(str(root))
+    mgr.provision_drawer("alice", "Alice", "1 Oak")
+    bob = mgr.provision_drawer("bob", "Bob", "2 Elm")
+    bob.store_file("08", "documents", "preapproval.txt", "Bob preapproved $900k")
+    (tmp_path / "outside").mkdir()
+
+    # ids: every entry point refuses unsafe client ids
+    for bad in MALICIOUS_SEGMENTS + ["../outside"]:
         with pytest.raises(ComminglingBreachError):
-            mgr.get_drawer(bad_ctx)
+            mgr.get_drawer(bad)
+        with pytest.raises((ComminglingBreachError, ValueError)):
+            mgr.provision_drawer(bad, "X", "Y")
+        assert mgr.has_drawer(bad) is False
+    assert not (tmp_path / "escaped").exists()
+    assert os.listdir(tmp_path / "outside") == []
+
+    # filenames: write and read traversal from alice's drawer toward bob's
+    for bad in ["../../bob/documents/injected.txt", "../bob/x", "..", "a/b"]:
+        with pytest.raises(ComminglingBreachError):
+            mgr.record_agent_artifact("alice", "04", "artifacts", bad, "x",
+                                      acting_client_context_id="alice")
+        with pytest.raises(ComminglingBreachError):
+            mgr.get_drawer("alice").get_file("artifacts", bad)
+    assert sorted(os.listdir(root / "bob" / "documents")) == ["preapproval.txt"]
+
+    # category is a closed set, not a path
+    with pytest.raises(ValueError):
+        mgr.record_agent_artifact("alice", "04", "../../bob/documents", "x.txt", "x",
+                                  acting_client_context_id="alice")
+
+
+def test_drawer_symlink_escape_blocked(tmp_path):
+    """A symlink planted inside a drawer cannot carry a write outside it."""
+    root = tmp_path / "drawers"
+    mgr = ClientDrawerManager(str(root))
+    alice = mgr.provision_drawer("alice", "Alice", "1 Oak")
+    target = tmp_path / "loot"
+    target.mkdir()
+    os.symlink(str(target / "stolen.txt"),
+               os.path.join(alice.drawer_path, "artifacts", "link.txt"))
+    with pytest.raises(ComminglingBreachError):
+        alice.store_file("04", "artifacts", "link.txt", "secret")
+    assert not (target / "stolen.txt").exists()
+
+
+def test_cross_client_filing_refused_by_context_binding(tmp_path):
+    """An agent acting for alice cannot file into bob's (existing) drawer."""
+    mgr = ClientDrawerManager(str(tmp_path))
+    mgr.provision_drawer("alice", "Alice", "1 Oak")
+    mgr.provision_drawer("bob", "Bob", "2 Elm")
+    with pytest.raises(ComminglingBreachError):
+        mgr.record_agent_artifact("bob", "04", "artifacts", "note.txt", "x",
+                                  acting_client_context_id="alice")
+    assert mgr.get_drawer("bob").list_files() == []
+
+
+def test_drawer_identity_never_silently_overwritten(tmp_path):
+    mgr = ClientDrawerManager(str(tmp_path))
+    mgr.provision_drawer("c1", "Alice", "1 Oak")
+    with pytest.raises(ComminglingBreachError):
+        mgr.provision_drawer("c1", "Mallory", "9 Elm")
+    m = mgr.get_drawer("c1").get_manifest()
+    assert (m["client_name"], m["property_address"]) == ("Alice", "1 Oak")
+    mgr.provision_drawer("c1", "Alice B", "1 Oak", update_identity=True)
+    assert mgr.get_drawer("c1").get_manifest()["client_name"] == "Alice B"
+
+
+def test_drawer_verify_hashes_detects_tamper(tmp_path):
+    mgr = ClientDrawerManager(str(tmp_path))
+    d = mgr.provision_drawer("c1", "Alice", "1 Oak")
+    p = d.store_file("08", "documents", "addendum.txt", "credit $2,500")
+    assert d.verify_hashes() == {"ok": True, "checked": 1, "mismatched": [], "missing": []}
+    with open(p, "w") as f:
+        f.write("credit $25,000")
+    v = d.verify_hashes()
+    assert v["ok"] is False and v["mismatched"] == ["documents/addendum.txt"]
 
 
 def test_cross_client_memory_isolation(tmp_path):
     """Ensures Client A's confidential disclosures never leak to Client B."""
     mgr = ClientDrawerManager(str(tmp_path))
     drawer_a = mgr.provision_drawer("client_a", "Client A", "100 Oak St", "seller", "00")
-    mgr.record_agent_artifact("client_a", "08", "documents", "seller_confidential.txt", b"Walkaway price: $425,000")
+    mgr.record_agent_artifact("client_a", "08", "documents", "seller_confidential.txt", b"Walkaway price: $425,000",
+                             acting_client_context_id="client_a")
     
     drawer_b = mgr.provision_drawer("client_b", "Client B", "200 Elm St", "buyer", "00")
     assert not os.path.exists(os.path.join(drawer_b.drawer_path, "documents", "seller_confidential.txt"))

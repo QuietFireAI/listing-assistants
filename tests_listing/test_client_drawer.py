@@ -39,7 +39,8 @@ def test_client_drawer_provisioning_and_isolation():
             agent_id="04",
             category="artifacts",
             filename="mls_remarks.txt",
-            content="Stunning 4BR home on quiet cul-de-sac."
+            content="Stunning 4BR home on quiet cul-de-sac.",
+            acting_client_context_id="client-smith-01"
         )
         assert os.path.exists(file_a)
 
@@ -49,7 +50,8 @@ def test_client_drawer_provisioning_and_isolation():
             agent_id="08",
             category="documents",
             filename="property_disclosure.pdf",
-            content=b"%PDF-1.4 Mock Disclosure Bytes"
+            content=b"%PDF-1.4 Mock Disclosure Bytes",
+            acting_client_context_id="client-smith-01"
         )
         assert os.path.exists(file_disc)
 
@@ -81,7 +83,8 @@ def test_anti_commingling_breach_prevention():
                 agent_id="11",
                 category="interactions",
                 filename="unauth_chat.txt",
-                content="Trying to drop file without drawer"
+                content="Trying to drop file without drawer",
+                acting_client_context_id="client-unregistered-spoof"
             )
         assert "blocked fail-closed" in str(exc_info.value)
 
