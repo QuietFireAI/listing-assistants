@@ -166,7 +166,10 @@ def load_all_drawers(drawers_root: str, db_path: Optional[str] = None) -> list[d
     if db_path and os.path.exists(db_path):
         try:
             sqlite_storage = ApplianceStorage(db_path)
-        except Exception:
+        except Exception as e:
+            # declared, not swallowed (audit 2026-10-11): drawer manifests are
+            # still shown, without the SQLite reconciliation
+            print(f"[WARN] SQLite store not used: {e}", file=sys.stderr)
             sqlite_storage = None
 
     if os.path.exists(drawers_root):

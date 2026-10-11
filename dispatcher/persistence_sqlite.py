@@ -1,29 +1,91 @@
-"""persistence_sqlite - Transactional Local Appliance SQLite Persistence Layer.
+"""persistence_sqlite - local SQLite storage for the appliance.
 
-Provides zero-daemon ACID transactional persistence designed to reside on
-local storage or the repurposed Drobo NAS RAID partition.
+Tables: crm_interactions, client_consent_events (+ current-consent view in
+code), financial_ledger, client_drawers (+ identity history),
+client_drawer_files.
 
-Survives VM reboots, container restarts, and physical power cycles without
-external database infrastructure (Postgres/MySQL).
+Wiring status (2026-10-11): no spoke writes to this store. Agents 14 and 15
+keep their state in memory. The only runtime reader is tools/dashboard.py.
+The store is ready for that wiring; it is not yet a system of record.
 
-Persists:
-  1. Agent 14 CRM interactions, client consent registries, and communication logs.
-  2. Agent 15 Financial ledgers, commission calculations, invoices, and audit checkpoints.
+Guarantees (fixed 2026-10-11, audit S-2, S-3, RL-1):
+  - Money is exact. amount / commission_rate / balance are stored as decimal
+    TEXT and returned as decimal.Decimal. A Python float is refused, because
+    the rounding error is already in the float (0.1 + 0.2 != 0.3). Before:
+    REAL columns, 0.1 + 0.2 came back 0.30000000000000004.
+  - Append-only ("the log is written in ink", Agent 14 tuple layer).
+    crm_interactions, financial_ledger, client_drawer_files,
+    client_consent_events and client_drawer_identity_history reject UPDATE
+    and DELETE with a trigger. Corrections are new rows. Before: rows were
+    editable in place.
+  - Consent keeps its history. Each update_client_consent() call appends one
+    event per channel; get_client_consent() returns the latest statement per
+    channel and get_consent_history() returns every event. Before: one row
+    per client, overwritten.
+  - A drawer's identity is never silently replaced. Registering an existing
+    client_id with a different name/address/role raises
+    DrawerIdentityConflict unless update_identity=True, which records the
+    previous identity in client_drawer_identity_history. Before: a second
+    register overwrote Alice/1 Oak with Mallory/9 Elm.
+  - File databases run in WAL journal mode.
+
+Storage location: use a local disk. SQLite's locking is not reliable over
+network file systems (SMB/NFS shares, including NAS shares), so do not
+point db_path at a network share.
 """
 from __future__ import annotations
 
 import json
 import sqlite3
-from typing import Any, Dict, List, Optional
+from decimal import Decimal, InvalidOperation
+from typing import Optional, Union
+
+SCHEMA_VERSION = 2
+Money = Union[Decimal, int, str]
+
+_APPEND_ONLY_TABLES = ("crm_interactions", "financial_ledger", "client_drawer_files",
+                       "client_consent_events", "client_drawer_identity_history")
+
+
+class DrawerIdentityConflict(ValueError):
+    """Registering an existing drawer with a different identity."""
+
+
+class SchemaMismatch(RuntimeError):
+    """The database file was created by an incompatible schema version."""
+
+
+def _to_decimal_text(value: Optional[Money], field: str) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, bool) or isinstance(value, float):
+        raise TypeError(f"{field}: pass Decimal, int or a decimal string, not {type(value).__name__} "
+                        f"(a float already carries rounding error)")
+    try:
+        d = Decimal(str(value)) if not isinstance(value, Decimal) else value
+    except InvalidOperation:
+        raise ValueError(f"{field}: {value!r} is not a decimal number") from None
+    if not d.is_finite():
+        raise ValueError(f"{field}: {value!r} is not finite")
+    return str(d)
+
+
+def _from_decimal_text(value: Optional[str]) -> Optional[Decimal]:
+    return None if value is None else Decimal(value)
 
 
 class ApplianceStorage:
-    """ACID transactional storage for the appliance deployment."""
+    """SQLite storage for the appliance deployment (see module docstring)."""
 
     def __init__(self, db_path: str = ":memory:"):
         self.db_path = db_path
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
+        if db_path != ":memory:":
+            mode = self.conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+            self.journal_mode = mode
+        else:
+            self.journal_mode = "memory"
         self._init_db()
 
     def close(self):
@@ -39,9 +101,19 @@ class ApplianceStorage:
         self.close()
 
     def _init_db(self):
-        cursor = self.conn.cursor()
-        # 1. CRM Interactions table (Spoke 14)
-        cursor.execute("""
+        c = self.conn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        row = c.execute("SELECT value FROM schema_meta WHERE key='version'").fetchone()
+        has_tables = c.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+                               "AND name IN ('financial_ledger','client_consent')").fetchone()[0]
+        if row is None and has_tables:
+            raise SchemaMismatch(
+                f"{self.db_path}: created by the schema-1 store (REAL money columns, overwritable "
+                f"consent). No spoke wrote to that store; move the file aside and reopen.")
+        if row is not None and int(row["value"]) != SCHEMA_VERSION:
+            raise SchemaMismatch(f"{self.db_path}: schema version {row['value']}, expected {SCHEMA_VERSION}")
+
+        c.execute("""
             CREATE TABLE IF NOT EXISTS crm_interactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_context_id TEXT NOT NULL,
@@ -49,42 +121,35 @@ class ApplianceStorage:
                 kind TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_crm_ctx 
-            ON crm_interactions(client_context_id)
-        """)
+            )""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_crm_ctx ON crm_interactions(client_context_id)")
 
-        # 2. Client Consent table (Spoke 14)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS client_consent (
-                client_context_id TEXT PRIMARY KEY,
-                channels_json TEXT NOT NULL,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS client_consent_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_context_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                value TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_consent_ctx ON client_consent_events(client_context_id)")
 
-        # 3. Financial Ledger table (Spoke 15)
-        cursor.execute("""
+        # Money columns are TEXT on purpose: exact decimal strings.
+        c.execute("""
             CREATE TABLE IF NOT EXISTS financial_ledger (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_context_id TEXT NOT NULL,
                 event_type TEXT NOT NULL,
-                amount REAL,
-                commission_rate REAL,
-                balance REAL,
+                amount TEXT,
+                commission_rate TEXT,
+                balance TEXT,
                 payload_json TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_finance_ctx 
-            ON financial_ledger(client_context_id)
-        """)
+            )""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_finance_ctx ON financial_ledger(client_context_id)")
 
-        # 4. Client Drawers registry (One Client, One Drawer)
-        cursor.execute("""
+        c.execute("""
             CREATE TABLE IF NOT EXISTS client_drawers (
                 client_id TEXT PRIMARY KEY,
                 client_name TEXT NOT NULL,
@@ -93,11 +158,20 @@ class ApplianceStorage:
                 assigned_agent TEXT NOT NULL DEFAULT '00',
                 metadata_json TEXT NOT NULL DEFAULT '{}',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            )""")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS client_drawer_identity_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id TEXT NOT NULL,
+                client_name TEXT NOT NULL,
+                property_address TEXT NOT NULL,
+                role TEXT NOT NULL,
+                assigned_agent TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                replaced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
 
-        # 5. Client Drawer Files index
-        cursor.execute("""
+        c.execute("""
             CREATE TABLE IF NOT EXISTS client_drawer_files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_id TEXT NOT NULL,
@@ -108,237 +182,158 @@ class ApplianceStorage:
                 file_hash TEXT NOT NULL,
                 size_bytes INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_drawer_files_client
-            ON client_drawer_files(client_id)
-        """)
+            )""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_drawer_files_client ON client_drawer_files(client_id)")
+
+        for table in _APPEND_ONLY_TABLES:
+            for op in ("UPDATE", "DELETE"):
+                c.execute(f"""
+                    CREATE TRIGGER IF NOT EXISTS {table}_no_{op.lower()}
+                    BEFORE {op} ON {table}
+                    BEGIN SELECT RAISE(ABORT, '{table} is append-only: add a correcting row'); END""")
+
+        c.execute("INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('version', ?)", (str(SCHEMA_VERSION),))
         self.conn.commit()
 
-    # --- Spoke 14 CRM Methods ----------------------------------------------
+    # --- CRM ------------------------------------------------------------------
 
-    def record_crm_interaction(
-        self,
-        client_context_id: str,
-        agent_id: str,
-        kind: str,
-        payload: dict
-    ) -> int:
+    def record_crm_interaction(self, client_context_id: str, agent_id: str, kind: str, payload: dict) -> int:
         """Appends a CRM interaction log entry."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO crm_interactions (client_context_id, agent_id, kind, payload_json)
-            VALUES (?, ?, ?, ?)
-        """, (client_context_id, agent_id, kind, json.dumps(payload)))
+        cur = self.conn.execute(
+            "INSERT INTO crm_interactions (client_context_id, agent_id, kind, payload_json) VALUES (?, ?, ?, ?)",
+            (client_context_id, agent_id, kind, json.dumps(payload)))
         self.conn.commit()
-        return cursor.lastrowid
+        return cur.lastrowid
 
-    def update_client_consent(
-        self,
-        client_context_id: str,
-        consent_channels: dict
-    ):
-        """Sets or merges channel consent for a client context."""
-        existing = self.get_client_consent(client_context_id)
-        merged = {**existing, **consent_channels}
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO client_consent (client_context_id, channels_json, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(client_context_id) DO UPDATE SET
-                channels_json = excluded.channels_json,
-                updated_at = CURRENT_TIMESTAMP
-        """, (client_context_id, json.dumps(merged)))
-        self.conn.commit()
+    def update_client_consent(self, client_context_id: str, consent_channels: dict, source: str = ""):
+        """Appends one consent event per channel. Nothing is overwritten."""
+        if not isinstance(consent_channels, dict) or not consent_channels:
+            raise ValueError("consent_channels must be a non-empty {channel: value} dict")
+        with self.conn:
+            for channel, value in consent_channels.items():
+                self.conn.execute(
+                    "INSERT INTO client_consent_events (client_context_id, channel, value, source) "
+                    "VALUES (?, ?, ?, ?)", (client_context_id, str(channel), str(value), source))
 
     def get_client_consent(self, client_context_id: str) -> dict:
-        """Retrieves consent dictionary for a client context."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT channels_json FROM client_consent WHERE client_context_id = ?
-        """, (client_context_id,))
-        row = cursor.fetchone()
-        if row:
-            return json.loads(row["channels_json"])
-        return {}
+        """Latest stated value per channel. Owner note: a later opt-in after an
+        opt-out is returned as the current value; the opt-out stays in
+        get_consent_history()."""
+        rows = self.conn.execute(
+            "SELECT channel, value FROM client_consent_events WHERE client_context_id = ? ORDER BY id ASC",
+            (client_context_id,)).fetchall()
+        current: dict = {}
+        for r in rows:
+            current[r["channel"]] = r["value"]
+        return current
+
+    def get_consent_history(self, client_context_id: str) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT channel, value, source, created_at FROM client_consent_events "
+            "WHERE client_context_id = ? ORDER BY id ASC", (client_context_id,)).fetchall()
+        return [dict(r) for r in rows]
 
     def get_crm_interactions(self, client_context_id: str) -> list[dict]:
         """Fetches interaction history for a given client context."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT agent_id, kind, payload_json, created_at 
-            FROM crm_interactions 
-            WHERE client_context_id = ? 
-            ORDER BY id ASC
-        """, (client_context_id,))
-        rows = cursor.fetchall()
-        return [
-            {
-                "agent_id": r["agent_id"],
-                "kind": r["kind"],
-                "payload": json.loads(r["payload_json"]),
-                "created_at": r["created_at"]
-            }
-            for r in rows
-        ]
+        rows = self.conn.execute(
+            "SELECT agent_id, kind, payload_json, created_at FROM crm_interactions "
+            "WHERE client_context_id = ? ORDER BY id ASC", (client_context_id,)).fetchall()
+        return [{"agent_id": r["agent_id"], "kind": r["kind"],
+                 "payload": json.loads(r["payload_json"]), "created_at": r["created_at"]} for r in rows]
 
-    # --- Spoke 15 Financial Methods ----------------------------------------
+    # --- Financial ledger -----------------------------------------------------
 
-    def record_financial_entry(
-        self,
-        client_context_id: str,
-        event_type: str,
-        amount: Optional[float] = None,
-        commission_rate: Optional[float] = None,
-        balance: Optional[float] = None,
-        payload: Optional[dict] = None
-    ) -> int:
-        """Appends a financial transaction entry to the ledger."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO financial_ledger 
-            (client_context_id, event_type, amount, commission_rate, balance, payload_json)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            client_context_id,
-            event_type,
-            amount,
-            commission_rate,
-            balance,
-            json.dumps(payload or {})
-        ))
+    def record_financial_entry(self, client_context_id: str, event_type: str,
+                               amount: Optional[Money] = None, commission_rate: Optional[Money] = None,
+                               balance: Optional[Money] = None, payload: Optional[dict] = None) -> int:
+        """Appends a ledger entry. Money values: Decimal, int or decimal string."""
+        vals = (_to_decimal_text(amount, "amount"), _to_decimal_text(commission_rate, "commission_rate"),
+                _to_decimal_text(balance, "balance"))
+        cur = self.conn.execute(
+            "INSERT INTO financial_ledger (client_context_id, event_type, amount, commission_rate, balance, "
+            "payload_json) VALUES (?, ?, ?, ?, ?, ?)",
+            (client_context_id, event_type, *vals, json.dumps(payload or {})))
         self.conn.commit()
-        return cursor.lastrowid
+        return cur.lastrowid
 
     def get_financial_history(self, client_context_id: str) -> list[dict]:
-        """Fetches financial ledger entries for a client context."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT event_type, amount, commission_rate, balance, payload_json, created_at
-            FROM financial_ledger
-            WHERE client_context_id = ?
-            ORDER BY id ASC
-        """, (client_context_id,))
-        rows = cursor.fetchall()
-        return [
-            {
-                "event_type": r["event_type"],
-                "amount": r["amount"],
-                "commission_rate": r["commission_rate"],
-                "balance": r["balance"],
-                "payload": json.loads(r["payload_json"]),
-                "created_at": r["created_at"]
-            }
-            for r in rows
-        ]
+        """Ledger entries for a client context; money fields are Decimal."""
+        rows = self.conn.execute(
+            "SELECT event_type, amount, commission_rate, balance, payload_json, created_at "
+            "FROM financial_ledger WHERE client_context_id = ? ORDER BY id ASC", (client_context_id,)).fetchall()
+        return [{"event_type": r["event_type"], "amount": _from_decimal_text(r["amount"]),
+                 "commission_rate": _from_decimal_text(r["commission_rate"]),
+                 "balance": _from_decimal_text(r["balance"]),
+                 "payload": json.loads(r["payload_json"]), "created_at": r["created_at"]} for r in rows]
 
-    # --- Client Drawer Methods (One Client, One Drawer) ---------------------
+    # --- Client drawers -------------------------------------------------------
 
-    def register_client_drawer(
-        self,
-        client_id: str,
-        client_name: str,
-        property_address: str,
-        role: str = "seller",
-        assigned_agent: str = "00",
-        metadata: Optional[dict] = None
-    ):
-        """Registers a new isolated client drawer."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO client_drawers 
-            (client_id, client_name, property_address, role, assigned_agent, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(client_id) DO UPDATE SET
-                client_name = excluded.client_name,
-                property_address = excluded.property_address,
-                role = excluded.role,
-                assigned_agent = excluded.assigned_agent,
-                metadata_json = excluded.metadata_json
-        """, (
-            client_id,
-            client_name,
-            property_address,
-            role,
-            assigned_agent,
-            json.dumps(metadata or {})
-        ))
-        self.conn.commit()
+    def register_client_drawer(self, client_id: str, client_name: str, property_address: str,
+                               role: str = "seller", assigned_agent: str = "00",
+                               metadata: Optional[dict] = None, update_identity: bool = False):
+        """Registers a client drawer. Re-registering the same identity is a
+        no-op; a different identity raises DrawerIdentityConflict unless
+        update_identity=True, which keeps the old identity in history."""
+        meta = json.dumps(metadata or {})
+        with self.conn:
+            row = self.conn.execute("SELECT * FROM client_drawers WHERE client_id = ?", (client_id,)).fetchone()
+            if row is None:
+                self.conn.execute(
+                    "INSERT INTO client_drawers (client_id, client_name, property_address, role, assigned_agent, "
+                    "metadata_json) VALUES (?, ?, ?, ?, ?, ?)",
+                    (client_id, client_name, property_address, role, assigned_agent, meta))
+                return
+            new = (client_name, property_address, role, assigned_agent, meta)
+            old = (row["client_name"], row["property_address"], row["role"], row["assigned_agent"],
+                   row["metadata_json"])
+            if new == old:
+                return
+            if not update_identity:
+                raise DrawerIdentityConflict(
+                    f"drawer {client_id!r} is registered to {row['client_name']!r} / {row['property_address']!r}; "
+                    f"refusing to replace it with {client_name!r} / {property_address!r} "
+                    f"(pass update_identity=True for a deliberate change)")
+            self.conn.execute(
+                "INSERT INTO client_drawer_identity_history (client_id, client_name, property_address, role, "
+                "assigned_agent, metadata_json) VALUES (?, ?, ?, ?, ?, ?)", (client_id, *old))
+            self.conn.execute(
+                "UPDATE client_drawers SET client_name=?, property_address=?, role=?, assigned_agent=?, "
+                "metadata_json=? WHERE client_id=?", (*new, client_id))
 
-    def record_drawer_file(
-        self,
-        client_id: str,
-        agent_id: str,
-        category: str,
-        filename: str,
-        file_path: str,
-        file_hash: str,
-        size_bytes: int
-    ) -> int:
+    def get_drawer_identity_history(self, client_id: str) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT client_name, property_address, role, assigned_agent, replaced_at "
+            "FROM client_drawer_identity_history WHERE client_id = ? ORDER BY id ASC", (client_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def record_drawer_file(self, client_id: str, agent_id: str, category: str, filename: str,
+                           file_path: str, file_hash: str, size_bytes: int) -> int:
         """Indexes an artifact or document in the client's drawer."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO client_drawer_files
-            (client_id, agent_id, category, filename, file_path, file_hash, size_bytes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (client_id, agent_id, category, filename, file_path, file_hash, size_bytes))
+        cur = self.conn.execute(
+            "INSERT INTO client_drawer_files (client_id, agent_id, category, filename, file_path, file_hash, "
+            "size_bytes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (client_id, agent_id, category, filename, file_path, file_hash, size_bytes))
         self.conn.commit()
-        return cursor.lastrowid
+        return cur.lastrowid
 
     def get_drawer_files(self, client_id: str, category: Optional[str] = None) -> list[dict]:
         """Retrieves all files indexed for a specific client drawer."""
-        cursor = self.conn.cursor()
+        sql = ("SELECT id, agent_id, category, filename, file_path, file_hash, size_bytes, created_at "
+               "FROM client_drawer_files WHERE client_id = ?")
+        args: tuple = (client_id,)
         if category:
-            cursor.execute("""
-                SELECT id, agent_id, category, filename, file_path, file_hash, size_bytes, created_at
-                FROM client_drawer_files
-                WHERE client_id = ? AND category = ?
-                ORDER BY id ASC
-            """, (client_id, category))
-        else:
-            cursor.execute("""
-                SELECT id, agent_id, category, filename, file_path, file_hash, size_bytes, created_at
-                FROM client_drawer_files
-                WHERE client_id = ?
-                ORDER BY id ASC
-            """, (client_id,))
-        rows = cursor.fetchall()
-        return [
-            {
-                "id": r["id"],
-                "agent_id": r["agent_id"],
-                "category": r["category"],
-                "filename": r["filename"],
-                "file_path": r["file_path"],
-                "file_hash": r["file_hash"],
-                "size_bytes": r["size_bytes"],
-                "created_at": r["created_at"]
-            }
-            for r in rows
-        ]
+            sql += " AND category = ?"
+            args += (category,)
+        rows = self.conn.execute(sql + " ORDER BY id ASC", args).fetchall()
+        return [dict(r) for r in rows]
 
     def list_client_drawers(self) -> list[dict]:
         """Lists all registered client drawers with file counts."""
-        cursor = self.conn.cursor()
-        cursor.execute("""
+        rows = self.conn.execute("""
             SELECT d.client_id, d.client_name, d.property_address, d.role, d.assigned_agent,
                    d.created_at, COUNT(f.id) as file_count
             FROM client_drawers d
             LEFT JOIN client_drawer_files f ON d.client_id = f.client_id
             GROUP BY d.client_id
-            ORDER BY d.created_at DESC
-        """)
-        rows = cursor.fetchall()
-        return [
-            {
-                "client_id": r["client_id"],
-                "client_name": r["client_name"],
-                "property_address": r["property_address"],
-                "role": r["role"],
-                "assigned_agent": r["assigned_agent"],
-                "created_at": r["created_at"],
-                "file_count": r["file_count"]
-            }
-            for r in rows
-        ]
+            ORDER BY d.created_at DESC""").fetchall()
+        return [dict(r) for r in rows]
