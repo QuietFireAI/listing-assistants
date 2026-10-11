@@ -8,6 +8,7 @@ escalation entirely. This file replaces that scope with the real spec.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -89,7 +90,7 @@ class Spoke14CRMPipeline:
     """
 
     def __init__(self, hub):
-        self.hub = hub
+        self.hub = guard(hub, "14")   # handoff rule (audit TU-2)
         self.records: dict[str, list[dict]] = {}
         # canonical consent state per context, per channel - authoritative
         self.consent: dict[str, dict[str, str]] = {}
@@ -396,7 +397,7 @@ class Spoke01LeadCapture:
     def __init__(self, hub, brokerage_scope: set[str] | None = None,
                  dnc_list: set[str] | None = None,
                  record_response_timeout_days: int = 1):
-        self.hub = hub
+        self.hub = guard(hub, "01")   # handoff rule (audit TU-2)
         self.pending: dict[str, dict] = {}
         # addresses/listing-IDs this brokerage actually lists (tuple: property
         # outside scope -> log + human, never redirect). None/empty = nothing

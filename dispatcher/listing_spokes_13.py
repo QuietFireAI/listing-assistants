@@ -9,6 +9,7 @@ showing.request.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -74,7 +75,7 @@ class Spoke13BuyerSearchMatch:
     # every match still logs to 14 individually, and the digest carries
     # every ranked entry. See docs/TUNING_MANUAL.md.
     def __init__(self, hub, max_matches_per_buyer_per_day: int = 5):
-        self.hub = hub
+        self.hub = guard(hub, "13")   # handoff rule (audit TU-2)
         self.max_matches_per_buyer_per_day = max_matches_per_buyer_per_day
         self.matches_today: dict[str, dict] = {}  # ctx -> {day, count, overflow: [...]}
         self.buyer_criteria: dict[str, list[dict]] = {}

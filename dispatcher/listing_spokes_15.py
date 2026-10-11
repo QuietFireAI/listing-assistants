@@ -8,6 +8,7 @@ the number, only a labeled projection.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -57,7 +58,7 @@ class Spoke15FinancialTracking:
     # amount is labeled computed, never presented as a recorded figure.
     # See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, commission_rate: float = 0.08):
-        self.hub = hub
+        self.hub = guard(hub, "15")   # handoff rule (audit TU-2)
         self.commission_rate = commission_rate
         self.commissions: dict[str, dict] = {}  # ctx -> {amount, signed, source}
         self.expenses: dict[str, list[dict]] = {}

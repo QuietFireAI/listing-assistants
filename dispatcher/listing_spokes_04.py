@@ -7,6 +7,7 @@ Compliance (17) 'approved' verdict.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -58,7 +59,7 @@ class Spoke04ListingDescription:
 
     def __init__(self, hub, mls_char_limit: int = 800,
                  cut_priority_config: str | None = None):
-        self.hub = hub
+        self.hub = guard(hub, "04")   # handoff rule (audit TU-2)
         self.drafts: dict[str, dict] = {}  # ctx -> draft asset pending verdict
         self.mls_char_limit = mls_char_limit
         import json, os

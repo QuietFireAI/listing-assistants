@@ -12,6 +12,7 @@ import os
 import re
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -105,7 +106,7 @@ class Spoke08DocumentCollection:
 
     def __init__(self, hub, expected_senders: dict[str, set[str]] | None = None,
                  document_chase_cap: int = 3):
-        self.hub = hub
+        self.hub = guard(hub, "08")   # handoff rule (audit TU-2)
         # A ratified config value applies only when the caller left the
         # constructor default; an explicit argument always wins.
         loaded = self._load_cadence_document_chase_cap()

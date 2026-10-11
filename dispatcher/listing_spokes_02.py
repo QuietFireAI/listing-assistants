@@ -10,6 +10,7 @@ scoring (it can still capture/hold leads; it just cannot tier them).
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -83,7 +84,7 @@ class Spoke02LeadQualification:
     # TUNABLE (owner-ratified 2026-07-16): hot_lead_sla_seconds=300 (5 min).
     # See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, hot_lead_sla_seconds: int = 300):
-        self.hub = hub
+        self.hub = guard(hub, "02")   # handoff rule (audit TU-2)
         self.rubric: dict | None = None          # None = fails closed
         self.rubric_version: str | None = None
         self.tier_history: dict[str, list[str]] = {}

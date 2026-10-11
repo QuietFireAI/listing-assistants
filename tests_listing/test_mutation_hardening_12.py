@@ -133,7 +133,12 @@ def test_12_flagged_verdict_does_not_publish_approved_does(tmp_path):
                      if t["agent"] == "12" and "flagged" in t.get("result", "")]
     assert flagged_trace, \
         "a flagged verdict must hit the flagged branch (result 'held: flagged')"
-    assert not persisted(s.hub, "clarification.request"), \
+    # Unit hub has no Agent 18 registered, so the flagged branch's
+    # agent.status to 18 dead-letters and HandoffGuard (audit TU-2) files a
+    # handoff.failed clarification. Only a NON-handoff clarification would
+    # mean the verdict fell through.
+    assert not [c for c in persisted(s.hub, "clarification.request")
+                if not c["payload"]["reason"].startswith("handoff.failed")], \
         "flagged must not fall through to unrecognized-verdict clarification"
 
     s2 = spoke(str(tmp_path) + "_b")

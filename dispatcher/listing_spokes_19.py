@@ -8,6 +8,7 @@ outreach, the record makes the legal posture visible first.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -46,7 +47,7 @@ class Spoke19Prospecting:
     """
 
     def __init__(self, hub):
-        self.hub = hub
+        self.hub = guard(hub, "19")   # handoff rule (audit TU-2)
         self.zip_codes: set[str] = set()  # human-configured monitoring targets
         self.approved_sources: set[str] = set()  # human-configured, MLS-rule-compliant
         self.dnc_list: set[str] = set()

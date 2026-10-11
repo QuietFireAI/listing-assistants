@@ -9,6 +9,7 @@ showing.no_show, showing.feedback_response all originate here).
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -100,7 +101,7 @@ class Spoke11ClientCommunication:
     # See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, quiet_hours: tuple[int, int] = (21, 8),
                  exempt_alert_classes: set[str] | None = None):
-        self.hub = hub
+        self.hub = guard(hub, "11")   # handoff rule (audit TU-2)
         self.quiet_hours = quiet_hours  # (start_hour, end_hour), wraps midnight
         self.exempt_alert_classes = exempt_alert_classes or set()
         self.pending_conflict: dict[str, list] = {}  # ctx -> conflicting statuses
@@ -132,9 +133,9 @@ class Spoke11ClientCommunication:
 
     def _route_lead_reply(self, ctx: str, owner, body: dict, env: Envelope | None) -> dict:
         """Sends lead.reply to the owning agent only when that agent has a
-        lead.reply handler; otherwise, or when the hub does not ack/hold the
-        send, the client's words go to clarification.request (root rule: no
-        suitable tuple -> STOP and ask the human)."""
+        lead.reply handler; otherwise the client's words go to
+        clarification.request (root rule: no suitable tuple -> STOP and ask
+        the human)."""
         owner = str(owner)
         eid = env.envelope_id if env else "internal"
         if owner not in LEAD_REPLY_HANDLERS:
@@ -147,17 +148,10 @@ class Spoke11ClientCommunication:
                                       {"reason": f"client reply for owning_agent {owner!r}, "
                                                  f"which has no lead.reply handler",
                                        "verbatim": body.get("message"), "lead_reply": body}))
+        # a reject / dead.letter is handled by HandoffGuard (handoff.failed +
+        # clarification.request with the failed envelope, which carries the
+        # client's message)
         res = self.hub.send(_env("11", owner, "lead.reply", ctx, body))
-        if res.get("status") not in ("ack", "held", "duplicate"):
-            self.hub.ingest_spoke_trace(
-                "11", eid,
-                thought=f"lead.reply to {owner} came back {res.get('status')!r} "
-                        f"({res.get('reason', '')}) - the handoff did not happen",
-                result="held: lead_reply_not_acked")
-            self.hub.send(_env("11", "queue", "clarification.request", ctx,
-                               {"reason": f"lead.reply to {owner} not delivered: "
-                                          f"{res.get('status')} {res.get('reason', '')}".strip(),
-                                "verbatim": body.get("message"), "lead_reply": body}))
         return res
 
     def _send_client_message(self, ctx: str, template: str, variables: dict,

@@ -10,6 +10,7 @@ marketing action regardless of content source.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -58,7 +59,7 @@ class Spoke12MarketingCampaign:
     """
 
     def __init__(self, hub):
-        self.hub = hub
+        self.hub = guard(hub, "12")   # handoff rule (audit TU-2)
         self.mls_confirmed: dict[str, bool] = {}
         self.exempt_status: dict[str, dict] = {}  # ctx -> {exempt, disclosure_on_file}
         self.approved_assets: dict[str, dict] = {}  # ctx -> asset from 04

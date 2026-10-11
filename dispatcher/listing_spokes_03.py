@@ -9,6 +9,7 @@ tests (a synthetic empty trace injected directly), not in this agent.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -87,7 +88,7 @@ class Spoke03LeadNurture:
     # See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, frequency_cap_per_week: int = 3,
                  legal_contact_hours: tuple[int, int] = (8, 21)):
-        self.hub = hub
+        self.hub = guard(hub, "03")   # handoff rule (audit TU-2)
         self.active_sequences: dict[str, dict] = {}  # ctx -> {sequence_id, paused, touch_count}
         self.frequency_cap_per_week = frequency_cap_per_week
         self.legal_contact_hours = legal_contact_hours

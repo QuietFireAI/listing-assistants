@@ -7,6 +7,7 @@ human via 17's review; publication is a human act, always.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -41,7 +42,7 @@ class Spoke20SocialMediaMonitoring:
     """
 
     def __init__(self, hub):
-        self.hub = hub
+        self.hub = guard(hub, "20")   # handoff rule (audit TU-2)
         self.monitored_channels: set[str] = set()
         self.pending_drafts: dict[str, dict] = {}  # envelope_id-keyed via in_reply_to
         hub.register("20", self.handle)

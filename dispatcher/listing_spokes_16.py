@@ -8,6 +8,7 @@ human/counsel decision, never this agent's call.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -56,7 +57,7 @@ class Spoke16AfterCloseReferral:
     """
 
     def __init__(self, hub):
-        self.hub = hub
+        self.hub = guard(hub, "16")   # handoff rule (audit TU-2)
         # The supplied client list IS the authority (tuple 4) - a context
         # not in this dict is refused, never assumed eligible.
         self.client_list: dict[str, dict] = {}

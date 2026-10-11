@@ -7,6 +7,7 @@ settlement service providers) is human/counsel territory, absolute.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -56,7 +57,7 @@ class Spoke09VendorCoordination:
     """
 
     def __init__(self, hub, roster: dict[str, dict] | None = None):
-        self.hub = hub
+        self.hub = guard(hub, "09")   # handoff rule (audit TU-2)
         # roster: vendor_id -> {kind, license_expiry, insurance_expiry,
         #                        regulated (bool)}. Human-approved additions
         # only - empty/unset means nothing is approved yet (fail closed).

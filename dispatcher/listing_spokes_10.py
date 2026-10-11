@@ -7,6 +7,7 @@ remember, a shape the data literally cannot carry.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -85,7 +86,7 @@ class Spoke10MarketData:
                  staleness_days: int = 30, retention_days: int = 730,
                  opinion_press_threshold: int = 2):
         self.opinion_press_threshold = opinion_press_threshold
-        self.hub = hub
+        self.hub = guard(hub, "10")   # handoff rule (audit TU-2)
         # ctx -> list of listing.data facts (SUBJECT property's own data,
         # not a pool of comparable properties - see class docstring's
         # "Structural gap" note. Currently unused: real comp-sourcing

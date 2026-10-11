@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -118,7 +119,7 @@ class Spoke07TransactionCoordinator:
 
     def __init__(self, hub, vendor_holdup_days: int = 7,
                  transaction_milestone_config: dict[str, dict] | None = None):
-        self.hub = hub
+        self.hub = guard(hub, "07")   # handoff rule (audit TU-2)
         self.vendor_holdup_days = vendor_holdup_days
         self.transaction_milestone_config = (
             transaction_milestone_config or

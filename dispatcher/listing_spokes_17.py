@@ -9,6 +9,7 @@ never authors it.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -55,7 +56,7 @@ class Spoke17ComplianceFairHousing:
     # near_miss_pattern_threshold=3. See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, sla_days: int = 1, near_miss_pattern_threshold: int = 3):
         self.near_miss_pattern_threshold = near_miss_pattern_threshold
-        self.hub = hub
+        self.hub = guard(hub, "17")   # handoff rule (audit TU-2)
         self.ruleset: dict | None = None  # fails closed until signed config.update
         self.ruleset_version: str | None = None
         self.prior_findings: dict[str, dict] = {}  # content_hash -> last verdict findings

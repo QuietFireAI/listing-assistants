@@ -428,5 +428,6 @@ def test_lead_reply_not_acked_is_held_with_the_clients_words(tmp_path):
     hub.send = send
     hub.send(client_reply("ctx-r", {"message": "call me", "owning_agent": "13"}))
     held = hub.queues["clarification.request"]
-    assert len(held) == 1 and "not delivered: reject simulated" in held[0]["payload"]["reason"]
-    assert held[0]["payload"]["verbatim"] == "call me"
+    assert len(held) == 1 and "handoff.failed: lead.reply -> 13: reject simulated" in held[0]["payload"]["reason"]
+    assert held[0]["payload"]["failed_envelope"]["payload"]["message"] == "call me"
+    assert [e for e in hub.audit.read() if e["kind"] == "handoff.failed"]

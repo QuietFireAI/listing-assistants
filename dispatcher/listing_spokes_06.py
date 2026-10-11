@@ -6,6 +6,7 @@ are an absolute Legal Line, not a judgment call.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -65,7 +66,7 @@ class Spoke06ShowingScheduler:
     # no_show_pattern_threshold=2. See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, min_notice_hours: dict[str, int] | None = None,
                  feedback_ask_cap: int = 2, no_show_pattern_threshold: int = 2):
-        self.hub = hub
+        self.hub = guard(hub, "06")   # handoff rule (audit TU-2)
         self.feedback_ask_cap = feedback_ask_cap
         self.no_show_pattern_threshold = no_show_pattern_threshold
         self.confirmed_showings: dict[str, list[dict]] = {}  # ctx -> showings

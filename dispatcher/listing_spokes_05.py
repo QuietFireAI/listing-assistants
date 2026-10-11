@@ -9,6 +9,7 @@ ever sees it, per hub.send()'s pipeline order).
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -65,7 +66,7 @@ class Spoke05MLSListingManagement:
     """
 
     def __init__(self, hub, required_artifacts: dict[str, str] | None = None):
-        self.hub = hub
+        self.hub = guard(hub, "05")   # handoff rule (audit TU-2)
         self.mls_records: dict[str, dict] = {}  # ctx -> current MLS record
         self.property_data: dict[str, dict] = {}  # ctx -> intake package
         self.under_contract: set[str] = set()

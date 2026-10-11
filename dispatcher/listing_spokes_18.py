@@ -8,6 +8,7 @@ not just after.
 from __future__ import annotations
 
 from .core import Envelope
+from .handoff_guard import guard
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -87,7 +88,7 @@ class Spoke18CalendarTask:
     # See docs/TUNING_MANUAL.md to change.
     def __init__(self, hub, max_events_per_day: int = 8,
                  no_show_grace_minutes: int = 60):
-        self.hub = hub
+        self.hub = guard(hub, "18")   # handoff rule (audit TU-2)
         self.calendar: dict[str, list[dict]] = {}  # day -> events
         self.protected_blocks: dict[str, dict] = {}  # event_id -> {day, source: "07"}
         self.deadline_sources: dict[str, dict[str, str]] = {}  # ctx -> {source: date}
