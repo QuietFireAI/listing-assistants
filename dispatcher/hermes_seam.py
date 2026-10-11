@@ -1,46 +1,60 @@
-"""hermes_seam - Nous Hermes Cognitive Reasoning Seam & Broker Ingestion Engine.
+"""hermes_seam - optional seam for a locally served Hermes-family model.
 
-Integrates Nous Hermes local reasoning into the QuietFireAI swarm:
-  1. In-stream <think>...</think> extraction: captures native reasoning traces
-     without triggering frontier API censorship or thought-inspection bans.
-  2. Feed into Hub.ingest_spoke_trace() for real-time verification by the 6 detection pillars
-     (open-mind, agent-open-mind, before-turn, pre-response-selfcheck, sleep-marks, splitvantage).
-  3. BrokerContextIngestor: Real estate broker training and context ingestion pipeline.
-     Treats Hermes like an eager college graduate receiving comprehensive in-house brokerage
-     training (SOPs, NAR 2024 settlement rules, Fair Housing hard lines, commission splits,
-     and brokerage brand voice). Prepares structured pairs for continual local fine-tuning.
+What it provides:
+  1. parse_hermes_output(): splits a model reply into its <think>...</think>
+     reasoning and the user-facing text.
+  2. HermesCognitiveSeam.draft_and_trace(): calls an injected OpenAI-style
+     chat client, sends the model's own reasoning to Hub.ingest_spoke_trace()
+     (agent-open-mind taint gate), and offers the run to the learning loop.
+  3. BrokerContextIngestor: a list of brokerage directives that is prepended
+     to the prompt, plus an export of those directives as reference records.
+  4. HermesLearningLoop: screens runs and collects the ones that pass into an
+     exemplar pool that can be exported as JSONL.
+
+Wiring status (2026-10-11): no spoke, tool or playbook calls this module.
+The 20 spokes are deterministic Python and make no model calls. Using this
+seam means injecting a model client and calling it from your own code.
+
+Behavior fixed 2026-10-11 (audit H-2..H-5):
+  - No model client, or a failed model call, raises HermesUnavailableError.
+    Before, the seam wrote its own <think> text and a canned draft and fed
+    both to the hub and to the training pool as if a model had produced them.
+  - A reply with no <think> block sends an EMPTY thought to the hub, so the
+    taint gate fires. Before, a placeholder thought was substituted and the
+    gate never fired.
+  - The open-mind / agent-open-mind pillars are required (requirements.txt).
+    If either is missing, PILLARS_ARMED is False and the learning loop
+    refuses to assimilate. Before, local stand-ins always reported "aligned".
+  - evaluate_policy_compliance() is a phrase screen. Passing it does not
+    establish Fair Housing or wire-safety compliance; a human reviews drafts.
 """
 from __future__ import annotations
 
 import json
 import os
 import re
-import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
+_missing: list[str] = []
 try:
-    from open_mind.comparator import Comparator, DriftResult
+    from open_mind.comparator import Comparator
 except ImportError:
-    class DriftResult:
-        def __init__(self, drift_score: float, signals: list):
-            self.drift_score = drift_score
-            self.signals = signals
-
-    class Comparator:
-        @staticmethod
-        def compare(thought: str, response: str) -> DriftResult:
-            if not thought:
-                return DriftResult(1.0, ["absent_thought"])
-            return DriftResult(0.05, ["aligned"])
-
+    Comparator = None
+    _missing.append("open_mind")
 try:
     from agent_open_mind import taint_check
 except ImportError:
-    def taint_check(record: dict) -> dict:
-        thought = (record.get("thought") or "").strip()
-        if not thought:
-            return {"tainted": True, "reason": "absent thought"}
-        return {"tainted": False, "reason": "ok"}
+    taint_check = None
+    _missing.append("agent_open_mind")
+
+PILLARS_ARMED: bool = not _missing
+PILLARS_UNARMED_REASON: str = ("" if PILLARS_ARMED else
+                               f"pillar package(s) not installed: {', '.join(_missing)} - "
+                               f"learning loop refuses to assimilate (no stand-in logic)")
+
+
+class HermesUnavailableError(RuntimeError):
+    """No model produced a draft. Nothing was traced or assimilated."""
 
 _THINK_TAG = re.compile(r"<think>(.*?)</think>", re.DOTALL)
 
@@ -54,9 +68,10 @@ DEFAULT_HERMES_SYSTEM_PROMPT = (
 
 
 class BrokerContextIngestor:
-    """Ingests brokerage training materials, office manuals, NAR settlement directives,
-    and MLS rules to fine-tune and prime Hermes like a newly hired college graduate.
-    """
+    """Holds brokerage directives (4 built in, more via ingest_document) that
+    format_curriculum_prompt() prepends to the model prompt. It does not
+    train or fine-tune a model; export_reference_records() writes the
+    directives out for a human to build training data from."""
 
     def __init__(self, materials_dir: Optional[str] = None):
         self.materials_dir = materials_dir
@@ -105,38 +120,35 @@ class BrokerContextIngestor:
         lines.append("-------------------------------------------------")
         return "\n".join(lines)
 
-    def export_fine_tuning_pairs(self, filepath: str):
-        """Exports ingested materials into JSONL format suitable for local Hermes LoRA fine-tuning."""
-        pairs = []
-        for item in self.knowledge_base:
-            pairs.append({
-                "instruction": f"Apply broker policy for: {item.get('topic')}",
-                "context": item.get("directive"),
-                "thought": f"Checking brokerage manual on {item.get('topic')}. Verifying compliance boundaries.",
-                "response": f"Policy acknowledged: {item.get('directive')}"
-            })
+    def export_reference_records(self, filepath: str) -> int:
+        """Writes the directives as JSONL reference records
+        {"topic", "directive", "category"}. These are source material for a
+        human to build training data from; they are not instruction/response
+        pairs. Replaces export_fine_tuning_pairs (audit OG-6), which wrote a
+        code-authored "thought" and a "Policy acknowledged: ..." response for
+        every directive. Returns the number of records written."""
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
-            for p in pairs:
-                f.write(json.dumps(p) + "\n")
+            for item in self.knowledge_base:
+                f.write(json.dumps({"topic": item.get("topic"),
+                                    "directive": item.get("directive"),
+                                    "category": item.get("category", "core_directive")}) + "\n")
+        return len(self.knowledge_base)
 
 
 class HermesLearningLoop:
-    """Synchronized learning loop connecting live sub-agent operational executions
-    to Nous Hermes continual fine-tuning, governed by agent-open-mind.
-    
-    Ensures Hermes learns from what is happening NOW in the live swarm:
-      1. Live Sub-Agent Trace Ingestion:
-         Sub-agent operations (Agent 01 - 20) pass through the agent-open-mind taint gate.
-         Tainted or thought-suppressed runs are quarantined and never admitted as ground truth.
-      2. Multi-Metric Variance Calculation at Every Update:
-         - Epistemic Drift Variance (thought vs action distance via Comparator)
-         - Broker Curriculum Policy Variance (compliance boundary deviation)
-         - Knowledge Delta Variance (shift from previous running baseline)
-      3. Dual-Stream Forensic Logging:
-         Updates write in real time to logs/stream.log and drawers/<client_id>/audit/activity.log.
-         If variance spikes above tolerance (e.g. > 0.35), a TRAIN_ALERT is raised and the
-         exemplar is quarantined before entering the fine-tuning pool.
+    """Screens (thought, action) runs offered by a caller and keeps the ones
+    that pass in an exemplar pool, exportable as JSONL.
+
+    A run is offered only when code calls assimilate_operational_run(); today
+    the only caller is HermesCognitiveSeam.draft_and_trace(), and nothing in
+    the swarm calls that. Screening, in order:
+      0. pillars absent -> REFUSED_PILLARS_UNARMED
+      1. agent-open-mind taint_check (e.g. empty thought) -> QUARANTINED_TAINTED
+      2. composite variance = max(0.5*open-mind drift + 0.5*phrase-screen
+         penalty, phrase-screen penalty); >= drift_threshold -> QUARANTINED_HIGH_VARIANCE
+      3. otherwise ASSIMILATED
+    With a logger, each outcome is written via log_training_update().
     """
 
     def __init__(
@@ -153,32 +165,45 @@ class HermesLearningLoop:
         self.running_avg_variance: float = 0.0
         self.update_history: list[dict] = []
 
+    # Phrases screened by evaluate_policy_compliance(). The fair-housing list
+    # carries the place-of-worship and familial-status terms named in this
+    # module's own fair_housing_hard_line directive (added 2026-10-11, audit
+    # H-5: "Great family neighborhood, walk to church!" passed the screen).
+    WIRE_PHRASES = ("routing number", "wire your funds", "swift code", "transfer escrow to account")
+    FAIR_HOUSING_PHRASES = ("caucasian", "christian neighborhood", "no kids", "exclusive demographic",
+                            "church", "temple", "mosque", "synagogue", "family neighborhood",
+                            "perfect for families", "walkable to temples")
+    PRICE_PHRASES = ("guarantee price", "will definitely sell for $", "promise you $")
+
     def evaluate_policy_compliance(self, text: str) -> float:
-        """Measures policy violation variance against core brokerage directives.
-        Returns a penalty score from 0.0 (fully compliant) to 1.0 (flagrant breach).
-        """
+        """Phrase screen against WIRE_PHRASES, FAIR_HOUSING_PHRASES and
+        PRICE_PHRASES. Returns 0.0 (no listed phrase found) to 1.0. A 0.0
+        means none of these phrases appear - it does not establish
+        compliance. Human review of drafts is still required."""
         text_lower = text.lower()
         penalty = 0.0
 
         # Hard check 1: Wire instructions breach
-        if any(w in text_lower for w in ["routing number", "wire your funds", "swift code", "transfer escrow to account"]):
+        if any(w in text_lower for w in self.WIRE_PHRASES):
             penalty += 0.8
 
         # Hard check 2: Fair housing demographic breach
-        if any(f in text_lower for f in ["caucasian", "christian neighborhood", "no kids", "exclusive demographic"]):
+        if any(f in text_lower for f in self.FAIR_HOUSING_PHRASES):
             penalty += 0.8
 
         # Hard check 3: Unauthorized price guarantee
-        if any(p in text_lower for p in ["guarantee price", "will definitely sell for $", "promise you $"]):
+        if any(p in text_lower for p in self.PRICE_PHRASES):
             penalty += 0.5
 
         return min(penalty, 1.0)
 
     def calculate_variance(self, thought: str, action: str) -> dict:
         """Calculates multi-dimensional variance between internal deliberation,
-        external action, and broker policy boundaries.
-        """
-        dr: DriftResult = Comparator.compare(thought, action)
+        external action, and broker policy boundaries. Requires the open_mind
+        pillar (no stand-in)."""
+        if Comparator is None:
+            raise RuntimeError(PILLARS_UNARMED_REASON)
+        dr = Comparator.compare(thought, action)
         drift_score = float(dr.drift_score)
         policy_penalty = self.evaluate_policy_compliance(action)
 
@@ -215,6 +240,17 @@ class HermesLearningLoop:
             "thought": thought,
             "result": action
         }
+
+        # Step 0: pillars absent -> refuse, declared (no stand-in gate)
+        if not PILLARS_ARMED:
+            if self.logger and hasattr(self.logger, "log_training_update"):
+                self.logger.log_training_update(agent_id=agent_id, client_context_id=client_context_id,
+                                                topic=topic, variance=1.0,
+                                                status="REFUSED_PILLARS_UNARMED",
+                                                detail=PILLARS_UNARMED_REASON)
+            return {"agent_id": agent_id, "envelope_id": envelope_id,
+                    "status": "REFUSED_PILLARS_UNARMED", "reason": PILLARS_UNARMED_REASON,
+                    "is_assimilated": False}
 
         # Step 1: agent-open-mind taint check gate
         gate = taint_check(rec)
@@ -304,7 +340,8 @@ class HermesLearningLoop:
             "agent_id": agent_id,
             "envelope_id": envelope_id,
             "client_context_id": client_context_id,
-            "variance": composite_var
+            "variance": composite_var,
+            "thought_origin": "trace_supplied_by_caller",
         }
         self.assimilated_exemplars.append(exemplar)
 
@@ -357,10 +394,12 @@ class HermesLearningLoop:
         user_notes: str = "",
         feedback_type: str = "wording_revision"
     ) -> dict:
-        """Assimilates explicit human broker feedback and phrasing corrections into
-        the training pool. Personalizes Hermes to the broker's specific voice, style,
-        and market nuances while preserving statutory invariants.
-        """
+        """Adds a broker's correction to the exemplar pool. The correction is
+        screened with evaluate_policy_compliance() (a phrase screen, see its
+        docstring). The exemplar's "thought" is a template built from the
+        broker's notes, not model reasoning, and is marked
+        thought_origin="template_from_human_notes" so it can be filtered out
+        of a fine-tuning set."""
         # Step 1: Ensure the human correction doesn't introduce statutory violations
         policy_penalty = self.evaluate_policy_compliance(human_correction)
         if policy_penalty >= 0.5:
@@ -384,7 +423,8 @@ class HermesLearningLoop:
             "agent_id": agent_id,
             "client_context_id": client_context_id,
             "feedback_type": feedback_type,
-            "variance": 0.05
+            "variance": 0.05,
+            "thought_origin": "template_from_human_notes",
         }
         self.assimilated_exemplars.append(exemplar)
 
@@ -418,7 +458,8 @@ class HermesLearningLoop:
                     "instruction": item["instruction"],
                     "context": item["context"],
                     "thought": item["thought"],
-                    "response": item["response"]
+                    "response": item["response"],
+                    "thought_origin": item.get("thought_origin", "unknown"),
                 }) + "\n")
 
     def get_metrics(self) -> dict:
@@ -464,42 +505,34 @@ class HermesCognitiveSeam:
         context: Optional[dict] = None,
         learn: bool = True
     ) -> Tuple[str, str]:
-        """Drafts content using Hermes, extracts thought trace, commits it to Hub and Learning Loop."""
+        """Calls the injected model, sends its <think> reasoning to the hub
+        and offers the run to the learning loop. Raises HermesUnavailableError
+        when there is no model client or the call fails."""
         curriculum = self.ingestor.format_curriculum_prompt()
         full_prompt = f"{curriculum}\n\nTask:\n{prompt}"
 
-        if self.client is not None and hasattr(self.client, "chat"):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": DEFAULT_HERMES_SYSTEM_PROMPT},
-                        {"role": "user", "content": full_prompt}
-                    ]
-                )
-                raw_content = response.choices[0].message.content or ""
-            except Exception as e:
-                raw_content = (
-                    f"<think>Inference unavailable ({e}). Applying brokerage deterministic rule.</think>"
-                    f"Draft based on prompt: {prompt[:80]}"
-                )
-        else:
-            raw_content = (
-                f"<think>Deliberating on brokerage task for agent {agent_id}. "
-                f"Verifying Fair Housing compliance and absence of wire instructions.</think>\n"
-                f"Professional brokerage draft responding to: {prompt[:80]}..."
+        if self.client is None or not hasattr(self.client, "chat"):
+            raise HermesUnavailableError(
+                "no model client configured - no draft produced, nothing traced or assimilated")
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": DEFAULT_HERMES_SYSTEM_PROMPT},
+                    {"role": "user", "content": full_prompt}
+                ]
             )
+            raw_content = response.choices[0].message.content or ""
+        except Exception as e:
+            raise HermesUnavailableError(
+                f"model call failed ({type(e).__name__}: {e}) - no draft produced") from e
 
         thinking, clean_text = self.parse_hermes_output(raw_content)
 
-        # Ingest the authentic thought trace into the Hub for QuietFire pillar auditing
+        # The model's own reasoning goes to the hub. A reply with no <think>
+        # block sends an empty thought so the agent-open-mind taint gate fires.
         if self.hub and hasattr(self.hub, "ingest_spoke_trace"):
-            self.hub.ingest_spoke_trace(
-                agent_id,
-                envelope_id,
-                thought=thinking or "Deliberation recorded via Hermes cognitive seam",
-                result="draft_ready"
-            )
+            self.hub.ingest_spoke_trace(agent_id, envelope_id, thought=thinking, result="draft_ready")
 
         # Assimilate into the Hermes continuous learning loop with live variance tracking
         if learn and self.learning_loop:

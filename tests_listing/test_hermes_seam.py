@@ -1,8 +1,12 @@
 """Tests for Nous Hermes Cognitive Seam and Broker Context Ingestor."""
+import json
 import os
 import tempfile
+from types import SimpleNamespace
+
 import pytest
-from dispatcher.hermes_seam import HermesCognitiveSeam, BrokerContextIngestor
+from dispatcher.hermes_seam import (HermesCognitiveSeam, BrokerContextIngestor, HermesLearningLoop,
+                                    HermesUnavailableError)
 
 
 def test_hermes_thought_extraction():
@@ -34,26 +38,92 @@ def test_broker_context_ingestor():
     curriculum_updated = ingestor.format_curriculum_prompt(max_items=10)
     assert "OFFICE_SIGN_RULES" in curriculum_updated
 
-    # Export fine tuning pairs
+    # Export reference records (no fabricated thought / response fields)
     with tempfile.TemporaryDirectory() as tmpdir:
-        out_path = os.path.join(tmpdir, "hermes_training.jsonl")
-        ingestor.export_fine_tuning_pairs(out_path)
-        assert os.path.exists(out_path)
+        out_path = os.path.join(tmpdir, "hermes_reference.jsonl")
+        n = ingestor.export_reference_records(out_path)
         with open(out_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            assert len(lines) >= 5
+            rows = [json.loads(l) for l in f]
+        assert n == len(rows) == 5
+        assert all(set(r) == {"topic", "directive", "category"} for r in rows)
 
 
-def test_hermes_seam_draft_and_trace():
-    seam = HermesCognitiveSeam()
-    thinking, text = seam.draft_and_trace(
-        agent_id="04",
-        envelope_id="env-draft-01",
-        prompt="Draft MLS remarks for 742 Evergreen Terrace"
-    )
-    assert thinking
-    assert text
+def _client(content=None, exc=None):
+    class _C:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**k):
+                    if exc:
+                        raise exc
+                    msg = SimpleNamespace(content=content)
+                    return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
+    return _C
+
+
+def _hub(tmp_path):
+    from dispatcher.core import Routes, AuditLog
+    from dispatcher.hub import Hub
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return Hub(Routes(os.path.join(root, "identity", "routes.json")),
+               AuditLog(str(tmp_path / "audit.jsonl")))
+
+
+def test_no_model_client_raises_and_fabricates_nothing(tmp_path):
+    hub = _hub(tmp_path)
+    seam = HermesCognitiveSeam(hub=hub)
+    with pytest.raises(HermesUnavailableError):
+        seam.draft_and_trace("04", "env-draft-01", "Draft MLS remarks for 742 Evergreen Terrace")
+    assert seam.learning_loop.get_metrics()["total_assimilated"] == 0
+    assert not [e for e in hub.audit.read() if e["kind"] == "spoke.trace"]
+
+
+def test_model_failure_raises_no_canned_draft(tmp_path):
+    seam = HermesCognitiveSeam(hub=_hub(tmp_path), client=_client(exc=ConnectionError("down")))
+    with pytest.raises(HermesUnavailableError, match="ConnectionError"):
+        seam.draft_and_trace("04", "env-x", "Draft remarks")
+    assert seam.learning_loop.get_metrics()["total_assimilated"] == 0
+
+
+def test_model_with_think_is_traced_and_assimilated(tmp_path):
+    hub = _hub(tmp_path)
+    seam = HermesCognitiveSeam(hub=hub, client=_client(
+        "<think>Describe the physical features only. No price advice.</think>"
+        "Sunlit 3-bedroom craftsman with custom millwork."))
+    thinking, text = seam.draft_and_trace("04", "env-ok", "Draft remarks", {"client_context_id": "c1"})
+    assert thinking.startswith("Describe the physical") and text.startswith("Sunlit")
+    traces = [e for e in hub.audit.read() if e["kind"] == "spoke.trace"]
+    assert traces and traces[-1]["thought"] == thinking
     assert seam.learning_loop.get_metrics()["total_assimilated"] == 1
+
+
+def test_model_without_think_trips_taint_gate(tmp_path):
+    """Was: a placeholder thought was substituted, the hub saw no taint and
+    the fair-housing-violating draft was not flagged (probe_hermes.py)."""
+    hub = _hub(tmp_path)
+    seam = HermesCognitiveSeam(hub=hub, client=_client("Great family neighborhood, walk to church!"))
+    thinking, text = seam.draft_and_trace("04", "env-nothink", "Draft remarks", {"client_context_id": "c1"})
+    assert thinking == ""
+    kinds = [e["kind"] for e in hub.audit.read()]
+    assert "integrity.violation" in kinds or "agentopenmind.tainted" in kinds
+    assert [q["status"] for q in seam.learning_loop.quarantined_exemplars] == ["QUARANTINED_TAINTED"]
+    assert seam.learning_loop.get_metrics()["total_assimilated"] == 0
+
+
+def test_fair_housing_phrase_screen_catches_worship_and_familial_terms():
+    loop = HermesLearningLoop()
+    assert loop.evaluate_policy_compliance("Great family neighborhood, walk to church!") >= 0.8
+    res = loop.assimilate_operational_run("04", "env-fh", thought="Write remarks.",
+                                          action="Quiet street, walk to church.")
+    assert res["status"] == "QUARANTINED_HIGH_VARIANCE"
+
+
+def test_pillars_unarmed_refuses_to_assimilate(monkeypatch):
+    import dispatcher.hermes_seam as hs
+    monkeypatch.setattr(hs, "PILLARS_ARMED", False)
+    monkeypatch.setattr(hs, "PILLARS_UNARMED_REASON", "pillar package(s) not installed: open_mind")
+    res = hs.HermesLearningLoop().assimilate_operational_run("02", "env-u", thought="t", action="a")
+    assert res["status"] == "REFUSED_PILLARS_UNARMED" and res["is_assimilated"] is False
 
 
 def test_hermes_learning_loop_variance_and_quarantine():
@@ -148,6 +218,7 @@ def test_assimilate_human_feedback_personalization():
     ex = loop.assimilated_exemplars[0]
     assert "Sunlit 3-bedroom craftsman" in ex["response"]
     assert "custom millwork" in ex["thought"]
+    assert ex["thought_origin"] == "template_from_human_notes"
 
     # 2. Broker accidentally enters prohibited wire instructions -> Quarantined
     res_bad = loop.assimilate_human_feedback(
