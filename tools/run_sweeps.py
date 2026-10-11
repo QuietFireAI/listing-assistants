@@ -6,7 +6,7 @@ and was e2e-proven, but nothing in production invoked it - "the caller
 of the caller" (SESSION_HANDOFF_6, open item 2). This is that caller.
 
 Deployment (any ONE of these):
-  cron:     0 7 * * *  cd /path/to/deployment && python tools/run_sweeps.py --state state.json
+  cron:     0 7 * * *  cd /path/to/deployment && python tools/run_sweeps.py --audit-log logs/sweep-audit.jsonl
   systemd:  a timer unit invoking the same command
   console:  the operator console's own loop calling main() directly
 
@@ -22,6 +22,12 @@ persistence layer, honestly out of scope here and SAID SO rather than
 faked with a pickle), runs the sweeps against whatever the process
 holds, prints the per-sweep results as JSON lines, and exits nonzero if
 any sweep errored - so the scheduler's own failure alerting fires.
+
+Plainly, for operators (audit OPS-8, 2026-10-11): run standalone, the swarm
+it builds is empty, so the sweeps find no deadlines, documents, vendors or
+waits to act on. Live time-based work needs the sweeps called inside the
+long-running process that holds the spokes. The earlier docstring showed a
+--state flag; that flag never existed and the command failed.
 """
 import argparse
 import datetime
