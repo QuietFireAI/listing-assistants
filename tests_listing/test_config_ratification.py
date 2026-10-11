@@ -63,3 +63,17 @@ def test_spoke_10_has_no_untupled_subject_mode():
     opinion gate and had no decision tuple; it was removed (nothing sent it)."""
     import dispatcher.listing_spokes_10 as m
     assert '== "subject"' not in open(m.__file__).read()
+
+
+def test_console_does_not_load_a_draft_vendor_roster(tmp_path):
+    """Was: tools/console.py loaded config/vendor_panel.json (PROPOSED DRAFT)
+    with no status check and swallowed read errors."""
+    import importlib.util
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("console_mod", os.path.join(root, "tools", "console.py"))
+    console = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(console)
+    built = console.build(str(tmp_path / "audit.jsonl"))
+    hub = built[0] if isinstance(built, tuple) else built
+    entries = [e for e in hub.audit.read() if e["kind"] == "config.load" and e.get("agent") == "console"]
+    assert entries and entries[0]["verdict"] == "unratified"

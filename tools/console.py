@@ -86,13 +86,15 @@ def build(audit_path):
     hub.register("human", lambda env: _p(
         {"DELIVERED_TO_HUMAN": env.intent, "ctx": env.client_context_id,
          "payload": env.payload}))
+    # Load the vendor roster only when ratified, and say what happened
+    # (audit 2026-10-11: a PROPOSED DRAFT roster was loaded silently and any
+    # read error was swallowed).
+    from dispatcher.config_status import load_ratified_config
     roster_path = os.path.join(root, "config", "vendor_panel.json")
-    roster = {}
-    if os.path.exists(roster_path):
-        try:
-            roster = json.load(open(roster_path)).get("vendors", {})
-        except Exception:
-            roster = {}
+    data, verdict = load_ratified_config(roster_path)
+    roster = (data or {}).get("vendors", {}) if verdict == "loaded" else {}
+    hub.audit.append("config.load", {"agent": "console", "file": "vendor_panel.json",
+                                     "verdict": verdict})
     spokes = {
         "01": Spoke01LeadCapture(hub), "02": Spoke02LeadQualification(hub),
         "03": Spoke03LeadNurture(hub), "04": Spoke04ListingDescription(hub),
