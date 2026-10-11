@@ -134,3 +134,57 @@ def test_sqlite_persistence_on_disk():
             assert len(history) == 1
             assert history[0]["payload"]["status"] == "ok"
             assert s2.get_client_consent("ctx-disk") == {"email": "yes"}
+
+
+# --- added after the post-fix mutation run (2026-10-11) ----------------------
+
+def test_drawer_files_filter_by_category():
+    with ApplianceStorage(":memory:") as s:
+        s.record_drawer_file("c1", "04", "artifacts", "a.md", "/x/a.md", "a" * 64, 1)
+        s.record_drawer_file("c1", "08", "documents", "d.pdf", "/x/d.pdf", "b" * 64, 2)
+        s.record_drawer_file("c2", "04", "artifacts", "z.md", "/x/z.md", "c" * 64, 3)
+        assert [f["filename"] for f in s.get_drawer_files("c1")] == ["a.md", "d.pdf"]
+        assert [f["filename"] for f in s.get_drawer_files("c1", "documents")] == ["d.pdf"]
+        assert s.get_drawer_files("c1", "financials") == []
+
+
+def test_error_messages_name_the_field_and_value():
+    with ApplianceStorage(":memory:") as s:
+        assert s.journal_mode == "memory"
+        with pytest.raises(TypeError, match="^commission_rate: pass Decimal, int or a decimal string, not float"):
+            s.record_financial_entry("c1", "x", commission_rate=0.03)
+        with pytest.raises(ValueError, match="^balance: 'abc' is not a decimal number"):
+            s.record_financial_entry("c1", "x", balance="abc")
+        with pytest.raises(ValueError, match="^amount: 'Infinity' is not finite"):
+            s.record_financial_entry("c1", "x", amount="Infinity")
+        with pytest.raises(ValueError, match="confirmed_by is required"):
+            s.confirm_consent("c1", "sms", "")
+
+
+def test_schema_version_mismatch_and_schema1_messages(tmp_path):
+    db = str(tmp_path / "v.db")
+    ApplianceStorage(db).close()
+    con = sqlite3.connect(db)
+    con.execute("UPDATE schema_meta SET value = '99' WHERE key = 'version'")
+    con.commit(); con.close()
+    with pytest.raises(SchemaMismatch, match="schema version 99, expected 2"):
+        ApplianceStorage(db)
+    old = str(tmp_path / "old.db")
+    con = sqlite3.connect(old)
+    con.execute("CREATE TABLE client_consent (client_context_id TEXT)")
+    con.commit(); con.close()
+    with pytest.raises(SchemaMismatch, match="schema-1 store"):
+        ApplianceStorage(old)
+
+
+def test_close_releases_the_connection(tmp_path):
+    s = ApplianceStorage(str(tmp_path / "c.db"))
+    s.close()
+    assert s.conn is None
+    s.close()                                         # idempotent
+
+
+def test_triggers_are_named_per_operation():
+    with ApplianceStorage(":memory:") as s:
+        names = {r[0] for r in s.conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")}
+        assert "financial_ledger_no_update" in names and "financial_ledger_no_delete" in names
