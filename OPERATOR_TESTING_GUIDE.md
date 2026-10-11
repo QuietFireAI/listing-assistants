@@ -5,7 +5,7 @@ client/listing data. Written so every step produces something visible worth
 narrating. Nothing here asks you to trust the system — each act ends in a check
 you can point a camera at.
 
-Repo: `github.com/QuietFireAI/listing-assistants` @ `92187d6` or later.
+Repo: `github.com/QuietFireAI/listing-assistants`.
 
 ---
 
@@ -14,11 +14,11 @@ Repo: `github.com/QuietFireAI/listing-assistants` @ `92187d6` or later.
 ```bash
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
-pip install --break-system-packages -e ".[pillars,crypto]"   # pulls the 6 pillars + Ed25519
-python3 -m pytest tests_listing -q                            # expect: 564 passed
+pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
+python3 -m pytest tests_listing -q  # expect: __TESTCOUNT__ passed
 ```
 
-If `564 passed` prints, the build is sound and nothing needs addressing before you
+If `__TESTCOUNT__ passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 
@@ -43,57 +43,14 @@ python3 tools/run_demo.py
 | 4 — **The Absolute Signal** | Campaign to the public HOLDS, human signs a release, THEN it publishes. | `held by the Absolute Signal: True` → `auto-published without a human? False` → `human signs a release` → `NOW campaign published: True` |
 | 5 — Pricing question | Any price question routes to a human, never answered by an agent. | `did any agent ANSWER the price question? False` |
 | 6 — The chain | Every event hash-linked; tamper is detectable. | `verify_chain(): ok=True … dead letters: 0` |
-| 7 — **Epistemic Learning Loop** | Sub-agent thoughts eavesdropped; variance computed; high variance quarantined. | `python tools/show_logs.py --tail 10` → shows `[TRAIN_UPDATE] Variance=0.0350 [ASSIMILATED]` |
-| 8 — **AWS-Style Daily Restore Point** | Daily 08:00 AM snapshot captured; one-command hot-swap rollback demonstrated. | `python tools/restore_point.py --list` → shows `baseline_v1.0.0` & `restore_point_YYYY-MM-DD` |
-| 9 — **Non-Technical Client Portal** | Interactive visual pipeline and client drawer inspection without stubs. | `python tools/dashboard.py` → renders real client stage and drawer paths |
 
-```mermaid
-flowchart TD
-    subgraph Spoke["Sub-Agent Execution (Agents 01-20)"]
-        A["Sub-Agent Triggered\n(Task Context)"] --> B["Deliberates Internally\n&lt;think&gt;...&lt;/think&gt;"]
-        B --> C["Emits Action / Output"]
-    end
+After the demo, three optional checks you can show on screen:
 
-    subgraph Hub["Dispatcher Hub & Epistemic Gate"]
-        C --> D["Hub.ingest_spoke_trace()\n(Intercepts thought + result)"]
-        D --> E{"agent-open-mind\nTaint Gate"}
-        E -- "Thoughts Missing / Suppressed" --> F["TAINTED QUARANTINE\nIntegrity Alert & Siding"]
-        E -- "Thoughts Present" --> G["Comparator.compare()\nMeasures Epistemic Drift"]
-    end
-
-    subgraph Student["Hermes Continuous Learning Loop"]
-        G --> H["Variance Calculator\n(0.5 Drift + 0.5 Broker Policy)"]
-        H --> I{"Variance > 0.35\nor Policy Breach?"}
-        I -- "Yes (Spike / Violation)" --> J["QUARANTINED_HIGH_VARIANCE\nAlert Fired; Held from Training Pool"]
-        I -- "No (Clean Assimilation)" --> K["ASSIMILATED into Training Pool\nUpdates Running Avg Variance"]
-        K --> L["Export to Local LoRA JSONL\n(Fine-Tuning Student on TODAY's Ops)"]
-    end
-
-    subgraph Logs["Dual-Destination Ledger"]
-        J --> M["logs/stream.log\n& client drawer audit/activity.log"]
-        K --> M
-    end
-```
-
-```mermaid
-flowchart LR
-    subgraph Golden["Immutable Golden Anchor"]
-        G["baseline_v1.0.0\n(Factory Zero-Drift Base)"]
-    end
-
-    subgraph Snapshots["Daily Warm Restore Points"]
-        S1["restore_point_2026-10-08\n(08:00 AM Snapshot)"]
-        S2["restore_point_2026-10-09\n(08:00 AM Snapshot)"]
-    end
-
-    subgraph Live["Active Operational Model"]
-        L["lora_v1.0.4_afternoon\n(Trained on Today's Ops)"]
-    end
-
-    G --> S1 --> S2 --> L
-    L -.->|Bad Habit Detected\nInstant Rollback| S2
-    L -.->|Severe Drift\nEmergency Fallback| G
-```
+| Check | Command | What it shows |
+|---|---|---|
+| Daily clock | `python3 tools/run_sweeps.py --audit-log logs/sweep-audit.jsonl` | each agent's `clock.tick` delivered through the hub; JSON line per check. Standalone it acts on an empty swarm, so expect no deadlines. |
+| Audit chain | `python3 tools/console.py verify` | `"chain": {"ok": true, ...}` for the console's log |
+| Client funnel page | `python3 tools/dashboard.py --html` | the drawers under `drawers/` and their funnel stage; empty until you create drawers |
 
 **The single strongest moment for the camera is Act 4.** Pause there. It shows the
 lock holding, the human's key turning, and only then the action completing. That is
@@ -131,10 +88,9 @@ for path in glob.glob("YOUR_DATA_DIR/listing_*.json"):
     # assert: no dead letters, chain verifies, price never mutated
 ```
 
-I can write this driver in full against your actual data schema — send me one
-sample `listing_*.json` and one `client_*.json` and I will produce a
-`tools/run_batch.py` that runs all 2000, reports pass/fail per listing, and dumps a
-summary (how many completed, how many held for release, zero price mutations). That
+A batch driver (`tools/run_batch.py`) is not written yet. Given one sample
+`listing_*.json` and one `client_*.json`, it can be built to run every listing,
+report pass/fail per listing, and dump a summary (how many completed, how many held for release, zero price mutations). That
 turns "watch one" into "here are 2000 runs, all chain-verified" — a far stronger
 claim for a broker.
 
@@ -148,18 +104,22 @@ finding — capture it.
 The swarm mounts on Hermes through `dispatcher/identity_mcp.py`, which exposes a
 4-tool closed surface (describe / submit / authority / audit). On Hermes:
 
-1. Point Hermes at `identity_mcp.py` as the MCP server for this identity.
-2. `describe` returns what the identity is and its legal routes.
-3. `submit` sends an envelope onto the closed track (the swarm acts).
-4. `authority` is where a human signs — including a `disclosure.authority` to
-   release a held counterparty/public message.
-5. `audit` returns the hash-chained log for verification.
+1. Point Hermes at `python -m dispatcher.identity_mcp` as the MCP server for this
+   identity (docs/MOUNTING.md).
+2. `identity.describe` returns what the identity is and its legal routes.
+3. `identity.submit` pushes a front-door intent onto the closed track.
+4. `identity.authority` takes a signed authority action. The server signs for the
+   host only when started with `--demo-signing`; without that flag, unsigned
+   authority is refused, which is the thing to show on camera.
+5. `identity.audit` verifies the hash-chained log.
 
-**What to show on camera with Hermes specifically:** submit something that tries to
-send to a counterparty (a vendor message, a public campaign). Hermes will show it
-HELD, not sent. Then use `authority` to sign the release. Then `audit` shows the
-`absolute_signal.hold` followed by `disclosure.authorized` and the delivery — the
-full two-lock story, live, through the actual agent interface rather than a script.
+**What to show on camera with Hermes:** an unsigned `identity.authority` call is
+rejected with the reason; `identity.audit` then shows the chain verified. For a
+recording that shows a signed listing authorization running P01 over MCP, start
+the server with `--demo-signing` and say on camera that the server is signing in
+demo mode. Releasing a held counterparty or public message is done with a signed
+`disclosure.authority` passed to `Hub.release_disclosure`; the MCP surface does
+not offer a release tool, so show the release with `tools/run_demo.py` (Act 4).
 
 ---
 

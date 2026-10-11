@@ -92,12 +92,37 @@ existing.
 | 2026-08-02 01:12:33 UTC | dispatcher-agents | `0bafaa9` | ABSOLUTE SIGNAL: disclosure gate (hold counterparty/public) + signed release_disclosure path (Ed25519+registry+MFA) + canonical rebuttal + FINANCIAL_CAPABILITY.md; 125 tests pass |
 | 2026-08-02 01:12:33 UTC | listing-agents | `aeb9a3d` | ABSOLUTE SIGNAL: sync gate/release, tag 3 external routes with audience, MANNERS Manner 15, rewrite 12 tests to hold->release->complete contract; 420 tests pass |
 | 2026-08-02 01:12:33 UTC | listing-agents | *(this commit)* | Demo: Act 1 + Act 4 reframed to show gate hold -> human signed release -> publish (video-ready); repo docs |
-| 2026-10-08 20:20:00 UTC | listing-agents | `audit-obj1-3` | Complete Forensic, DevOps, and Systemic Audits; 624 mutation hardening tests; 538 tests passing |
-| 2026-10-08 22:45:00 UTC | listing-agents | `feat-b1-jev` | Add JEV AI Decision Platform Adapter (MCP client + pure-Python deterministic fallback engine) |
-| 2026-10-08 23:10:00 UTC | listing-agents | `feat-b2-hermes` | Add Nous Hermes Cognitive Seam: in-stream `<think>` extraction + BrokerContextIngestor college-grad curriculum |
-| 2026-10-08 23:35:00 UTC | listing-agents | `feat-b3-sqlite` | Add Appliance SQLite Persistence Layer targeting Drobo NAS RAID partitions |
-| 2026-10-08 23:55:00 UTC | listing-agents | `feat-b4-apricorn` | Add Air-Gapped Apricorn Encrypted Flash Drive Update Verifier (Ed25519 + SHA-256) |
-| 2026-10-09 01:15:00 UTC | listing-agents | `feat-b5-drawers` | Add 'One Client, One Drawer' Architecture: isolated client vaults, anti-commingling fail-closed enforcement |
-| 2026-10-09 02:40:00 UTC | listing-agents | `feat-b6-hitl` | Add HITL Resumption Protocol: WaitState serialization, real-time alerts (SMS/webhook/push), AM briefing recap |
-| 2026-10-09 07:45:00 UTC | listing-agents | `docs-all-current` | Rebrand to ListingAssistants (ListingAssistants.com); complete User Manual & Tuning Guides; 558/558 tests passing |
 
+**Correction (2026-10-11, audit):** eight rows added on 2026-10-08/09 named commits `audit-obj1-3`, `feat-b1-jev` ... `docs-all-current` with rounded timestamps. No commits with those names exist; they were removed. The rows below are the real commits between `f45fa7d` and `33a835c`, taken from `git log` (commit date, UTC), in the order they were made.
+
+| Timestamp (UTC) | Repo | Commit | What |
+|---|---|---|---|
+| 2026-10-09 03:48:10 UTC | listing-assistants | `2958a1cebb` | Remediation & Launch Suite: JEV AI adapter, Hermes cognitive seam, Client Drawers, HITL protocol, SQLite persistence, Apricorn verifier, 557 tests passing |
+| 2026-10-09 04:02:06 UTC | listing-assistants | `57bf4a5eac` | HITL Real-Time Alerts & AM Briefing Recap: immediate decision notice dispatch and Agent 18 unresolved recap |
+| 2026-10-09 11:46:01 UTC | listing-assistants | `a4976e0612` | docs: articulate all 6 strategic additions in AGENT_USER_MANUAL and OPERATOR_TUNING_GUIDE |
+| 2026-10-09 11:50:26 UTC | listing-assistants | `0596a44eb3` | docs: refresh all repository documentation to current state with JEV AI deep parity |
+| 2026-10-09 12:09:47 UTC | listing-assistants | `03c2ef712c` | feat: standardize HITL decision outcomes, add forensic snapshot tool, and add GitHub drop docs |
+| 2026-10-09 12:29:34 UTC | listing-assistants | `756d2d32df` | feat: Add un-stubbed client dashboard, human-readable real-time/EOD logging, release docs, and changelog |
+| 2026-10-09 12:44:38 UTC | listing-assistants | `52138bc0db` | feat: Add HermesLearningLoop with variance tracking, dual training logging, and learning architecture whitepaper |
+| 2026-10-09 12:54:09 UTC | listing-assistants | `7877be06c1` | feat: Add ModelCheckpointManager, daily warm restore points (AWS-style snapshots), hot-swap rollback, and Golden Broker Exam |
+| 2026-10-09 13:03:25 UTC | listing-assistants | `31a657e8f5` | docs: Embed learning loop, clean room, restore points, and two-tier architecture diagrams across README, Agent User Manual, and Operator Tuning Guide |
+| 2026-10-09 13:28:47 UTC | listing-assistants | `6e95f099c1` | feat(archetype): ratify signer registry, implement ConcurrentHubDispatcher, add developer architectural docs |
+| 2026-10-09 13:46:15 UTC | listing-assistants | `43ae945f85` | docs: Add Windows Quickstart Guide for cold-start installations and touchscreen testing |
+| 2026-10-09 15:12:01 UTC | listing-assistants | `4e71bead86` | docs: Add Broker & Team Leader FAQ and Fiduciary Terms of Use & Supervisory Boundaries |
+| 2026-10-09 15:14:56 UTC | listing-assistants | `a77807e6d7` | docs: Expand Single-Responsibility, 4 Divisions, 227 Tuples, 24 Playbooks, and P01 Spotlight in README |
+| 2026-10-09 15:38:01 UTC | listing-assistants | `4f79dae288` | feat: Add Escalate to Support, Pocket Dispatcher remote messaging, and field command parser |
+| 2026-10-09 15:41:08 UTC | listing-assistants | `40ede47726` | feat: Add Ongoing Broker Personalization feedback loop and training assimilation |
+| 2026-10-09 15:47:05 UTC | listing-assistants | `554fb1b2dc` | feat: Add 3 real-world field scenarios and External Provider Gateway BYOK template |
+| 2026-10-09 15:59:51 UTC | listing-assistants | `d9868b9095` | docs: Update OPERATOR_TUNING_GUIDE with Provider Gateway, Field Orchestration, and 577 tests |
+| 2026-10-09 16:13:25 UTC | listing-assistants | `1ce219d5cc` | docs: Add Physical Hard Drive Architecture, SHA-256 tamper evidence, and zero-cloud differentiation |
+| 2026-10-09 17:59:08 UTC | listing-assistants | `57cb6da24a` | feat(jev): implement 0.45 confidence floor, deterministic underflow stops, and dual-notification flow |
+| 2026-10-09 19:35:00 UTC | listing-assistants | `e5d308a1fd` | docs: enforce front-and-center fiduciary notice, unwired financial execution, and 21-member roster specifications |
+| 2026-10-09 19:42:40 UTC | listing-assistants | `04df1b0781` | ci: replace legacy developer debugging notes with professional production validation specifications |
+| 2026-10-09 20:06:54 UTC | listing-assistants | `ec11db309a` | docs: add WEBSITE_PROJECT_HANDOFF for launch and web design thread |
+| 2026-10-10 01:14:30 UTC | listing-assistants | `3bf789c4d2` | feat(jev): wire live HTTPS REST client with JEV_API_KEY support and seamless offline failover |
+| 2026-10-10 01:23:22 UTC | listing-assistants | `d30375b8d3` | feat(fallback): enforce explicit fallback status tagging across JEV adapter, Agent 00 boot audit, Spoke 02, and all docs |
+| 2026-10-10 01:46:27 UTC | listing-assistants | `d97ce79dd5` | docs: establish v1.1.2 roadmap for physical hardening and BYOK validation |
+| 2026-10-10 01:49:25 UTC | listing-assistants | `2478835f5b` | docs: align test badge with verified 586-test count |
+| 2026-10-10 01:51:48 UTC | listing-assistants | `c08f1e4749` | docs: add Commercial Real Estate (CRE) archetype extension to roadmap horizon |
+| 2026-10-10 02:28:26 UTC | listing-assistants | `0a394b9147` | docs: formalize compounding IP asset equity and  platform fee in learning loop architecture |
+| 2026-10-10 14:00:45 UTC | listing-assistants | `33a835ce67` | security: complete AST audit, CVE check, and penetration smoke suite (592 passing) |

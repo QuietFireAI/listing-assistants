@@ -38,12 +38,11 @@ git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 ```
 
-### Option B: Without Git (Release ZIP Download)
-1. In your web browser, navigate to:  
-   `https://github.com/QuietFireAI/listing-assistants/releases/tag/archetype-v1.0.0`
-2. Download **`listingassistants-archetype-v1.0.0.zip`**.
-3. Right-click the zip file, select **Extract All...**, and extract to your desired folder (e.g. `C:\ListingAssistants`).
-4. In PowerShell, `cd` into the extracted folder.
+### Option B: Without Git (ZIP download)
+1. Open `https://github.com/QuietFireAI/listing-assistants`, click **Code**, then **Download ZIP**
+   (or download "Source code (zip)" from a release page).
+2. Right-click the zip file, select **Extract All...**, and extract it (e.g. to `C:\ListingAssistants`).
+3. In PowerShell, `cd` into the extracted folder.
 
 ### Step 3: Create Virtual Environment & Install Dependencies
 ```powershell
@@ -60,108 +59,88 @@ pip install -r requirements.txt
 
 ---
 
-## 3. The 3-Step Verification Matrix
+## 3. Verify the install
 
-Once dependencies are installed, run these three commands to verify 100% operational integrity on your machine:
-
-### Step 1: Health & Compliance Verification (12 Seconds)
-Run the automated test suite covering all 21 agents, 24 playbooks, and security firewalls:
+### Step 1: Run the test suite
 ```powershell
 python -m pytest tests_listing/
 ```
-*Expected Result:*
-```text
-============================ 570 passed in 11.20s =============================
-```
-*(Guaranteed: 570 passed, 0 failures, 0 warnings).*
+Expected: `__TESTCOUNT__ passed`. The suite runs every agent's rules and all 24
+playbooks end to end against the real hub.
 
----
-
-### Step 2: Six-Act End-to-End Swarm Simulation
-Run the full lifecycle demo simulating a live transaction from lead intake to closing:
+### Step 2: Run the six-act demo
 ```powershell
 python tools/run_demo.py
 ```
-*What this exercises:*
-* Act 1: Lead capture & rubric qualification (Agent 01 & 02 via JEV AI).
-* Act 2: Listing agreement onboarding & compliant MLS remarks (Agents 04, 05, 17).
-* Act 3: Showing scheduling with conflict arbitration (Agent 06).
-* Act 4: Escrow contingency tracking (Agent 07 & 08).
-* Act 5: Wire fraud attempt detection (immediate conversation freeze & P14 alert).
-* Act 6: Commission disbursement audit (Agent 15 reconciliation to $0.00).
+One listing, on the real hub, with real signatures and the real audit log:
+* Act 1: signed listing authorization; photography ordered from the vetted roster. The price is yours.
+* Act 2: photos delivered; Agent 04 drafts from property facts and Agent 17 reviews every asset.
+* Act 3: a steering phrase is flagged and never released; marketing stops on flagged copy.
+* Act 4: clean assets approved; MLS active is live-verified, Clear Cooperation satisfied, campaign published.
+* Act 5: a pricing question goes to the legal-line queue; no agent answers it.
+* Act 6: the audit chain is verified.
 
----
-
-### Step 3: Launch Touchscreen Funnel Dashboard
-Launch the non-technical web portal tailored for brokers and touchscreen workstations:
+### Step 3: Open the client funnel page
 ```powershell
 python tools/dashboard.py --html
-```
-*Then open your browser to the generated dashboard file:*
-```powershell
 Start-Process dashboard.html
 ```
-*On your touchscreen display:*
-* Inspect real client drawers (`drawers/<client_id>/`).
-* View the 6-stage sales funnel (`INTAKE` -> `QUALIFICATION` -> `PRE-MARKET` -> `ACTIVE MLS` -> `IN ESCROW` -> `CLOSED`).
-* Monitor pending broker approval gates in real time.
+The page lists each client drawer under `drawers\` with its stage in the funnel
+(`INTAKE` -> `QUALIFICATION` -> `PRE-MARKET` -> `ACTIVE MLS` -> `IN ESCROW` ->
+`CLOSED`) and any pending human decisions recorded in the drawer.
 
 ---
 
-## 4. Ingesting Your Custom / Hypothetical Test Data
+## 4. Add your own test listing
 
-ListingAssistants strictly isolates all property and client records inside the **Client Drawer Vault** (`drawers/<client_id>/`).
+Client files live in a per-client drawer under `drawers\<client_id>\`. Create one
+and file a document in it:
 
-### How to Create a New Test Listing:
-1. **Choose a Client/Property Identifier:** (e.g. `listing_oak_terrace_101`).
-2. **Provision the Drawer:**
-   ```powershell
-   python -c "from dispatcher.client_drawer import ClientDrawerManager; mgr = ClientDrawerManager(); mgr.provision_drawer('listing_oak_terrace_101')"
-   ```
-   This creates an isolated folder hierarchy:
-   ```text
-   drawers/listing_oak_terrace_101/
-   ├── raw/         <-- Drop your incoming docs here (tax records, seller disclosures, photos)
-   ├── working/     <-- Where Agent 04 drafts remarks and Agent 05 compiles MLS fields
-   ├── delivered/   <-- Executed forms, signed agreements, final counteroffers
-   ├── audit/       <-- activity.log (non-repudiable transaction log)
-   └── metadata/    <-- client_state.json and funnel status
-   ```
+```powershell
+python -c "from dispatcher.client_drawer import ClientDrawerManager; d = ClientDrawerManager('drawers').provision_drawer('listing_oak_terrace_101', 'Oak Terrace Seller', '101 Oak Terrace'); d.store_file('00', 'documents', 'property_disclosure.txt', open(r'C:\path\to\property_disclosure.txt','rb').read()); print(d.verify_hashes())"
+```
 
-3. **Drop Files in `raw/`:**
-   Copy your hypothetical real estate data (PDFs, text files, JSON notes) directly into `drawers/listing_oak_terrace_101/raw/`.
+The drawer gets these folders:
+```text
+drawers\listing_oak_terrace_101\
+├── artifacts\      agent drafts
+├── documents\      documents you or the agents file
+├── interactions\
+├── financials\
+├── timeline\       pause and resolution records for human decisions
+├── audit\
+└── drawer_manifest.json   identity, file index, SHA-256 per file
+```
 
-4. **Fingerprint & Verify File Hashes:**
-   ```powershell
-   python -c "from dispatcher.client_drawer import ClientDrawerManager; mgr = ClientDrawerManager(); mgr.index_file('listing_oak_terrace_101', 'raw/property_disclosure.txt')"
-   ```
-   Every file is SHA-256 hashed and registered with zero risk of cross-client commingling.
+Check a drawer's files against their recorded hashes:
+```powershell
+python tools/inspect_client_drawer.py --root drawers listing_oak_terrace_101
+```
 
----
-
-## 5. Connecting a Local LLM via Ollama (Optional)
-
-ListingAssistants runs 100% deterministically out-of-the-box using built-in rule engines. If you want to connect a local LLM (like **Nous Hermes 3** or **Qwen 2.5**) for live text generation:
-
-1. Install **Ollama** for Windows from [ollama.com](https://ollama.com/).
-2. Pull your desired model:
-   ```powershell
-   # High-speed conversational agent model (Recommended for 16GB-32GB RAM machines):
-   ollama run hermes3:8b
-   # or
-   ollama run qwen2.5:14b
-   ```
-3. Ollama runs as a local background service at `http://localhost:11434`.
-4. The system's cognitive seam (`dispatcher/hermes_seam.py`) connects directly to Ollama to capture and inspect internal `<think>` tokens.
+Files are stored unencrypted; use an encrypted volume (e.g. BitLocker) for the
+drawers folder if you need encryption at rest. The agents do not read or write
+drawers yet; see the README's "Optional modules".
 
 ---
 
-## 6. Daily Operator Checklist
+## 5. A local model (optional)
 
-| Frequency | Action | Command |
+ListingAssistants runs deterministically with no model: every agent is a rule
+engine. `dispatcher/hermes_seam.py` is an optional seam for a locally served
+Hermes-family model. It takes any OpenAI-style client, so a model served by
+Ollama can be used through Ollama's OpenAI-compatible endpoint
+(`http://localhost:11434/v1`) with the `openai` package (`pip install openai`,
+not in requirements.txt). No agent calls the seam; using it means calling it
+from your own code (see docs/OPERATOR_TUNING_GUIDE.md, section 10).
+
+---
+
+## 6. Daily operator checklist
+
+| When | Action | Command |
 | :--- | :--- | :--- |
-| **Morning (08:00 AM)** | Generate morning intelligence briefing | `python tools/run_sweeps.py --morning` |
-| **Start-of-Day** | Capture daily warm restore point | `python tools/restore_point.py --snapshot` |
-| **Mid-Day** | Inspect funnel & active wait states | `python tools/dashboard.py` |
-| **Real-Time** | Tail live plain-English activity stream | `python tools/show_logs.py --tail` |
-| **Rollback (if needed)** | Instant fallback to golden factory baseline | `python tools/restore_point.py --restore baseline` |
+| Morning | Run the daily clock (sweeps + morning briefing), inside the process that holds the swarm; standalone shows the wiring only | `python tools/run_sweeps.py --audit-log logs\sweep-audit.jsonl` |
+| Any time | Client funnel page | `python tools/dashboard.py --html` |
+| Any time | Recent plain-language events | `python tools/show_logs.py --tail 50` |
+| End of day | End-of-day report | `python tools/show_logs.py --eod` |
+| Any time | Verify the audit chain | `python tools/console.py verify` |

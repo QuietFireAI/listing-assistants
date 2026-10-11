@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] - audit fixes (branch `audit-fixes-2026-10-11`)
+
+### Fixed
+- Client drawers: path traversal, cross-client filing, identity overwrite; real traversal tests.
+- HITL: decisions must be signed `hitl.decision.authority` envelopes bound to the client; the CLI no longer reports fake success.
+- Update-pack verifier: takes a public key; unlisted files, unsafe paths and downgrades refused; no environment bypass; `tools/sign_manifest.py` added.
+- Signer config restored to an unratified template; draft configs no longer loaded (07, 08, console).
+- JEV adapter: one shared lead rubric with Agent 02; missing confidence holds; external calls need `allow_external=True`.
+- Hermes seam: no fabricated thoughts or drafts; missing `<think>` trips the taint gate; no pillar stand-ins.
+- SQLite store: exact decimal money, append-only ledgers, consent history, re-opt-in needs human confirmation, WAL.
+- Checkpoints: no exam without a model; fabricated 100% scores removed.
+- EOD report: integrity lines computed or "not computed".
+- Agent 11 reply routing; lead.reply handlers for 04 and 12.
+- Handoff rule enforced on every spoke send (`handoff.failed`).
+- Daily clock and console reports go through the hub (`clock.tick` route).
+- MCP server no longer signs for the host outside `--demo-signing`; medical-billing code removed.
+- `tools/inspect_client_drawer.py` reports real hash results instead of a fixed "VERIFIED" line.
+- Documentation rewritten to match the code; deleted disclosures restored; `docs/WHY_JEV_OVER_LLM.md`, `docs/LEARNING_LOOP_AND_DRIFT_ARCHITECTURE.md`, `docs/WEBSITE_PROJECT_HANDOFF.md` and `docs/SECURITY_AUDIT_REPORT.md` removed from the repository.
+
+### Corrections to the 1.0.0 entry below
+Several 1.0.0 items did not match the code at the time: "MCP tool contract (`tools/call_jev_decision`)" (no such tool), "Dual-key" verifier (single key, and the CLI could not take one), "Immediate real-time alert dispatch via SMS, webhook, or push" for HITL (an optional callback only), "Standardized all 21 agent skills" (no agent SKILL.md changed), the WAL claim (no PRAGMA), and "561 / 561" (the suite at the `archetype-v1.0.0` tag runs 577 tests, all passing; checked 2026-10-11). The entry is kept as written for history.
+
+---
+
 ## [1.0.0] - 2026-10-09 - Archetype Release (`archetype-v1.0.0`)
 
 ### Added

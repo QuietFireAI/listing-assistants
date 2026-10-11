@@ -55,8 +55,8 @@ in this table it's real, wired code.
 | MANNERS `N=10` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | Same: deliberate, revisit with real data. |
 | `config/authority_signers.json` | both repos | **UNRATIFIED — fails closed** | Genuinely empty template; needs your actual IdP logins. Loader refuses to arm while the `_status` UNRATIFIED line stands. No signing authority exists until you edit, date, and sign off. |
 | `config/vendor_panel.json` | both repos | **UNRATIFIED — fails closed** | Genuinely empty template; needs your actual vendor relationships. Same fail-closed rule. |
-| External adapters (`vendor.schedule`, `client.message.send`, `campaign.publish`) | seam contracts in INTEGRATIONS.md | **SEAM-COMPLETE, NOT WIRED** | Tracked in the adapter table below until connected to real providers. |
-| `approved_by: <owner name/date>` fields | `config/message_templates.json` (both repos) | **UNRATIFIED — awaiting owner sign-off** | Drafted template bodies are proposals; fill in name/date per template to ratify the wording. |
+| External adapters (`vendor.schedule`, `client.message.send`, `campaign.publish`) | seam contracts in INTEGRATIONS.md (listing-agents-blueprint) | **SEAM-COMPLETE, NOT WIRED** | Tracked in the adapter table below until connected to real providers. |
+| `approved_by` fields | `config/message_templates.json` (both repos) | **RATIFIED 2026-07-18** (owner blanket sign-off in `_status`) | No code reads this file yet; Agent 11 sends template ids and variables, and wording is the deployment's adapter's job. |
 
 Ratification path for the config files: review content → edit → change
 `_status` to `RATIFIED` with date + sign-off → load. Fail-closed until
@@ -256,7 +256,7 @@ parameter nobody outside the source code knows exists.
 | Route `audience` field | `identity/routes.json` (external routes) | **RATIFIED** | `principal` passes the gate; `counterparty`/`public` HOLD for human release. Missing/unknown → fail-closed to `counterparty`. |
 | `audience_verified` flag | `identity/routes.json` | **PER-ROUTE** | `false` = provisional classification, surfaced on the hold. All 3 listing external routes are verified `true`. |
 | Disclosure release intent | `disclosure.authority` | **CONSTANT** | Signed authority intent that clears exactly one held message. Reuses the execution-authority stack (Ed25519 sig + signer registry + MFA). No route entry needed (verified directly, re-sends the original). |
-| Canonical signal text | `dispatcher/absolute_signal.py` `SIGNAL_TEXT` | **SINGLE SOURCE** | MANNERS.md Manner 15 and docs/FINANCIAL_CAPABILITY.md defer to this. sha256-checked by tests + propagation_check.py. Never hand-edit downstream copies. |
+| Canonical signal text | `dispatcher/absolute_signal.py` `SIGNAL_TEXT` | **SINGLE SOURCE** | MANNERS.md Manner 15 and docs/FINANCIAL_CAPABILITY.md defer to this. sha256-checked by tests here and by propagation_check.py in the blueprint. Never hand-edit downstream copies. |
 
 ---
 

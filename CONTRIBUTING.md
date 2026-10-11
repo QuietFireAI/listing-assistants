@@ -8,11 +8,12 @@ Because ListingAssistants operates in a highly regulated domain (residential rea
 
 ## 1. Ground Rules & Invariants
 
-1. **The Invariable Railroad Chassis:** Agents never invent routes. The message track is strictly defined by `identity/routes.json`. Adding a route requires formal ratification, updating `generate_skills.py`, and updating the route test matrix.
+1. **The Invariable Railroad Chassis:** Agents never invent routes. The message track is strictly defined by `identity/routes.json`. Adding a route requires formal ratification in listing-agents-blueprint (where `generate_skills.py` and the ratified routes live), the same change here, and tests that drive the new lane through the hub.
 2. **Deterministic Edge Handling:** Do not introduce unconstrained stochastic improvisation into decision paths. Sensitive decisions must be governed by deterministic tuples (see `DECISIONS.md` per agent).
-3. **No Unsigned Fiduciary Actions:** Pricing, listing status changes, and funds/wire-related items require cryptographic verification.
+3. **No unsigned authority actions:** listing changes, configuration updates, disclosure releases and human decisions require a verified signature.
 4. **Zero Tolerance for Fair Housing Violations:** Any marketing generation must pass statutory compliance screening before publication.
 5. **No Regressions:** Every PR must maintain a 100% clean test suite pass (`pytest tests_listing/`).
+6. **All agent traffic through the dispatcher:** every message to or from an agent travels through the hub (or the HITL protocol). No code calls an agent's methods directly in production paths.
 
 ---
 

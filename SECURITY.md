@@ -5,10 +5,13 @@
 **ListingAssistants** is a governed multi-agent operations platform for licensed real estate professionals. The system is designed with fail-closed security guarantees:
 
 * **Closed Routing Track:** Messages only travel along explicitly approved routes defined in `identity/routes.json`. Lateral or unauthorized communication between agents is rejected at the dispatcher hub.
-* **Cryptographic Signatures:** High-stakes actions (fiduciary pricing changes, listing status updates, and wire authorizations) require valid Ed25519 digital signatures from registered authority keys.
-* **Tamper-Evident Audit Logging:** All state transitions and envelope passes are recorded in an append-only, SHA-256 hash-chained audit log.
-* **Client Isolation ("One Client, One Drawer"):** Every client context has a physically and logically isolated directory vault (`drawers/<client_id>/`). Cross-context access raises `ComminglingBreachError` fail-closed.
-* **Zero-Tolerance Wire Fraud Shield:** The system will never transmit bank routing numbers, wire instructions, or account details over email, chat, or SMS.
+* **Cryptographic signatures:** listing changes, configuration updates, disclosure releases and human decisions on paused work require a signature the hub verifies (Ed25519 for production). Unsigned or tampered authority messages are rejected and logged as integrity violations. The signer registry, which binds a signature to a named human login, arms once `config/authority_signers.json` is ratified.
+* **Tamper-evident audit logging:** every message is recorded in an append-only, SHA-256 hash-chained audit log before delivery; `verify_chain()` names the first altered line.
+* **Outbound holds:** messages to a counterparty or the public hold for the broker's signed release.
+* **No money movement:** the build contains no payment, transfer or wire capability. Client messages that mention wire instructions or routing numbers go to the broker's legal-line queue.
+* **Client drawers (optional module):** `dispatcher/client_drawer.py` refuses unsafe paths and cross-client filing (`ComminglingBreachError`). No agent uses drawers yet, and files are stored unencrypted.
+
+Known limits are listed in the README ("Current limits") and in `docs/FINANCIAL_CAPABILITY.md` ("Where the real risk is").
 
 ---
 
@@ -27,7 +30,7 @@ We treat all security and compliance concerns with utmost urgency.
 
 If you discover a potential vulnerability, prompt-injection bypass, routing escape, or data leak:
 1. **Do NOT** open a public GitHub issue.
-2. Email your findings directly to: **security@quietfireai.com** (or platform owner).
+2. Email your findings to: **security@quietfireai.com**.
 3. Include:
    - A description of the vulnerability and attack vector.
    - Exact steps or script to reproduce the behavior.

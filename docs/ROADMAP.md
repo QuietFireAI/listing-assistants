@@ -1,67 +1,60 @@
-# ListingAssistants Engineering Roadmap & Backlog
+# ListingAssistants Roadmap
 
-**Current Production Version:** `v1.1.0`  
-**Target Milestone:** `v1.1.2` (Production Hardening & Live Boundary Validation)
+Released tags: `archetype-v1.0.0`, `v1.1.0`. The audit-fix branch of
+2026-10-11 is not tagged; tagging the release commit is the owner's step.
 
----
+## 1. Wiring the optional modules
 
-## 1. Version Overview
+Each module below is tested on its own and called by no agent yet. Wiring
+one is a ratified change: routes in `identity/routes.json`, tuples in the
+agent's DECISIONS.md (listing-agents-blueprint), then code and tests.
 
-ListingAssistants treats software development like a disciplined practice—deliberate, learned, and verified. Following the successful ratification of `v1.1.0` (which established live JEV co-processor REST integration, Agent 00 boot audit declarations, and explicit `is_fallback: True` telemetry across all spokes), this roadmap outlines the exact operational steps required for subsequent minor releases.
+- Client drawers: have agents file their artifacts into the client's drawer.
+- HITL protocol: have agents pause through `HITLManager` and register
+  resumption handlers.
+- SQLite store: have Agents 14 and 15 write interactions, consent and ledger
+  entries to it.
+- JEV adapter and Hermes seam: decide whether any agent uses them, and with
+  which tuples.
 
----
+## 2. State that survives a restart
 
-## 2. Release Target: v1.1.2 Work Items
+Agent state, the hub's duplicate check and outbound holds live in memory.
+Rebuild them from the audit log at start-up, or persist them, so a restart
+keeps holds and does not re-deliver a retried envelope.
 
-The `v1.1.2` cycle addresses physical production boundaries, credentials, and live execution.
+## 3. Routes with no trigger
 
-### Item 1: Physical Production Hardening
-* **Drobo NAS Storage Partitioning & Permissions:**
-  * Validate filesystem mounting procedures on local NAS arrays (8TB RAID storage).
-  * Establish automated permission checks ensuring each client drawer (`vaults/{client_id}/`) maintains strict OS-level file isolation (`0700` equivalents on POSIX or explicit NTFS ACLs on Windows).
-  * Implement automated disk space warning thresholds (Agent 00 alert when available RAID volume drops below 15%).
-* **Apricorn Encrypted Hardware Drive Handshake:**
-  * Define explicit hardware serial and hash-chain verification protocols when Apricorn encrypted drives are attached.
-  * Require physical security pin / challenge-response attestation before granting local backup write access.
-  * Standardize physical custody logs recorded directly to the immutable SHA-256 ledger (`audit_ledger.py`).
+- 20 -behavioral.signal-> 03 has no sender.
+- Agent 03 scheduled nurture touches, Agent 13 neighborhood-data requests,
+  Agent 19 market-context requests and Agent 20 social draft replies have
+  code but nothing that triggers them. Each needs an inbound intent on the
+  closed track.
+- A client reply with no named owner defaults to Agent 13 (open owner
+  decision).
 
-### Item 2: Third-Party BYOK (Bring-Your-Own-Key) Credential Validation
-* **Cellular A2P 10DLC & Twilio Production Activation:**
-  * Transition from sandbox/fallback status (`is_fallback: True`, `fallback_reason: TWILIO_NOT_CONFIGURED`) to live carrier delivery once Twilio business EIN and Campaign Registry approvals complete.
-  * Verify SMS and WhatsApp outbound delivery confirmation webhooks.
-* **RESO MLS Web API Live Testing:**
-  * Implement authentication handshake against live RESO Web API compliant MLS servers (Bridge Interactive, Spark, or local MLS RETS/Web API endpoints).
-  * Verify listing syndication status pulls and strict read-only boundary adherence prior to broker sign-off.
-* **DocuSign / Digital Signature Escrow Gate:**
-  * Validate OAuth2 token refresh workflows for DocuSign / LoneWolf digital signing rooms.
-  * Ensure document envelope status updates (`sent`, `delivered`, `signed`) trigger corresponding playbook state transitions without improvising document content.
+## 4. Signed actions over MCP
 
-### Item 3: Operational Ergonomics & Observability
-* **Automated Fallback Telemetry Dashboard:**
-  * Surface a high-visibility status pill on the operator dashboard (`tools/dashboard.py`) showing real-time coprocessor health:
-    * `ARMED_LIVE` (Green)
-    * `FALLBACK_LOCAL_RULES` (Amber - with explicit reason)
-    * `UNARMED` (Red)
-* **Periodic Hash Chain Health Checks:**
-  * Implement automated daily verification of the SHA-256 ledger (`audit_ledger.verify_chain()`) to guarantee zero bit rot or tampering across long-running storage volumes.
+The MCP server signs for a host only in `--demo-signing` mode. A production
+lane where the host forwards an envelope signed with the broker's own key is
+not built.
 
----
+## 5. Providers and hardware
 
-## 3. Future Horizon: Commercial Real Estate (CRE) Archetype (`v2.0.0`)
+- Connect the external adapters (MLS writes, client messaging, ad publishing)
+  to your providers; until then they queue visibly.
+- Twilio credentials for the SMS notifier.
+- Storage: keep drawers and the SQLite file on a local disk, on an encrypted
+  volume if encryption at rest is required.
+- Offline updates: the signing and verification tools exist
+  (`tools/sign_manifest.py`, `tools/verify_update_pack.py`); the transport
+  (for example an encrypted USB drive) is an operating procedure.
 
-Commercial real estate represents vastly higher deal values, but fundamentally different statutory, financial, and diligence frameworks:
+## 6. Commercial real estate (future archetype)
 
-* **Why CRE is Built on the Same Core Chassis:**
-  * The central hub (`hub.py`), the closed-track message routing (`identity/routes.json`), the Ed25519 cryptographic authority gates, and the tamper-evident SHA-256 audit ledger are 100% reusable and sector-agnostic.
-* **What Changes in the Commercial Archetype:**
-  * **From Lead/MLS to Offering Memorandums (OM):** Commercial transactions do not rely on standard consumer MLS boards. They center on Confidentiality Agreements (NDAs), Offering Memorandums, and loop platforms (Crexi, CoStar, LoopNet).
-  * **Financial Modeling Engine (Spoke 18 Expansion):** Commercial diligence requires Net Operating Income (NOI), Cap Rate calculations, Debt Service Coverage Ratios (DSCR), lease abstraction (Triple Net vs Gross), and rent roll auditing rather than simple CMA comp adjustments.
-  * **Statutory Shift:** Residential is heavily governed by Fair Housing, RESPA, and NAR residential rules. Commercial is governed by securities laws, accredited investor thresholds, environmental diligence (Phase I/II ESA), and zoning/entitlement gates.
-* **Roadmap Status:** Added to backlog as **Archetype Extension: ListingAssistants Commercial**.
-
----
-
-## 4. Guiding Invariant for v1.1.2 and Beyond
-
-> **The Zero-Improvisation Standard:**  
-> If an external provider, network link, or hardware volume is unconfigured, unreachable, or untrusted, the system **never fakes success**. It transitions explicitly to verified local fallbacks, tags all outputs with `is_fallback: True`, logs the exact reason to the tamper-evident ledger, and halts at the licensed human broker's gate.
+The hub, closed-track routing, signed authority and hash-chained audit log
+are sector-agnostic. A commercial identity would need its own agents, routes
+and tuples for offering memorandums, confidentiality agreements, NOI / cap
+rate / DSCR analysis, lease abstraction, and the commercial statutory frame
+(securities rules, accredited-investor thresholds, environmental diligence,
+zoning).
