@@ -10,7 +10,8 @@ lane is delivered with no handoff.failed.
 Lanes with no emitter in the code are listed in NO_EMITTER and checked to
 stay that way, so adding one later surfaces here:
   20 -behavioral.signal-> 03   declared route, Agent 20 never sends it
-  11 -lead.reply-> 04 / 12     no lead.reply handler in 04/12; 11 holds instead (audit OPS-1)
+(11 -lead.reply-> 04 / 12 is covered in test_agent11.py since 04 and 12 got
+handlers, owner decision 2026-10-11.)
 """
 import os
 import re
@@ -188,7 +189,7 @@ def test_queue_lanes_via_send(swarm):
     assert delivered(hub, "11", "integrity.violation", "queue")
 
 
-NO_EMITTER = [("20", "behavioral.signal", "03"), ("11", "lead.reply", "04"), ("11", "lead.reply", "12")]
+NO_EMITTER = [("20", "behavioral.signal", "03")]
 
 
 @pytest.mark.parametrize("frm,intent,to", NO_EMITTER)

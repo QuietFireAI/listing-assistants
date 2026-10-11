@@ -211,6 +211,24 @@ def test_expired_financing_letter_treated_as_no_verification(tmp_path):
     assert any("expired" in n for n in logs[-1]["payload"]["notes"])
 
 
+def test_expired_letter_also_voids_stated_preapproved(tmp_path):
+    """Owner decision 2026-10-11: an expired letter is the only financing
+    evidence, so a stated 'preapproved' earns no financing points either.
+    Before: letter dropped but the stated value scored."""
+    hub, signer = make_hub(str(tmp_path))
+    Spoke14CRMPipeline(hub)
+    spoke = Spoke02LeadQualification(hub)
+    hub.on_turn_start()
+    hub.send(sign_config_update(signer, RUBRIC, "v1"))
+    payload = {"budget": 600_000, "timeline_days": 10, "financing_progress": "preapproved",
+               "preapproval_doc": {"amount": 600_000, "expired": True}}
+    tier, score, notes = spoke._score(payload)
+    assert score == 80 and tier == "HOT"          # 40 + 40 + 0, not 100
+    assert any("not scored" in n for n in notes)
+    payload["preapproval_doc"]["expired"] = False
+    assert spoke._score(payload)[1] == 100
+
+
 def test_budget_conflict_with_preapproval_doc_doc_wins(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     Spoke14CRMPipeline(hub)

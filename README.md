@@ -175,9 +175,7 @@ step for a deployment.
   ships as an unratified template and refuses to arm.
 - **Pin the pillars for production.** They install from branch tips; pin each
   to a commit hash.
-- **Three declared routes have no sender in code:** 20 → 03
-  `behavioral.signal`, and 11 → 04/12 `lead.reply` (04 and 12 have no reply
-  handler; Agent 11 sends those replies to the human instead).
+- **One declared route has no sender in code:** 20 → 03 `behavioral.signal`.
 
 ## Install and verify
 

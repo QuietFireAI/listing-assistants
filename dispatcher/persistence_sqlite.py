@@ -19,9 +19,14 @@ Guarantees (fixed 2026-10-11, audit S-2, S-3, RL-1):
     and DELETE with a trigger. Corrections are new rows. Before: rows were
     editable in place.
   - Consent keeps its history. Each update_client_consent() call appends one
-    event per channel; get_client_consent() returns the latest statement per
-    channel and get_consent_history() returns every event. Before: one row
-    per client, overwritten.
+    event per channel; get_client_consent() returns the latest effective
+    statement per channel and get_consent_history() returns every event.
+    Before: one row per client, overwritten.
+  - An opt-in on a channel whose effective value is an opt-out does not take
+    effect on its own (owner decision 2026-10-11, matching Agent 14's
+    most-restrictive rule). It is recorded as pending_confirmation and the
+    channel stays opted out until confirm_consent() records a human's
+    confirmation.
   - A drawer's identity is never silently replaced. Registering an existing
     client_id with a different name/address/role raises
     DrawerIdentityConflict unless update_identity=True, which records the
@@ -131,6 +136,7 @@ class ApplianceStorage:
                 channel TEXT NOT NULL,
                 value TEXT NOT NULL,
                 source TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'effective',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_consent_ctx ON client_consent_events(client_context_id)")
@@ -205,23 +211,62 @@ class ApplianceStorage:
         self.conn.commit()
         return cur.lastrowid
 
+    _OPT_OUT = frozenset({"no", "opted_out", "opt_out", "revoked"})
+    _OPT_IN = frozenset({"yes", "opted_in", "opt_in"})
+
     def update_client_consent(self, client_context_id: str, consent_channels: dict, source: str = ""):
-        """Appends one consent event per channel. Nothing is overwritten."""
+        """Appends one consent event per channel. Nothing is overwritten. An
+        opt-in on a channel that is currently opted out is recorded as
+        pending_confirmation and does not take effect until confirm_consent()."""
         if not isinstance(consent_channels, dict) or not consent_channels:
             raise ValueError("consent_channels must be a non-empty {channel: value} dict")
+        current = self.get_client_consent(client_context_id)
         with self.conn:
             for channel, value in consent_channels.items():
+                channel, value = str(channel), str(value)
+                status = ("pending_confirmation"
+                          if value.lower() in self._OPT_IN
+                          and str(current.get(channel, "")).lower() in self._OPT_OUT
+                          else "effective")
                 self.conn.execute(
-                    "INSERT INTO client_consent_events (client_context_id, channel, value, source) "
-                    "VALUES (?, ?, ?, ?)", (client_context_id, str(channel), str(value), source))
+                    "INSERT INTO client_consent_events (client_context_id, channel, value, source, status) "
+                    "VALUES (?, ?, ?, ?, ?)", (client_context_id, channel, value, source, status))
+
+    def confirm_consent(self, client_context_id: str, channel: str, confirmed_by: str) -> bool:
+        """A human confirms the most recent pending opt-in on a channel. Appends
+        an effective event naming who confirmed. Returns False if nothing is
+        pending."""
+        if not confirmed_by:
+            raise ValueError("confirmed_by is required")
+        row = self.conn.execute(
+            "SELECT value, status FROM client_consent_events WHERE client_context_id = ? AND channel = ? "
+            "ORDER BY id DESC LIMIT 1", (client_context_id, channel)).fetchone()
+        if row is None or row["status"] != "pending_confirmation":
+            return False
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO client_consent_events (client_context_id, channel, value, source, status) "
+                "VALUES (?, ?, ?, ?, 'effective')",
+                (client_context_id, channel, row["value"], f"confirmed by {confirmed_by}"))
+        return True
+
+    def get_pending_consent(self, client_context_id: str) -> dict:
+        """Channels whose latest event is an unconfirmed opt-in."""
+        out: dict = {}
+        for r in self.conn.execute(
+                "SELECT channel, value, status FROM client_consent_events WHERE client_context_id = ? "
+                "ORDER BY id ASC", (client_context_id,)).fetchall():
+            if r["status"] == "pending_confirmation":
+                out[r["channel"]] = r["value"]
+            else:
+                out.pop(r["channel"], None)
+        return out
 
     def get_client_consent(self, client_context_id: str) -> dict:
-        """Latest stated value per channel. Owner note: a later opt-in after an
-        opt-out is returned as the current value; the opt-out stays in
-        get_consent_history()."""
+        """Latest effective value per channel. Pending opt-ins are excluded."""
         rows = self.conn.execute(
-            "SELECT channel, value FROM client_consent_events WHERE client_context_id = ? ORDER BY id ASC",
-            (client_context_id,)).fetchall()
+            "SELECT channel, value FROM client_consent_events WHERE client_context_id = ? "
+            "AND status = 'effective' ORDER BY id ASC", (client_context_id,)).fetchall()
         current: dict = {}
         for r in rows:
             current[r["channel"]] = r["value"]
@@ -229,7 +274,7 @@ class ApplianceStorage:
 
     def get_consent_history(self, client_context_id: str) -> list[dict]:
         rows = self.conn.execute(
-            "SELECT channel, value, source, created_at FROM client_consent_events "
+            "SELECT channel, value, source, status, created_at FROM client_consent_events "
             "WHERE client_context_id = ? ORDER BY id ASC", (client_context_id,)).fetchall()
         return [dict(r) for r in rows]
 

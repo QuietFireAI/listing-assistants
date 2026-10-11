@@ -388,10 +388,9 @@ def test_advice_escalation_tracked_and_resolved_via_config_update(tmp_path):
 import pytest
 
 
-@pytest.mark.parametrize("owner", ["04", "12", "07", "zz"])
+@pytest.mark.parametrize("owner", ["07", "zz"])
 def test_lead_reply_to_unhandled_owner_goes_to_a_human(tmp_path, owner):
-    """Was: 04/12 -> persisted and acked, handler ignores it (silent drop);
-    07/unknown -> hub reject, no queue, client message lost."""
+    """Was: 07/unknown -> hub reject, no queue, client message lost."""
     sys.path.insert(0, os.path.dirname(__file__))
     from test_playbooks_e2e_all import full_swarm
     hub, _signer, _spokes, _ext = full_swarm(str(tmp_path))
@@ -431,3 +430,24 @@ def test_lead_reply_not_acked_is_held_with_the_clients_words(tmp_path):
     assert len(held) == 1 and "handoff.failed: lead.reply -> 13: reject simulated" in held[0]["payload"]["reason"]
     assert held[0]["payload"]["failed_envelope"]["payload"]["message"] == "call me"
     assert [e for e in hub.audit.read() if e["kind"] == "handoff.failed"]
+
+
+@pytest.mark.parametrize("owner", ["04", "12"])
+def test_lead_reply_to_04_and_12_is_delivered_logged_and_held(tmp_path, owner):
+    """Was: persisted and acked, handler ignored it (silent drop). Owner
+    decision 2026-10-11: 04 and 12 get handlers; with no tuple for acting on
+    client feedback they log it to 14 and hold it for the human."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from test_playbooks_e2e_all import full_swarm
+    hub, _signer, _spokes, _ext = full_swarm(str(tmp_path))
+    hub.send(client_reply("ctx-" + owner, {"message": "Please drop the word cozy", "owning_agent": owner}))
+    audit = hub.audit.read()
+    lr = [e for e in audit if e["kind"] == "envelope.persisted" and e.get("intent") == "lead.reply"]
+    acks = {e["envelope_id"] for e in audit if e["kind"] == "ack"}
+    assert len(lr) == 1 and lr[0]["to_agent"] == owner and lr[0]["envelope_id"] in acks
+    logs = [e for e in audit if e["kind"] == "envelope.persisted" and e.get("intent") == "interaction.log"
+            and e["from_agent"] == owner]
+    assert logs and logs[-1]["payload"]["verbatim"] == "Please drop the word cozy"
+    held = [q for q in hub.queues["clarification.request"] if q["from_agent"] == owner]
+    assert len(held) == 1 and held[0]["payload"]["verbatim"] == "Please drop the word cozy"
+    assert any(t["agent"] == owner and t["result"] == "held: client_reply_needs_human" for t in hub.spoke_traces)

@@ -49,11 +49,17 @@ def score_lead(payload: dict, rubric: dict) -> tuple[str, int | None, list[str],
         notes.append("pre-approval document marked unverified - not used for scoring")
         preapproval_doc = None
 
-    # tuple: financing letter present but expired -> treat as no verification
+    # tuple: financing letter present but expired -> treat as no verification.
+    # Owner decision 2026-10-11: a separately stated "preapproved" does not
+    # earn the financing points either (before, the letter was dropped but
+    # the stated value still scored, e.g. HOT 100 on an expired letter).
     if preapproval_doc and preapproval_doc.get("expired"):
         notes.append("pre-approval letter expired - treated as no "
                      "financing verification")
-        financing_progress = financing_progress or "none"
+        if financing_progress not in (None, "none"):
+            notes.append(f"stated financing progress {financing_progress!r} not "
+                         f"scored: the only letter on file is expired")
+        financing_progress = "none"
         preapproval_doc = None
 
     # tuple: budget vs pre-approval doc conflict -> doc wins

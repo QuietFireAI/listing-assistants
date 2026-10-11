@@ -77,10 +77,20 @@ def test_consent_history_is_kept():
     with ApplianceStorage(":memory:") as s:
         s.update_client_consent("c1", {"sms": "opted_out"}, source="client email 2026-10-01")
         s.update_client_consent("c1", {"sms": "opted_in"}, source="client call 2026-10-05")
-        assert s.get_client_consent("c1") == {"sms": "opted_in"}
+        # owner decision 2026-10-11: re-opt-in after opt-out needs a human
+        assert s.get_client_consent("c1") == {"sms": "opted_out"}
+        assert s.get_pending_consent("c1") == {"sms": "opted_in"}
         hist = s.get_consent_history("c1")
-        assert [(h["value"], h["source"]) for h in hist] == [
-            ("opted_out", "client email 2026-10-01"), ("opted_in", "client call 2026-10-05")]
+        assert [(h["value"], h["source"], h["status"]) for h in hist] == [
+            ("opted_out", "client email 2026-10-01", "effective"),
+            ("opted_in", "client call 2026-10-05", "pending_confirmation")]
+        with pytest.raises(ValueError):
+            s.confirm_consent("c1", "sms", "")
+        assert s.confirm_consent("c1", "sms", "broker J. Phillips") is True
+        assert s.get_client_consent("c1") == {"sms": "opted_in"} and s.get_pending_consent("c1") == {}
+        assert s.confirm_consent("c1", "sms", "broker") is False         # nothing pending
+        s.update_client_consent("c1", {"email": "yes"})                    # first-time opt-in: effective
+        assert s.get_client_consent("c1")["email"] == "yes"
         with pytest.raises(ValueError):
             s.update_client_consent("c1", {})
 

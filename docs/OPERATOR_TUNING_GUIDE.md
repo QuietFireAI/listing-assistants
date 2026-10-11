@@ -135,8 +135,13 @@ with ApplianceStorage("/srv/listingassistants/appliance.db") as db:   # local di
 - `crm_interactions`, `financial_ledger`, `client_drawer_files` and the
   consent and identity history tables are append-only (database triggers).
   Corrections are new rows.
-- Consent keeps every event; `get_client_consent()` returns the latest per
-  channel, `get_consent_history()` returns all of them.
+- Consent keeps every event; `get_client_consent()` returns the latest
+  effective value per channel, `get_consent_history()` returns all of them.
+  An opt-in on a channel that is opted out is stored as
+  `pending_confirmation` and stays out of effect until
+  `confirm_consent(ctx, channel, confirmed_by)` records a human's
+  confirmation (`get_pending_consent()` lists them). Agent 14 applies the
+  same rule to its in-memory consent.
 - Registering an existing drawer with a different name or address raises
   `DrawerIdentityConflict` unless you pass `update_identity=True`, which
   keeps the old identity in history.

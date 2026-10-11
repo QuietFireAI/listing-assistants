@@ -101,6 +101,28 @@ class Spoke12MarketingCampaign:
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id
+
+        if env.intent == "lead.reply":
+            # Client reply routed here by Agent 11 (owner decision 2026-10-11:
+            # 12 gets a lead.reply handler instead of leaving the route
+            # unhandled). No ratified tuple yet says how 12 acts on client
+            # feedback about marketing, so per the root rule it changes nothing
+            # itself: it logs the reply to 14 and holds it for the human with
+            # the client's words and 12's current state for that client.
+            message = env.payload.get("message")
+            self.hub.ingest_spoke_trace(
+                "12", env.envelope_id,
+                thought=f"client reply about marketing for ctx={ctx!r}; no tuple covers "
+                        f"acting on it - logging and holding for the human, nothing changed",
+                result="held: client_reply_needs_human")
+            self.hub.send(_env("12", "14", "interaction.log", ctx,
+                               {"kind": "client_reply_received", "verbatim": message}))
+            self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                               {"reason": "client reply about marketing - no tuple covers acting "
+                                          "on it; human decides",
+                                "verbatim": message, "agent": "12",
+                                "agent_state": {"published": ctx in self.published, "pending_review": ctx in self.pending_review}}))
+            return
         payload = env.payload
 
         if env.intent == "status.update":

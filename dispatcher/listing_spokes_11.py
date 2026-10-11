@@ -20,14 +20,12 @@ _ADVICE_WORDS = ("what would you do", "should i offer", "what's it worth",
 _WIRE_WORDS = ("wire instructions", "wiring details", "wire transfer",
               "updated wire", "routing number")
 
-# Agents whose handlers actually process lead.reply (03, 13, 16, 20).
-# routes.json also lists 04 and 12 as receivers, but neither has a
-# lead.reply handler: the hub acked the envelope and the reply was dropped.
-# Audit OPS-1 (2026-10-11): a reply naming any other owner (04, 12, 07, an
-# unknown id) now goes to clarification.request with the client's words, so
-# a human sees it. routes.json is unchanged - adding handlers for 04/12 or
-# narrowing the route is an owner decision.
-LEAD_REPLY_HANDLERS = frozenset({"03", "13", "16", "20"})
+# Agents whose handlers process lead.reply. 04 and 12 were route receivers
+# with no handler (the hub acked and the reply was dropped); per the owner's
+# decision of 2026-10-11 they now have handlers that log the reply and hold
+# it for the human. A reply naming any other owner (07, an unknown id) goes
+# to clarification.request with the client's words (audit OPS-1).
+LEAD_REPLY_HANDLERS = frozenset({"03", "04", "12", "13", "16", "20"})
 
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):

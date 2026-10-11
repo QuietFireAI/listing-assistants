@@ -32,9 +32,10 @@ def main():
     parser.add_argument("client_id", help="Client context ID to snapshot (e.g. ctx-listing-742)")
     parser.add_argument("--wait-id", help="Specific wait ID if known", default=None)
     parser.add_argument("--notes", help="Operator or support notes", default="Diagnostic capture by operator")
+    parser.add_argument("--root", default=None, help="Drawer root directory (default: <repo>/drawers)")
     args = parser.parse_args()
 
-    drawers_root = os.path.join(ROOT, "drawers")
+    drawers_root = args.root or os.path.join(ROOT, "drawers")
     if not os.path.exists(drawers_root):
         print(f"[ERROR] Drawers root '{drawers_root}' does not exist.")
         return 1

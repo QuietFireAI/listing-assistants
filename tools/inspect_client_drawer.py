@@ -91,10 +91,18 @@ def main():
             hash_pref = f.get("sha256", "")[:12]
             print(f"  {cat:<14} {agent:<6} {size_s:<9} {fname:<28} {hash_pref}")
 
+    # Report what was actually checked (audit 2026-10-11: this line used to
+    # print "[VERIFIED] ... Zero cross-context leakage" unconditionally).
+    v = drawer.verify_hashes()
     print("================================================================================")
-    print("  [VERIFIED] Anti-commingling isolation intact. Zero cross-context leakage.")
+    if v["ok"]:
+        print(f"  [OK] {v['checked']} indexed file(s) match their recorded SHA-256.")
+    else:
+        print(f"  [FAIL] hash mismatch: {v['mismatched']}  missing: {v['missing']}")
+    print("  (Checks this drawer's own files against its manifest. It does not")
+    print("   inspect other drawers or prove what any process read.)")
     print("================================================================================\n")
-    return 0
+    return 0 if v["ok"] else 1
 
 
 if __name__ == "__main__":
