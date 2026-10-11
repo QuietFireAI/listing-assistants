@@ -75,3 +75,41 @@ def test_dashboard_funnel_and_html_generation():
             assert "Charlie Buyer" in html
             assert "555 Pine Rd" in html
             assert "PRE-MARKET" in html
+
+
+def test_eod_integrity_is_computed_or_labeled_not_computed(tmp_path):
+    """Was: fixed text "hash chaining active", "0 cross-drawer breaches",
+    "0 unauthorized wire routing transmissions" printed with nothing computed."""
+    from dispatcher.core import AuditLog
+    logger = HumanReadableLogger(log_root=str(tmp_path / "logs"), drawers_root=None)
+    logger.log_event("DISPATCH", "x")
+    md = logger.generate_eod_report()["markdown"]
+    assert "hash chaining active" not in md and "0 cross-drawer" not in md and "0 unauthorized" not in md
+    assert "Audit chain:** not computed" in md and "Wire transmissions:** not computed" in md
+
+    audit = AuditLog(str(tmp_path / "audit.jsonl"))
+    audit.append("send", {"a": 1})
+    audit.append("integrity.violation", {"b": 2})
+    rep = logger.generate_eod_report(audit_log=audit)
+    assert "verified, 2 entries" in rep["markdown"] and rep["integrity"]["integrity_violations"] == 1
+
+    lines = open(audit.path).read().splitlines()
+    lines[0] = lines[0].replace('"a": 1', '"a": 9')
+    open(audit.path, "w").write("\n".join(lines) + "\n")
+    assert "BROKEN at line 1" in logger.generate_eod_report(audit_log=AuditLog(audit.path))["markdown"]
+
+
+def test_unsafe_client_id_is_not_joined_into_a_path(tmp_path):
+    drawers = tmp_path / "drawers"
+    (drawers / "victim").mkdir(parents=True)
+    logger = HumanReadableLogger(log_root=str(tmp_path / "logs"), drawers_root=str(drawers / "sub"))
+    (drawers / "sub").mkdir()
+    logger.log_event("NOTE", "escape attempt", client_context_id="../victim")
+    assert not (drawers / "victim" / "audit").exists()
+    assert "skipped" in logger.session_events[-1]["details"]["drawer_copy"]
+
+
+def test_eod_for_a_day_with_no_events_reports_zero(tmp_path):
+    logger = HumanReadableLogger(log_root=str(tmp_path / "logs"), drawers_root=None)
+    logger.log_event("DISPATCH", "today")
+    assert logger.generate_eod_report(date_str="1999-01-01")["total_events"] == 0

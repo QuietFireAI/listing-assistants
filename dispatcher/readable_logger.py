@@ -1,20 +1,34 @@
-"""readable_logger - Human-Readable Real-Time & End-of-Day (EOD) Logging Engine.
+"""readable_logger - plain-language event log and end-of-day (EOD) report.
 
-Transforms technical audit hashes and envelope passes into clear, human-readable operational logs:
-  1. Real-Time Stream: Logs every agent step, envelope dispatch, JEV AI calculation,
-     drawer file store, API attempt, and alert in real time.
-  2. Per-Client Activity Log: Copies client-specific events into `drawers/<client_id>/audit/activity.log`.
-  3. End-of-Day (EOD) Ledger: Aggregates daily volume, milestones achieved, pending decisions,
-     and cryptographic audit integrity into a daily markdown dossier.
+  1. Stream: every log_* call appends one line to logs/stream.log.
+  2. Per-client copy: events with a client_context_id are also appended to
+     drawers/<client_id>/audit/activity.log when that drawer exists.
+  3. EOD report: counts the events logged in this process for a date and
+     writes logs/daily/eod_ledger_<date>.md.
+
+What gets logged is whatever code calls these methods. Today the callers are
+the Hermes learning loop, the checkpoint manager and the tools; the hub and
+the 20 spokes write to the hash-chained AuditLog, not to this logger.
+
+Fixed 2026-10-11 (audit LOG-1, D-4):
+  - The EOD "integrity" section printed fixed text ("hash chaining active",
+    "0 cross-drawer breaches", "0 unauthorized wire transmissions") that
+    nothing computed. It now verifies the AuditLog chain when one is passed
+    and labels every other line "not computed".
+  - A client_context_id that is not a safe path segment is no longer joined
+    into a filesystem path; the event stays in the stream with a note.
+  - A date with no events reports 0 events instead of silently reporting
+    every event in the session under that date.
 """
 from __future__ import annotations
 
 import datetime
-import json
 import os
-import sys
-import time
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Optional
+
+# same rule as dispatcher/client_drawer.py _SEGMENT
+_SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 
 
 class HumanReadableLogger:
@@ -65,8 +79,11 @@ class HumanReadableLogger:
         }
         self.session_events.append(event_rec)
 
-        # Write to client drawer activity log if drawer exists
-        if client_context_id and self.drawers_root:
+        # Write to client drawer activity log if drawer exists. The id must be
+        # a safe single path segment before it is joined into a path.
+        if client_context_id and self.drawers_root and not _SAFE_SEGMENT.match(str(client_context_id)):
+            event_rec["details"]["drawer_copy"] = "skipped: client_context_id is not a safe path segment"
+        elif client_context_id and self.drawers_root:
             client_drawer_dir = os.path.join(self.drawers_root, client_context_id)
             if os.path.exists(client_drawer_dir):
                 client_audit_dir = os.path.join(client_drawer_dir, "audit")
@@ -106,16 +123,16 @@ class HumanReadableLogger:
         msg = f"Hermes Learning Loop [{topic}]: Variance={variance:.4f} -> Status: {status}"
         if detail:
             msg += f" | {detail}"
-        cat = "TRAIN_ALERT" if (variance >= 0.35 or "QUARANTINED" in status) else "TRAIN_UPDATE"
+        cat = "TRAIN_UPDATE" if status.startswith("ASSIMILATED") else "TRAIN_ALERT"
         return self.log_event(cat, msg, client_context_id=client_context_id, agent_id=agent_id,
                               details={"topic": topic, "variance": variance, "status": status})
 
-    def generate_eod_report(self, date_str: Optional[str] = None) -> dict:
-        """Compiles end-of-day operational report for all events recorded."""
+    def generate_eod_report(self, date_str: Optional[str] = None, audit_log: Any = None) -> dict:
+        """Builds the EOD report from events logged in this process on the date.
+        Pass the hub's AuditLog as audit_log to have its hash chain verified
+        in section 4; without it, section 4 says "not computed"."""
         target_date = date_str or self._today_str()
         events = [e for e in self.session_events if e["timestamp"].startswith(target_date)]
-        if not events:
-            events = self.session_events  # fallback to active session
 
         by_cat: dict[str, int] = {}
         by_client: dict[str, int] = {}
@@ -136,10 +153,10 @@ class HumanReadableLogger:
             "| Event Category | Operations Count | Description |",
             "|---|---|---|",
             f"| **DISPATCH** | {by_cat.get('DISPATCH', 0)} | Closed-track spoke envelopes routed through Hub |",
-            f"| **DECISION** | {by_cat.get('DECISION', 0)} | JEV AI & rule evaluation calculations |",
-            f"| **VAULT** | {by_cat.get('VAULT', 0)} | Isolated Client Drawer file reads and writes |",
-            f"| **API_CALL** | {by_cat.get('API_CALL', 0)} | Vendor & notification external integration attempts |",
-            f"| **ALERT** | {by_cat.get('ALERT', 0)} | Real-time human decision escalations |",
+            f"| **DECISION** | {by_cat.get('DECISION', 0)} | Decisions recorded via log_decision |",
+            f"| **VAULT** | {by_cat.get('VAULT', 0)} | Client drawer file actions recorded via log_vault_action |",
+            f"| **API_CALL** | {by_cat.get('API_CALL', 0)} | External call attempts recorded via log_api_attempt |",
+            f"| **ALERT** | {by_cat.get('ALERT', 0)} | Alerts recorded via log_alert |",
             "",
             "## 2. Client Drawer Activity Volume",
             "| Client Context ID | Total Touches & Artifacts |",
@@ -158,14 +175,8 @@ class HumanReadableLogger:
         ])
         for ev in events[-50:]:  # last 50 events in detail
             report_lines.append(f"[{ev['timestamp']}] [{ev['category']:<9}] {ev.get('message')}")
-        report_lines.extend([
-            "```",
-            "",
-            "## 4. Cryptographic Integrity Status",
-            "- **Audit Chain:** Continuous SHA-256 hash chaining active.",
-            "- **Anti-Commingling Enforcement:** 0 cross-drawer breaches detected.",
-            "- **Wire Fraud Shield:** 0 unauthorized wire routing transmissions."
-        ])
+        integrity = self._integrity_section(audit_log)
+        report_lines.extend(["```", "", "## 4. Audit Integrity"] + integrity["lines"])
 
         md_content = "\n".join(report_lines)
         report_file = os.path.join(self.log_root, "daily", f"eod_ledger_{target_date}.md")
@@ -177,8 +188,34 @@ class HumanReadableLogger:
             "report_file": report_file,
             "total_events": len(events),
             "breakdown": by_cat,
+            "integrity": integrity["data"],
             "markdown": md_content
         }
+
+    @staticmethod
+    def _integrity_section(audit_log: Any) -> dict:
+        if audit_log is None or not hasattr(audit_log, "verify_chain"):
+            chain_line = "- **Audit chain:** not computed (no audit log was passed to this report)."
+            data: dict = {"chain": None}
+        else:
+            chain = audit_log.verify_chain()
+            kinds: dict[str, int] = {}
+            for e in audit_log.read():
+                kinds[e.get("kind", "?")] = kinds.get(e.get("kind", "?"), 0) + 1
+            if chain["ok"]:
+                chain_line = f"- **Audit chain:** verified, {chain['entries']} entries, no break."
+            else:
+                chain_line = f"- **Audit chain:** BROKEN at line {chain['break_at']}."
+            data = {"chain": chain, "integrity_violations": kinds.get("integrity.violation", 0),
+                    "rejects": kinds.get("reject", 0)}
+            chain_line += (f" integrity.violation entries: {data['integrity_violations']};"
+                           f" reject entries: {data['rejects']}.")
+        return {"data": data, "lines": [
+            chain_line,
+            "- **Cross-drawer access:** not computed (ClientDrawerManager refuses at the call site; "
+            "refusals are not counted here).",
+            "- **Wire transmissions:** not computed (no wire-transmission monitor exists).",
+        ]}
 
 
 # Global singleton logger instance
