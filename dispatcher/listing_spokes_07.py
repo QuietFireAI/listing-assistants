@@ -6,7 +6,6 @@ checked first, on every inbound event, regardless of type.
 """
 from __future__ import annotations
 
-import json
 import os
 
 from .core import Envelope
@@ -83,23 +82,29 @@ class Spoke07TransactionCoordinator:
     # financing_contingency deadline-alert special case - those are
     # genuinely distinct logic per milestone, not lookup data, and stay
     # in Python. See docs/TUNING_MANUAL.md to change.
-    @staticmethod
-    def _load_transaction_milestone_config() -> dict[str, dict] | None:
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "config", "transaction_milestones.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    entries = data.get("entries", [])
-                    if entries:
-                        return {e["milestone"]: {"needs_document": e.get("needs_document", False),
-                                                 "vendor_kind": e.get("vendor_kind")}
-                                for e in entries if "milestone" in e}
-            except Exception:
-                pass
-        return None
+    def _load_transaction_milestone_config(self) -> dict[str, dict] | None:
+        """config/transaction_milestones.json, used ONLY when its _status is
+        ratified (dispatcher/config_status.py). The verdict - loaded, absent,
+        unratified or invalid - is declared on the audit log; anything but
+        'loaded' keeps the ratified constructor default. Fixed 2026-10-11
+        (audit CFG-2): this loader ignored _status (the file is a PROPOSED
+        DRAFT) and swallowed every exception."""
+        from .config_status import load_ratified_config
+        rel = os.path.join("config", "transaction_milestones.json")
+        data, verdict = load_ratified_config(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), rel))
+        config = None
+        if data is not None:
+            entries = data.get("entries") or []
+            if all(isinstance(e, dict) and e.get("milestone") for e in entries) and entries:
+                config = {e["milestone"]: {"needs_document": bool(e.get("needs_document", False)),
+                                           "vendor_kind": e.get("vendor_kind")} for e in entries}
+            else:
+                verdict = "invalid: entries missing or without 'milestone'"
+        self.hub.audit.append("config.load", {"agent": "07", "file": rel.replace(os.sep, "/"),
+                                              "verdict": verdict if config else
+                                              (verdict if verdict != "loaded" else "invalid")})
+        return config
 
     _DEFAULT_TRANSACTION_MILESTONES = {
         "inspection": {"needs_document": True, "vendor_kind": "inspector"},

@@ -8,7 +8,6 @@ integration test, not just parallel assumption on both sides.
 """
 from __future__ import annotations
 
-import json
 import os
 import re
 
@@ -80,28 +79,35 @@ class Spoke08DocumentCollection:
 
     # TUNABLE (owner-ratified 2026-07-16): document_chase_cap=3.
     # See docs/TUNING_MANUAL.md to change.
-    @staticmethod
-    def _load_cadence_document_chase_cap() -> int | None:
-        config_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "config", "cadence_settings.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    for entry in data.get("entries", []):
-                        if entry.get("cadence_id") == "document_chase":
-                            ceiling_str = str(entry.get("ceiling", ""))
-                            m = re.search(r"(\d+)\s+attempts", ceiling_str)
-                            if m:
-                                return int(m.group(1))
-            except Exception:
-                pass
-        return None
+    def _load_cadence_document_chase_cap(self) -> int | None:
+        """document_chase ceiling from config/cadence_settings.json, used ONLY
+        when that file's _status is ratified (dispatcher/config_status.py).
+        The verdict is declared on the audit log; anything but a cleanly
+        parsed ratified value keeps the ratified constructor default (3).
+        Fixed 2026-10-11 (audit CFG-2): this loader ignored _status (the
+        file is a PROPOSED DRAFT) and swallowed every exception."""
+        from .config_status import load_ratified_config
+        rel = os.path.join("config", "cadence_settings.json")
+        data, verdict = load_ratified_config(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), rel))
+        cap = None
+        if data is not None:
+            for entry in data.get("entries", []):
+                if entry.get("cadence_id") == "document_chase":
+                    m = re.search(r"(\d+)\s+attempts", str(entry.get("ceiling", "")))
+                    if m:
+                        cap = int(m.group(1))
+            if cap is None:
+                verdict = "invalid: no parseable document_chase ceiling"
+        self.hub.audit.append("config.load", {"agent": "08", "file": rel.replace(os.sep, "/"),
+                                              "verdict": verdict})
+        return cap
 
     def __init__(self, hub, expected_senders: dict[str, set[str]] | None = None,
                  document_chase_cap: int = 3):
         self.hub = hub
+        # A ratified config value applies only when the caller left the
+        # constructor default; an explicit argument always wins.
         loaded = self._load_cadence_document_chase_cap()
         self.document_chase_cap = loaded if (loaded is not None and document_chase_cap == 3) else document_chase_cap
         self.filed_documents: dict[str, list[dict]] = {}  # ctx -> filed docs
