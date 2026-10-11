@@ -382,3 +382,51 @@ def test_advice_escalation_tracked_and_resolved_via_config_update(tmp_path):
     assert "c-019" not in spoke.awaiting_human_response
     statuses = persisted(hub, "agent.status")
     assert any(s["payload"].get("resolved") for s in statuses)
+
+
+# --- audit OPS-1 (2026-10-11): lead.reply only to owners with a handler ----
+import pytest
+
+
+@pytest.mark.parametrize("owner", ["04", "12", "07", "zz"])
+def test_lead_reply_to_unhandled_owner_goes_to_a_human(tmp_path, owner):
+    """Was: 04/12 -> persisted and acked, handler ignores it (silent drop);
+    07/unknown -> hub reject, no queue, client message lost."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from test_playbooks_e2e_all import full_swarm
+    hub, _signer, _spokes, _ext = full_swarm(str(tmp_path))
+    hub.send(client_reply("ctx-" + owner, {"message": "Thanks, Saturday works", "owning_agent": owner}))
+    kinds = [(e["kind"], e.get("intent")) for e in hub.audit.read()]
+    assert ("envelope.persisted", "lead.reply") not in kinds
+    assert not [e for e in hub.audit.read() if e["kind"] == "reject"]
+    held = hub.queues["clarification.request"]
+    assert len(held) == 1 and held[0]["payload"]["verbatim"] == "Thanks, Saturday works"
+
+
+@pytest.mark.parametrize("owner", ["03", "13", "16", "20"])
+def test_lead_reply_to_handled_owner_is_delivered(tmp_path, owner):
+    sys.path.insert(0, os.path.dirname(__file__))
+    from test_playbooks_e2e_all import full_swarm
+    hub, _signer, _spokes, _ext = full_swarm(str(tmp_path))
+    hub.send(client_reply("ctx-" + owner, {"message": "Thanks, Saturday works", "owning_agent": owner}))
+    lr = [e for e in hub.audit.read() if e["kind"] == "envelope.persisted" and e.get("intent") == "lead.reply"]
+    acks = {e["envelope_id"] for e in hub.audit.read() if e["kind"] == "ack"}
+    assert len(lr) == 1 and lr[0]["envelope_id"] in acks
+    assert not [q for q in hub.queues["clarification.request"]
+                if q["payload"].get("verbatim") == "Thanks, Saturday works"]
+
+
+def test_lead_reply_not_acked_is_held_with_the_clients_words(tmp_path):
+    hub = make_hub(str(tmp_path))
+    Spoke11ClientCommunication(hub)
+    real_send = hub.send
+
+    def send(env):
+        if env.intent == "lead.reply":
+            return {"status": "reject", "reason": "simulated"}
+        return real_send(env)
+    hub.send = send
+    hub.send(client_reply("ctx-r", {"message": "call me", "owning_agent": "13"}))
+    held = hub.queues["clarification.request"]
+    assert len(held) == 1 and "not delivered: reject simulated" in held[0]["payload"]["reason"]
+    assert held[0]["payload"]["verbatim"] == "call me"

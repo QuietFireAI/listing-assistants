@@ -19,6 +19,15 @@ _ADVICE_WORDS = ("what would you do", "should i offer", "what's it worth",
 _WIRE_WORDS = ("wire instructions", "wiring details", "wire transfer",
               "updated wire", "routing number")
 
+# Agents whose handlers actually process lead.reply (03, 13, 16, 20).
+# routes.json also lists 04 and 12 as receivers, but neither has a
+# lead.reply handler: the hub acked the envelope and the reply was dropped.
+# Audit OPS-1 (2026-10-11): a reply naming any other owner (04, 12, 07, an
+# unknown id) now goes to clarification.request with the client's words, so
+# a human sees it. routes.json is unchanged - adding handlers for 04/12 or
+# narrowing the route is an owner decision.
+LEAD_REPLY_HANDLERS = frozenset({"03", "13", "16", "20"})
+
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
@@ -120,6 +129,36 @@ class Spoke11ClientCommunication:
     def _wire_hit(self, payload: dict) -> bool:
         text = " ".join(_flatten_strings(payload)).lower()
         return any(w in text for w in _WIRE_WORDS)
+
+    def _route_lead_reply(self, ctx: str, owner, body: dict, env: Envelope | None) -> dict:
+        """Sends lead.reply to the owning agent only when that agent has a
+        lead.reply handler; otherwise, or when the hub does not ack/hold the
+        send, the client's words go to clarification.request (root rule: no
+        suitable tuple -> STOP and ask the human)."""
+        owner = str(owner)
+        eid = env.envelope_id if env else "internal"
+        if owner not in LEAD_REPLY_HANDLERS:
+            self.hub.ingest_spoke_trace(
+                "11", eid,
+                thought=f"client reply names owning_agent {owner!r}; no lead.reply "
+                        f"handler exists there - holding for a human, not guessing an owner",
+                result="held: lead_reply_owner_unhandled")
+            return self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                      {"reason": f"client reply for owning_agent {owner!r}, "
+                                                 f"which has no lead.reply handler",
+                                       "verbatim": body.get("message"), "lead_reply": body}))
+        res = self.hub.send(_env("11", owner, "lead.reply", ctx, body))
+        if res.get("status") not in ("ack", "held", "duplicate"):
+            self.hub.ingest_spoke_trace(
+                "11", eid,
+                thought=f"lead.reply to {owner} came back {res.get('status')!r} "
+                        f"({res.get('reason', '')}) - the handoff did not happen",
+                result="held: lead_reply_not_acked")
+            self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                               {"reason": f"lead.reply to {owner} not delivered: "
+                                          f"{res.get('status')} {res.get('reason', '')}".strip(),
+                                "verbatim": body.get("message"), "lead_reply": body}))
+        return res
 
     def _send_client_message(self, ctx: str, template: str, variables: dict,
                              hour: int, alert_class: str | None = None,
@@ -282,9 +321,8 @@ class Spoke11ClientCommunication:
                 self.hub.escalate("escalation.legal_line",
                                   {"client_context_id": ctx,
                                    "trigger": advice_hit, "agent": "11"})
-                self.hub.send(_env("11", payload.get("owning_agent", "13"),
-                                   "lead.reply", ctx,
-                                   {"message": message, "split": "routine_only"}))
+                self._route_lead_reply(ctx, payload.get("owning_agent", "13"),
+                                       {"message": message, "split": "routine_only"}, env)
                 return
 
             # tuple 6: pricing/strategy question -> legal line, template ack
@@ -326,9 +364,8 @@ class Spoke11ClientCommunication:
                                   {"client_context_id": ctx,
                                    "trigger": "negative-tone reply",
                                    "verbatim": message})
-                self.hub.send(_env("11", payload.get("owning_agent", "13"),
-                                   "lead.reply", ctx,
-                                   {"message": message, "route": "P14_complaint_intake"}))
+                self._route_lead_reply(ctx, payload.get("owning_agent", "13"),
+                                       {"message": message, "route": "P14_complaint_intake"}, env)
                 return
 
             # tuple 11: contact-channel change -> honor, record, confirm once
@@ -388,9 +425,8 @@ class Spoke11ClientCommunication:
             # routine reply -> route to owning agent (by content, per the
             # swarm-wide "routed by content" convention this agent
             # implements for real)
-            owning_agent = payload.get("owning_agent", "13")
-            self.hub.send(_env("11", owning_agent, "lead.reply", ctx,
-                               {"message": message}))
+            self._route_lead_reply(ctx, payload.get("owning_agent", "13"),
+                                   {"message": message}, env)
             return
 
         if env.intent == "data.package":
