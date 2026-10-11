@@ -305,7 +305,9 @@ python tools/show_logs.py --tail 50
 python tools/show_logs.py --eod --audit-log console-state/console-audit.jsonl
 ```
 
-The end-of-day report verifies the audit chain you pass it and counts its
+`console-state/console-audit.jsonl` is written by the first
+`tools/console.py session`; before that, pass any audit log you have. The
+end-of-day report verifies the audit chain you pass it and counts its
 integrity-violation and reject entries; lines it cannot compute say "not
 computed".
 
