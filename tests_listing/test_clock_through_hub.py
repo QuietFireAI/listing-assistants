@@ -54,3 +54,96 @@ def test_sweep_runner_and_console_call_no_agent_methods_directly():
         src = open(os.path.join(ROOT, rel)).read()
         assert not re.search(r"spokes\[\"\d\d\"\]\.\w+\(", src), rel
         assert not re.search(r"\bs\d\d\.\w+\(", src), rel
+
+
+# --- added after the post-fix mutation run (2026-10-11) ----------------------
+
+def test_document_chase_runs_per_doc_type_through_the_tick(tmp_path):
+    hub, _signer, spokes, _ext = full_swarm(str(tmp_path))
+    spokes["08"].pending_requests["ctx-docs"] = {"appraisal": {"chase_count": 0},
+                                                 "inspection": {"chase_count": 0}}
+    out = send_tick(hub, "08", "2026-08-05")
+    assert out["hub"]["status"] == "ack"
+    assert [r["sweep"] for r in out["results"]] == ["chase_timeout", "chase_timeout"]
+    assert not any(r.get("error") for r in out["results"])
+    assert spokes["08"].pending_requests["ctx-docs"]["appraisal"]["chase_count"] == 1
+    assert spokes["08"].pending_requests["ctx-docs"]["inspection"]["chase_count"] == 1
+
+
+def test_named_check_runs_alone_and_returns_its_report(tmp_path):
+    hub, _signer, spokes, _ext = full_swarm(str(tmp_path))
+    out = send_tick(hub, "18", "2026-08-05", checks=["morning_briefing"])
+    assert [r["sweep"] for r in out["results"]] == ["morning_briefing"]
+    assert out["results"][0]["result"]["briefing_type"] == "morning"
+    out = send_tick(hub, "14", "2026-08-05", checks=["eod_report"])
+    assert out["results"][0]["result"]["report_type"] == "eod" and "error" not in out["results"][0]
+
+
+def test_both_daily_checks_of_one_agent_run(tmp_path):
+    hub, _signer, spokes, _ext = full_swarm(str(tmp_path))
+    spokes["07"].timelines["ctx-t"] = {}
+    out = send_tick(hub, "07", "2026-08-05")
+    assert {r["sweep"] for r in out["results"]} == {"deadlines", "vendor_holdups"}
+
+
+def test_now_iso_reaches_the_check_and_defaults_to_end_of_day(tmp_path):
+    from dispatcher.clock import handle_tick
+    from dispatcher.core import Envelope
+    seen = []
+
+    class Fake18:
+        def __init__(self, hub):
+            self.hub = hub
+            self.showings = {"ctx-s": {}}
+
+        def check_showing_no_show(self, ctx, now_iso):
+            seen.append(now_iso)
+
+        def generate_briefing(self, kind):
+            return {}
+
+    hub, *_ = full_swarm(str(tmp_path))
+    spoke = Fake18(hub)
+    for payload, want in (({"today": "2026-08-05"}, "2026-08-05T23:59:59"),
+                          ({"today": "2026-08-05", "now_iso": "2026-08-05T10:30:00"}, "2026-08-05T10:30:00")):
+        env = Envelope(from_agent="clock", to_agent="18", intent="clock.tick", client_context_id="c",
+                       payload=payload, provenance={"source": "clock"})
+        handle_tick(spoke, "18", env)
+    assert seen == ["2026-08-05T23:59:59", "2026-08-05T10:30:00"]
+    # sweep_runner passes its now_iso through, and defaults it to end of day
+    sent = []
+    real = hub.send
+    hub.send = lambda env: (sent.append(env.payload) if env.intent == "clock.tick" else None) or real(env)
+    run_daily_sweeps(hub, {"18": object()}, today="2026-08-06", now_iso="2026-08-06T09:00:00")
+    run_daily_sweeps(hub, {"18": object()}, today="2026-08-07")
+    assert [p["now_iso"] for p in sent] == ["2026-08-06T09:00:00", "2026-08-07T23:59:59"]
+
+
+def test_check_error_text_is_recorded(tmp_path):
+    hub, _signer, spokes, _ext = full_swarm(str(tmp_path))
+    spokes["17"].pending_reviews["ctx-x"] = {}
+    spokes["17"].check_sla = lambda ctx, today: (_ for _ in ()).throw(RuntimeError("sla boom"))
+    out = send_tick(hub, "17", "2026-08-05")
+    assert out["results"][0]["error"] == "sla boom"
+    errs = [e for e in hub.audit.read() if e["kind"] == "sweep.error"]
+    assert errs and errs[-1]["agent"] == "17" and "RuntimeError: sla boom" in errs[-1]["error"]
+
+
+def test_unacked_tick_is_a_declared_error_and_others_still_run(tmp_path):
+    hub, _signer, spokes, _ext = full_swarm(str(tmp_path))
+    real = hub.send
+
+    def send(env):
+        if env.intent == "clock.tick" and env.to_agent == "01":
+            return {"status": "reject", "reason": "simulated"}
+        return real(env)
+    hub.send = send
+    results = run_daily_sweeps(hub, {"01": spokes["01"], "18": spokes["18"]}, today="2026-08-05")
+    tick_err = [r for r in results if r["sweep"] == "clock.tick"]
+    assert tick_err == [{"agent": "01", "sweep": "clock.tick", "result": None,
+                         "error": "clock.tick to 01 not acked: reject simulated"}]
+    assert any(r["agent"] == "18" and r["sweep"] == "morning_briefing" for r in results)
+    audit = hub.audit.read()
+    assert [e for e in audit if e["kind"] == "sweep.error"][-1]["error"] == tick_err[0]["error"]
+    done = [e for e in audit if e["kind"] == "sweep.completed"][-1]
+    assert done["errors"] == 1 and done["sweeps_run"] == len(results)

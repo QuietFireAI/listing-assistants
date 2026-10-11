@@ -77,3 +77,13 @@ def test_console_does_not_load_a_draft_vendor_roster(tmp_path):
     hub = built[0] if isinstance(built, tuple) else built
     entries = [e for e in hub.audit.read() if e["kind"] == "config.load" and e.get("agent") == "console"]
     assert entries and entries[0]["verdict"] == "unratified"
+
+
+def test_a_ratified_file_is_loaded(tmp_path):
+    from dispatcher.config_status import load_ratified_config
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"_status": "RATIFIED 2026-10-11 J. Broker", "x": 1}))
+    data, verdict = load_ratified_config(str(f))
+    assert verdict == "loaded" and data["x"] == 1
+    f.write_text(json.dumps({"_note": "RATIFIED 2026-10-11", "x": 1}))     # status key missing
+    assert load_ratified_config(str(f)) == (None, "unratified")

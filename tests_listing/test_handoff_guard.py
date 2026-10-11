@@ -30,10 +30,15 @@ def failures(hub):
 def test_reject_raises_handoff_failed_and_holds_for_a_human(tmp_path):
     hub = hub_at(tmp_path)
     g = guard(hub, "12")
-    res = g.send(env("12", "07", "lead.reply"))            # not on the closed track
+    bad = env("12", "07", "lead.reply")                    # not on the closed track
+    res = g.send(bad)
     assert res["status"] == "reject"
     [f] = failures(hub)
     assert f["agent"] == "12" and f["status"] == "reject" and f["clarification_sent"] is True
+    assert f["envelope_id"] == bad.envelope_id and f["intent"] == "lead.reply" and f["to_agent"] == "07"
+    assert f["client_context_id"] == "ctx-1" and "tuple illegal" in f["reason"]
+    trace = [t for t in hub.spoke_traces if t["result"] == "held: handoff.failed"][0]
+    assert trace["agent"] == "12" and trace["envelope_id"] == bad.envelope_id
     [held] = hub.queues["clarification.request"]
     assert held["from_agent"] == "12" and held["payload"]["reason"].startswith("handoff.failed: lead.reply -> 07: reject")
     assert held["payload"]["failed_envelope"]["intent"] == "lead.reply"

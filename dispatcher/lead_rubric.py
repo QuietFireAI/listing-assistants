@@ -86,17 +86,20 @@ def score_lead(payload: dict, rubric: dict) -> tuple[str, int | None, list[str],
         return "UNKNOWN", None, notes + ["all rubric inputs unknown - "
                                          "tier is UNKNOWN, not COLD"], conflicts
 
+    # Every caller guarantees all REQUIRED_RUBRIC_KEYS (Agent 02 rejects a
+    # partial rubric, the JEV engine holds), so no defaults: a missing key is
+    # a KeyError, never a silently invented threshold.
     r = rubric
     score = 0
-    if budget is not None and budget >= r.get("budget_threshold", 500_000):
-        score += r.get("budget_weight", 40)
-    if timeline_days is not None and timeline_days <= r.get("timeline_days_threshold", 30):
-        score += r.get("timeline_weight", 40)
+    if budget is not None and budget >= r["budget_threshold"]:
+        score += r["budget_weight"]
+    if timeline_days is not None and timeline_days <= r["timeline_days_threshold"]:
+        score += r["timeline_weight"]
     if financing_progress == "preapproved":
-        score += r.get("financing_weight", 20)
+        score += r["financing_weight"]
 
-    hot = r.get("hot_threshold", 70)
-    warm = r.get("warm_threshold", 40)
+    hot = r["hot_threshold"]
+    warm = r["warm_threshold"]
 
     # tuple: boundary score -> lower tier + flag for human. Checked FIRST.
     if score == hot:
