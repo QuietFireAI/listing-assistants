@@ -65,7 +65,7 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `__TESTCOUNT__ passed`. The suite runs every agent's rules and all 24
+Expected: `751 passed`. The suite runs every agent's rules and all 24
 playbooks end to end against the real hub.
 
 ### Step 2: Run the six-act demo

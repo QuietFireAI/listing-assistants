@@ -20,7 +20,7 @@ footage wasn't staged.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: __TESTCOUNT__ passed
+python -m pytest tests_listing/          # expect: 751 passed
 python tools/console.py init             # generates YOUR signing key
 ```
 

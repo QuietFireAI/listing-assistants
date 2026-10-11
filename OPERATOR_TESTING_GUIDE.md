@@ -15,10 +15,10 @@ Repo: `github.com/QuietFireAI/listing-assistants`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
-python3 -m pytest tests_listing -q  # expect: __TESTCOUNT__ passed
+python3 -m pytest tests_listing -q  # expect: 751 passed
 ```
 
-If `__TESTCOUNT__ passed` prints, the build is sound and nothing needs addressing before you
+If `751 passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 
