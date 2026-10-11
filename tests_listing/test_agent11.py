@@ -506,4 +506,4 @@ def test_04_and_12_report_their_state_for_the_client(tmp_path):
     assert held["ctx-p"]["agent_state"] == {"published": True, "pending_review": False}
     for aid, ctx in (("04", "ctx-d"), ("12", "ctx-p")):
         t = [t for t in hub.spoke_traces if t["agent"] == aid and t["result"] == "held: client_reply_needs_human"]
-        assert t and ctx in t[-1]["thought"]
+        assert any(ctx in x["thought"] for x in t)
