@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
-"""restore_point.py - Operator CLI for Model Checkpoints & Daily Warm Restore Points.
+"""restore_point.py - operator CLI for the model checkpoint manifest.
 
-Provides AWS-style snapshot and Windows System Restore Point controls for Nous Hermes:
-  1. Capture automated daily warm restore points (start of business day).
-  2. List available restore points, training updates, and the factory Golden Baseline.
-  3. One-command hot-swap rollback if live model drift or bad habits are detected.
-  4. Run the Golden Broker Exam to verify fiduciary compliance before activation.
+Moves the active-checkpoint pointer in checkpoints/checkpoint_manifest.json.
+It does not copy or load model weights, and nothing in the runtime reads the
+pointer yet (see dispatcher/model_checkpoint_manager.py).
 
 Usage:
-  python tools/restore_point.py --list                 # View all restore points and active pointer
-  python tools/restore_point.py --snapshot             # Capture today's morning warm restore point
-  python tools/restore_point.py --restore baseline     # Instant rollback to factory Golden Baseline
-  python tools/restore_point.py --restore <point_id>   # Revert to a specific daily restore point
+  python tools/restore_point.py --list                 # checkpoints and the active pointer
+  python tools/restore_point.py --snapshot             # record today's restore point
+  python tools/restore_point.py --restore baseline     # point back at the baseline entry
+  python tools/restore_point.py --restore <point_id>   # point back at a named entry
+  [--checkpoints-dir DIR]                              # default: <repo>/checkpoints
+
+--exam refuses (exit 2): the exam needs a responder that queries the
+checkpoint's model, and this CLI has no model loader. Run
+ModelCheckpointManager.run_broker_regression_exam(responder) from the code
+that serves the model. Fixed 2026-10-11 (audit C-1): --exam graded a
+built-in compliant sentence and printed PASSED 100% for any id.
 """
 from __future__ import annotations
 
@@ -22,84 +27,73 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from dispatcher.model_checkpoint_manager import ModelCheckpointManager
-from dispatcher.readable_logger import HumanReadableLogger
+from dispatcher.model_checkpoint_manager import ModelCheckpointManager  # noqa: E402
+from dispatcher.readable_logger import HumanReadableLogger  # noqa: E402
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Manage model checkpoints and daily warm restore points.")
-    parser.add_argument("--list", action="store_true", help="List all available restore points and active model.")
-    parser.add_argument("--snapshot", action="store_true", help="Capture a new daily warm restore point.")
+def _exam_str(ck: dict) -> str:
+    if ck.get("exam_score") is None:
+        return "not run"
+    return f"{ck['exam_score']}% ({'passed' if ck.get('exam_passed') else 'failed'})"
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="Manage the model checkpoint manifest.")
+    parser.add_argument("--list", action="store_true", help="List checkpoints and the active pointer.")
+    parser.add_argument("--snapshot", action="store_true", help="Record today's restore point.")
     parser.add_argument("--notes", type=str, default="Operator daily restore point", help="Notes for the snapshot.")
-    parser.add_argument("--restore", type=str, metavar="CHECKPOINT_ID", help="Roll back active model to target ID.")
-    parser.add_argument("--exam", type=str, metavar="CHECKPOINT_ID", help="Run Golden Broker Exam on a checkpoint.")
+    parser.add_argument("--restore", type=str, metavar="CHECKPOINT_ID", help="Point the active entry at this ID.")
+    parser.add_argument("--exam", type=str, metavar="CHECKPOINT_ID", help=argparse.SUPPRESS)
+    parser.add_argument("--checkpoints-dir", default=os.path.join(ROOT, "checkpoints"))
+    args = parser.parse_args(argv)
 
-    args = parser.parse_args()
+    if args.exam:
+        print("[REFUSED] The regression exam needs a responder that queries the checkpoint's model;\n"
+              "this CLI has no model loader. Call\n"
+              "ModelCheckpointManager.run_broker_regression_exam(responder) from the code that serves\n"
+              "the model. Nothing was graded or recorded.", file=sys.stderr)
+        return 2
 
     logger = HumanReadableLogger(log_root=os.path.join(ROOT, "logs"))
-    mgr = ModelCheckpointManager(logger=logger)
+    mgr = ModelCheckpointManager(checkpoints_dir=args.checkpoints_dir, logger=logger)
 
     if args.snapshot:
-        entry = mgr.create_daily_restore_point(notes=args.notes)
-        print(f"\n[OK] Captured Daily Warm Restore Point: '{entry['checkpoint_id']}'")
-        print(f"     Source Model:  {entry['parent_id']}")
-        print(f"     Status:        {entry['status']}")
-        print(f"     Exam Passed:   {entry['exam_passed']} (Score: {entry['exam_score']}%)")
-        print(f"     Created At:    {entry['created_at']}\n")
-        return
+        try:
+            entry = mgr.create_daily_restore_point(notes=args.notes)
+        except ValueError as e:
+            print(f"[ERROR] {e}", file=sys.stderr)
+            return 1
+        print(f"\n[OK] Recorded restore point '{entry['checkpoint_id']}' -> {entry['parent_id']}")
+        print(f"     Exam:       {_exam_str(entry)} (copied from {entry['parent_id']})")
+        print(f"     Created at: {entry['created_at']}\n")
+        return 0
 
     if args.restore:
         target = "baseline_v1.0.0" if args.restore.lower() in ("baseline", "golden") else args.restore
         try:
             res = mgr.rollback(target_id=target, reason=f"CLI rollback requested by operator to '{target}'")
-            print(f"\n[OK] Hot-Swap Rollback Successful!")
-            print(f"     Active Model Now:      {res['active_checkpoint_id']}")
-            print(f"     Previous Model:        {res['previous_checkpoint_id']}")
-            print(f"     Restored Target:       {res['restored_checkpoint']['checkpoint_id']} ({res['restored_checkpoint']['status']})\n")
         except Exception as e:
             print(f"\n[ERROR] Rollback failed: {e}\n", file=sys.stderr)
-            sys.exit(1)
-        return
+            return 1
+        print(f"\n[OK] Active pointer moved: {res['previous_checkpoint_id']} -> {res['active_checkpoint_id']}")
+        print("     (manifest only - no weights loaded; nothing in the runtime reads this pointer yet)\n")
+        return 0
 
-    if args.exam:
-        print(f"\nRunning Golden Broker Regression Exam on '{args.exam}'...")
-        exam = mgr.run_broker_regression_exam()
-        status_str = "PASSED" if exam["overall_passed"] else "FAILED"
-        print(f"Exam Status: [{status_str}] (Score: {exam['score']}%)")
-        print(f"Passed {exam['passed_count']} of {exam['total_questions']} compliance gates.")
-        for d in exam["details"]:
-            p_str = "PASS" if d["passed"] else "FAIL"
-            print(f"  - [{p_str}] {d['exam_id']}: {d['expected']}")
-        print()
-        return
-
-    # Default action: list checkpoints
     active = mgr.get_active_checkpoint()
-    all_ck = mgr.list_checkpoints()
-
     print("\n" + "=" * 80)
-    print("  LISTINGASSISTANTS — MODEL CHECKPOINTS & DAILY WARM RESTORE POINTS")
-    print("  AWS-Style Snapshot & Windows System Restore Point Architecture")
+    print("  LISTINGASSISTANTS - MODEL CHECKPOINT MANIFEST")
     print("=" * 80)
-    print(f"\n  ACTIVE INFERENCE MODEL: {active.get('checkpoint_id')} [{active.get('status')}]")
+    print(f"\n  ACTIVE POINTER: {active.get('checkpoint_id')} [{active.get('status')}]")
     print("  " + "-" * 76)
-
-    for ck in all_ck:
-        is_active = ck["checkpoint_id"] == active.get("checkpoint_id")
-        active_marker = "==> [ACTIVE]" if is_active else "   "
-        cid = ck["checkpoint_id"]
-        status = ck["status"]
-        score = ck.get("exam_score", 100.0)
-        created = ck.get("created_at", "N/A")
-        notes = ck.get("notes", "")
-
-        print(f"{active_marker} ID:     {cid:<32} Status: [{status}]")
-        print(f"       Exam:   {score}% Passed              Created: {created}")
-        print(f"       Notes:  {notes}")
+    for ck in mgr.list_checkpoints():
+        marker = "==> [ACTIVE]" if ck["checkpoint_id"] == active.get("checkpoint_id") else "   "
+        print(f"{marker} ID:     {ck['checkpoint_id']:<32} Status: [{ck['status']}]")
+        print(f"       Exam:   {_exam_str(ck):<24} Created: {ck.get('created_at', 'N/A')}")
+        print(f"       Notes:  {ck.get('notes', '')}")
         print("  " + "-" * 76)
-
-    print("\n[TIP] If live drift or bad habits appear, run: python tools/restore_point.py --restore baseline\n")
+    print()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
