@@ -28,9 +28,10 @@ Every result carries coprocessor_status / is_fallback. A live or MCP result
 without a numeric confidence is held at the floor - missing confidence is
 treated as 0.0, never as 1.0. (Audit JEV-4.)
 
-The hub's boot line (jev.unarmed_fallback / jev.armed_live) lives in the
-vendored core hub.py and reads only the JEV_API_KEY environment variable;
-get_coprocessor_status() here is the authoritative mode for this adapter.
+The hub's boot line (jev.unarmed_fallback / jev.key_present) lives in the
+vendored core hub.py and reads only the JEV_API_KEY environment variable; it
+reports a key as present, never as live. get_coprocessor_status() here is the
+authoritative mode for this adapter.
 """
 from __future__ import annotations
 

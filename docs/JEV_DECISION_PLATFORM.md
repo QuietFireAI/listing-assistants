@@ -72,10 +72,11 @@ print(res["status"], res["tier"], res["score"], res["confidence"])   # ok HOT 10
 ## Boot line in the audit log
 
 The vendored core hub (`dispatcher/hub.py`, kept identical to
-dispatcher-agents) writes `jev.armed_live` at boot whenever `JEV_API_KEY` is
+dispatcher-agents) writes `jev.key_present` at boot whenever `JEV_API_KEY` is
 set and `jev.unarmed_fallback` otherwise. That line reflects only the
-environment variable. Whether any decision actually went to the live
-service is in each `decision.lead` entry's `coprocessor_status`; the swarm
-builder also writes a `decision.engine` entry at start-up with the adapter's
-real mode. Aligning the hub's boot line is a change for the dispatcher-agents
-core.
+environment variable, and says so: a key being present does not mean lead
+data goes to JEV. Whether any decision actually went to the live service is
+in each `decision.lead` entry's `coprocessor_status`; the swarm builder also
+writes a `decision.engine` entry at start-up with the adapter's real mode.
+(Until 2026-10-12 the hub wrote `jev.armed_live` whenever the key was set;
+owner decision J10 changed it in dispatcher-agents.)

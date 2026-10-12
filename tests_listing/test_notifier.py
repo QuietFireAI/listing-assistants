@@ -88,44 +88,9 @@ def test_whatsapp_human_notifier_and_send(monkeypatch):
     assert "Suspicious wire routing changed" in calls[0]["body"]
 
 
-def test_parse_inbound_field_command():
-    from dispatcher.notifier import parse_inbound_field_command
-
-    # 1. Approve
-    res = parse_inbound_field_command("APPROVE wait-123456")
-    assert res["action"] == "APPROVE"
-    assert res["wait_id"] == "wait-123456"
-
-    # 2. Escalate to support
-    res = parse_inbound_field_command("ESCALATE wait-987654 client disputing earnest deposit")
-    assert res["action"] == "ESCALATE_TO_SUPPORT"
-    assert res["wait_id"] == "wait-987654"
-    assert "client disputing earnest deposit" in res["user_notes"]
-
-    # 3. Reject
-    res = parse_inbound_field_command("REJECT wait-111 buyer refused addendum")
-    assert res["action"] == "REJECT"
-    assert res["wait_id"] == "wait-111"
-    assert "buyer refused addendum" in res["user_notes"]
-
-    # 4. Modify with key-value pairs
-    res = parse_inbound_field_command("MODIFY wait-222 credit=2500 closing_date=2026-11-15")
-    assert res["action"] == "MODIFY"
-    assert res["wait_id"] == "wait-222"
-    assert res["payload"]["credit"] == "2500"
-    assert res["payload"]["closing_date"] == "2026-11-15"
-
-    # 5. Status query
-    res = parse_inbound_field_command("STATUS ctx-oak-100")
-    assert res["action"] == "STATUS"
-    assert res["target"] == "ctx-oak-100"
-
-    # 6. Hermes prompt query
-    res = parse_inbound_field_command("QUERY What showings are scheduled for today?")
-    assert res["action"] == "QUERY"
-    assert "showings are scheduled" in res["prompt"]
-
-    # 7. Natural conversational prompt
-    res = parse_inbound_field_command("Give me a summary of the inspection report on Elm Street")
-    assert res["action"] == "NATURAL_QUERY"
-    assert "inspection report on Elm Street" in res["prompt"]
+def test_text_command_parser_is_gone():
+    """Owner decision J12 (2026-10-12): the unauthenticated SMS/WhatsApp
+    APPROVE/REJECT/MODIFY parser was removed from the dispatcher-agents
+    core. Broker decisions are signed in the console."""
+    import dispatcher.notifier as n
+    assert not hasattr(n, "parse_inbound_field_command")

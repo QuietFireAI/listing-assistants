@@ -52,8 +52,9 @@ model.
   was edited, deleted or reordered.
 - **Signed authority.** Listing changes, configuration updates, disclosure
   releases and human decisions on paused work require a cryptographic
-  signature (Ed25519 for production). An unsigned or tampered authority
-  message is rejected and flagged as an integrity violation. The signer
+  Ed25519 signature, which also covers who the message says signed it. An
+  unsigned or tampered authority message is rejected and flagged as an
+  integrity violation. The signer
   registry (which human login signed) arms once you ratify
   `config/authority_signers.json`; until then the hub records on the audit
   log that it is checking signatures only.
@@ -208,7 +209,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 939 passed
+python -m pytest tests_listing/        # expect: 940 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

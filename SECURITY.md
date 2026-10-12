@@ -5,7 +5,7 @@
 **ListingAssistants** is a governed multi-agent operations platform for licensed real estate professionals. The system is designed with fail-closed security guarantees:
 
 * **Closed Routing Track:** Messages only travel along explicitly approved routes defined in `identity/routes.json`. Lateral or unauthorized communication between agents is rejected at the dispatcher hub.
-* **Cryptographic signatures:** listing changes, configuration updates, disclosure releases and human decisions on paused work require a signature the hub verifies (Ed25519 for production). Unsigned or tampered authority messages are rejected and logged as integrity violations. The signer registry, which binds a signature to a named human login, arms once `config/authority_signers.json` is ratified.
+* **Cryptographic signatures:** listing changes, configuration updates, disclosure releases and human decisions on paused work require an Ed25519 signature the hub verifies; the signature also covers the message's provenance, including who it says signed it. Unsigned or tampered authority messages are rejected and logged as integrity violations. The signer registry, which binds a signature to a named human login, arms once `config/authority_signers.json` is ratified.
 * **Tamper-evident audit logging:** every message is recorded in an append-only, SHA-256 hash-chained audit log before delivery; `verify_chain()` names the first altered line.
 * **Outbound holds:** messages to a counterparty or the public hold for the broker's signed release.
 * **No money movement:** the build contains no payment, transfer or wire capability. Client messages that mention wire instructions or routing numbers go to the broker's legal-line queue.

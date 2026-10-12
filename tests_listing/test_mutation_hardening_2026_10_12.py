@@ -551,7 +551,8 @@ def test_drawer_file_record_return_values_body_and_metadata_are_exact(tmp_path):
     ("sweep.completed", {"today": "2026-10-12", "sweeps_run": 5, "errors": 0},
      ("CLOCK", "Daily clock ran for 2026-10-12: 5 agents, 0 errors", None, None)),
     ("signer.unarmed", {"reason": "r"}, ("SYSTEM", "Off: r", None, None)),
-    ("jev.armed_live", {"reason": "k"}, ("SYSTEM", "Off: k", None, None)),
+    ("jev.unarmed_fallback", {"reason": "k"}, ("SYSTEM", "Off: k", None, None)),
+    ("jev.key_present", {"reason": "r"}, ("SYSTEM", "JEV key set: r", None, None)),
     ("something.else", {"client_context_id": "c"}, ("OTHER", "something.else", "c", None)),
     ("ack", {}, None),
 ])

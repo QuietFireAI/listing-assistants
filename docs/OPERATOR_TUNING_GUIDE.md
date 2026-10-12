@@ -45,7 +45,7 @@ on 2026-10-11. For every numeric parameter, see
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 939 passed
+python -m pytest tests_listing/          # expect: 940 passed
 python tools/console.py init             # your signing key, mode 0600, stays on this machine
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check

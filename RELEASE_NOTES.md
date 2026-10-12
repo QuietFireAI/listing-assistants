@@ -74,6 +74,13 @@ end-to-end test.
   the broker and Agent 19); the six pillar packages are pinned to exact
   commits; the console's text pager can be turned on (`console.py pager`).
   23 new decision tuples record these behaviors.
+- **Dispatcher core (owner decision J10, 2026-10-12).** Changed in
+  dispatcher-agents and synced here: the signature now covers who a message
+  says signed it (provenance), so that claim cannot be altered after
+  signing; the shared-secret HMAC signing tier is gone (Ed25519 only); the
+  hub's JEV start-up line reports a key as present, never as live; the
+  unauthenticated text-message command parser is removed. Signatures made
+  before this release do not verify after it.
 - **Also fixed while wiring.** A capitalized prohibited phrase was flagged
   by 17 but never found by 04, so the draft bounced twenty times until the
   hub suspended the loop; a signed setting re-sent with the same values
@@ -102,6 +109,8 @@ end-to-end test.
 - Drawer files are not encrypted. The SQLite CRM, consent and ledger
   tables are not written by Agents 14 and 15 (their records live in the
   saved state and the drawers).
+- One hub handles one message at a time (about 4 s for eight 0.5 s
+  deliveries). Separate offices run side by side with one hub each.
 - Model drafting covers Agent 04's listing remarks only and has been tested
   against a stand-in model over HTTP, not against a real served model.
 
@@ -117,7 +126,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 939 passed
+python -m pytest tests_listing/        # expect: 940 passed
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

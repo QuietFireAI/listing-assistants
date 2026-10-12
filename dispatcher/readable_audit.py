@@ -102,6 +102,8 @@ def describe(kind: str, rec: dict) -> Optional[tuple[str, str, Optional[str], Op
     if kind == "sweep.completed":
         return ("CLOCK", f"Daily clock ran for {rec.get('today')}: {rec.get('sweeps_run')} agents, "
                          f"{rec.get('errors')} errors", None, None)
+    if kind == "jev.key_present":
+        return ("SYSTEM", f"JEV key set: {rec.get('reason')}", None, None)
     if kind.endswith(".unarmed") or kind.startswith("jev."):
         return ("SYSTEM", f"Off: {rec.get('reason')}", None, None)
     return ("OTHER", kind, ctx, None)

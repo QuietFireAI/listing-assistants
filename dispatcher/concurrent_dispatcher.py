@@ -4,13 +4,16 @@
 - Envelopes for different contexts are submitted to a thread pool.
 - Interfaces: a Future-returning dispatch/send and an asyncio async_send.
 
-Throughput (audit OPS-6 / RD-10, 2026-10-11): Hub.send holds one global lock
-through persistence, delivery and the receiving agent's handler, so hub work
-for different contexts still runs one at a time. Measured: 8 envelopes whose
-handlers each take 0.5 s complete in about 4 s, not about 0.5 s. This class
-keeps callers from blocking and preserves per-context order; it does not make
-the hub parallel. Changing that is a dispatcher-agents core decision (the lock
-protects audit-chain ordering and sequence numbers).
+Throughput (audit OPS-6 / RD-10, 2026-10-11; J10 2026-10-12): Hub.send holds
+one lock per hub through persistence, delivery and the receiving agent's
+handler, so hub work for different contexts runs one at a time. Measured: 8
+envelopes whose handlers each take 0.5 s complete in about 4 s on one hub,
+about 0.5 s on eight hubs. This class keeps callers from blocking and
+preserves per-context order; it does not make one hub parallel. The lock is
+kept by decision (J10): per-context locks would deadlock with synchronous
+nested delivery, and agents keep plain dict state. To run offices side by
+side, give each office its own hub and audit log (dispatcher-agents
+hub.py docstring and tests/test_hub_lock.py).
 """
 from __future__ import annotations
 import asyncio
@@ -30,7 +33,7 @@ class ConcurrentHubDispatcher:
     Envelopes for the SAME `client_context_id` are executed strictly sequentially (FIFO)
     to protect audit chain monotonicity and client state integrity.
     Envelopes for DIFFERENT `client_context_id`s are submitted concurrently, but the
-    hub serializes them under its global lock (see module docstring).
+    hub serializes them under its lock (see module docstring).
     """
 
     def __init__(self, hub: Hub, max_workers: int = 8):
