@@ -916,3 +916,11 @@ def test_console_questions_with_no_terminal_give_a_plain_error_not_a_traceback(t
         assert json.loads(last[last.index("{"):]) == {
             "error": f"`{cmd[0]}` asks for answers and none could be read - run it in a terminal, "
                      f"or pass every answer as an option (see --help)"}
+
+
+def test_clock_a_once_per_tick_check_does_not_stop_the_checks_after_it(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.spokes["14"].client_dates["CD"] = []
+    out = send_tick(sw.hub, "14", "2026-10-12", checks=["eod_report", "date_triggers"])
+    assert [r["sweep"] for r in out["results"]] == ["eod_report", "date_triggers"]

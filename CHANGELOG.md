@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository is the single source; JOB_DESCRIPTIONS generated here; TelsonBase references removed; `SESSION_HANDOFF_6.md` removed.
 - Modules wired (2026-10-12): client drawers (04, 05, 07, 08, 14, 15 file; HITL holds recorded), plain-language log and chain-built EOD ledger, JEV adapter in Agent 02 (signed `decision_engine` opt-in for live calls; low-confidence holds), model drafting for Agent 04 behind a signed switch and an examined checkpoint (`restore_point.py --exam` against a served model; console `--model-url`/`--model-name`).
 - Owner J decisions (2026-10-12): P18-P21 on the daily clock; disclosure-deadline warning (08); market-update paths removed from 03/11 and their routes; pillars pinned to commits; console text pager (`console.py pager`); 23 DECISIONS.md tuples added, 2 retired.
+- Mutation testing of the 2026-10-12 code (mutmut 3.7.0): logic mutants killed 60.9% -> 95.1%, string mutants 38.6% -> 82.7%; what is left and why in `tests_listing/hardening_manifest/mutation_2026_10_12.md`. Console `onboard`/`pager` with no terminal print a plain error instead of a traceback.
 - Fixed: case-insensitive removal of flagged phrases in 04 (a capitalized phrase looped 20 times); a re-sent signed setting already in effect no longer pages as unrecognized; README P01 diagram renders on GitHub.
 
 ### Corrections to the 1.0.0 entry below
