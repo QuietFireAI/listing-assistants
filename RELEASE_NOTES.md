@@ -31,8 +31,14 @@ end-to-end test.
   stalled connection no longer freezes everyone's page.
 - **The desk on Windows is tested.** CI runs the desk's tests on
   `windows-latest`, including the lock's process check and a clean
-  Ctrl+Break stop (the desk now handles Ctrl+Break). The whole suite also
-  runs there, as information, not yet as a gate.
+  Ctrl+Break stop (the desk now handles Ctrl+Break).
+- **Windows: the whole suite passes, and CI holds it there.** The first
+  Windows runs found text files read without an encoding (Windows reads
+  cp1252; 118 places fixed, 33 in core) and secrets "made private" with
+  chmod, which does nothing on Windows - the signing keys and pager config
+  were readable by other accounts. `dispatcher/private_file.py` now makes
+  them private on every system. Windows: 1003 passed; Linux: 1002 passed,
+  1 skipped (a Windows-only test).
 - **Pictures for non-technical readers.** Every agent folder has a README
   with a diagram of who it hears from and who it talks to (drawn from
   `identity/routes.json`); every playbook in `docs/PLAY-BY-PLAY.md` has a

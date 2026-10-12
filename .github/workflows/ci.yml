@@ -51,12 +51,11 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/test_desk.py -q
   windows-full-suite:
-    # Informational: the whole suite on Windows (~13 min there: every audit
-    # write is fsynced, and Windows flushes slowly). Not a gate yet - QUICKSTART
-    # says Linux and macOS; this job is how we find out what Windows needs.
+    # The whole suite on Windows, a gate since run 38321234628 (1003 passed).
+    # It takes ~5-8 min there: every audit write is fsynced, and Windows
+    # flushes slowly. QUICKSTART_WINDOWS.md promises this result.
     runs-on: windows-latest
     timeout-minutes: 30
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
