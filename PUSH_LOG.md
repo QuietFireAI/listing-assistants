@@ -247,3 +247,12 @@ existing.
 | 2026-10-12 21:37:46 UTC | mortgage-agents | `a1cab5588c` | Diagrams as freight; 9 passed, 1 skipped |
 | 2026-10-12 21:37:50 UTC | property-mgmt-agents | `202ef8ee34` | Diagrams as freight; 10 passed, 1 skipped |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the identity-repo diagrams |
+| 2026-10-12 21:46:22 UTC | claim-agents | `dc6dd105b0` | Real e2e tests for P02/P03/P04 (3 pass; 6 xfail name the steps not built); misnumbered p02-p04 tests renamed; run pictures from the new tests; 36 passed, 1 skipped, 6 xfailed |
+| 2026-10-12 21:46:32 UTC | freight-agents | `3ad2c2313e` | gen_diagrams parity (run tests looked up in every test_playbooks_*.py) |
+| 2026-10-12 21:46:35 UTC | medbilling-agents | `7588f6fa09` | gen_diagrams parity |
+| 2026-10-12 21:46:38 UTC | hr-agents | `29bbcd73cd` | gen_diagrams parity |
+| 2026-10-12 21:46:42 UTC | enrollment-agents | `1418597bca` | gen_diagrams parity |
+| 2026-10-12 21:46:45 UTC | practice-agents | `7c131056a0` | gen_diagrams parity |
+| 2026-10-12 21:46:49 UTC | mortgage-agents | `ab93023cee` | gen_diagrams parity |
+| 2026-10-12 21:46:52 UTC | property-mgmt-agents | `e174e08841` | gen_diagrams parity |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the claim tests and generator parity |
