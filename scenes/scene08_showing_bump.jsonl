@@ -1,0 +1,10 @@
+{"do": "config", "to": "02", "ctx": "setup", "payload": {"rubric": {"budget_threshold": 400000, "budget_weight": 40, "timeline_days_threshold": 30, "timeline_weight": 40, "financing_weight": 20, "hot_threshold": 70, "warm_threshold": 40}, "version": "v1"}}
+{"do": "config", "to": "14", "ctx": "S8-buyerA", "payload": {"buyer_agreement_on_file": true, "requester_identity_verified": true}}
+{"do": "config", "to": "14", "ctx": "S8-buyerB", "payload": {"buyer_agreement_on_file": true, "requester_identity_verified": true}}
+{"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S8-buyerA", "payload": {"message": "Can we see 12 Elm on Saturday at 10?", "requests_showing": true, "listing_id": "L8", "requested_time": "2026-10-17T10:00"}}
+{"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S8-buyerB", "payload": {"message": "We have to see 12 Elm Saturday at 10, our rate lock expires", "requests_showing": true, "listing_id": "L8", "requested_time": "2026-10-17T10:15", "protected_deadline": true}}
+{"do": "send", "from": "external", "to": "01", "intent": "lead.inbound", "ctx": "S8-buyerC", "payload": {"channel": "web_form", "name": "Casey Hot", "phone": "555-0108", "budget": 600000, "timeline_days": 10, "financing_progress": "preapproved", "preapproval_status": "yes", "today": "2026-10-12", "consent": {"call": "yes", "text": "yes", "email": "yes"}}}
+{"do": "config", "to": "14", "ctx": "S8-buyerC", "payload": {"buyer_agreement_on_file": true, "requester_identity_verified": true}}
+{"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S8-buyerC", "payload": {"message": "Need 12 Elm Saturday 10:15, rate lock expires Monday", "requests_showing": true, "listing_id": "L8", "requested_time": "2026-10-17T10:15", "protected_deadline": true}}
+{"do": "config", "to": "06", "ctx": "S8-buyerC", "payload": {"confirm_protected_bump": true}}
+{"do": "show", "what": "external"}

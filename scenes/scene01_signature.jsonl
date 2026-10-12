@@ -1,0 +1,4 @@
+{"do": "send", "from": "human", "to": "05", "intent": "listing.change.authorized", "ctx": "S1", "payload": {"field": "price", "value": 1}}
+{"do": "authorize", "to": "05", "ctx": "S1", "payload": {"new_listing": {"beds": 3, "price": 450000, "features": ["garage"], "photo_detected_features": ["garage"]}, "authorize_go_live": true, "today": "2026-10-12"}}
+{"do": "show", "what": "external"}
+{"do": "show", "what": "queues"}

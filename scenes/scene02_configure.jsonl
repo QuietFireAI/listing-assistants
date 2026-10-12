@@ -1,0 +1,4 @@
+{"do": "config", "to": "02", "ctx": "setup", "payload": {"rubric": {"budget_threshold": 400000, "budget_weight": 40, "timeline_days_threshold": 30, "timeline_weight": 40, "financing_weight": 20, "hot_threshold": 70, "warm_threshold": 40}, "version": "v1"}}
+{"do": "config", "to": "17", "ctx": "setup", "payload": {"ruleset": {"prohibited_phrases": [{"phrase": "perfect for young families", "rule_id": "FH-1"}], "state_rules": {}}, "version": "r1"}}
+{"do": "config", "to": "17", "ctx": "setup", "payload": {"ruleset": {"prohibited_phrases": [{"phrase": "no kids"}], "state_rules": {}}, "version": "r2"}}
+{"do": "show", "what": "queues"}

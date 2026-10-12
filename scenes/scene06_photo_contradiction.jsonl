@@ -1,0 +1,4 @@
+{"do": "authorize", "to": "05", "ctx": "S6", "payload": {"new_listing": {"beds": 2, "price": 330000, "features": ["garage", "in-ground pool"], "photo_detected_features": ["garage"]}, "authorize_go_live": true, "today": "2026-10-12"}}
+{"do": "release", "ctx": "S6", "intent": "vendor.schedule"}
+{"do": "send", "from": "external", "to": "09", "intent": "vendor.event", "ctx": "S6", "payload": {"kind": "photography", "event_kind": "deliverable_report", "doc_type": "photo_package", "proof_artifact_present": true, "content_hash": "sha256-synthetic-6"}}
+{"do": "show", "what": "held"}

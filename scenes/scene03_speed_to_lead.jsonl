@@ -1,0 +1,8 @@
+{"do": "config", "to": "01", "ctx": "setup", "payload": {"brokerage_scope": ["L1", "S4", "S5", "S6", "S7"]}}
+{"do": "send", "from": "external", "to": "01", "intent": "lead.inbound", "ctx": "S3-hot", "payload": {"channel": "web_form", "name": "Pat Hot", "phone": "555-0101", "email": "pat@example.test", "budget": 900000, "timeline_days": 7, "financing_progress": "preapproved", "preapproval_status": "yes", "property_interest": {"listing_id": "L1"}, "today": "2026-10-12", "consent": {"call": "yes", "text": "yes", "email": "yes"}}}
+{"do": "show", "what": "briefing", "today": "2026-10-12"}
+{"do": "send", "from": "external", "to": "01", "intent": "lead.inbound", "ctx": "S3-hot-again", "payload": {"channel": "call", "name": "Pat Hot", "phone": "(555) 0101", "budget": 900000, "timeline_days": 7, "financing_progress": "preapproved", "preapproval_status": "yes", "today": "2026-10-12", "consent": {"call": "yes", "text": "yes", "email": "yes"}}}
+{"do": "show", "what": "waits"}
+{"do": "decide", "ctx": "S3-hot-again", "decision": "cancel"}
+{"do": "send", "from": "external", "to": "01", "intent": "lead.inbound", "ctx": "S3-nocall", "payload": {"channel": "web_form", "name": "Sam Quiet", "phone": "555-0102", "email": "sam@example.test", "budget": 300000, "timeline_days": 90, "financing_progress": "none", "today": "2026-10-12", "consent": {"call": "no", "text": "no", "email": "no"}}}
+{"do": "show", "what": "external"}

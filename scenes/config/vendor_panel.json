@@ -1,0 +1,12 @@
+{
+ "_status": "UNRATIFIED SYNTHETIC TEST ROSTER - for the operator scenes only. Ratify it yourself on camera in Scene 0: replace this line with RATIFIED, today's date (YYYY-MM-DD) and your name",
+ "_purpose": "One made-up photographer so Scene 4 can book photography. Not a real vendor.",
+ "vendors": {
+  "v-photo-synthetic": {
+   "kind": "photography",
+   "license_expiry": "2027-12-31",
+   "insurance_expiry": "2027-12-31",
+   "regulated": false
+  }
+ }
+}

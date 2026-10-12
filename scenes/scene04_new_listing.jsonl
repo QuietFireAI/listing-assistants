@@ -1,0 +1,10 @@
+{"do": "config", "to": "17", "ctx": "S4", "payload": {"ruleset": {"prohibited_phrases": [{"phrase": "perfect for young families", "rule_id": "FH-1"}], "state_rules": {}}, "version": "r1"}}
+{"do": "authorize", "to": "05", "ctx": "S4", "payload": {"new_listing": {"beds": 3, "price": 450000, "features": ["garage", "fenced yard"], "photo_detected_features": ["garage", "fenced yard"]}, "authorize_go_live": true, "today": "2026-10-12"}}
+{"do": "show", "what": "held"}
+{"do": "release", "ctx": "S4", "intent": "vendor.schedule"}
+{"do": "send", "from": "external", "to": "09", "intent": "vendor.event", "ctx": "S4", "payload": {"kind": "photography", "event_kind": "deliverable_report", "doc_type": "photo_package", "proof_artifact_present": false, "content_hash": "sha256-synthetic-1"}}
+{"do": "show", "what": "external"}
+{"do": "send", "from": "external", "to": "09", "intent": "vendor.event", "ctx": "S4", "payload": {"kind": "photography", "event_kind": "deliverable_report", "doc_type": "photo_package", "proof_artifact_present": true, "content_hash": "sha256-synthetic-1"}}
+{"do": "show", "what": "held"}
+{"do": "release", "ctx": "S4", "intent": "campaign.publish"}
+{"do": "show", "what": "external"}

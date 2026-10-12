@@ -1,0 +1,11 @@
+{"do": "authorize", "to": "05", "ctx": "S7", "payload": {"new_listing": {"beds": 3, "sqft_tax_record": 1900, "price": 410000, "features": ["garage"]}, "authorize_go_live": false, "today": "2026-10-01"}}
+{"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S7", "payload": {"message": "Signed contract attached", "document_attached": true, "doc_type": "executed_contract", "submitting_party": "seller@example.test", "content_hash": "sha256-contract-synthetic", "opens_correctly": true, "today": "2026-10-02"}}
+{"do": "authorize", "to": "05", "ctx": "S7", "payload": {"field": "status", "value": "pending", "signed_contract_artifact": "sha256-contract-synthetic", "live_verified": true, "today": "2026-10-02"}}
+{"do": "config", "to": "07", "ctx": "S7", "payload": {"timeline_init": {"inspection": "2026-10-10", "financing_contingency": "2026-10-20", "closing": "2026-11-01"}, "today": "2026-10-02"}}
+{"do": "show", "what": "held"}
+{"do": "sweep", "today": "2026-10-21"}
+{"do": "sweep", "today": "2026-10-22"}
+{"do": "config", "to": "08", "ctx": "S7", "payload": {"expected_senders": {"closing_settlement_statement": ["title@example.test"]}}}
+{"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S7", "payload": {"message": "Final settlement statement attached", "document_attached": true, "doc_type": "closing_settlement_statement", "submitting_party": "title@example.test", "content_hash": "sha256-settlement-synthetic", "opens_correctly": true, "sale_price": 405000, "signed": true, "today": "2026-11-01"}}
+{"do": "config", "to": "16", "ctx": "S7", "payload": {"client_list_entry": {"name": "Synthetic Seller"}}}
+{"do": "sweep", "today": "2026-12-02"}
