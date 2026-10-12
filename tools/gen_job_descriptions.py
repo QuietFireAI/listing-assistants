@@ -49,7 +49,8 @@ def entry(folder, routes):
             f"**Summary:** {desc}\n"
             f"**Sends:** {', '.join(sends) or '(none routed)'}\n"
             f"**Receives:** {', '.join(recvs) or '(none routed)'}\n"
-            f"**Predeliberated tuples:** {tuples} (see {folder}/DECISIONS.md)\n\n"
+            f"**Predeliberated tuples:** {tuples} (see {folder}/DECISIONS.md)\n"
+            f"**Picture:** who it works with, in [{folder}](../{folder}/README.md)\n\n"
             f"{role}\n\n### Job components\n{jobs}\n")
 
 

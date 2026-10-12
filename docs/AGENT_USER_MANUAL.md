@@ -16,6 +16,64 @@ outside providers, an identity provider), this manual says so.
 
 ## 1. Your operations team
 
+<!-- diagram:team-manual - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    B(["You - the broker<br/>sign, decide, release"])
+    H{{"00 Dispatcher hub<br/>carries and logs every message"}}
+    B -- "signed listings, settings, releases, decisions" --> H
+    H -- "questions, holds, alerts, reports" --> B
+    subgraph LEADS["Leads"]
+        A01["01 Lead Capture"]
+        A02["02 Lead Qualification"]
+        A03["03 Lead Nurture"]
+        A19["19 Prospecting"]
+    end
+    subgraph LISTING["Listing"]
+        A04["04 Listing Description"]
+        A05["05 MLS and Listing"]
+        A10["10 Market Data"]
+        A12["12 Marketing Campaign"]
+    end
+    subgraph BUYERS["Buyers and showings"]
+        A06["06 Showing Scheduler"]
+        A13["13 Buyer Search and Match"]
+    end
+    subgraph DEAL["Transaction"]
+        A07["07 Transaction Coordinator"]
+        A08["08 Document Collection"]
+        A09["09 Vendor Coordination"]
+    end
+    subgraph RECORDS["Clients and records"]
+        A11["11 Client Communication"]
+        A14["14 CRM and Pipeline"]
+        A15["15 Financial Tracking"]
+        A16["16 After-Close and Referral"]
+    end
+    subgraph OVERSIGHT["Oversight"]
+        A17["17 Compliance and Fair Housing"]
+        A18["18 Calendar and Tasks"]
+        A20["20 Social Media Monitoring"]
+    end
+    H <--> LEADS
+    H <--> LISTING
+    H <--> BUYERS
+    H <--> DEAL
+    H <--> RECORDS
+    H <--> OVERSIGHT
+    X[/"Outside world<br/>clients, vendors, platforms"/]
+    H <-- "in: inquiries, replies, deliveries<br/>out to your client: sent, with consent on record<br/>out to vendors and the public: held for your release" --> X
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
+    class B you
+    class H hub
+    class X out
+```
+
+*No agent talks to another directly: every arrow goes through the hub, and only on lanes listed in `identity/routes.json`. Each agent's own picture is in its folder (for example [05-mls-listing-management](../05-mls-listing-management/README.md)).*
+<!-- /diagram:team-manual -->
+
 Twenty agents each own one job, and one dispatcher hub carries every message
 between them. No agent talks to another directly, and no agent can use a
 route that is not on the closed track in `identity/routes.json`.
@@ -60,6 +118,26 @@ You decide:
 
 ## 3. Your queues
 
+<!-- diagram:queues-manual - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    AG["Any agent"] --> H{{"Hub"}}
+    H --> Q1["escalation.legal_line<br/>price, strategy, legal, wire"]
+    H --> Q2["escalation.hot_lead"]
+    H --> Q3["escalation.complaint"]
+    H --> Q4["clarification.request<br/>a missing fact, a hold, a failed handoff"]
+    H --> Q5["integrity.violation<br/>unsigned or tampered"]
+    H --> Q6["dead.letter"]
+    H --> Q7["decision_required<br/>a paused thread"]
+    Q1 & Q2 & Q3 & Q4 & Q5 & Q6 & Q7 --> C["Your console"]
+    C -. "optional text: queue and client id,<br/>never the client's words" .-> P(["Your phone"])
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    class C,P you
+    class H hub
+```
+<!-- /diagram:queues-manual -->
+
 Everything that needs a human lands in a named queue and prints on your
 console. To be texted as well, run `python tools/console.py pager` once
 (it asks for your Twilio details); a text says which queue and which client
@@ -76,6 +154,29 @@ context, never the client's words.
 | `decision_required` (HITL hold) | a whole thread an agent cannot finish on its own: the same person under a new lead, a client reply that names no agent, a social reply draft cleared by compliance. Nothing moves until you sign continue or cancel |
 
 ## 4. A day with the system
+
+<!-- diagram:day-manual - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    subgraph MORNING["Morning"]
+        CLK["Daily clock<br/>deadlines, chases, no-shows, timers"] --> BR["18 morning briefing<br/>what waits on whom"]
+    end
+    subgraph DAYTIME["During the day"]
+        L["New listing - P01"]
+        LD["New lead - P11"]
+        UC["Under contract - P09"]
+    end
+    subgraph EVENING["End of day"]
+        BK["15 books the day<br/>off by any amount? it comes to you"]
+    end
+    MORNING --> DAYTIME --> EVENING
+    BR -. "you read it first" .-> Y(["You"])
+    DAYTIME -. "holds and questions" .-> Y
+    BK -. "anything that is not $0.00" .-> Y
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    class Y you
+```
+<!-- /diagram:day-manual -->
 
 **Morning.** Agent 18 builds the morning briefing: calendar items by day,
 what each agent is waiting on, unresolved human decisions, and deadline
@@ -116,6 +217,24 @@ sources attached; any amount that does not reconcile to $0.00 comes to you.
 
 ## 5. When something goes wrong
 
+<!-- diagram:hitl-manual - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+sequenceDiagram
+    participant A as Agent 01, 02, 11 or 20
+    participant M as HITL manager (hub.hitl)
+    participant D as Client drawer
+    actor B as You (broker)
+    A->>M: pause this thread, with the facts
+    M->>D: record the hold
+    M-->>B: decision_required - shows in "show waits"
+    B->>M: console "decide" - signed continue or cancel
+    M->>M: signature checked, same client, not used before
+    M->>A: carry on as decided
+```
+
+*A paused thread: the same person under a new lead (01), a low-confidence score (02), a reply nobody owns (11), a social reply draft (20).*
+<!-- /diagram:hitl-manual -->
+
 - **An upset client (P14).** Agent 11 puts the message verbatim in your
   complaint queue at once, logs it, and places that client on an outbound
   hold, so no scheduled touch goes out. Nothing is sent to the client: the
@@ -148,6 +267,27 @@ sources attached; any amount that does not reconcile to $0.00 comes to you.
   posts.
 
 ## 6. Signing and releasing
+
+<!-- diagram:signing-manual - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    K["console.py init<br/>your key, made once, stays on your machine"] --> O["console.py onboard<br/>your name and login"]
+    O --> S["console.py session your-file<br/>each action signed with your key"]
+    S --> A1["authorize / config<br/>listings and settings"]
+    S --> A2["release<br/>one held outbound message"]
+    S --> A3["decide continue or cancel<br/>one paused thread"]
+    A1 & A2 & A3 --> H{{"Hub checks the signature"}}
+    H -- valid --> G["Done, on the audit log"]
+    H -- "missing or wrong" --> R["Refused and logged<br/>as an integrity violation"]
+    V["console.py verify"] -. "walks the whole log,<br/>names the first broken line" .-> G
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    classDef stop fill:#ffd8d3,stroke:#cf222e,color:#1f2328
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    class G ok
+    class R stop
+    class H hub
+```
+<!-- /diagram:signing-manual -->
 
 Your signing key is created once with `python tools/console.py init` and
 stays on your machine; `python tools/console.py onboard` records your name

@@ -15,6 +15,14 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Pictures for non-technical readers.** Every agent folder has a README
+  with a diagram of who it hears from and who it talks to (drawn from
+  `identity/routes.json`); every playbook in `docs/PLAY-BY-PLAY.md` has a
+  numbered diagram of one real test run, holds and your releases included;
+  the README, broker's manual, financial-capability page, guides and
+  quickstart have diagrams of what they describe. `tools/gen_diagrams.py`
+  draws them and `tests_listing/test_docs_diagrams.py` fails if one falls
+  out of step with the routes or the playbook runs.
 - **All agent traffic through the dispatcher.** The daily clock and the
   console's briefing and EOD reports reach agents as `clock.tick` messages
   through the hub (new route). Every agent send is checked: a rejected or
@@ -131,7 +139,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 984 passed
+python -m pytest tests_listing/        # expect: 988 passed
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

@@ -10,6 +10,53 @@
 
 ## The question this document answers
 
+<!-- diagram:map-success - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    subgraph SELL["The listing"]
+        direction LR
+        P15["P15 CMA and listing<br/>appointment prep"] --> P01["P01 New listing<br/>onboarding"]
+        P01 --> ACTIVE(("Listing<br/>active"))
+        ACTIVE --> P02["P02 Price<br/>adjustment"]
+        ACTIVE --> P04["P04 Open house"]
+        ACTIVE --> P18["P18 Seller<br/>weekly report"]
+        P23["P23 Price review<br/>evidence"] --> P02
+        ACTIVE --> P08["P08 Offer to<br/>acceptance"]
+        ACTIVE --> P05["P05 Expired or<br/>withdrawn"]
+        P08 --> P03["P03 Under-contract<br/>transition"]
+        P03 --> P09["P09 Contract<br/>to close"]
+        P09 --> P10["P10 Close and<br/>handoff"]
+    end
+    subgraph BUY["The buyer"]
+        direction LR
+        P06["P06 New buyer<br/>onboarding"] --> P07["P07 Tour day"]
+        P07 --> P22["P22 Feedback and<br/>match refresh"]
+        P22 --> P07
+    end
+    subgraph LEAD["Leads"]
+        direction LR
+        P11["P11 Speed<br/>to lead"] --> P21["P21 Lead<br/>re-score"]
+        P12["P12 Farm<br/>campaign"]
+        P24["P24 Prospecting<br/>outreach"]
+        P13["P13 Referral and<br/>anniversary"]
+    end
+    subgraph OPS["Every day"]
+        direction LR
+        P16["P16 Morning<br/>operations"]
+        P17["P17 End-of-day<br/>books"]
+        P19["P19 Property<br/>access custody"]
+        P20["P20 Vacant<br/>property watch"]
+        P14["P14 Complaint<br/>response"]
+    end
+    P11 -- "a buyer signs an agreement" --> P06
+    P22 -. "an offer" .-> P08
+    P10 --> P13
+    P13 -- "a referral becomes a lead" --> P11
+```
+
+*Arrows show what usually leads to what; any playbook can also start on its own trigger (listed in [PLAYBOOKS.md](PLAYBOOKS.md)). The "Every day" group runs alongside all of it.*
+<!-- /diagram:map-success -->
+
 Every other document in this repository answers some version of "is it
 correct?" This one answers the question a broker actually asks: when
 this swarm runs, what do I get, what stops eating my time, and what do
@@ -55,6 +102,15 @@ the consent architecture below aren't design preferences. They're
 responses to the industry's own arithmetic.
 
 ## The listing, from signature to sold sign
+
+<!-- diagram:success - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    S1["Signature"] --> S2["Photos, verified"] --> S3["Copy, reviewed"] --> S4["Go-live recorded -<br/>you confirm the MLS"]
+    S4 --> S5["Marketing,<br/>released by you"] --> S6["Offer accepted"] --> S7["Deadlines met,<br/>each with its paper"]
+    S7 --> S8["Closed"] --> S9["Referral and<br/>anniversary"]
+```
+<!-- /diagram:success -->
 
 Success in **P01, new listing onboarding**, is a marketed,
 fair-housing-reviewed listing — campaign published only after a

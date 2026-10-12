@@ -14,6 +14,21 @@ mounted broken.
 
 ## The four tools
 
+<!-- diagram:mcp-mount - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    HOST["Host app<br/>Hermes, OpenClaw, Claude Desktop"] -- "four tools only" --> T["identity.describe<br/>identity.submit<br/>identity.authority<br/>identity.audit"]
+    T --> S["identity_mcp server<br/>refuses to start unless the track,<br/>the signature check and the log are intact"]
+    S --> H{{"Hub"}}
+    H --> AG["the 20 agents"]
+    S -. "signs for the host only<br/>with --demo-signing" .-> H
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    class H hub
+```
+
+*The host never routes inside the swarm; it pushes requests at the front door. There is no release tool: releasing a held message needs your own signature (see FINANCIAL_CAPABILITY.md).*
+<!-- /diagram:mcp-mount -->
+
 - `identity.describe` — read-only: the closed track (legal intents),
   playbooks, and governance guarantees. Call first.
 - `identity.submit` — push ONE intent at the front door; the hub

@@ -22,6 +22,23 @@ default build ships with the execution capability absent, not merely disabled.
 
 ## The two locks
 
+<!-- diagram:locks-fin - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    A["An action that<br/>moves money"] --> L1{"Lock 1 - the build:<br/>is the capability installed?"}
+    L1 -- "no (the default build)" --> N1["Nothing to unlock"]
+    L1 -- "yes - a different, signed build,<br/>installed on purpose by a person" --> L2{"Lock 2 - the key:<br/>your signed authorization<br/>for this action, now?"}
+    L2 -- no --> N2["Nothing moves"]
+    L2 -- yes --> Y["Runs once,<br/>on the audit log"]
+    classDef stop fill:#ffd8d3,stroke:#cf222e,color:#1f2328
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    class N1,N2 stop
+    class Y ok
+```
+
+*The default build stops at Lock 1: it contains no payment, transfer or wire code.*
+<!-- /diagram:locks-fin -->
+
 Financial action is guarded by two independent locks, in series, both held by
 humans. Neither the running system nor any agent can open either one alone.
 
@@ -43,6 +60,23 @@ unlock. Both, separately, by a human, on purpose.
 ---
 
 ## What "held" means for a disclosure
+
+<!-- diagram:audience-fin - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    M["An outbound message"] --> W{"Who is on<br/>the far end?"}
+    W -- "your client (principal)" --> S["Sent"]
+    W -- "the other side (counterparty):<br/>a vendor, a buyer's agent" --> H1["Held for your<br/>signed release"]
+    W -- "the public:<br/>an ad, a feed" --> H2["Held for your<br/>signed release"]
+    W -- "not labelled" --> H3["Held - the default<br/>is the guarded one"]
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    class H1,H2,H3 you
+    class S ok
+```
+
+*In this repository: `client.message.send` is principal, `vendor.schedule` counterparty, `campaign.publish` public (`identity/routes.json`). The gate reads the label, not the words.*
+<!-- /diagram:audience-fin -->
 
 Execution is one half. **Disclosure is the other, and in practice the more
 common one.** An agent never reveals, to any party outside the principal it
@@ -68,6 +102,28 @@ is the guarded state, never the permissive one.
 ---
 
 ## How to engage a held message (the key, in practice)
+
+<!-- diagram:release-fin - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as An agent (09 Vendors, 12 Marketing)
+    participant H as Hub
+    actor B as You (broker)
+    participant X as Vendor or public
+    A->>H: message for a vendor or the public
+    H->>H: who is on the far end? not your client
+    H-->>B: held - in your clarification queue, with why it stopped
+    Note over H,X: nothing has left
+    B->>H: console "release" - signs one disclosure.authority for that message
+    H->>H: checks your signature (and login + MFA, once a signer registry is armed)
+    H->>X: sends that one message, once - written to the audit log
+    B->>H: the same release again
+    H-->>B: refused - a release is used up
+```
+
+*Checked against `Hub.release_disclosure` in `dispatcher/hub.py` and `tests/test_absolute_signal.py` in dispatcher-agents. A message to your own client (Agent 11) is not held.*
+<!-- /diagram:release-fin -->
 
 When a message holds, a human with signing authority authorizes that specific
 message. Mechanically:

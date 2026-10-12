@@ -221,3 +221,20 @@ existing.
 | 2026-10-12 19:21:04 UTC | mortgage-agents | `0bd2a52c65` | Core vendored + sync tool; `borrower.message.send` principal; core boot test; requirements; docs; Manner 15 (sign-off pending); 6 passed, 1 skipped |
 | 2026-10-12 19:21:07 UTC | property-mgmt-agents | `d0c49c9dff` | Core vendored + sync tool; `tenant.message.send` counterparty; core boot test; requirements; 04 SKILL edge; docs; Manner 15 (sign-off pending); 7 passed, 1 skipped |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | sync_core.py checks 16 files (adds absolute_signal.py) and is the shared copy for all identity repos; README count; changelog; push log rows for the eight identity-repo pushes |
+| 2026-10-12 19:35:52 UTC | freight-agents | `bcc45bfb76` | Playbooks P01-P14, generators, verify_swarm, tuple index, ROSTER, AFTER_ACTION from freight-agents-blueprint 5eabfda (regenerated: version lines only); CI workflow; Manner 15 ratified |
+| 2026-10-12 19:35:55 UTC | medbilling-agents | `a6d5eaf66e` | MCP server signs for a host only with --demo-signing (listing MCP-1 port); dead listing wiring removed; test_mcp_signing (5); CI; Manner 15 ratified; 40 passed |
+| 2026-10-12 19:35:58 UTC | claim-agents | `029f05d3c5` | Same MCP port as medbilling; CI; Manner 15 ratified; 30 passed, 1 skipped |
+| 2026-10-12 19:36:01 UTC | hr-agents | `a665a1d4c1` | CI workflow; Manner 15 ratified; README playbook range P01-P14 |
+| 2026-10-12 19:36:05 UTC | enrollment-agents | `fa486cdeae` | CI workflow; Manner 15 ratified; README playbook range P01-P14 |
+| 2026-10-12 19:36:08 UTC | practice-agents | `675ad82a6e` | generate_skills.py reads ROUTES/AGENTS from practice_data.py (one copy); CI; Manner 15 ratified |
+| 2026-10-12 19:36:11 UTC | mortgage-agents | `5328b6800c` | generate_skills.py reads ROUTES/AGENTS from mortgage_data.py (one copy); CI; Manner 15 ratified |
+| 2026-10-12 19:36:15 UTC | property-mgmt-agents | `82a56fa4ac` | generate_skills.py reads ROUTES/AGENTS from property_data.py (one copy); CI; Manner 15 ratified |
+| 2026-10-12 19:38:45 UTC | freight-agents | `55fd364d39` | requirements: pyyaml (first CI run failed: verify_swarm "pyyaml not installed"); CI green |
+| 2026-10-12 19:38:49 UTC | medbilling-agents | `7cc25a65de` | requirements: pyyaml; CI green |
+| 2026-10-12 19:38:52 UTC | claim-agents | `5d4dac919e` | requirements: pyyaml; CI green |
+| 2026-10-12 19:38:56 UTC | hr-agents | `b3a9186924` | requirements: pyyaml; CI green |
+| 2026-10-12 19:38:59 UTC | enrollment-agents | `df3fde85b9` | requirements: pyyaml; CI green |
+| 2026-10-12 19:39:02 UTC | practice-agents | `b1c093432a` | requirements: pyyaml; CI green |
+| 2026-10-12 19:39:05 UTC | mortgage-agents | `d8285af186` | requirements: pyyaml; CI green |
+| 2026-10-12 19:39:09 UTC | property-mgmt-agents | `7507eec25f` | requirements: pyyaml; CI green |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Diagrams: README in all 21 agent folders (from routes.json), a real-run sequence for each of the 24 playbooks, hand-drawn pictures on 15 doc pages; gen_diagrams --check + test; 74 diagrams render; 988 passed; push log rows for the identity-repo batch |

@@ -4,7 +4,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 984 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 988 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -190,6 +190,23 @@ with these dark is a swarm that talks to itself.
 
 ## Config files (separate from code — business content, not tuning knobs)
 
+<!-- diagram:config-tunman - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    T["config file ships<br/>as a draft"] --> E["you edit it to<br/>your business"]
+    E --> RAT["_status: RATIFIED<br/>with a date and your name"]
+    RAT --> LD["loaded - config.load<br/>on the audit log"]
+    T -. "still a draft" .-> SK["skipped and named<br/>on the audit log"]
+    SET["a signed setting<br/>(console config)"] --> AG{"key the agent<br/>knows?"}
+    AG -- yes --> AP["applied"]
+    AG -- no --> HO["held for you,<br/>nothing changes"]
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    class LD,AP ok
+    class SK,HO you
+```
+<!-- /diagram:config-tunman -->
+
 Six JSON files under `config/` hold business content that genuinely
 can't be guessed by code: `vendor_panel.json`, `authority_signers.json`,
 `cadence_settings.json`, `message_templates.json`, `milestone_map.json`,
@@ -238,6 +255,23 @@ parameter nobody outside the source code knows exists.
 ---
 
 ## ABSOLUTE SIGNAL — disclosure gate (added 2026-08-01)
+
+<!-- diagram:audience-tunman - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    M["An outbound message"] --> W{"Who is on<br/>the far end?"}
+    W -- "your client (principal)" --> S["Sent"]
+    W -- "the other side (counterparty):<br/>a vendor, a buyer's agent" --> H1["Held for your<br/>signed release"]
+    W -- "the public:<br/>an ad, a feed" --> H2["Held for your<br/>signed release"]
+    W -- "not labelled" --> H3["Held - the default<br/>is the guarded one"]
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    class H1,H2,H3 you
+    class S ok
+```
+
+*In this repository: `client.message.send` is principal, `vendor.schedule` counterparty, `campaign.publish` public (`identity/routes.json`). The gate reads the label, not the words.*
+<!-- /diagram:audience-tunman -->
 
 | Item | Where | Status | Notes |
 |---|---|---|---|

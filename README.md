@@ -32,6 +32,64 @@ Twenty spoke agents cover the listing lifecycle end to end:
 | Clients & records | 11 Client Communication, 14 CRM & Pipeline, 15 Financial Tracking, 16 After-Close & Referral |
 | Oversight | 17 Compliance & Fair Housing, 18 Calendar & Task Management, 20 Social Media Monitoring |
 
+<!-- diagram:team-readme - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    B(["You - the broker<br/>sign, decide, release"])
+    H{{"00 Dispatcher hub<br/>carries and logs every message"}}
+    B -- "signed listings, settings, releases, decisions" --> H
+    H -- "questions, holds, alerts, reports" --> B
+    subgraph LEADS["Leads"]
+        A01["01 Lead Capture"]
+        A02["02 Lead Qualification"]
+        A03["03 Lead Nurture"]
+        A19["19 Prospecting"]
+    end
+    subgraph LISTING["Listing"]
+        A04["04 Listing Description"]
+        A05["05 MLS and Listing"]
+        A10["10 Market Data"]
+        A12["12 Marketing Campaign"]
+    end
+    subgraph BUYERS["Buyers and showings"]
+        A06["06 Showing Scheduler"]
+        A13["13 Buyer Search and Match"]
+    end
+    subgraph DEAL["Transaction"]
+        A07["07 Transaction Coordinator"]
+        A08["08 Document Collection"]
+        A09["09 Vendor Coordination"]
+    end
+    subgraph RECORDS["Clients and records"]
+        A11["11 Client Communication"]
+        A14["14 CRM and Pipeline"]
+        A15["15 Financial Tracking"]
+        A16["16 After-Close and Referral"]
+    end
+    subgraph OVERSIGHT["Oversight"]
+        A17["17 Compliance and Fair Housing"]
+        A18["18 Calendar and Tasks"]
+        A20["20 Social Media Monitoring"]
+    end
+    H <--> LEADS
+    H <--> LISTING
+    H <--> BUYERS
+    H <--> DEAL
+    H <--> RECORDS
+    H <--> OVERSIGHT
+    X[/"Outside world<br/>clients, vendors, platforms"/]
+    H <-- "in: inquiries, replies, deliveries<br/>out to your client: sent, with consent on record<br/>out to vendors and the public: held for your release" --> X
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
+    class B you
+    class H hub
+    class X out
+```
+
+*No agent talks to another directly: every arrow goes through the hub, and only on lanes listed in `identity/routes.json`. Each agent's own picture is in its folder (for example [05-mls-listing-management](05-mls-listing-management/README.md)).*
+<!-- /diagram:team-readme -->
+
 Agent 00 is the dispatcher: the hub process that validates, routes and logs
 every message. The broker is the principal the swarm serves and the only
 holder of signing authority.
@@ -42,6 +100,40 @@ which is what lets every rule carry a test. The agents call no language
 model.
 
 ## How it stays accountable
+
+<!-- diagram:hub-readme - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TD
+    M["A message arrives at the hub"] --> D{"Seen this exact<br/>message before?"}
+    D -- yes --> DUP["Not delivered twice"]
+    D -- no --> L{"Same topic going<br/>round in a loop?"}
+    L -- yes --> SUS["Paused - you are asked"]
+    L -- no --> S{"Properly formed?"}
+    S -- no --> R1["Refused"]
+    S -- yes --> A{"Needs your signature?"}
+    A -- "yes, and it is missing or wrong" --> R2["Refused and reported to you"]
+    A -- "no, or signed" --> T{"On the closed track?"}
+    T -- "wrong sender or receiver" --> R3["Refused"]
+    T -- "a kind of message no lane knows" --> H1["Held - you are asked"]
+    T -- yes --> O{"Leaving the swarm for<br/>someone other than your client?"}
+    O -- yes --> H2["Held until you sign the release"]
+    O -- no --> P["Written to the tamper-evident log"]
+    H2 -. "you sign" .-> P
+    P --> C{"Final self-check<br/>(when installed) passes?"}
+    C -- no --> H3["Held - you are asked"]
+    C -- yes --> DL{"Delivered?"}
+    DL -- no --> DEAD["Recorded as undeliverable -<br/>the sending agent tells you"]
+    DL -- yes --> ACK["Only now: confirmed done"]
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef stop fill:#ffd8d3,stroke:#cf222e,color:#1f2328
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    class SUS,H1,H2,H3 you
+    class R1,R2,R3,DUP,DEAD stop
+    class ACK ok
+```
+
+*What the hub does with every message, in order (`dispatcher/hub.py`). The same picture, with each check explained: [00-dispatcher](00-dispatcher/README.md).*
+<!-- /diagram:hub-readme -->
 
 - **Closed track.** Only the 52 routes in `identity/routes.json` (146
   sender-intent-receiver lanes) are legal, and every message to or from an
@@ -88,6 +180,53 @@ model.
   is not installed is declared UNARMED on the audit log.
 
 ## The 24 playbooks
+
+<!-- diagram:map-readme - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    subgraph SELL["The listing"]
+        direction LR
+        P15["P15 CMA and listing<br/>appointment prep"] --> P01["P01 New listing<br/>onboarding"]
+        P01 --> ACTIVE(("Listing<br/>active"))
+        ACTIVE --> P02["P02 Price<br/>adjustment"]
+        ACTIVE --> P04["P04 Open house"]
+        ACTIVE --> P18["P18 Seller<br/>weekly report"]
+        P23["P23 Price review<br/>evidence"] --> P02
+        ACTIVE --> P08["P08 Offer to<br/>acceptance"]
+        ACTIVE --> P05["P05 Expired or<br/>withdrawn"]
+        P08 --> P03["P03 Under-contract<br/>transition"]
+        P03 --> P09["P09 Contract<br/>to close"]
+        P09 --> P10["P10 Close and<br/>handoff"]
+    end
+    subgraph BUY["The buyer"]
+        direction LR
+        P06["P06 New buyer<br/>onboarding"] --> P07["P07 Tour day"]
+        P07 --> P22["P22 Feedback and<br/>match refresh"]
+        P22 --> P07
+    end
+    subgraph LEAD["Leads"]
+        direction LR
+        P11["P11 Speed<br/>to lead"] --> P21["P21 Lead<br/>re-score"]
+        P12["P12 Farm<br/>campaign"]
+        P24["P24 Prospecting<br/>outreach"]
+        P13["P13 Referral and<br/>anniversary"]
+    end
+    subgraph OPS["Every day"]
+        direction LR
+        P16["P16 Morning<br/>operations"]
+        P17["P17 End-of-day<br/>books"]
+        P19["P19 Property<br/>access custody"]
+        P20["P20 Vacant<br/>property watch"]
+        P14["P14 Complaint<br/>response"]
+    end
+    P11 -- "a buyer signs an agreement" --> P06
+    P22 -. "an offer" .-> P08
+    P10 --> P13
+    P13 -- "a referral becomes a lead" --> P11
+```
+
+*Arrows show what usually leads to what; any playbook can also start on its own trigger (listed in [PLAYBOOKS.md](docs/PLAYBOOKS.md)). The "Every day" group runs alongside all of it.*
+<!-- /diagram:map-readme -->
 
 Each playbook has an end-to-end test through the hub
 (`tests_listing/test_playbooks_e2e.py`, `tests_listing/test_playbooks_e2e_all.py`).
@@ -211,7 +350,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 984 passed
+python -m pytest tests_listing/        # expect: 988 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -260,7 +399,11 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
   `config_status.py`, and the modules above.
 - `identity/routes.json` - the closed track.
 - `00-dispatcher/` ... `20-social-media-monitoring/` - each agent's ratified
-  SKILL.md and DECISIONS.md.
+  SKILL.md and DECISIONS.md, and a README.md with a picture of who it works
+  with (GitHub shows it when you open the folder).
+- `tools/gen_diagrams.py`, `tools/doc_diagrams.py` - the diagrams in the docs:
+  agent pictures from `identity/routes.json`, playbook pictures from real test
+  runs, the rest drawn by hand; `--check` (and a test) fails when one is stale.
 - `config/` - business content the code cannot guess (templates, cadences,
   milestones, vendor panel, authority signers). Drafts until you ratify them.
 - `scenes/` - the ten operator scenes and their synthetic vendor roster.

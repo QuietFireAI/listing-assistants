@@ -18,6 +18,64 @@ test fails when this file falls out of step with its sources.
 
 ## Roster
 
+<!-- diagram:team-jobs - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    B(["You - the broker<br/>sign, decide, release"])
+    H{{"00 Dispatcher hub<br/>carries and logs every message"}}
+    B -- "signed listings, settings, releases, decisions" --> H
+    H -- "questions, holds, alerts, reports" --> B
+    subgraph LEADS["Leads"]
+        A01["01 Lead Capture"]
+        A02["02 Lead Qualification"]
+        A03["03 Lead Nurture"]
+        A19["19 Prospecting"]
+    end
+    subgraph LISTING["Listing"]
+        A04["04 Listing Description"]
+        A05["05 MLS and Listing"]
+        A10["10 Market Data"]
+        A12["12 Marketing Campaign"]
+    end
+    subgraph BUYERS["Buyers and showings"]
+        A06["06 Showing Scheduler"]
+        A13["13 Buyer Search and Match"]
+    end
+    subgraph DEAL["Transaction"]
+        A07["07 Transaction Coordinator"]
+        A08["08 Document Collection"]
+        A09["09 Vendor Coordination"]
+    end
+    subgraph RECORDS["Clients and records"]
+        A11["11 Client Communication"]
+        A14["14 CRM and Pipeline"]
+        A15["15 Financial Tracking"]
+        A16["16 After-Close and Referral"]
+    end
+    subgraph OVERSIGHT["Oversight"]
+        A17["17 Compliance and Fair Housing"]
+        A18["18 Calendar and Tasks"]
+        A20["20 Social Media Monitoring"]
+    end
+    H <--> LEADS
+    H <--> LISTING
+    H <--> BUYERS
+    H <--> DEAL
+    H <--> RECORDS
+    H <--> OVERSIGHT
+    X[/"Outside world<br/>clients, vendors, platforms"/]
+    H <-- "in: inquiries, replies, deliveries<br/>out to your client: sent, with consent on record<br/>out to vendors and the public: held for your release" --> X
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
+    class B you
+    class H hub
+    class X out
+```
+
+*No agent talks to another directly: every arrow goes through the hub, and only on lanes listed in `identity/routes.json`. Each agent's own picture is in its folder (for example [05-mls-listing-management](../05-mls-listing-management/README.md)).*
+<!-- /diagram:team-jobs -->
+
 Agent 00 is the dispatcher: the hub process that validates, routes and logs
 every message. It is software, not a person. The human broker is the
 principal the swarm serves and the only holder of signing authority.
@@ -57,6 +115,7 @@ none of them calls a language model.
 **Sends:** (none routed)
 **Receives:** (none routed)
 **Predeliberated tuples:** 17 (see 00-dispatcher/DECISIONS.md)
+**Picture:** who it works with, in [00-dispatcher](../00-dispatcher/README.md)
 
 The hub of a hub-and-spoke swarm. Every inter-agent message passes through this
 agent. It validates envelopes, routes by intent, issues acks, assigns per-context
@@ -155,6 +214,7 @@ Specified above, not yet in the code (checked against `dispatcher/hub.py`,
 **Sends:** agent.status, client.message.request, interaction.log, lead.captured, record.request
 **Receives:** clock.tick, lead.inbound, lead.signal, record.response
 **Predeliberated tuples:** 16 (see 01-lead-capture/DECISIONS.md)
+**Picture:** who it works with, in [01-lead-capture](../01-lead-capture/README.md)
 
 First point of contact for all inbound prospect communication. Converts
 unstructured inbound contact (calls, web forms, texts) into a structured lead
@@ -185,6 +245,7 @@ Nothing in a lead object is ever `source_verified` at capture time.
 **Sends:** agent.status, interaction.log, lead.nurture
 **Receives:** lead.captured, lead.rescored
 **Predeliberated tuples:** 16 (see 02-lead-qualification/DECISIONS.md)
+**Picture:** who it works with, in [02-lead-qualification](../02-lead-qualification/README.md)
 
 Takes raw leads from Lead Capture and scores them on readiness. Assigns a
 priority tier and routes: hot leads to immediate human handoff, warm leads to
@@ -207,6 +268,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.rescored
 **Receives:** behavioral.signal, clock.tick, content.verdict, lead.nurture, lead.reply
 **Predeliberated tuples:** 16 (see 03-lead-nurture/DECISIONS.md)
+**Picture:** who it works with, in [03-lead-nurture](../03-lead-nurture/README.md)
 
 Manages long-cycle leads not yet ready to transact. Executes drip
 sequences, re-scores nurtured leads on a cadence, watches behavioral signals, and hands leads back to
@@ -231,6 +293,7 @@ Qualification (02) when readiness changes. It warms; it does not advise.
 **Sends:** agent.status, asset.release, content.review, interaction.log
 **Receives:** content.verdict, lead.reply, listing.data
 **Predeliberated tuples:** 15 (see 04-listing-description/DECISIONS.md)
+**Picture:** who it works with, in [04-listing-description](../04-listing-description/README.md)
 
 Turns property data into listing assets: MLS descriptions, social
 captions, flyer copy, virtual tour scripts. Boundary with Marketing (12): this
@@ -254,6 +317,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 **Sends:** agent.status, compliance.notice, interaction.log, listing.data, status.response, status.update, vendor.request
 **Receives:** asset.release, clock.tick, deliverable.release, listing.change.authorized, status.request
 **Predeliberated tuples:** 13 (see 05-mls-listing-management/DECISIONS.md)
+**Picture:** who it works with, in [05-mls-listing-management](../05-mls-listing-management/README.md)
 
 Executes listing operations in MLS systems: data entry, status changes,
 syndication, photo management, days-on-market tracking. It executes decisions; it
@@ -285,6 +349,7 @@ portal stale, MLS rejects an entry) cannot fire until one exists.
 **Sends:** agent.status, calendar.event, client.message.request, interaction.log, status.request, vendor.request
 **Receives:** clock.tick, showing.feedback_response, showing.no_show, showing.request, status.response, vendor.cancellation_notice
 **Predeliberated tuples:** 13 (see 06-showing-scheduler/DECISIONS.md)
+**Picture:** who it works with, in [06-showing-scheduler](../06-showing-scheduler/README.md)
 
 Coordinates buyer showing requests against seller availability, runs the
 confirm/cancel/remind flow, collects post-showing feedback, and manages open house
@@ -321,6 +386,7 @@ code.
 **Sends:** agent.status, deadline.alert, doc.request, interaction.log, transaction.closed, vendor.request
 **Receives:** clock.tick, deliverable.release, doc.status, vendor.cancellation_notice
 **Predeliberated tuples:** 12 (see 07-transaction-coordinator/DECISIONS.md)
+**Picture:** who it works with, in [07-transaction-coordinator](../07-transaction-coordinator/README.md)
 
 Owns the transaction TIMELINE from offer submission (extended scope)
 through closing. Tracks offer status pre-acceptance, then every post-acceptance
@@ -353,6 +419,7 @@ decision 2026-07-17).
 **Sends:** agent.status, client.message.request, doc.status, interaction.log
 **Receives:** clock.tick, deliverable.release, doc.request, document.submission
 **Predeliberated tuples:** 13 (see 08-document-collection/DECISIONS.md)
+**Picture:** who it works with, in [08-document-collection](../08-document-collection/README.md)
 
 Owns transaction ARTIFACTS: requests, receives, files, and chases
 documents. Boundary with TC (07): 07 owns deadlines and asks for documents; this
@@ -380,6 +447,7 @@ submission's `opens_correctly` flag. There is no separate periodic status report
 **Sends:** agent.status, calendar.event, deliverable.release, interaction.log, vendor.cancellation_notice, vendor.schedule
 **Receives:** vendor.event, vendor.request
 **Predeliberated tuples:** 11 (see 09-vendor-coordination/DECISIONS.md)
+**Picture:** who it works with, in [09-vendor-coordination](../09-vendor-coordination/README.md)
 
 Manages the service provider network - photographers, stagers,
 inspectors, appraisers, contractors, cleaners, handymen. Schedules, confirms,
@@ -413,6 +481,7 @@ broker.
 **Sends:** compliance.notice, data.package, interaction.log
 **Receives:** data.request, listing.data
 **Predeliberated tuples:** 11 (see 10-market-data/DECISIONS.md)
+**Picture:** who it works with, in [10-market-data](../10-market-data/README.md)
 
 Merged agent (former CMA Data + Neighborhood & Market Research). Two
 output modes, one legal line. Mode A: comp packages from MLS. Mode B: neighborhood
@@ -447,6 +516,7 @@ the supplied data would pass through.
 **Sends:** agent.status, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
 **Receives:** client.message.request, client.reply, deadline.alert, record.response, status.update
 **Predeliberated tuples:** 14 (see 11-client-communication/DECISIONS.md)
+**Picture:** who it works with, in [11-client-communication](../11-client-communication/README.md)
 
 Single voice for routine client updates: scheduling confirmations,
 milestone notices, the broker-approved weekly seller report. Other agents draft the triggering fact;
@@ -471,6 +541,7 @@ giving advice, and it only ever does the first.
 **Sends:** agent.status, behavioral.signal, campaign.publish, content.review, interaction.log
 **Receives:** asset.release, content.verdict, lead.reply, platform.metrics, status.update
 **Predeliberated tuples:** 11 (see 12-marketing-campaign/DECISIONS.md)
+**Picture:** who it works with, in [12-marketing-campaign](../12-marketing-campaign/README.md)
 
 Distributes and schedules marketing: social posts (just listed, just
 sold, open house, market updates), email newsletters, ad copy for
@@ -507,6 +578,7 @@ setting to check against; demographic targeting is refused.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, record.request, showing.request
 **Receives:** clock.tick, content.verdict, lead.reply, listing.data, prospect.opportunity, record.response
 **Predeliberated tuples:** 11 (see 13-buyer-search-match/DECISIONS.md)
+**Picture:** who it works with, in [13-buyer-search-match](../13-buyer-search-match/README.md)
 
 Owns the buyer side of finding property - the gap in the original
 roster. Maintains buyer criteria profiles, matches new inventory to buyers,
@@ -534,6 +606,7 @@ filtering is steering, and steering is a fair housing violation.
 **Sends:** date.trigger, record.response, report.package
 **Receives:** clock.tick, interaction.log, record.request, status.update, transaction.closed
 **Predeliberated tuples:** 14 (see 14-crm-pipeline/DECISIONS.md)
+**Picture:** who it works with, in [14-crm-pipeline](../14-crm-pipeline/README.md)
 
 The swarm's system of record. Maintains the contact database, logs all
 interactions received from every agent, manages pipeline stages, emits date
@@ -571,6 +644,7 @@ Reports go to the broker only. Conflicting facts are flagged on the new entry
 **Sends:** agent.status, record.request, report.package
 **Receives:** record.response, report.package, transaction.closed
 **Predeliberated tuples:** 10 (see 15-financial-tracking/DECISIONS.md)
+**Picture:** who it works with, in [15-financial-tracking](../15-financial-tracking/README.md)
 
 Tracks the money: commissions per transaction, marketing spend, lead
 source ROI, expense categorization, P&L summaries, pending commissions, tax
@@ -598,6 +672,7 @@ connected.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.captured
 **Receives:** clock.tick, content.verdict, date.trigger, lead.reply, transaction.closed
 **Predeliberated tuples:** 10 (see 16-after-close-referral/DECISIONS.md)
+**Picture:** who it works with, in [16-after-close-referral](../16-after-close-referral/README.md)
 
 Merged agent (former After-Close Nurture + new Referral Agent - 60%
 overlap eliminated). Owns the post-closing relationship end to end: timed
@@ -633,6 +708,7 @@ verdict goes to the broker, who answers the client.
 **Sends:** agent.status, content.verdict, interaction.log, report.package
 **Receives:** clock.tick, compliance.notice, content.review
 **Predeliberated tuples:** 10 (see 17-compliance-fair-housing/DECISIONS.md)
+**Picture:** who it works with, in [17-compliance-fair-housing](../17-compliance-fair-housing/README.md)
 
 Guardrail agent. Mandatory pre-publication hop for content from 03, 04,
 12, 13 (criteria language), 16 (a past client's message mentioning a referral
@@ -668,6 +744,7 @@ Advertising without brokerage identification is caught from the submitter's
 **Sends:** interaction.log, report.package, showing.no_show
 **Receives:** agent.status, calendar.event, clock.tick, deadline.alert
 **Predeliberated tuples:** 9 (see 18-calendar-task/DECISIONS.md)
+**Picture:** who it works with, in [18-calendar-task](../18-calendar-task/README.md)
 
 Personal assistant to the licensed human agent. Manages the calendar,
 to-do lists, and daily priorities; produces morning briefings and end-of-day
@@ -695,6 +772,7 @@ code (nothing in the swarm reports a recurring task as completed).
 **Sends:** agent.status, data.request, interaction.log, prospect.opportunity
 **Receives:** data.package, discovery.feed
 **Predeliberated tuples:** 10 (see 19-prospecting/DECISIONS.md)
+**Picture:** who it works with, in [19-prospecting](../19-prospecting/README.md)
 
 Monitors predefined zip codes for new listings and surfaces
 opportunities to the human review queue. Value-add included per invitation:
@@ -732,6 +810,7 @@ disagreement is not flagged.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.signal
 **Receives:** content.verdict, lead.reply, social.mention
 **Predeliberated tuples:** 6 (see 20-social-media-monitoring/DECISIONS.md)
+**Picture:** who it works with, in [20-social-media-monitoring](../20-social-media-monitoring/README.md)
 
 Monitors human-designated social channels and listens for questions and
 complaints via user sentiment. Hard rule added to your spec: this agent never

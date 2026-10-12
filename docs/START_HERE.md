@@ -1,5 +1,63 @@
 # START HERE — The 60-Second Version
 
+<!-- diagram:team-start - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    B(["You - the broker<br/>sign, decide, release"])
+    H{{"00 Dispatcher hub<br/>carries and logs every message"}}
+    B -- "signed listings, settings, releases, decisions" --> H
+    H -- "questions, holds, alerts, reports" --> B
+    subgraph LEADS["Leads"]
+        A01["01 Lead Capture"]
+        A02["02 Lead Qualification"]
+        A03["03 Lead Nurture"]
+        A19["19 Prospecting"]
+    end
+    subgraph LISTING["Listing"]
+        A04["04 Listing Description"]
+        A05["05 MLS and Listing"]
+        A10["10 Market Data"]
+        A12["12 Marketing Campaign"]
+    end
+    subgraph BUYERS["Buyers and showings"]
+        A06["06 Showing Scheduler"]
+        A13["13 Buyer Search and Match"]
+    end
+    subgraph DEAL["Transaction"]
+        A07["07 Transaction Coordinator"]
+        A08["08 Document Collection"]
+        A09["09 Vendor Coordination"]
+    end
+    subgraph RECORDS["Clients and records"]
+        A11["11 Client Communication"]
+        A14["14 CRM and Pipeline"]
+        A15["15 Financial Tracking"]
+        A16["16 After-Close and Referral"]
+    end
+    subgraph OVERSIGHT["Oversight"]
+        A17["17 Compliance and Fair Housing"]
+        A18["18 Calendar and Tasks"]
+        A20["20 Social Media Monitoring"]
+    end
+    H <--> LEADS
+    H <--> LISTING
+    H <--> BUYERS
+    H <--> DEAL
+    H <--> RECORDS
+    H <--> OVERSIGHT
+    X[/"Outside world<br/>clients, vendors, platforms"/]
+    H <-- "in: inquiries, replies, deliveries<br/>out to your client: sent, with consent on record<br/>out to vendors and the public: held for your release" --> X
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
+    class B you
+    class H hub
+    class X out
+```
+
+*No agent talks to another directly: every arrow goes through the hub, and only on lanes listed in `identity/routes.json`. Each agent's own picture is in its folder (for example [05-mls-listing-management](../05-mls-listing-management/README.md)).*
+<!-- /diagram:team-start -->
+
 **What this is.** Twenty specialized agents, coordinated by one dispatcher hub, that run the coordination
 layer of a residential listing business — lead intake, listing
 go-to-market, transaction deadlines, document chasing, showing
@@ -27,7 +85,7 @@ minutes:
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (984 passed)
+python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (988 passed)
 ```
 
 That last command isn't a formality — it executes every playbook,

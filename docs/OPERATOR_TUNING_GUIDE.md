@@ -15,11 +15,38 @@ on 2026-10-11. For every numeric parameter, see
 
 ## 1. How the system is built
 
+<!-- diagram:built-tuning - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    subgraph CORE["dispatcher-agents core - vendored, byte-identical (tools/sync_core.py --check)"]
+        HUB["hub.py - checks, logs, delivers"]
+        LOG[("hash-chained audit log")]
+        HUB --> LOG
+    end
+    subgraph IDENTITY["This repository"]
+        R["identity/routes.json<br/>the closed track"]
+        SP["listing_spokes*.py<br/>20 rule-engine agents"]
+        HG["handoff_guard.py<br/>a failed handoff comes to you"]
+        SW["swarm.py<br/>one builder"]
+    end
+    R --> HUB
+    SW --> HUB
+    SW --> SP
+    SP --> HG --> HUB
+    ST[("swarm-state.sqlite<br/>restored only if the log vouches for it")]
+    SW <--> ST
+    C["console.py"] --> SW
+    CL["run_sweeps.py - daily clock"] --> SW
+    classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    class HUB hub
+```
+<!-- /diagram:built-tuning -->
+
 - **Hub.** `dispatcher/hub.py` (Agent 00) receives every message, checks it
   against the closed track (`identity/routes.json`), verifies signatures on
   authority intents, persists it to the hash-chained audit log, delivers it,
   and only then acknowledges it.
-- **Core parity.** Fifteen files in `dispatcher/` are vendored from
+- **Core parity.** Sixteen files in `dispatcher/` are vendored from
   dispatcher-agents and must stay byte-identical. The list is in
   `tools/sync_core.py`; `python tools/sync_core.py --core <checkout> --check`
   reports any drift, and CI runs it.
@@ -45,7 +72,7 @@ on 2026-10-11. For every numeric parameter, see
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 984 passed
+python -m pytest tests_listing/          # expect: 988 passed
 python tools/console.py init             # your signing key, mode 0600, stays on this machine
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
@@ -55,6 +82,23 @@ The six pillar packages are pinned to exact commits in `requirements.txt`.
 To move one forward, change its hash, run the suite, and commit both.
 
 ## 3. Ratify your configuration
+
+<!-- diagram:config-tuning - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    T["config file ships<br/>as a draft"] --> E["you edit it to<br/>your business"]
+    E --> RAT["_status: RATIFIED<br/>with a date and your name"]
+    RAT --> LD["loaded - config.load<br/>on the audit log"]
+    T -. "still a draft" .-> SK["skipped and named<br/>on the audit log"]
+    SET["a signed setting<br/>(console config)"] --> AG{"key the agent<br/>knows?"}
+    AG -- yes --> AP["applied"]
+    AG -- no --> HO["held for you,<br/>nothing changes"]
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    class LD,AP ok
+    class SK,HO you
+```
+<!-- /diagram:config-tuning -->
 
 Files in `config/` ship as drafts. A file counts as ratified when its
 `_status` contains `RATIFIED` followed by a date (YYYY-MM-DD) in the same
@@ -262,6 +306,22 @@ skips only the signature check, exits 3, and prints NOT VERIFIED. Afterwards,
 run the test suite and `python tools/console.py verify`.
 
 ## 8. Human decisions on paused work (`dispatcher/hitl_protocol.py`)
+
+<!-- diagram:hitl-tuning - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+sequenceDiagram
+    participant A as Agent 01, 02, 11 or 20
+    participant M as HITL manager (hub.hitl)
+    participant D as Client drawer
+    actor B as You (broker)
+    A->>M: pause this thread, with the facts
+    M->>D: record the hold
+    M-->>B: decision_required - shows in "show waits"
+    B->>M: console "decide" - signed continue or cancel
+    M->>M: signature checked, same client, not used before
+    M->>A: carry on as decided
+```
+<!-- /diagram:hitl-tuning -->
 
 `HITLManager` pauses an operation, notifies Agent 18 (and an optional
 real-time notifier), and records the pause in the client's drawer when a

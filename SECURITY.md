@@ -2,6 +2,27 @@
 
 ## 1. Security Architecture & Invariants
 
+<!-- diagram:security - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart TB
+    M["Any message"] --> T{"On the closed track?"}
+    T -- no --> RJ["Refused"]
+    T -- yes --> S{"Needs a signature?"}
+    S -- "yes, missing or tampered" --> IV["Refused, integrity violation"]
+    S -- "no, or valid" --> O{"Leaving for a counterparty<br/>or the public?"}
+    O -- yes --> HL["Held for the broker's signed release"]
+    O -- no --> L[("Hash-chained audit log<br/>before delivery")]
+    L --> DL["Delivered"]
+    W["A client mentions a wire<br/>or routing number"] --> LL["Broker's legal-line queue"]
+    classDef stop fill:#ffd8d3,stroke:#cf222e,color:#1f2328
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    class RJ,IV stop
+    class HL,LL you
+    class DL ok
+```
+<!-- /diagram:security -->
+
 **ListingAssistants** is a governed multi-agent operations platform for licensed real estate professionals. The system is designed with fail-closed security guarantees:
 
 * **Closed Routing Track:** Messages only travel along explicitly approved routes defined in `identity/routes.json`. Lateral or unauthorized communication between agents is rejected at the dispatcher hub.

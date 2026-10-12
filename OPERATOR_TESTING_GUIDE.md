@@ -15,16 +15,29 @@ Repo: `github.com/QuietFireAI/listing-assistants`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
-python3 -m pytest tests_listing -q  # expect: 984 passed
+python3 -m pytest tests_listing -q  # expect: 988 passed
 ```
 
-If `984 passed` prints, the build is sound and nothing needs addressing before you
+If `988 passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 
 ---
 
 ## 1. The 90-second story (the scripted demo)
+
+<!-- diagram:story-guide - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    A1["Act 1<br/>signed listing - vendor booking held"] --> A2["Act 2<br/>photos verified, copy reviewed"]
+    A2 --> A3["Act 3<br/>steering phrase flagged, never marketed"]
+    A3 --> A4["Act 4<br/>campaign held - you sign - published"]
+    A4 --> A5["Act 5<br/>price question goes to a human"]
+    A5 --> A6["Act 6<br/>the log verifies"]
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    class A4 you
+```
+<!-- /diagram:story-guide -->
 
 The fastest, cleanest recording. One command, six acts, self-narrating output:
 

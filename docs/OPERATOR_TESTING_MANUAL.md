@@ -57,7 +57,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 984 passed
+python -m pytest tests_listing/          # expect: 988 passed
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```
@@ -77,6 +77,18 @@ scene before you do this and the first line says `"vendor_roster": "unratified"`
 and Scene 4 cannot book a photographer.)
 
 ## Running order
+
+<!-- diagram:order-testing - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    S0["0 Setup<br/>key, name, config"] --> S1["1 Signature"] --> S2["2 Configure"] --> S3["3 Speed to lead"]
+    S3 --> S4["4 New listing"] --> S5["5 Compliance"] --> S6["6 Photos vs data"]
+    S6 --> S7["7 Contract to close"] --> S8["8 Showing bump"] --> S9["9 Complaint"]
+    S9 --> S10["10 Books"] --> V["verify<br/>the whole log"]
+```
+
+*One console session per scene, in this order, in the same folder: each scene builds on the state the last one saved.*
+<!-- /diagram:order-testing -->
 
 Run the scenes in this order, one console session each, in the same folder:
 

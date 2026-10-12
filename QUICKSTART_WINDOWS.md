@@ -30,6 +30,15 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ## 2. Download & Install (3 Commands)
 
+<!-- diagram:install-quick - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    P["Install Python"] --> G["git clone<br/>or ZIP"] --> V["python -m venv venv<br/>activate it"]
+    V --> R["pip install -r<br/>requirements.txt"] --> T["python -m pytest<br/>tests_listing/"]
+    T --> D["python tools/run_demo.py<br/>the six acts"] --> F["python tools/dashboard.py --html"]
+```
+<!-- /diagram:install-quick -->
+
 You can install either via `git` or by downloading the official release archive:
 
 ### Option A: Using Git (Recommended)
@@ -65,7 +74,7 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `984 passed`. The suite runs every agent's rules and all 24
+Expected: `988 passed`. The suite runs every agent's rules and all 24
 playbooks end to end against the real hub.
 
 ### Step 2: Run the six-act demo

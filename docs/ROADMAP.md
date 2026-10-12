@@ -1,5 +1,27 @@
 # ListingAssistants Roadmap
 
+<!-- diagram:roadmap - drawn in tools/doc_diagrams.py; edit it there, not here -->
+```mermaid
+flowchart LR
+    subgraph DONE["Done"]
+        D1["HITL holds"]
+        D2["State survives a restart"]
+        D3["Client drawers, plain log,<br/>JEV scoring, model drafting"]
+        D4["P18-P21 on the daily clock"]
+    end
+    subgraph LEFT["Left"]
+        L1["SQLite CRM, consent and ledger tables"]
+        L2["Identity-provider signer binding"]
+        L3["Host-signed actions over MCP"]
+        L4["Outside providers: MLS, email, SMS"]
+    end
+    classDef ok fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    class D1,D2,D3,D4 ok
+    class L1,L2,L3,L4 you
+```
+<!-- /diagram:roadmap -->
+
 Released tags: `archetype-v1.0.0`, `v1.1.0`. The audit-fix branch of
 2026-10-11 is not tagged; tagging the release commit is the owner's step.
 
