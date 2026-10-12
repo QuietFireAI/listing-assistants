@@ -203,3 +203,5 @@ existing.
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs push |
 | 2026-10-12 17:02:23 UTC | listing-assistants | `90b2950434` | Agent docs second pass against the code (all 21 SKILL.md, DECISIONS code-status notes); code fixes where the doc's rule was right (11 opt-out check, 01/02/03/12/13/16 broker notices, 09 stop-work message, 12 stale-asset records); 971 passed |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs second pass |
+| 2026-10-12 17:14:19 UTC | listing-assistants | `a4f27be006` | Agent docs, third pass: DECISIONS code-status notes (00, 03, 06, 07, 11, 18); 11 doc corrections; 09 roster alternatives; 18 proposed order; test count 974 |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs third pass |
