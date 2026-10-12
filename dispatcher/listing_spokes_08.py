@@ -26,7 +26,7 @@ DOC_MILESTONE_MAP = {
     "preapproval_letter": None, "proof_of_funds": None,
     "inspection_report": "inspection", "appraisal_report": "appraisal",
     "title_commitment": "title", "hoa_docs": "hoa_docs",
-    "survey": None, "disclosure": None, "amendment": None,
+    "survey": None, "disclosure": "seller_disclosure", "amendment": None,
     "closing_settlement_statement": "closing",
     "financing_contingency_removal": "financing_contingency",
     "earnest_money_receipt": "earnest_money",
@@ -164,7 +164,7 @@ class Spoke08DocumentCollection:
                                         "milestone": milestone}))
                     return
             self.pending_requests.setdefault(ctx, {})[doc_type] = \
-                {"chase_count": 0}
+                {"chase_count": 0, "deadline": payload.get("deadline")}
             self.hub.send(_env("08", "11", "client.message.request", ctx,
                                {"template": "document_request",
                                 "doc_type": doc_type},
@@ -264,6 +264,38 @@ class Spoke08DocumentCollection:
                            {"template": "document_chase_followup",
                             "doc_type": doc_type}))
         return "chased"
+
+    # TUNABLE (J4, 2026-10-12): warn this many days before a disclosure is due.
+    DISCLOSURE_LEAD_DAYS = 3
+    DISCLOSURE_DOC_TYPES = frozenset({"disclosure"})
+
+    def check_disclosure_deadlines(self, ctx: str, today: str):
+        """Daily clock check (J4, 2026-10-12). For every disclosure document
+        still pending with a deadline (07 passes the milestone date on its
+        doc.request), warns once on the legal line when the deadline is
+        DISCLOSURE_LEAD_DAYS away or closer. Before this,
+        check_disclosure_deadline existed and nothing called it."""
+        import datetime
+        out = []
+        for doc_type, pending in list(self.pending_requests.get(ctx, {}).items()):
+            if doc_type not in self.DISCLOSURE_DOC_TYPES or not pending.get("deadline") \
+                    or pending.get("disclosure_warned"):
+                continue
+            try:
+                days_left = (datetime.date.fromisoformat(pending["deadline"])
+                             - datetime.date.fromisoformat(today)).days
+            except ValueError:
+                self.hub.send(_env("08", "queue", "clarification.request", ctx,
+                                   {"reason": f"disclosure deadline {pending['deadline']!r} "
+                                              f"is not a date - cannot warn ahead of it",
+                                    "doc_type": doc_type}))
+                pending["disclosure_warned"] = True
+                out.append(f"{doc_type}:bad_date")
+                continue
+            if days_left <= self.DISCLOSURE_LEAD_DAYS:
+                pending["disclosure_warned"] = True
+                out.append(f"{doc_type}:{self.check_disclosure_deadline(ctx, doc_type)}")
+        return out or "none_due"
 
     def check_disclosure_deadline(self, ctx: str, doc_type: str):
         """Schedule-driven, same reasoning as check_chase_timeout above."""

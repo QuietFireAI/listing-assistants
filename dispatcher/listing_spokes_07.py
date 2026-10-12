@@ -116,6 +116,9 @@ class Spoke07TransactionCoordinator:
         "financing_contingency": {"needs_document": True, "vendor_kind": None},
         "earnest_money": {"needs_document": False, "vendor_kind": None},
         "closing": {"needs_document": False, "vendor_kind": None},
+        # J4 (2026-10-12): the seller's disclosure, chased by 08 and warned
+        # ahead of its deadline on the legal line
+        "seller_disclosure": {"needs_document": True, "vendor_kind": None},
     }
 
     def __init__(self, hub, vendor_holdup_days: int = 7,
@@ -246,7 +249,8 @@ class Spoke07TransactionCoordinator:
                     cfg = self.transaction_milestone_config.get(m, {})
                     if cfg.get("needs_document"):
                         self.hub.send(_env("07", "08", "doc.request", ctx,
-                                           {"milestone": m, "today": sent_date}))
+                                           {"milestone": m, "today": sent_date,
+                                            "deadline": milestones[m]}))
                 # job component: inspector/appraiser scheduling per milestone
                 for m in milestones:
                     kind = self.transaction_milestone_config.get(m, {}).get("vendor_kind")

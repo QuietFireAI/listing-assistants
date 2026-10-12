@@ -521,3 +521,33 @@ def test_a_flag_the_agent_cannot_locate_is_held_not_resubmitted(tmp_path):
     assert not _persisted(sw, "content.review", "C2")
     assert any("could not find" in q["payload"].get("reason", "")
                for q in sw.hub.queues["clarification.request"] if q["client_context_id"] == "C2")
+
+
+# ------------------------------------------------------------ J4 disclosure deadline
+def test_disclosure_is_chased_and_warned_once_ahead_of_its_deadline(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "07", "DS", {"timeline_init": {"seller_disclosure": "2026-10-20"},
+                                       "today": "2026-10-12"}))
+    pending = sw.spokes["08"].pending_requests["DS"]
+    assert pending["disclosure"]["deadline"] == "2026-10-20"
+    out = send_tick(sw.hub, "08", "2026-10-16", checks=["disclosure_deadline"])
+    assert out["results"][0]["result"] == "none_due"                 # 4 days out
+    out = send_tick(sw.hub, "08", "2026-10-17", checks=["disclosure_deadline"])
+    assert out["results"][0]["result"] == ["disclosure:escalated"]   # 3 days out
+    legal = [q for q in sw.hub.queues["escalation.legal_line"] if q["client_context_id"] == "DS"]
+    assert len(legal) == 1 and "disclosure deadline approaching" in legal[0]["trigger"]
+    send_tick(sw.hub, "08", "2026-10-18", checks=["disclosure_deadline"])
+    assert len([q for q in sw.hub.queues["escalation.legal_line"] if q["client_context_id"] == "DS"]) == 1
+
+
+def test_a_filed_disclosure_satisfies_its_milestone_and_is_never_warned(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "07", "DF", {"timeline_init": {"seller_disclosure": "2026-10-20"},
+                                       "today": "2026-10-12"}))
+    sw.hub.send(_env("11", "08", "document.submission", "DF",
+                     {"doc_type": "disclosure", "opens_correctly": True, "content_hash": "d1"}))
+    assert sw.spokes["07"].timelines["DF"]["seller_disclosure"]["satisfied"] is True
+    out = send_tick(sw.hub, "08", "2026-10-19", checks=["disclosure_deadline"])
+    assert not [q for q in sw.hub.queues["escalation.legal_line"] if q["client_context_id"] == "DF"]

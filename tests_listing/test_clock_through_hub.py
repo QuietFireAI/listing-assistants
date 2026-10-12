@@ -64,7 +64,9 @@ def test_document_chase_runs_per_doc_type_through_the_tick(tmp_path):
                                                  "inspection": {"chase_count": 0}}
     out = send_tick(hub, "08", "2026-08-05")
     assert out["hub"]["status"] == "ack"
-    assert [r["sweep"] for r in out["results"]] == ["chase_timeout", "chase_timeout"]
+    # J4 (2026-10-12) added 08's daily disclosure check, once per context
+    assert [r["sweep"] for r in out["results"]] == ["chase_timeout", "chase_timeout",
+                                                     "disclosure_deadline"]
     assert not any(r.get("error") for r in out["results"])
     assert spokes["08"].pending_requests["ctx-docs"]["appraisal"]["chase_count"] == 1
     assert spokes["08"].pending_requests["ctx-docs"]["inspection"]["chase_count"] == 1
