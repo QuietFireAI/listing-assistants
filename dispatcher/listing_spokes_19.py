@@ -62,10 +62,12 @@ class Spoke19Prospecting:
         record = self.opportunities.get(listing_id)
         if record is None:
             return
-        self.hub.send(_env("19", "10", "data.request", listing_id,
-                           {"mode": "comp", "license_scope": "internal"}))
+        # wait opened BEFORE the request (10 answers inside hub.send;
+        # fixed 2026-10-11 - the answered request stayed open forever)
         self.hub.send(_env("19", "18", "agent.status", listing_id,
                            {"waiting_on": "market_context_enrichment"}))
+        self.hub.send(_env("19", "10", "data.request", listing_id,
+                           {"mode": "comp", "license_scope": "internal"}))
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id

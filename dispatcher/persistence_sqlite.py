@@ -2,11 +2,13 @@
 
 Tables: crm_interactions, client_consent_events (+ current-consent view in
 code), financial_ledger, client_drawers (+ identity history),
-client_drawer_files.
+client_drawer_files, state_snapshots.
 
-Wiring status (2026-10-11): no spoke writes to this store. Agents 14 and 15
-keep their state in memory. The only runtime reader is tools/dashboard.py.
-The store is ready for that wiring; it is not yet a system of record.
+Wiring status (2026-10-11): the swarm saves its state here
+(state_snapshots, written by dispatcher/swarm.py after each session or
+sweep and restored at start-up, see dispatcher/state_snapshot.py). The CRM,
+consent, ledger and drawer tables are not yet written by the agents; Agents
+14 and 15 keep those records in their own state, which the snapshot saves.
 
 Guarantees (fixed 2026-10-11, audit S-2, S-3, RL-1):
   - Money is exact. amount / commission_rate / balance are stored as decimal
@@ -45,11 +47,12 @@ import sqlite3
 from decimal import Decimal, InvalidOperation
 from typing import Optional, Union
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3   # 3 adds state_snapshots; a version-2 file is upgraded in place
 Money = Union[Decimal, int, str]
 
 _APPEND_ONLY_TABLES = ("crm_interactions", "financial_ledger", "client_drawer_files",
-                       "client_consent_events", "client_drawer_identity_history")
+                       "client_consent_events", "client_drawer_identity_history",
+                       "state_snapshots")
 
 
 class DrawerIdentityConflict(ValueError):
@@ -115,7 +118,10 @@ class ApplianceStorage:
             raise SchemaMismatch(
                 f"{self.db_path}: created by the schema-1 store (REAL money columns, overwritable "
                 f"consent). No spoke wrote to that store; move the file aside and reopen.")
-        if row is not None and int(row["value"]) != SCHEMA_VERSION:
+        if row is not None and int(row["value"]) == 2:
+            # 2 -> 3 only adds the state_snapshots table (created below)
+            c.execute("UPDATE schema_meta SET value=? WHERE key='version'", (str(SCHEMA_VERSION),))
+        elif row is not None and int(row["value"]) != SCHEMA_VERSION:
             raise SchemaMismatch(f"{self.db_path}: schema version {row['value']}, expected {SCHEMA_VERSION}")
 
         c.execute("""
@@ -190,6 +196,13 @@ class ApplianceStorage:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_drawer_files_client ON client_drawer_files(client_id)")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS state_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                taken_at TEXT NOT NULL,
+                sha256 TEXT NOT NULL,
+                body TEXT NOT NULL
+            )""")
 
         for table in _APPEND_ONLY_TABLES:
             for op in ("UPDATE", "DELETE"):
@@ -382,3 +395,19 @@ class ApplianceStorage:
             GROUP BY d.client_id
             ORDER BY d.created_at DESC""").fetchall()
         return [dict(r) for r in rows]
+
+
+    # --- swarm state snapshots (append-only) ---------------------------------
+
+    def save_state_snapshot(self, taken_at: str, sha256: str, body: str) -> int:
+        """Appends one snapshot. Earlier snapshots stay; the newest is used."""
+        cur = self.conn.execute(
+            "INSERT INTO state_snapshots (taken_at, sha256, body) VALUES (?, ?, ?)",
+            (taken_at, sha256, body))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def latest_state_snapshot(self) -> Optional[dict]:
+        row = self.conn.execute(
+            "SELECT id, taken_at, sha256, body FROM state_snapshots ORDER BY id DESC LIMIT 1").fetchone()
+        return dict(row) if row else None

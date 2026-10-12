@@ -239,8 +239,13 @@ class Spoke08DocumentCollection:
         pending = self.pending_requests.get(ctx, {}).get(doc_type)
         if pending is None:
             return None
+        if pending.get("escalated"):
+            # escalated once already - the broker has it; no daily repeat
+            # (fixed 2026-10-11: re-escalated on every sweep after the cap)
+            return "already_escalated"
         pending["chase_count"] += 1
         if pending["chase_count"] >= self.document_chase_cap:
+            pending["escalated"] = True
             # tuple 5: chase attempts exhausted -> escalate, silence never
             # becomes "received"
             self.hub.send(_env("08", "07", "doc.status", ctx,

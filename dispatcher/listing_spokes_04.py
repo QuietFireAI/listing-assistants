@@ -337,11 +337,15 @@ class Spoke04ListingDescription:
                         f"{len(facts)} facts, notes={notes}; submitting to "
                         f"compliance before any release",
                 result="content.review issued")
-            self.hub.send(_env("04", "17", "content.review", ctx,
-                               {"draft": draft}, in_reply_to=env.envelope_id))
+            # Open the wait BEFORE asking (fixed 2026-10-11, scene run): 17
+            # answers inside hub.send, so the approval cleared the wait before
+            # it was opened and a resolved review sat in 18's briefing forever
+            # - the same ordering bug Agent 01's dedupe wait had in July.
             self.hub.send(_env("04", "18", "agent.status", ctx,
                                {"waiting_on": "compliance_review",
                                 "since": env.payload.get("today")}))
+            self.hub.send(_env("04", "17", "content.review", ctx,
+                               {"draft": draft}, in_reply_to=env.envelope_id))
             return
 
         if env.intent == "content.verdict":

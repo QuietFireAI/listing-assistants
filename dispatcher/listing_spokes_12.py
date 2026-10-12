@@ -224,11 +224,13 @@ class Spoke12MarketingCampaign:
                                                        "reputational surface"}))
                     return
                 self.pending_review[ctx] = campaign
-                self.hub.send(_env("12", "17", "content.review", ctx,
-                                   {"campaign": campaign}))
+                # wait opened BEFORE the review (17 answers inside hub.send;
+                # fixed 2026-10-11 - a resolved review stayed open forever)
                 self.hub.send(_env("12", "18", "agent.status", ctx,
                                    {"waiting_on": "compliance_review",
                                     "since": payload.get("today")}))
+                self.hub.send(_env("12", "17", "content.review", ctx,
+                                   {"campaign": campaign}))
                 return
             if "budget_change_verbal" in payload:
                 # tuple 10: verbal budget change -> signed budget stands

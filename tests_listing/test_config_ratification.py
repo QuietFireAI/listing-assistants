@@ -73,9 +73,10 @@ def test_console_does_not_load_a_draft_vendor_roster(tmp_path):
     spec = importlib.util.spec_from_file_location("console_mod", os.path.join(root, "tools", "console.py"))
     console = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(console)
-    built = console.build(str(tmp_path / "audit.jsonl"))
-    hub = built[0] if isinstance(built, tuple) else built
-    entries = [e for e in hub.audit.read() if e["kind"] == "config.load" and e.get("agent") == "console"]
+    sw, _signer = console.build(str(tmp_path / "audit.jsonl"))
+    hub = sw.hub
+    # the console builds through dispatcher/swarm.py, which records the load
+    entries = [e for e in hub.audit.read() if e["kind"] == "config.load" and e.get("agent") == "swarm"]
     assert entries and entries[0]["verdict"] == "unratified"
 
 

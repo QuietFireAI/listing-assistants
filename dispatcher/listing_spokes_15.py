@@ -104,10 +104,13 @@ class Spoke15FinancialTracking:
             # so the commission cross-check could NEVER receive data and
             # silently no-opped on every close. Same defect class as
             # 19->13. A bare record.request hits 14's full-entries branch.
-            self.hub.send(_env("15", "14", "record.request", ctx, {}))
+            # wait opened BEFORE the request: 14 answers inside hub.send
+            # (fixed 2026-10-11 - the resolve arrived first, leaving a
+            # permanent ghost wait in 18's briefing)
             self.hub.send(_env("15", "18", "agent.status", ctx,
                                {"waiting_on": "commission_crosscheck",
-                                "since": payload.get("today")}))
+                                "since": payload.get("today") or payload.get("close_date")}))
+            self.hub.send(_env("15", "14", "record.request", ctx, {}))
             return
 
         if env.intent == "record.response":

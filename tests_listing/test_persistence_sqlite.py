@@ -167,7 +167,7 @@ def test_schema_version_mismatch_and_schema1_messages(tmp_path):
     con = sqlite3.connect(db)
     con.execute("UPDATE schema_meta SET value = '99' WHERE key = 'version'")
     con.commit(); con.close()
-    with pytest.raises(SchemaMismatch, match="schema version 99, expected 2"):
+    with pytest.raises(SchemaMismatch, match="schema version 99, expected 3"):
         ApplianceStorage(db)
     old = str(tmp_path / "old.db")
     con = sqlite3.connect(old)

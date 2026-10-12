@@ -64,115 +64,33 @@ def _p(obj):
     print(json.dumps(obj, default=str))
 
 
-def load_roster(config_dir):
-    """Returns (roster, verdict, problems). The roster is Agent 09's format:
-    vendor_id -> {kind, license_expiry, insurance_expiry, regulated}. Loaded
-    only from a ratified file; an entry with a missing field or a placeholder
-    value is skipped and named in problems, never guessed."""
-    from dispatcher.config_status import load_ratified_config
-    data, verdict = load_ratified_config(os.path.join(config_dir, "vendor_panel.json"))
-    if verdict != "loaded":
-        return {}, verdict, []
-    vendors = data.get("vendors")
-    if not isinstance(vendors, dict):
-        return {}, "invalid: no 'vendors' object", []
-    roster, problems = {}, []
-    for vid, v in vendors.items():
-        if vid.startswith("<") or not isinstance(v, dict):
-            problems.append(f"{vid}: placeholder or not an object")
-            continue
-        missing = [k for k in ("kind", "license_expiry", "insurance_expiry")
-                   if not isinstance(v.get(k), str) or not v.get(k) or v[k].startswith("<")]
-        bad_dates = []
-        for k in ("license_expiry", "insurance_expiry"):
-            if k not in missing:
-                try:
-                    datetime.date.fromisoformat(v[k])
-                except ValueError:
-                    bad_dates.append(k)
-        if missing or bad_dates:
-            problems.append(f"{vid}: missing {missing}" if missing else f"{vid}: bad date {bad_dates}")
-            continue
-        roster[vid] = {"kind": v["kind"], "license_expiry": v["license_expiry"],
-                       "insurance_expiry": v["insurance_expiry"],
-                       "regulated": bool(v.get("regulated", True))}
-    return roster, verdict, problems
+STATE_DB = os.path.join(STATE_DIR, "swarm-state.sqlite")
 
 
-def build(audit_path, config_dir=None):
-    from dispatcher.core import Routes, AuditLog, Envelope  # noqa: F401
-    from dispatcher.hub import Hub
+def build(audit_path, config_dir=None, state_db=None):
+    """The console's swarm: dispatcher/swarm.py with this operator's key.
+    Returns (swarm, signer). State is restored from state_db (default
+    console-state/swarm-state.sqlite) when the audit chain vouches for it."""
     from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
-    from dispatcher.listing_spokes import Spoke01LeadCapture, Spoke14CRMPipeline
-    from dispatcher.listing_spokes_02 import Spoke02LeadQualification
-    from dispatcher.listing_spokes_03 import Spoke03LeadNurture
-    from dispatcher.listing_spokes_04 import Spoke04ListingDescription
-    from dispatcher.listing_spokes_05 import Spoke05MLSListingManagement
-    from dispatcher.listing_spokes_06 import Spoke06ShowingScheduler
-    from dispatcher.listing_spokes_07 import Spoke07TransactionCoordinator
-    from dispatcher.listing_spokes_08 import Spoke08DocumentCollection
-    from dispatcher.listing_spokes_09 import Spoke09VendorCoordination
-    from dispatcher.listing_spokes_10 import Spoke10MarketData
-    from dispatcher.listing_spokes_11 import Spoke11ClientCommunication
-    from dispatcher.listing_spokes_12 import Spoke12MarketingCampaign
-    from dispatcher.listing_spokes_13 import Spoke13BuyerSearchMatch
-    from dispatcher.listing_spokes_15 import Spoke15FinancialTracking
-    from dispatcher.listing_spokes_16 import Spoke16AfterCloseReferral
-    from dispatcher.listing_spokes_17 import Spoke17ComplianceFairHousing
-    from dispatcher.listing_spokes_18 import Spoke18CalendarTask
-    from dispatcher.listing_spokes_19 import Spoke19Prospecting
-    from dispatcher.listing_spokes_20 import Spoke20SocialMediaMonitoring
-
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    from dispatcher.swarm import build_swarm
     if os.path.exists(KEY_PATH):
         signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
     else:
         signer = Ed25519Signer()
     verifier = Ed25519Verifier(signer.public_key_bytes())
-    hub = Hub(Routes(os.path.join(root, "identity", "routes.json")),
-              AuditLog(audit_path),
-              signature_verifier=verifier.verifier())
-    external = []
-    hub.register("external", lambda env: external.append(
-        {"intent": env.intent, "ctx": env.client_context_id,
-         "payload": env.payload}))
-    hub.register("human", lambda env: _p(
-        {"DELIVERED_TO_HUMAN": env.intent, "ctx": env.client_context_id,
-         "payload": env.payload}))
-    # every human-queue landing prints as it happens (the pager, on screen)
-    hub.human_notifier = lambda queue, record: _p({"HUMAN_QUEUE": queue, "record": record})
-    # Load the vendor roster only when ratified, and say what happened
-    # (audit 2026-10-11: a PROPOSED DRAFT roster was loaded silently and any
-    # read error was swallowed; scene run 2026-10-11: the console read a
-    # "vendors" key the template never had, so even a ratified roster
-    # loaded empty).
-    config_dir = config_dir or os.path.join(root, "config")
-    roster, verdict, problems = load_roster(config_dir)
-    hub.audit.append("config.load", {"agent": "console", "file": "vendor_panel.json",
-                                     "config_dir": config_dir, "verdict": verdict,
-                                     "vendors_loaded": sorted(roster),
-                                     "entries_skipped": problems})
-    _p({"vendor_roster": verdict, "vendors_loaded": sorted(roster),
-        "entries_skipped": problems})
-    spokes = {
-        "01": Spoke01LeadCapture(hub), "02": Spoke02LeadQualification(hub),
-        "03": Spoke03LeadNurture(hub), "04": Spoke04ListingDescription(hub),
-        "05": Spoke05MLSListingManagement(hub),
-        "06": Spoke06ShowingScheduler(hub),
-        "07": Spoke07TransactionCoordinator(hub),
-        "08": Spoke08DocumentCollection(hub),
-        "09": Spoke09VendorCoordination(hub, roster=roster),
-        "10": Spoke10MarketData(hub), "11": Spoke11ClientCommunication(hub),
-        "12": Spoke12MarketingCampaign(hub),
-        "13": Spoke13BuyerSearchMatch(hub), "14": Spoke14CRMPipeline(hub),
-        "15": Spoke15FinancialTracking(hub),
-        "16": Spoke16AfterCloseReferral(hub),
-        "17": Spoke17ComplianceFairHousing(hub),
-        "18": Spoke18CalendarTask(hub), "19": Spoke19Prospecting(hub),
-        "20": Spoke20SocialMediaMonitoring(hub),
-    }
-    hub.on_turn_start()
-    return hub, signer, spokes, external
+    sw = build_swarm(
+        audit_path, state_db=state_db, config_dir=config_dir,
+        verifier=verifier.verifier(),
+        # every human-queue landing prints as it happens (the pager, on screen)
+        human_notifier=lambda queue, record: _p({"HUMAN_QUEUE": queue, "record": record}),
+        human_sink=lambda env: _p({"DELIVERED_TO_HUMAN": env.intent,
+                                   "ctx": env.client_context_id, "payload": env.payload}))
+    _p({"vendor_roster": sw.roster_info["verdict"],
+        "vendors_loaded": sw.roster_info["vendors_loaded"],
+        "entries_skipped": sw.roster_info["entries_skipped"],
+        "state": ("restored" if sw.restored is not None else
+                  "fresh" if sw.store is not None else "this process only")})
+    return sw, signer
 
 
 def make_env(frm, to, intent, ctx, payload):
@@ -229,8 +147,16 @@ def release(hub, signer, ctx, intent=None):
 
 
 def cmd_session(args):
-    hub, signer, spokes, external = build(args.audit_log or AUDIT_PATH,
-                                          getattr(args, "config_dir", None))
+    from dispatcher.state_snapshot import StateIntegrityError
+    try:
+        sw, signer = build(args.audit_log or AUDIT_PATH, getattr(args, "config_dir", None),
+                           None if args.no_state else (args.state_db or STATE_DB))
+    except StateIntegrityError as e:
+        _p({"error": "saved state refused", "reason": str(e),
+            "action": "nothing was restored or changed; move the state file aside "
+                      "yourself after checking it, or run with --no-state"})
+        return 2
+    hub, spokes, external = sw.hub, sw.spokes, sw.external
     from dispatcher.sweep_runner import run_daily_sweeps
     errors = 0
     for lineno, line in enumerate(open(args.script), 1):
@@ -289,7 +215,8 @@ def cmd_session(args):
             r = {"error": f"unknown action {do!r}"}
             errors += 1
         _p({"line": lineno, "do": do, "result": r})
-    _p({"session_complete": True, "errors": errors,
+    saved = sw.save_state()
+    _p({"session_complete": True, "errors": errors, "state_saved": saved,
         "chain": hub.audit.verify_chain(), "anchor": hub.audit.anchor(),
         "dead_letters": len(hub.queues["dead.letter"])})
     return 1 if errors else 0
@@ -314,6 +241,11 @@ def main():
     s.add_argument("--audit-log", default=None)
     s.add_argument("--config-dir", default=None,
                    help="folder with your ratified config files (default: config/)")
+    s.add_argument("--state-db", default=None,
+                   help="SQLite file holding the swarm's state between sessions "
+                        "(default: console-state/swarm-state.sqlite)")
+    s.add_argument("--no-state", action="store_true",
+                   help="do not restore or save state (one self-contained session)")
     v = sub.add_parser("verify")
     v.add_argument("--audit-log", default=None)
     v.add_argument("--anchor", default=None,
