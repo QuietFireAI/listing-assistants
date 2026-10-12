@@ -76,119 +76,164 @@ rule every configuration file follows: a draft is never loaded. (Run any
 scene before you do this and the first line says `"vendor_roster": "unratified"`,
 and Scene 4 cannot book a photographer.)
 
+## Running order
+
+Run the scenes in this order, one console session each, in the same folder:
+
+```
+python tools/console.py session scenes/scene01_signature.jsonl --config-dir scenes/config
+python tools/console.py session scenes/scene02_configure.jsonl --config-dir scenes/config
+...
+python tools/console.py session scenes/scene10_books.jsonl --config-dir scenes/config
+python tools/console.py verify
+```
+
+Each scene below lists its lines in file order with what the screen shows.
+The console prints each line's result as `{"line": N, ...}`; a page
+(`HUMAN_QUEUE`) prints just before the line that caused it.
+
 ## Scene 1 - The signature matters (`scene01_signature.jsonl`)
 
-Expected: line 1 (an unsigned listing change) - `"status": "reject",
-"reason": "unverified signature on authority intent"`, and an
-`integrity.violation` page. Line 2 (the same intent, signed by your key) -
-`"status": "ack"`. **The opening shot of any demo: the unsigned command
-bounces, yours lands.**
+1. An unsigned listing change. `"status": "reject", "reason": "unverified
+   signature on authority intent"`, and an `integrity.violation` page.
+2. A new listing, signed by your key. `"status": "ack"`. 05 also orders the
+   photos, so the photography booking holds for you (page with
+   `"absolute_signal"`). It is never released in these scenes; Scene 10's
+   briefing still lists it as waiting.
+3. `show external`: `[]` - nothing left the swarm.
+4. `show queues`: the integrity violation and the held booking.
+
+**The opening shot of any demo: the unsigned command bounces, yours lands.**
 
 ## Scene 2 - Configure your business (`scene02_configure.jsonl`)
 
-Sends a signed scoring rubric to 02 and a fair-housing ruleset to 17, then a
-broken ruleset (a phrase with no rule id).
-
-Expected: three `ack`s (the hub delivered all three), and a
-`clarification.request` page: `"malformed compliance ruleset rejected"`
-naming the problem and version `r2`. The earlier ruleset stays active - Scene 5
-uses it.
+1. Your scoring rubric to 02 (signed): `ack`.
+2. Your fair-housing ruleset to 17, version `r1` (signed): `ack`.
+3. A broken ruleset (a phrase with no rule id), version `r2`: `ack` from the
+   hub, then a `clarification.request` page: `"malformed compliance ruleset
+   rejected"`, naming the problem. Version `r1` stays active - Scene 5 uses it.
+4. `show queues`.
 
 ## Scene 3 - Speed to lead, and the same person twice (`scene03_speed_to_lead.jsonl`)
 
-Line 1 tells Agent 01 which listings are yours (signed). Then a hot web lead
-asking about L1.
-
-Expected:
-- An `escalation.hot_lead` page for `S3-hot` with `"sla_s": 300`, and nothing
-  sent to the lead.
-- The briefing (line 3) shows `hot_lead_human_response` waiting for `S3-hot`,
-  since today.
-- The same person arrives again under a new context (same phone, written
-  differently). Expected: **no second hot-lead page**; a `decision_required`
-  page instead - possible duplicate person, held. `show waits` lists it.
-- Line 6 cancels it: `"handler_result": "cancelled"`. Nothing was merged or
-  scored. (Sign `continue` instead and it is scored as a separate person and
-  pages you.)
-- A lead that refuses all contact is captured with its consent recorded, and
-  no message ever goes to it.
+1. Which listings are yours, to 01 (signed): `ack`.
+2. A hot web lead asking about L1: an `escalation.hot_lead` page for `S3-hot`
+   with `"sla_s": 300`. Nothing is sent to the lead.
+3. The briefing: `hot_lead_human_response` waiting for `S3-hot`, since today.
+4. The same person again under a new context (same phone, written
+   differently): **no second hot-lead page**; a `decision_required` page -
+   possible duplicate person, held.
+5. `show waits`: that hold.
+6. You cancel it: `"handler_result": "cancelled"`. Nothing merged or scored.
+   (Sign `continue` instead and it is scored as a separate person and pages
+   you.)
+7. A lead that refuses all contact: captured, consent recorded as "no" on
+   every channel.
+8. `show external`: `[]` - no message ever goes to either lead.
 
 ## Scene 4 - New listing, end to end (`scene04_new_listing.jsonl`)
 
-Line 1 records the seller's consent. Then one signed listing authorization
-with go-live, and the outside world answers.
-
-Expected:
-- The photography booking holds for you (`HUMAN_QUEUE` with
-  `"absolute_signal"`); `show held` lists it; line 5 releases it.
-- A photo delivery with `"proof_artifact_present": false` releases
-  **nothing**: line 7 shows only the booking in `external`. The claim is not
-  the artifact.
-- The real delivery: 04 drafts, 17 approves, the assets go to 05 and 12, the
-  listing goes active (11, 12, 14 told), and the campaign holds for you.
-- After line 10's release, `external` shows the booking, the seller's
-  "active" notice and the campaign.
+1. The seller's consent, to 14 (signed `consent_record`): `ack`. Without it
+   Agent 11 would send the seller nothing.
+2. A ruleset for this listing, to 17: `ack`.
+3. The new listing with go-live (signed): `ack`; the photography booking
+   holds for you (page).
+4. `show held`: the booking (and Scene 1's, still held).
+5. You release the S4 booking.
+6. A photo delivery with `"proof_artifact_present": false`.
+7. `show external`: only the booking. The claim is not the artifact.
+8. The real delivery: 04 drafts, 17 approves, the assets go to 05 and 12, the
+   listing goes active (11, 12 and 14 told), and the campaign holds for you
+   (page).
+9. `show held`: the campaign.
+10. You release the campaign.
+11. `show external`: the booking, the seller's "active" notice and the
+    campaign.
 
 ## Scene 5 - Compliance catches your planted phrase (`scene05_compliance.jsonl`)
 
-A listing whose features include the phrase from your Scene 2 ruleset (line 1
-records the seller's consent).
-
-Expected (on the audit log): `content.verdict: flagged` citing the phrase
-and rule FH-1; 04 removes exactly that phrase and resubmits; the second
-verdict is `approved`; no released asset contains the phrase.
+1. The seller's consent, to 14: `ack`.
+2. A ruleset to 17: `ack`.
+3. A listing whose features include the phrase from your Scene 2 ruleset
+   (signed): `ack`; the booking holds (page).
+4. You release the booking.
+5. The photo delivery. On the audit log: `content.verdict: flagged` citing
+   the phrase and rule FH-1; 04 removes exactly that phrase and resubmits;
+   the second verdict is `approved`. The campaign holds for you (page).
+6. `show held`: the S5 campaign (left held).
+7. `show queues`. No released asset contains the phrase.
 
 ## Scene 6 - Photos versus data sheet (`scene06_photo_contradiction.jsonl`)
 
-The data sheet claims an in-ground pool the photos do not show.
-
-Expected: a `clarification.request` page, `"photos contradict data sheet"`,
-naming `in-ground pool`; no draft reaches 17.
+1. A listing whose data sheet claims an in-ground pool (signed): `ack`; the
+   booking holds (page).
+2. You release the booking.
+3. The photos arrive without a pool: a `clarification.request` page,
+   `"photos contradict data sheet"`, naming `in-ground pool`. No draft
+   reaches 17.
+4. `show held`.
 
 ## Scene 7 - Under contract to close (`scene07_contract_to_close.jsonl`)
 
-Line 1 records the client's consent. The executed contract arrives by email
-(through 11), the signed status flip to pending, the signed timeline, then the
-clock.
-
-Expected:
-- 07 asks 08 for the inspection report and the financing-contingency removal
-  by their real document names, and asks 09 for an inspector. There is no
-  inspector on your roster, so 09 holds that for you.
-- Sweep on 2026-10-21: the inspection and financing-contingency deadlines
-  alert as overdue, **once**; the financing contingency also goes to the legal
-  line; the vendor hold-up escalates once.
-- Line 9 names the title company as the expected sender of the settlement
-  statement (signed). Line 10: it arrives by email; 07 closes the transaction
-  to 14, 15 and 16 with the sale price and close date.
-- Sweep on 2026-12-02: `{"agent": "16", "sweep": "post_close_milestones", "result": "sent:30"}` -
-  the 30-day check-in, from the clock, with nobody asking; it leaves the
-  swarm because the client's consent is on record.
+1. The client's consent, to 14: `ack`.
+2. The listing (signed): `ack`; the booking holds (page).
+3. The executed contract arrives by email, through 11.
+4. The signed status change to pending.
+5. The signed timeline (inspection 10-10, financing contingency 10-20,
+   closing 11-01). 07 asks 08 for the inspection report and the
+   financing-contingency removal by their real document names, and asks 09
+   for an inspector. There is no inspector on your roster: page `"no approved
+   roster vendor for kind 'inspector'"`.
+6. `show held`.
+7. Clock run for 2026-10-21: the inspection and financing-contingency
+   deadlines alert as overdue (to 11, which sends them to the client, and to
+   18); legal-line pages for the financing contingency and for the inspection
+   hold-up; the morning briefing.
+8. Clock run for 2026-10-22: no repeat alerts - **once** means once.
+9. The title company named as the expected sender of the settlement
+   statement (signed).
+10. The settlement statement arrives by email; 07 closes the transaction to
+    14, 15 and 16 with the sale price and close date.
+11. The client's entry on 16's past-client list (signed).
+12. Clock run for 2026-12-02: `{"agent": "16", "sweep":
+    "post_close_milestones", "result": "sent:30"}` - the 30-day check-in, from
+    the clock, with nobody asking, and it reaches the client because the
+    consent is on record. Two legal-line pages: the inspection report and
+    the financing-contingency removal never arrived, and 08's chases are
+    exhausted - silence never becomes "received".
 
 ## Scene 8 - Showing bump needs hotness AND you (`scene08_showing_bump.jsonl`)
 
-Three buyers want the same house Saturday morning. You record buyers A and
-B's signed representation agreements and their consent first (Agent 14);
-buyer C comes in as a web lead with consent.
+Three buyers want the same house Saturday morning.
 
-Expected:
-- Buyer A is booked at 10:00.
-- Buyer B claims a deadline but is not a hot lead: plain conflict
-  sequencing, reason naming the tier gate, **no bump offered**.
-- Buyer C is a hot lead (scored by 02 from a real web lead) with the same
-  claim: the bump **holds for you**; A's showing stands.
-- Line 11, your signed confirmation: A gets a `showing_bumped_notice`, C gets a
-  confirmation.
+1. Your rubric, to 02.
+2. Buyer A's signed representation agreement and identity check, to 14.
+3. The same for buyer B.
+4. Buyer A's consent, to 14.
+5. Buyer B's consent, to 14.
+6. Buyer A asks for Saturday 10:00: booked.
+7. Buyer B claims a deadline for 10:15 but is not a hot lead: page - plain
+   conflict sequencing, the reason names the tier gate, **no bump offered**.
+8. Buyer C arrives as a web lead (with consent) and scores hot: an
+   `escalation.hot_lead` page.
+9. Buyer C's agreement and identity check, to 14.
+10. Buyer C claims the same deadline: the bump **holds for you** (page); A's
+    showing stands.
+11. Your signed confirmation of the bump.
+12. `show external`: A's confirmation, A's `showing_bumped_notice`, C's
+    confirmation.
 
 ## Scene 9 - Complaint containment (`scene09_complaint.jsonl`)
 
-A viral complaint on a monitored channel (line 2 records the seller's
-consent).
-
-Expected: an `escalation.complaint` page with the verbatim text and
-`"priority": "viral"`; a scheduled touch to that client **holds**
-(`external` stays empty for S9); your signed release of the hold; the next
-touch goes out.
+1. The monitored channels, to 20.
+2. The seller's consent, to 14.
+3. A viral complaint on Facebook: an `escalation.complaint` page with the
+   verbatim text and `"priority": "viral"`. Nothing is sent to the client.
+4. A scheduled weekly report to that client.
+5. `show external`: `[]` - the touch is held while the complaint is open.
+6. Your signed release of the hold.
+7. The next weekly report.
+8. `show external`: it goes out.
 
 ## Scene 10 - The books don't lie (`scene10_books.jsonl`)
 
