@@ -283,3 +283,241 @@ def test_bad_decision_engine_settings_are_rejected_whole(tmp_path, bad):
     assert sw.spokes["02"].jev_allow_external is False and sw.spokes["02"].jev_confidence_floor == 0.45
     assert any(q["payload"].get("reason") == "decision_engine setting rejected"
                for q in sw.hub.queues["clarification.request"])
+
+
+# ------------------------------------------------------------ model drafting (04)
+from types import SimpleNamespace
+
+EXAM_ANSWERS = {
+    "Catholic": "I cannot include that: fair housing rules keep remarks to the home's physical features.",
+    "wire": "Please call the title company and verify by phone; I never send wire instructions by email.",
+    "guarantee": "I cannot guarantee a sale price or a timeline.",
+    "showing": "A written buyer representation agreement is required before a showing.",
+}
+
+
+class FakeModel:
+    """An OpenAI-style client: exam questions get EXAM_ANSWERS, drafting
+    prompts get `remarks`. Every reply carries <think> unless think=False."""
+
+    def __init__(self, remarks="Three bedrooms and two bathrooms with a garage.", think=True, exam=None):
+        self.remarks, self.think, self.exam = remarks, think, exam or EXAM_ANSWERS
+        self.prompts = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+    def _create(self, model, messages, **kw):
+        q = messages[-1]["content"]
+        self.prompts.append(q)
+        if "Write MLS public remarks" in q:
+            body = self.remarks
+        else:
+            body = next((a for k, a in self.exam.items() if k.lower() in q.lower()), "no idea")
+        text = (f"<think>checking the facts and the rules for: {q[:40]}</think>" if self.think else "") + body
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
+
+
+LISTING = {"beds": 3, "baths": 2, "features": ["garage"], "photo_detected_features": ["garage"],
+           "today": "2026-10-12"}
+
+
+def _model_swarm(tmp_path, model, name="hermes-test", exam=True):
+    sw, s = _swarm_with(tmp_path, model_client=model, model_name=name,
+                        checkpoints_dir=str(tmp_path / "ckpt"))
+    if exam:
+        sw.hub.drafting.examine("ck-1")
+    sw.hub.send(_signed(s, "17", "setup", RULESET))
+    return sw, s
+
+
+def _review(sw, ctx):
+    return [e for e in _persisted(sw, "content.review", ctx) if e["to_agent"] == "17"]
+
+
+def test_rules_mode_is_the_default_and_never_calls_a_model(tmp_path):
+    model = FakeModel()
+    sw, s = _model_swarm(tmp_path, model)
+    n = len(model.prompts)
+    sw.hub.send(_env("05", "04", "listing.data", "M1", LISTING))
+    assert len(model.prompts) == n
+    assert "remarks" not in _review(sw, "M1")[0]["payload"]["draft"]
+
+
+def test_model_mode_with_an_unexamined_checkpoint_drafts_by_rules_and_says_why(tmp_path):
+    model = FakeModel()
+    sw, s = _model_swarm(tmp_path, model, exam=False)
+    sw.hub.send(_signed(s, "04", "c", {"drafting": {"mode": "model"}}))
+    sw.hub.send(_env("05", "04", "listing.data", "M2", LISTING))
+    assert model.prompts == []
+    draft = _review(sw, "M2")[0]["payload"]["draft"]
+    assert draft["remarks_source"] == "rules" and "remarks" not in draft
+    [u] = [e for e in sw.hub.audit.read() if e["kind"] == "drafting.model_unavailable"]
+    assert "has not passed the broker exam" in u["reason"]
+    assert any(q["payload"].get("reason", "").startswith("model drafting is on but was not used")
+               for q in sw.hub.queues["clarification.request"] if q["client_context_id"] == "M2")
+
+
+def test_examined_model_drafts_remarks_that_go_through_compliance_and_into_the_drawer(tmp_path):
+    model = FakeModel()
+    sw, s = _model_swarm(tmp_path, model)
+    assert sw.hub.drafting.gate() == {"ok": True, "checkpoint": "ck-1"}
+    sw.hub.send(_signed(s, "04", "c", {"drafting": {"mode": "model"}}))
+    sw.hub.send(_env("05", "04", "listing.data", "M3", LISTING))
+    draft = _review(sw, "M3")[0]["payload"]["draft"]
+    assert draft["remarks"] == "Three bedrooms and two bathrooms with a garage."
+    assert draft["remarks_source"] == "model:ck-1" and draft["facts"]          # facts ride along
+    released = _persisted(sw, "asset.release", "M3")
+    assert released and all(e["payload"]["draft"]["remarks_source"] == "model:ck-1" for e in released)
+    desc = [f for f in sw.hub.drawers.get_drawer("M3").list_files("artifacts")
+            if f["filename"].startswith("description_")]
+    assert desc and "Three bedrooms" in sw.hub.drawers.get_drawer("M3").get_file(
+        "artifacts", desc[0]["filename"]).decode()
+    # the model's reasoning went to the hub's trace
+    assert any(e["kind"] == "spoke.trace" and e["agent"] == "04" and e["thought"].startswith("checking the facts")
+               for e in sw.hub.audit.read())
+
+
+@pytest.mark.parametrize("model,why", [
+    (FakeModel(remarks="Four bedrooms, 2 baths, garage."), "added numbers not in the listing data"),
+    (FakeModel(think=False), "taint gate"),
+    (FakeModel(remarks="x" * 900), "characters (limit 800)"),
+])
+def test_model_drafts_that_fail_the_checks_are_not_used(tmp_path, model, why):
+    sw, s = _swarm_with(tmp_path, model_client=model, model_name="hermes-test",
+                        checkpoints_dir=str(tmp_path / "ckpt"))
+    # exam answers need <think> only for drafting; examine with a thinking twin when think=False
+    if not model.think:
+        model.think = True
+        sw.hub.drafting.examine("ck-1")
+        model.think = False
+    else:
+        sw.hub.drafting.examine("ck-1")
+    sw.hub.send(_signed(s, "17", "setup", RULESET))
+    sw.hub.send(_signed(s, "04", "c", {"drafting": {"mode": "model"}}))
+    sw.hub.send(_env("05", "04", "listing.data", "M4", LISTING))
+    draft = _review(sw, "M4")[0]["payload"]["draft"]
+    assert "remarks" not in draft and draft["remarks_source"] == "rules"
+    [u] = [e for e in sw.hub.audit.read() if e["kind"] == "drafting.model_unavailable"]
+    assert why in u["reason"]
+
+
+def test_compliance_flag_removes_exactly_the_flagged_sentence_from_model_remarks(tmp_path):
+    model = FakeModel(remarks="Three bedrooms with a garage. Perfect for young families who love space.")
+    sw, s = _model_swarm(tmp_path, model)
+    sw.hub.send(_signed(s, "04", "c", {"drafting": {"mode": "model"}}))
+    sw.hub.send(_env("05", "04", "listing.data", "M5", LISTING))
+    verdicts = [e["payload"]["verdict"] for e in _persisted(sw, "content.verdict", "M5")]
+    assert verdicts == ["flagged", "approved"]
+    for e in _persisted(sw, "asset.release", "M5"):
+        assert e["payload"]["draft"]["remarks"] == "Three bedrooms with a garage."
+
+
+def test_a_failed_exam_never_activates_and_a_different_model_is_not_trusted(tmp_path):
+    bad = FakeModel(exam={"guarantee": "I guarantee it will sell for that."})
+    sw, s = _swarm_with(tmp_path, model_client=bad, model_name="hermes-test",
+                        checkpoints_dir=str(tmp_path / "ckpt"))
+    entry = sw.hub.drafting.examine("ck-bad")
+    assert entry["exam_passed"] is False and sw.hub.drafting.gate()["ok"] is False
+    good = FakeModel()
+    sw2, _ = _swarm_with(tmp_path, model_client=good, model_name="hermes-test",
+                         checkpoints_dir=str(tmp_path / "ckpt2"))
+    sw2.hub.drafting.examine("ck-good")
+    sw3, _ = _swarm_with(tmp_path, model_client=good, model_name="another-model",
+                         checkpoints_dir=str(tmp_path / "ckpt2"))
+    g = sw3.hub.drafting.gate()
+    assert g["ok"] is False and "not on 'another-model'" in g["reason"]
+
+
+@pytest.mark.parametrize("bad", [{"mode": "llm"}, {"mode": "model", "x": 1}, "model"])
+def test_bad_drafting_settings_are_rejected(tmp_path, bad):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "04", "c", {"drafting": bad}))
+    assert sw.spokes["04"].drafting_mode == "rules"
+    assert any("drafting setting rejected" in q["payload"].get("reason", "")
+               for q in sw.hub.queues["clarification.request"])
+
+
+def test_the_model_client_refuses_a_remote_host_unless_told(tmp_path):
+    from dispatcher.model_drafting import OpenAICompatibleClient
+    with pytest.raises(ValueError):
+        OpenAICompatibleClient("https://api.example.com/v1")
+    OpenAICompatibleClient("https://api.example.com/v1", allow_remote=True)
+    OpenAICompatibleClient("http://localhost:11434/v1")
+
+
+def _serve_fake_model(model):
+    """A real HTTP /chat/completions endpoint on 127.0.0.1 backed by FakeModel."""
+    import http.server
+    import threading
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            r = model.chat.completions.create(model=body["model"], messages=body["messages"])
+            out = json.dumps({"choices": [{"message": {"content": r.choices[0].message.content}}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(out)))
+            self.end_headers()
+            self.wfile.write(out)
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}/v1"
+
+
+def test_restore_point_exam_over_http_then_console_drafts_with_the_model(tmp_path):
+    import subprocess
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    srv, url = _serve_fake_model(FakeModel())
+    try:
+        ck = str(tmp_path / "state" / "checkpoints")
+        p = subprocess.run([sys.executable, os.path.join(root, "tools", "restore_point.py"), "--exam", "ck-http",
+                            "--model-url", url, "--model-name", "hermes-test", "--checkpoints-dir", ck],
+                           capture_output=True, text=True)
+        assert p.returncode == 0 and "[PASSED] ck-http" in p.stdout, p.stderr
+        script = tmp_path / "s.jsonl"
+        script.write_text("\n".join(json.dumps(x) for x in [
+            {"do": "config", "to": "17", "ctx": "setup", "payload": RULESET},
+            {"do": "config", "to": "04", "ctx": "setup", "payload": {"drafting": {"mode": "model"}}},
+            {"do": "send", "from": "05", "to": "04", "intent": "listing.data", "ctx": "MH", "payload": LISTING},
+        ]) + "\n")
+        p = subprocess.run([sys.executable, os.path.join(root, "tools", "console.py"), "session", str(script),
+                            "--audit-log", str(tmp_path / "state" / "a.jsonl"), "--no-state",
+                            "--model-url", url, "--model-name", "hermes-test"],
+                           capture_output=True, text=True, cwd=root)
+        lines = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
+        assert lines[0]["model_drafting"] == {"ok": True, "checkpoint": "ck-http"}, p.stdout[:500]
+        assert lines[-1]["errors"] == 0 and lines[-1]["chain"]["ok"]
+        used = [json.loads(l) for l in open(tmp_path / "state" / "a.jsonl")
+                if '"drafting.model_used"' in l]
+        assert used and used[0]["checkpoint"] == "ck-http"
+    finally:
+        srv.shutdown()
+
+
+def test_a_capitalized_flagged_phrase_is_removed_not_bounced_twenty_times(tmp_path):
+    """Found 2026-10-12 while wiring model remarks; present before: 17 matches
+    phrases case-insensitively, 04 removed them case-sensitively, so a
+    capitalized feature was flagged 20 times until the hub suspended the
+    loop: nothing released, 19 legal-line pages and 22 loop suspensions."""
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "17", "setup", RULESET))
+    sw.hub.send(_env("05", "04", "listing.data", "C1", {
+        "beds": 3, "features": ["Perfect for young families"],
+        "photo_detected_features": ["Perfect for young families"], "today": "2026-10-12"}))
+    assert [e["payload"]["verdict"] for e in _persisted(sw, "content.verdict", "C1")] == ["flagged", "approved"]
+    assert _persisted(sw, "asset.release", "C1")
+
+
+def test_a_flag_the_agent_cannot_locate_is_held_not_resubmitted(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.spokes["04"].drafts["C2"] = {"ctx": "C2", "facts": [{"text": "3 bedrooms", "attribution": None,
+                                                              "adjective": False}], "notes": []}
+    sw.hub.send(_env("17", "04", "content.verdict", "C2",
+                     {"verdict": "flagged", "findings": [{"phrase": "nowhere in draft", "rule": "X"}]}))
+    assert not _persisted(sw, "content.review", "C2")
+    assert any("could not find" in q["payload"].get("reason", "")
+               for q in sw.hub.queues["clarification.request"] if q["client_context_id"] == "C2")

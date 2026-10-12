@@ -11,9 +11,11 @@ What it provides:
   4. HermesLearningLoop: screens runs and collects the ones that pass into an
      exemplar pool that can be exported as JSONL.
 
-Wiring status (2026-10-11): no spoke, tool or playbook calls this module.
-The 20 spokes are deterministic Python and make no model calls. Using this
-seam means injecting a model client and calling it from your own code.
+Wiring status (2026-10-12): Agent 04 calls draft_and_trace() through
+dispatcher/model_drafting.py when the broker signs drafting mode "model" and
+the active checkpoint passed the broker exam on the served model; otherwise
+no agent calls a model. The learning loop is not run on live drafts
+(learn=False); it is used by its own tests and the operator tools.
 
 Behavior fixed 2026-10-11 (audit H-2..H-5):
   - No model client, or a failed model call, raises HermesUnavailableError.

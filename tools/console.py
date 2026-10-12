@@ -70,7 +70,7 @@ def _p(obj):
 STATE_DB = os.path.join(STATE_DIR, "swarm-state.sqlite")
 
 
-def build(audit_path, config_dir=None, state_db=None):
+def build(audit_path, config_dir=None, state_db=None, model=None):
     """The console's swarm: dispatcher/swarm.py with this operator's key.
     Returns (swarm, signer). State is restored from state_db (default
     console-state/swarm-state.sqlite) when the audit chain vouches for it."""
@@ -87,12 +87,14 @@ def build(audit_path, config_dir=None, state_db=None):
         # every human-queue landing prints as it happens (the pager, on screen)
         human_notifier=lambda queue, record: _p({"HUMAN_QUEUE": queue, "record": record}),
         human_sink=lambda env: _p({"DELIVERED_TO_HUMAN": env.intent,
-                                   "ctx": env.client_context_id, "payload": env.payload}))
+                                   "ctx": env.client_context_id, "payload": env.payload}),
+        model_client=(model or {}).get("client"), model_name=(model or {}).get("name"))
     _p({"vendor_roster": sw.roster_info["verdict"],
         "vendors_loaded": sw.roster_info["vendors_loaded"],
         "entries_skipped": sw.roster_info["entries_skipped"],
         "state": ("restored" if sw.restored is not None else
-                  "fresh" if sw.store is not None else "this process only")})
+                  "fresh" if sw.store is not None else "this process only"),
+        "model_drafting": sw.hub.drafting.gate()})
     return sw, signer
 
 
@@ -227,9 +229,22 @@ def _operator():
 
 def cmd_session(args):
     from dispatcher.state_snapshot import StateIntegrityError
+    model = None
+    if getattr(args, "model_url", None):
+        if not args.model_name:
+            _p({"error": "--model-url needs --model-name"})
+            return 2
+        from dispatcher.model_drafting import OpenAICompatibleClient
+        try:
+            model = {"client": OpenAICompatibleClient(args.model_url,
+                                                      allow_remote=args.allow_remote_model),
+                     "name": args.model_name}
+        except ValueError as e:
+            _p({"error": str(e)})
+            return 2
     try:
         sw, signer = build(args.audit_log or AUDIT_PATH, getattr(args, "config_dir", None),
-                           None if args.no_state else (args.state_db or STATE_DB))
+                           None if args.no_state else (args.state_db or STATE_DB), model)
     except StateIntegrityError as e:
         _p({"error": "saved state refused", "reason": str(e),
             "action": "nothing was restored or changed; move the state file aside "
@@ -350,6 +365,12 @@ def main():
                         "(default: console-state/swarm-state.sqlite)")
     s.add_argument("--no-state", action="store_true",
                    help="do not restore or save state (one self-contained session)")
+    s.add_argument("--model-url", default=None,
+                   help="OpenAI-style endpoint of a locally served model for Agent 04's "
+                        "optional model-written remarks (e.g. http://localhost:11434/v1)")
+    s.add_argument("--model-name", default=None, help="the served model's name")
+    s.add_argument("--allow-remote-model", action="store_true",
+                   help="allow a model endpoint that is not this machine (listing data leaves it)")
     v = sub.add_parser("verify")
     v.add_argument("--audit-log", default=None)
     v.add_argument("--anchor", default=None,

@@ -19,6 +19,11 @@ What it wires
     and saved by save_state(); see dispatcher/state_snapshot.py for the
     integrity rules. state_db=None keeps state in this process only, and
     the audit log says so (state.ephemeral).
+  - client drawers as hub.drawers (dispatcher/drawer_filing.py), the JEV
+    decision adapter as hub.decision_adapter (Agent 02 scores through it) and
+    the model drafting gate as hub.drafting (Agent 04, off unless the broker
+    turns it on and an examined checkpoint matches the served model); all
+    added 2026-10-12
   - the plain-language log (added 2026-10-12): the hub's audit log is a
     ReadableAuditLog, so every chain entry also lands, described, in
     <readable_dir>/stream.log (default: "readable" next to the audit log);
@@ -112,7 +117,10 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 human_sink: Optional[Callable] = None,
                 readable_dir: Optional[str] = None,
                 drawers_root: Optional[str] = None,
-                decision_adapter: Any = None) -> Swarm:
+                decision_adapter: Any = None,
+                model_client: Any = None,
+                model_name: Optional[str] = None,
+                checkpoints_dir: Optional[str] = None) -> Swarm:
     from .core import Routes, AuditLog
     from .hub import Hub
     from .hitl_protocol import HITLManager
@@ -175,6 +183,16 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     hub.audit.append("decision.engine", {"agent": "swarm", "engine": st.get("mode"),
                                          "tier": None, "confidence": None,
                                          "reason": st.get("reason")})
+    # Agent 04's optional model-written remarks (wired 2026-10-12): used only
+    # when the broker signs drafting mode "model" AND the active checkpoint
+    # passed the broker exam on this served model (dispatcher/model_drafting.py).
+    from .model_drafting import DraftingModel
+    hub.drafting = DraftingModel(hub, model_client, model_name or "unnamed-model",
+                                 checkpoints_dir or os.path.join(base_dir, "checkpoints"))
+    g = hub.drafting.gate()
+    hub.audit.append("drafting.model_status", {"agent": "swarm", "model_ready": g["ok"],
+                                               "model": model_name, "reason": g.get("reason"),
+                                               "checkpoint": g.get("checkpoint")})
     hitl = HITLManager(hub=hub, drawer_manager=drawers)
     hub.hitl = hitl   # agents reach it through their guarded hub
 

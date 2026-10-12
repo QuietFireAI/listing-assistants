@@ -14,8 +14,10 @@ checkpoints, which one is active, and a history of changes.
   4. activate / rollback / restore points move the active pointer in the
      manifest. They do not copy or load weights.
 
-Wiring status (2026-10-11): nothing in the runtime reads
-active_checkpoint_id or loads a model from it.
+Wiring status (2026-10-12): Agent 04's model drafting gate
+(dispatcher/model_drafting.py) reads the ACTIVE checkpoint and drafts with
+the served model only if that checkpoint passed this exam on that model.
+Nothing loads weights from the manifest; the model is served elsewhere.
 
 Fixed 2026-10-11 (audit C-1..C-3):
   - No responder: the exam is reported as NOT RUN (overall_passed False,
@@ -285,8 +287,9 @@ class ModelCheckpointManager:
 
     def rollback(self, target_id: Optional[str] = None, reason: str = "Operator rollback command") -> dict:
         """Moves the active pointer in the manifest back to the baseline (or a
-        named checkpoint). It does not load weights; nothing in the runtime
-        reads the pointer today."""
+        named checkpoint). It does not load weights. Agent 04's drafting gate
+        reads the pointer: rolling back to the unexamined baseline turns
+        model drafting off."""
         manifest = self._load_manifest()
         dest_id = target_id or self.baseline_id
         dest_ck = manifest.get("checkpoints", {}).get(dest_id)

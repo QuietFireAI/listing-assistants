@@ -6,6 +6,8 @@ Compliance (17) 'approved' verdict.
 """
 from __future__ import annotations
 
+import re
+
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
 from .drawer_filing import file_record
@@ -63,6 +65,10 @@ class Spoke04ListingDescription:
         self.hub = guard(hub, "04")   # handoff rule (audit TU-2)
         self.drafts: dict[str, dict] = {}  # ctx -> draft asset pending verdict
         self.mls_char_limit = mls_char_limit
+        # "rules" (default): facts-only draft. "model": the broker signed a
+        # switch to model-written remarks (dispatcher/model_drafting.py gates
+        # it on an examined checkpoint). Wired 2026-10-12.
+        self.drafting_mode = "rules"
         import json, os
         path = cut_priority_config or os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -243,8 +249,55 @@ class Spoke04ListingDescription:
         # limit - "attributions are never cut" outranks the field limit
         return remaining, True
 
+    def _configure_drafting(self, env: Envelope) -> None:
+        d = env.payload.get("drafting")
+        mode = d.get("mode") if isinstance(d, dict) else None
+        if not isinstance(d, dict) or set(d) != {"mode"} or mode not in ("rules", "model"):
+            self.hub.ingest_spoke_trace("04", env.envelope_id,
+                                        thought=f"drafting setting rejected whole: {d!r}",
+                                        result="rejected: drafting")
+            self.hub.send(_env("04", "queue", "clarification.request", env.client_context_id,
+                               {"reason": "drafting setting rejected - expected "
+                                          "{\"mode\": \"rules\"} or {\"mode\": \"model\"}"}))
+            return
+        self.drafting_mode = mode
+        dm = getattr(self.hub, "drafting", None)
+        gate = dm.gate() if dm is not None else {"ok": False, "reason": "no drafting model wired"}
+        self.hub.audit.append("drafting.mode", {"agent": "04", "mode": mode,
+                                                "model_ready": gate["ok"],
+                                                "reason": gate.get("reason")})
+        self.hub.ingest_spoke_trace("04", env.envelope_id,
+                                    thought=f"drafting mode set to {mode!r} by the broker's "
+                                            f"signature; model ready={gate['ok']} "
+                                            f"({gate.get('reason') or gate.get('checkpoint')})",
+                                    result=f"drafting: {mode}")
+
+    def _model_remarks(self, draft: dict, ctx: str, env: Envelope) -> None:
+        """Adds model remarks to the draft when the broker turned model mode
+        on and the gate passes; otherwise records why and drafts by rules."""
+        dm = getattr(self.hub, "drafting", None)
+        res = (dm.draft_remarks("04", env.envelope_id, draft["facts"], self.mls_char_limit)
+               if dm is not None else {"ok": False, "reason": "no drafting model wired in this process"})
+        if res["ok"]:
+            draft["remarks"] = res["remarks"]
+            draft["remarks_source"] = f"model:{res['checkpoint']}"
+            self.hub.audit.append("drafting.model_used", {"agent": "04", "client_context_id": ctx,
+                                                          "mode": "model", "checkpoint": res["checkpoint"],
+                                                          "chars": len(res["remarks"])})
+            return
+        draft["remarks_source"] = "rules"
+        self.hub.audit.append("drafting.model_unavailable", {"agent": "04", "client_context_id": ctx,
+                                                             "reason": res["reason"]})
+        self.hub.send(_env("04", "queue", "clarification.request", ctx,
+                           {"reason": "model drafting is on but was not used - drafted by rules",
+                            "why": res["reason"]}))
+
     def handle(self, env: Envelope):
         ctx = env.client_context_id
+
+        if env.intent == "config.update" and "drafting" in env.payload:
+            self._configure_drafting(env)
+            return
 
         if env.intent == "lead.reply":
             # Client reply routed here by Agent 11 (owner decision 2026-10-11:
@@ -309,6 +362,8 @@ class Spoke04ListingDescription:
 
             draft = {"ctx": ctx, "facts": facts, "notes": notes,
                     "cut_for_length": was_cut}
+            if self.drafting_mode == "model":
+                self._model_remarks(draft, ctx, env)
             self.drafts[ctx] = draft
 
             # Tuple 6 second half, unclosed since the 2026-07-17 review
@@ -427,13 +482,38 @@ class Spoke04ListingDescription:
                 removed = []
                 remaining = []
                 for f in draft["facts"]:
-                    cited = any(finding["phrase"] in f["text"]
+                    # case-insensitive, as 17 matches (fixed 2026-10-12: a
+                    # capitalized phrase was flagged by 17 but never found
+                    # here, so the same draft went back and forth 20 times
+                    # until the hub suspended the loop: nothing released,
+                    # the broker paged 41 times)
+                    cited = any(finding["phrase"].lower() in f["text"].lower()
                                for finding in findings)
                     if cited:
                         removed.append(f["text"])
                     else:
                         remaining.append(f)
                 draft["facts"] = remaining
+                if draft.get("remarks"):
+                    # model remarks: drop exactly the sentences carrying a
+                    # cited phrase (the same "remove the cited content" rule)
+                    sentences = re.split(r"(?<=[.!?])\s+", draft["remarks"])
+                    kept = [x for x in sentences
+                            if not any(f["phrase"].lower() in x.lower() for f in findings)]
+                    removed += [x for x in sentences if x not in kept]
+                    draft["remarks"] = " ".join(kept).strip()
+                    if not draft["remarks"]:
+                        draft.pop("remarks")
+                        draft["remarks_source"] = "rules (model remarks removed by compliance)"
+                if not removed:
+                    # Resubmitting an unchanged draft only earns the same
+                    # flag again; hold it for the broker instead.
+                    self.hub.send(_env("04", "queue", "clarification.request", ctx,
+                                       {"reason": "compliance flagged phrases this agent "
+                                                  "could not find in its draft - holding "
+                                                  "rather than resubmitting it unchanged",
+                                        "findings": findings}))
+                    return
                 self.hub.ingest_spoke_trace(
                     "04", env.envelope_id,
                     thought=f"compliance flagged {len(findings)} finding(s) "
