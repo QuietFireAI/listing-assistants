@@ -139,7 +139,7 @@ sequenceDiagram
     A09->>A05: deliverable.release
     A05->>A04: listing.data
     A04->>A17: content.review (draft remarks)
-    A17->>A04: content.verdict (approved; flagged halts the path)
+    A17->>A04: content.verdict (approved, or flagged and the path stops)
     A04->>A05: asset.release
     A04->>A12: asset.release
     A05->>A12: status.update (go-live verified, not assumed)
