@@ -51,8 +51,8 @@ python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
 ```
 
-For production, pin the six pillar packages in `requirements.txt` to commit
-hashes; they install from branch tips.
+The six pillar packages are pinned to exact commits in `requirements.txt`.
+To move one forward, change its hash, run the suite, and commit both.
 
 ## 3. Ratify your configuration
 

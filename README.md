@@ -195,8 +195,10 @@ Operator tools, not part of the message path:
 - **One process at a time.** Run one console session or one clock run at a
   time against the same state file; the hub's lock serializes work inside a
   process, not across processes.
-- **Pin the pillars for production.** They install from branch tips; pin each
-  to a commit hash.
+- **Pillars are pinned.** The six pillar packages install from exact commits
+  in `requirements.txt` (the ones this suite passed against). pip-audit
+  cannot check git installs; moving a pillar forward means changing its hash
+  and re-running the suite.
 
 ## Install and verify
 
