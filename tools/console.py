@@ -292,6 +292,12 @@ def cmd_session(args):
                 out = send_tick(hub, agent, day, checks=[check])
                 r = (out["results"][0]["result"] if out["results"]
                      else {"error": f"clock.tick not delivered: {out['hub']}"})
+                if what == "eod" and isinstance(r, dict):
+                    # the plain-language ledger, built from the chain (2026-10-12)
+                    led = sw.write_eod(a.get("ledger_date"))
+                    r = {**r, "readable_ledger": {"file": led["report_file"],
+                                                  "events": led["total_events"],
+                                                  "chain_ok": (led["integrity"]["chain"] or {}).get("ok")}}
             elif what == "held":
                 r = held_list(hub)
             elif what == "waits":
@@ -310,6 +316,8 @@ def cmd_session(args):
         _p({"line": lineno, "do": do, "result": r})
     saved = sw.save_state()
     _p({"session_complete": True, "errors": errors, "state_saved": saved,
+        "readable_log": sw.readable.stream_path,
+        "readable_log_errors": len(hub.audit.mirror_errors),
         "chain": hub.audit.verify_chain(), "anchor": hub.audit.anchor(),
         "dead_letters": len(hub.queues["dead.letter"])})
     return 1 if errors else 0

@@ -99,6 +99,13 @@ def _snapshot(spoke: Any) -> bytes:
     return pickle.dumps({k: v for k, v in vars(spoke).items() if k != "hub"})
 
 
+def _config_digest(payload: Any) -> str:
+    import hashlib
+    import json
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str)
+                          .encode("utf-8")).hexdigest()
+
+
 def register(hub: Any, agent_id: str, spoke: Any) -> None:
     """Registers spoke.handle with the hub. A signed config.update that the
     agent does not act on (no audit entry, no change to its state) is no
@@ -114,19 +121,41 @@ def register(hub: Any, agent_id: str, spoke: Any) -> None:
         before_tip = hub.audit._prev
         before_state = _snapshot(spoke)
         result = handler(env)
-        if hub.audit._prev == before_tip and _snapshot(spoke) == before_state:
-            keys = sorted((env.payload or {}).keys())
-            hub.audit.append("config.unrecognized", {
+        keys = sorted((env.payload or {}).keys())
+        digest = _config_digest(env.payload)
+        effective = getattr(spoke, "_effective_configs", None)
+        if effective is None:
+            effective = {}
+        if _snapshot(spoke) != before_state:
+            # took effect: remember these exact values (survives restart -
+            # the snapshot carries spoke attributes)
+            effective[digest] = keys
+            spoke._effective_configs = effective
+            return result
+        if hub.audit._prev != before_tip:
+            return result   # acted on it without a state change (e.g. refused it, on the record)
+        if digest in effective:
+            # Fixed 2026-10-12 (scene run): the same signed values sent again
+            # (Scene 4 re-sends Scene 2's ruleset) changed nothing because
+            # they were already in effect - that is not "unrecognized" and
+            # does not page the broker. Recorded on the chain.
+            hub.audit.append("config.unchanged", {
                 "agent": agent_id, "envelope_id": env.envelope_id,
-                "client_context_id": env.client_context_id, "keys": keys})
-            hub.send(Envelope(
-                from_agent=agent_id, to_agent="queue", intent="clarification.request",
-                client_context_id=env.client_context_id,
-                payload={"reason": f"config.update to Agent {agent_id} matched no "
-                                   f"setting this agent has; nothing changed",
-                         "keys": keys},
-                provenance={"source": f"spoke-{agent_id}", "captured_at": "runtime",
-                            "verbatim_available": True}))
+                "client_context_id": env.client_context_id, "keys": keys,
+                "reason": "the same values were already in effect"})
+            return result
+        hub.audit.append("config.unrecognized", {
+            "agent": agent_id, "envelope_id": env.envelope_id,
+            "client_context_id": env.client_context_id, "keys": keys})
+        hub.send(Envelope(
+            from_agent=agent_id, to_agent="queue", intent="clarification.request",
+            client_context_id=env.client_context_id,
+            payload={"reason": f"config.update to Agent {agent_id} changed nothing: "
+                               f"no setting of this agent matched these keys, or "
+                               f"the values equal what this agent already uses",
+                     "keys": keys},
+            provenance={"source": f"spoke-{agent_id}", "captured_at": "runtime",
+                        "verbatim_available": True}))
         return result
 
     handle.__wrapped__ = handler

@@ -19,6 +19,10 @@ What it wires
     and saved by save_state(); see dispatcher/state_snapshot.py for the
     integrity rules. state_db=None keeps state in this process only, and
     the audit log says so (state.ephemeral).
+  - the plain-language log (added 2026-10-12): the hub's audit log is a
+    ReadableAuditLog, so every chain entry also lands, described, in
+    <readable_dir>/stream.log (default: "readable" next to the audit log);
+    write_eod() builds the end-of-day ledger from the chain.
 """
 from __future__ import annotations
 
@@ -39,6 +43,7 @@ class Swarm:
         self.baseline = baseline
         self.roster_info = roster_info
         self.restored: Optional[dict] = None
+        self.readable = None   # set by build_swarm
 
     def save_state(self) -> Optional[dict]:
         """Saves the swarm's state; returns {snapshot_id, sha256} or None
@@ -53,6 +58,12 @@ class Swarm:
         self.hub.audit.append("state.saved", {"snapshot_id": sid, "sha256": digest,
                                               "taken_at": taken, "bytes": len(body)})
         return {"snapshot_id": sid, "sha256": digest}
+
+    def write_eod(self, date_str: Optional[str] = None) -> dict:
+        """End-of-day ledger for the date, built from the chain (every
+        session that day), chain verified in its integrity section."""
+        from .readable_audit import write_eod
+        return write_eod(self.hub.audit, self.readable, date_str)
 
     def close(self):
         if self.store is not None:
@@ -98,7 +109,9 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 config_dir: Optional[str] = None,
                 verifier: Optional[Callable] = None,
                 human_notifier: Optional[Callable[[str, dict], None]] = None,
-                human_sink: Optional[Callable] = None) -> Swarm:
+                human_sink: Optional[Callable] = None,
+                readable_dir: Optional[str] = None,
+                drawers_root: Optional[str] = None) -> Swarm:
     from .core import Routes, AuditLog
     from .hub import Hub
     from .hitl_protocol import HITLManager
@@ -123,7 +136,13 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     from .listing_spokes_19 import Spoke19Prospecting
     from .listing_spokes_20 import Spoke20SocialMediaMonitoring
 
-    audit = AuditLog(audit_path)
+    from .readable_logger import HumanReadableLogger
+    from .readable_audit import ReadableAuditLog
+    base_dir = os.path.dirname(os.path.abspath(audit_path))
+    drawers_root = drawers_root or os.path.join(base_dir, "drawers")
+    readable = HumanReadableLogger(log_root=readable_dir or os.path.join(base_dir, "readable"),
+                                   drawers_root=drawers_root)
+    audit = ReadableAuditLog(audit_path, readable)
     # Check saved state against the chain BEFORE anything is written, so a
     # refusal leaves the log and the store exactly as they were.
     store, row = None, None
@@ -169,6 +188,7 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
 
     sw = Swarm(hub, spokes, hitl, store, external, baseline,
                {"verdict": verdict, "vendors_loaded": sorted(roster), "entries_skipped": problems})
+    sw.readable = readable
     if state_db is None:
         hub.audit.append("state.ephemeral", {
             "reason": "no state store configured - agent state lives in this process only"})

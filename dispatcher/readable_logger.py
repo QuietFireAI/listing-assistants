@@ -31,6 +31,15 @@ from typing import Any, Optional
 _SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 
 
+_OTHER_CATEGORY_TEXT = {
+    "HOLD": "Messages or threads held for your signed decision",
+    "RELEASE": "Held messages released on your signature",
+    "CONFIG": "Configuration loaded, refused or not recognized",
+    "STATE": "Swarm state saved or restored",
+    "SYSTEM": "Features declared off at start-up",
+}
+
+
 class HumanReadableLogger:
     """Provides human-friendly real-time logging and end-of-day summary reports."""
 
@@ -127,12 +136,16 @@ class HumanReadableLogger:
         return self.log_event(cat, msg, client_context_id=client_context_id, agent_id=agent_id,
                               details={"topic": topic, "variance": variance, "status": status})
 
-    def generate_eod_report(self, date_str: Optional[str] = None, audit_log: Any = None) -> dict:
-        """Builds the EOD report from events logged in this process on the date.
-        Pass the hub's AuditLog as audit_log to have its hash chain verified
-        in section 4; without it, section 4 says "not computed"."""
+    def generate_eod_report(self, date_str: Optional[str] = None, audit_log: Any = None,
+                            events: Optional[list] = None) -> dict:
+        """Builds the EOD report for the date. events: the events to report
+        (dispatcher/readable_audit.write_eod passes the chain's entries for
+        that date, covering every session); default = events logged in this
+        process. Pass the hub's AuditLog as audit_log to have its hash chain
+        verified in section 4; without it, section 4 says "not computed"."""
         target_date = date_str or self._today_str()
-        events = [e for e in self.session_events if e["timestamp"].startswith(target_date)]
+        source = self.session_events if events is None else events
+        events = [e for e in source if e["timestamp"].startswith(target_date)]
 
         by_cat: dict[str, int] = {}
         by_client: dict[str, int] = {}
@@ -157,6 +170,9 @@ class HumanReadableLogger:
             f"| **VAULT** | {by_cat.get('VAULT', 0)} | Client drawer file actions recorded via log_vault_action |",
             f"| **API_CALL** | {by_cat.get('API_CALL', 0)} | External call attempts recorded via log_api_attempt |",
             f"| **ALERT** | {by_cat.get('ALERT', 0)} | Alerts recorded via log_alert |",
+        ] + [f"| **{c}** | {n} | {_OTHER_CATEGORY_TEXT.get(c, 'Other events')} |"
+             for c, n in sorted(by_cat.items())
+             if c not in ("DISPATCH", "DECISION", "VAULT", "API_CALL", "ALERT")] + [
             "",
             "## 2. Client Drawer Activity Volume",
             "| Client Context ID | Total Touches & Artifacts |",
