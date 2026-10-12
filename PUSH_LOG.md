@@ -184,3 +184,15 @@ existing.
 | 2026-10-12 11:54:25 UTC | listing-assistants | `c56b65d8e6` | Docs and tools synced with the wiring: README module tables, operator guide (drawers, decision engine, model drafting, exam, logs), testing manual (what to look at, optional Scene 11), tuning manual, broker manual, quickstart, mounting, JEV doc, roadmap, security, release notes, changelog; 02/04 SKILL.md amended and JOB_DESCRIPTIONS regenerated; show_logs/dashboard/inspector/HITL queue read the console's state; more chain kinds described in plain language |
 | 2026-10-12 11:58:31 UTC | listing-assistants | `a026d5e11b` | Docs: test count 829 (fresh copy, fresh venv) |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the module-wiring push |
+| 2026-10-12 12:58:24 UTC | listing-assistants | `1da7bf6dc8` | J5: market-update paths removed from Agents 03 and 11 and their routes; market data goes only to the broker and Agent 19 |
+| 2026-10-12 12:59:41 UTC | listing-assistants | `6cea16f787` | J4: seller disclosure is a document milestone; 08 warns once on the legal line three days before a pending disclosure is due (daily clock) |
+| 2026-10-12 13:04:13 UTC | listing-assistants | `608f1f6b27` | J3: P18-P21 start from the daily clock (weekly seller report held for the broker, access custody, vacant watch, WARM lead re-score) |
+| 2026-10-12 13:05:34 UTC | listing-assistants | `343239bb9c` | J9: six pillar packages pinned to commits (fresh venv from requirements.txt verified) |
+| 2026-10-12 13:07:16 UTC | listing-assistants | `d947510433` | J8: console text pager (`console.py pager`, `--test`, `--off`); pages carry the queue name and client context id only |
+| 2026-10-12 13:09:39 UTC | listing-assistants | `0ebf4f6dc7` | DECISIONS.md: 23 tuples added with the owner's sign-off, 2 retired (J5); SKILL.md amended; JOB_DESCRIPTIONS regenerated |
+| 2026-10-12 13:14:54 UTC | listing-assistants | `9c61af076d` | Docs synced with the J decisions |
+| 2026-10-12 14:09:39 UTC | listing-assistants | `2d784b91b5` | Mutation-hardening tests for the 2026-10-12 code, first pass |
+| 2026-10-12 14:47:43 UTC | listing-assistants | `b75b60d0f3` | Mutation-hardening tests, second pass; doc test counts; TUNING_MANUAL status line corrected |
+| 2026-10-12 14:55:52 UTC | listing-assistants | `5bdb546353` | Console onboard/pager with no terminal: plain error instead of a traceback |
+| 2026-10-12 15:09:01 UTC | listing-assistants | `7491e3d043` | Mutation record (logic 60.9% -> 95.1%, string 38.6% -> 82.7%); clock test; test count 939 (fresh copy) |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the J-items push |
