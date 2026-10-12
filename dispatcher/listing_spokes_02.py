@@ -292,6 +292,7 @@ class Spoke02LeadQualification:
                 self.hub.send(_env("02", "03", "lead.nurture", ctx,
                                    {"tier": tier, "score": score,
                                     "consent": payload.get("consent"),
+                                    "today": payload.get("today"),
                                     "reassignment": env.intent == "lead.rescored"}))
             elif tier == "COLD":
                 pass  # archived via the interaction.log below, never deleted

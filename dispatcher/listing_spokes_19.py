@@ -244,6 +244,10 @@ class Spoke19Prospecting:
             self.hub.send(_env("19", "14", "interaction.log", ctx,
                                {"kind": "opportunity_discovered",
                                 "listing_id": listing_id}))
+            # owner decision 7c (2026-10-11): comps for every recorded
+            # opportunity, requested automatically - internal enrichment,
+            # never characterized, never sent to the property owner
+            self.request_market_context(listing_id)
             return
 
         if env.intent == "data.package":
@@ -255,5 +259,18 @@ class Spoke19Prospecting:
                                 "resolved": True}))
             # market context enrichment for opportunity records - passed
             # through, never characterized (10's own presentation rule
-            # applies here too)
+            # applies here too). Fixed 2026-10-11: the package was dropped
+            # here; it now rides on the opportunity record to the broker.
+            record = self.opportunities.get(ctx)
+            if record is not None:
+                record["market_context"] = payload
+                self.hub.send(_env("19", "human", "prospect.opportunity", ctx,
+                                   {**record, "update": "market_context"},
+                                   confidence=SOURCE_VERIFIED))
+            else:
+                self.hub.ingest_spoke_trace(
+                    "19", env.envelope_id,
+                    thought=f"data.package for {ctx!r}, which is not a recorded "
+                            f"opportunity - farm aggregate or stray; not attached",
+                    result="package not attached to an opportunity")
             return

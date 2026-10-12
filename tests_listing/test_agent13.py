@@ -263,13 +263,17 @@ def test_preapproval_expiry_notifies_and_marks_matches(tmp_path):
     assert spoke.match_history["b-018"][0]["unverified_financing"] is True
 
 
-def test_request_neighborhood_data_sends_data_request(tmp_path):
-    hub, signer = make_hub(str(tmp_path))
-    spoke = Spoke13BuyerSearchMatch(hub)
-    hub.on_turn_start()
-    spoke.request_neighborhood_data("b-019")
-    req = persisted(hub, "data.request")
-    assert req and req[0]["to_agent"] == "10"
+def test_13_has_no_neighborhood_data_path(tmp_path):
+    """Owner decision 7b (2026-10-11): Agent 13 neither requests nor relays
+    neighborhood packages (fair-housing steering risk); the closed track no
+    longer lets it send data.request or receive data.package."""
+    import json as _json
+    assert not hasattr(Spoke13BuyerSearchMatch, "request_neighborhood_data")
+    routes = _json.load(open(os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "identity", "routes.json")))["routes"]
+    by = {r["intent"]: r for r in routes}
+    assert "13" not in by["data.request"]["senders"]
+    assert "13" not in by["data.package"]["receivers"]
 
 
 # --------- tuple 5 overload digest (owner decision #7, 2026-07-18)

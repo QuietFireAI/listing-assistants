@@ -16,6 +16,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from nurture_fixture import with_sequences
 from dispatcher.core import Envelope
 from dispatcher.sweep_runner import run_daily_sweeps
 from dispatcher.listing_spokes_03 import Spoke03LeadNurture
@@ -29,7 +32,7 @@ from test_playbooks_e2e import (build_swarm, signed, spoke_env, persisted,
 def full_swarm(tmp_path):
     """build_swarm plus the three agents the deep flows didn't need."""
     hub, signer, spokes, external = build_swarm(tmp_path)
-    spokes["03"] = Spoke03LeadNurture(hub)
+    spokes["03"] = with_sequences(Spoke03LeadNurture(hub))
     spokes["19"] = Spoke19Prospecting(hub)
     spokes["20"] = Spoke20SocialMediaMonitoring(hub)
     return hub, signer, spokes, external
@@ -691,8 +694,12 @@ def test_p24_prospecting_outreach_probation(tmp_path):
                         "source": "county_records", "status": "new",
                         "owner_contact": "dnc@x.com", "today": "2026-07-18"}))
     to_human = [e for e in persisted(hub, "prospect.opportunity")
-                if e["to_agent"] == "human"]
+                if e["to_agent"] == "human" and "update" not in e["payload"]]
     assert len(to_human) == 2, "every prospect must reach the human"
+    # owner decision 7c: each recorded prospect's comps follow as an update
+    updates = [e for e in persisted(hub, "prospect.opportunity")
+               if e["to_agent"] == "human" and e["payload"].get("update") == "market_context"]
+    assert sorted(u["payload"]["listing_id"] for u in updates) == ["L-a", "L-b"]
     suppressed = [e for e in persisted(hub, "interaction.log")
                   if e["payload"].get("kind") == "suppressed_by_rule"]
     assert suppressed, "the DNC miss must go in the books as suppressed"

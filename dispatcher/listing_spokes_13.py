@@ -232,12 +232,12 @@ class Spoke13BuyerSearchMatch:
         state["overflow"] = []
         return f"flushed:{len(ranked)}"
 
-    def request_neighborhood_data(self, ctx: str):
-        """Job component: neighborhood packages for buyer profiles via 10.
-        Called when a buyer profile needs enrichment (schedule/on-demand
-        driven, matching the established pattern), not envelope-triggered."""
-        self.hub.send(_env("13", "10", "data.request", ctx,
-                           {"mode": "neighborhood", "license_scope": "internal"}))
+    # request_neighborhood_data() and the data.package branch were removed
+    # 2026-10-11 (owner decision 7b). Neighborhood information pushed toward
+    # buyers is the classic fair-housing steering risk, and nothing ever
+    # triggered the request. The broker can still ask Agent 10 directly
+    # (human -> 10 data.request); Agent 13 neither requests nor relays
+    # neighborhood packages. See docs/JOB_DESCRIPTIONS.md, Agent 13.
 
     def handle(self, env: Envelope):
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
@@ -455,11 +455,3 @@ class Spoke13BuyerSearchMatch:
                                     payload.get("requester_identity_verified", False)}))
             return
 
-        if env.intent == "data.package":
-            # neighborhood package for a buyer profile - sourced data
-            # only, no characterization (10's presentation rule applies
-            # here too), passed through to 11 as-is
-            self.hub.send(_env("13", "11", "client.message.request", ctx,
-                               {"template": "neighborhood_package",
-                                "package": payload}))
-            return

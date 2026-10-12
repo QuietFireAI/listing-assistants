@@ -12,6 +12,9 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from nurture_fixture import with_sequences
 from dispatcher.core import Envelope, Routes, AuditLog
 from dispatcher.hub import Hub
 from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
@@ -30,7 +33,7 @@ def make_hub(tmp_path):
 
 
 def spoke(tmp_path, **kw):
-    return Spoke03LeadNurture(make_hub(tmp_path), **kw)
+    return with_sequences(Spoke03LeadNurture(make_hub(tmp_path), **kw))
 
 
 def lead_reply(ctx, message):

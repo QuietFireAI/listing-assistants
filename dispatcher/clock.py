@@ -30,6 +30,7 @@ from typing import Any
 #   args: names resolved from the tick ("ctx", "today", "now_iso", "doc_type")
 CHECKS: dict[str, list[tuple]] = {
     "01": [("record_response_timeout", "check_record_response_timeout", "pending", ("ctx", "today"), True)],
+    "03": [("nurture_touches", "send_due_touches", "active_sequences", ("ctx", "today", "now_iso"), True)],
     "06": [("showing_feedback", "request_showing_feedback", "confirmed_showings", ("ctx", "today"), True)],
     "07": [("deadlines", "check_deadlines", "timelines", ("ctx", "today"), True),
            ("vendor_holdups", "check_vendor_holdups", "timelines", ("ctx", "today"), True)],

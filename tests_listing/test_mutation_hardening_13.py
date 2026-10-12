@@ -217,24 +217,8 @@ def test_13_buyer_agreement_defaults_false_when_absent(tmp_path):
 
 
 # ------------------------------------------------------------ 395
-def test_13_data_package_intent_routes_wrong_intent_ignored(tmp_path):
-    """data.package -> a neighborhood_package client.message.request to 11;
-    a different intent does not enter that branch. Kills the 395 intent flip."""
-    s = spoke(str(tmp_path))
-    s.hub.on_turn_start()
-    s.handle(env("10", "data.package", "dp-1",
-                 {"neighborhood_data": {"schools": "sourced"}}))
-    msgs = [e for e in persisted(s.hub, "client.message.request")
-            if e["payload"].get("template") == "neighborhood_package"]
-    assert msgs, "data.package must produce a neighborhood_package message to 11"
-    assert msgs[0]["to_agent"] == "11"
-
-    s2 = spoke(str(tmp_path) + "_b")
-    s2.hub.on_turn_start()
-    s2.handle(env("10", "record.response", "dp-2", {}))  # different intent
-    assert not [e for e in persisted(s2.hub, "client.message.request")
-                if e["payload"].get("template") == "neighborhood_package"], \
-        "a non-data.package intent must not emit the neighborhood package"
+# test_13_data_package_intent_routes_wrong_intent_ignored removed 2026-10-11
+# with the data.package branch (owner decision 7b).
 
 
 # ------------------------------------------------------------ 135 (hard default)

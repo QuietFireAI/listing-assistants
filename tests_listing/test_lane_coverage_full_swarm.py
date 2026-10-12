@@ -115,22 +115,13 @@ def test_11_showing_request_to_06(swarm):
     assert delivered(hub, "11", "showing.request", "06")
 
 
-def test_13_sensitive_criterion_review_status_and_data_request(swarm):
+def test_13_sensitive_criterion_review_status(swarm):
     hub, signer, spokes = swarm
     from test_agent13 import config_update
     hub.send(config_update(signer, "b-003", {"buyer_criteria": [
         {"field": "walkability", "value": "high", "fair_housing_sensitive": True}]}))
     assert delivered(hub, "13", "content.review", "17")
     assert delivered(hub, "13", "agent.status", "18")
-    spokes["13"].request_neighborhood_data("b-019")
-    assert delivered(hub, "13", "data.request", "10")
-
-
-def test_10_package_back_to_13(swarm):
-    hub, _, spokes = swarm
-    spokes["13"].request_neighborhood_data("b-020")
-    assert delivered(hub, "13", "data.request", "10")
-    assert delivered(hub, "10", "data.package", "13") and no_handoff_failures(hub)
 
 
 def test_15_roi_report_to_human(swarm):

@@ -17,6 +17,9 @@ import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from nurture_fixture import with_sequences
 from dispatcher.core import Envelope, Routes, AuditLog
 from dispatcher.hub import Hub
 from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
@@ -105,7 +108,7 @@ def test_03_stop_sending_so_many_phrase_alone_reduces_cadence(tmp_path):
     Existing test only used 'too many' (second clause), so flipping the
     first clause survived."""
     hub = make_hub(str(tmp_path))[0]
-    spoke = Spoke03LeadNurture(hub, frequency_cap_per_week=3)
+    spoke = with_sequences(Spoke03LeadNurture(hub, frequency_cap_per_week=3))
     hub.on_turn_start()
     ctx = "mh-03"
     hub.send(env("02", "03", "lead.nurture", ctx,

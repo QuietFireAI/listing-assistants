@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -45,19 +46,17 @@ class Spoke20SocialMediaMonitoring:
         self.hub = guard(hub, "20")   # handoff rule (audit TU-2)
         self.monitored_channels: set[str] = set()
         self.pending_drafts: dict[str, dict] = {}  # envelope_id-keyed via in_reply_to
+        # broker-signed reply templates by sentiment (owner decision 7d):
+        # drafted only from these, reviewed by 17, then held for the broker
+        self.reply_templates: dict[str, str] = {}
+        self.drafts_for_approval: dict[str, dict] = {}   # ctx -> draft held for the broker
         register_spoke(hub, "20", self)
+        register_resumer(hub, "20", self._resume)
 
-    # NOT implemented, found during review 2026-07-16: SKILL.md documents
-    # 'OUT -> 03 Lead Nurture | Engagement/behavioral signal |
-    # behavioral.signal' as a legal edge (routes.json confirms 20 is a
-    # legal sender), but nothing in this class ever sends it. Unlike
-    # Agent 12 (which has a real, quantified platform.metrics.
-    # engagement_value to compare against spike_threshold), social.mention
-    # carries no engagement-quantifying field anywhere in its schema or
-    # test fixtures - there's no basis to decide WHEN a social mention
-    # should feed back into nurture as a behavioral signal versus just
-    # being logged. Implementing a threshold/field that doesn't exist
-    # would be inventing business logic this review won't guess at.
+    # behavioral.signal: Agent 20 is no longer a sender on the closed track
+    # (owner decision 7e, 2026-10-11). A social mention carries no engagement
+    # measure to decide when it should pause nurture; Agent 12 (ad metrics)
+    # remains the sender of that signal to 03.
 
     def _pricing_legal_hit(self, text: str) -> str | None:
         low = text.lower()
@@ -71,6 +70,21 @@ class Spoke20SocialMediaMonitoring:
         payload = env.payload
 
         if env.intent == "config.update":
+            if "reply_templates" in payload:
+                t = payload["reply_templates"]
+                bad = (not isinstance(t, dict) or not t or
+                       any(k not in ("question", "praise") or not isinstance(v, str) or not v.strip()
+                           for k, v in t.items()))
+                if bad:
+                    self.hub.send(_env("20", "queue", "clarification.request", ctx,
+                                       {"reason": "reply_templates rejected; nothing changed - "
+                                                  "keys question and/or praise, each a non-empty text"}))
+                    return
+                self.reply_templates = dict(t)
+                self.hub.ingest_spoke_trace(
+                    "20", env.envelope_id,
+                    thought=f"broker-signed reply templates for {sorted(t)}",
+                    result="reply templates set")
             if "monitored_channels" in payload:
                 self.monitored_channels.update(payload["monitored_channels"])
             return
@@ -86,6 +100,25 @@ class Spoke20SocialMediaMonitoring:
             self.hub.send(_env("20", "14", "interaction.log", ctx,
                                {"kind": "draft_verdict_received",
                                 "verdict": payload.get("verdict")}))
+            if draft is None:
+                return
+            if payload.get("verdict") != "approved":
+                # flagged by compliance: never offered for posting
+                self.hub.send(_env("20", "queue", "clarification.request", ctx,
+                                   {"reason": "draft social reply flagged by compliance - "
+                                              "discarded, not offered for posting",
+                                    "draft": draft["text"],
+                                    "findings": payload.get("findings")}))
+                return
+            # owner decision 7d: an approved draft holds for the broker.
+            # The swarm never posts it; continue = approved for the broker
+            # to post, cancel = discarded.
+            self.drafts_for_approval[ctx] = dict(draft)
+            hold_for_human(self.hub, "20", ctx, "social.reply.draft",
+                           "draft social reply cleared by compliance - continue to "
+                           "approve it for you to post (the swarm never posts), "
+                           "cancel to discard",
+                           {"draft": draft["text"], "source_mention_id": draft.get("source_mention_id")})
             return
 
         if env.intent == "social.mention":
@@ -152,10 +185,6 @@ class Spoke20SocialMediaMonitoring:
                                               "social monitoring"}))
                 return
 
-            if effective_sentiment == "praise":
-                # tuple 4: log only, no auto-engagement
-                return
-
             if effective_sentiment == "question":
                 # tuple 5: DM vs public both route to 01, channel
                 # recorded in provenance. If it may involve an existing
@@ -188,6 +217,23 @@ class Spoke20SocialMediaMonitoring:
                                                    "text": "unknown",
                                                    "email": "unknown"}},
                                       confidence=STATED_BY_PARTY))
+                if self.reply_templates.get("question"):
+                    self.draft_response(ctx, self.reply_templates["question"], env.envelope_id)
+                return
+
+            if effective_sentiment == "praise":
+                # tuple 4: logged above as mention_classified, no
+                # auto-engagement. A draft only from the broker's own
+                # template, held for the broker - the swarm never posts
+                # (owner decision 7d, 2026-10-11)
+                if self.reply_templates.get("praise"):
+                    self.draft_response(ctx, self.reply_templates["praise"], env.envelope_id)
+                else:
+                    self.hub.ingest_spoke_trace(
+                        "20", env.envelope_id,
+                        thought="praise mention logged; no broker reply template for "
+                                "praise, so no draft",
+                        result="logged: praise")
                 return
 
             if effective_sentiment == "lead_signal":
@@ -210,9 +256,14 @@ class Spoke20SocialMediaMonitoring:
         if env.intent == "lead.reply":
             # existing-client (or prospect) reply routed back through 11 -
             # this agent's job here is discovery/classification, not
-            # ongoing conversation; log only
+            # ongoing conversation. Logged with the client's words and held
+            # for the broker (owner rule 2026-10-11: no reply vanishes).
             self.hub.send(_env("20", "14", "interaction.log", ctx,
-                               {"kind": "reply_received"}))
+                               {"kind": "reply_received", "agent": "20",
+                                "verbatim": payload.get("message")}))
+            self.hub.send(_env("20", "queue", "clarification.request", ctx,
+                               {"reason": "reply routed to social monitoring needs a human",
+                                "verbatim": payload.get("message")}))
             return
 
     def draft_response(self, ctx: str, draft_text: str, source_mention_id: str):
@@ -234,8 +285,26 @@ class Spoke20SocialMediaMonitoring:
         env = _env("20", "17", "content.review", ctx,
                   {"draft": {"text": draft_text, "label": "DRAFT"},
                    "source_mention_id": source_mention_id})
-        self.hub.send(env)
-        self.pending_drafts[env.envelope_id] = {"text": draft_text}
+        # wait and pending draft recorded BEFORE the review: 17 answers
+        # inside hub.send (same ordering fix as 04/12/15/19)
+        self.pending_drafts[env.envelope_id] = {"text": draft_text,
+                                                "source_mention_id": source_mention_id}
         self.hub.send(_env("20", "18", "agent.status", ctx,
                            {"waiting_on": "draft_compliance_review"}))
+        self.hub.send(env)
         return "submitted_for_review"
+
+    def _resume(self, ws, decision_payload: dict):
+        """The broker's signed decision on a draft held for approval."""
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        if ctx not in self.drafts_for_approval or d == "other":
+            return "unchanged"
+        draft = self.drafts_for_approval.pop(ctx)
+        kind = "draft_approved_for_broker_to_post" if d == "continue" else "draft_discarded_by_broker"
+        self.hub.ingest_spoke_trace("20", ws.wait_id,
+                                    thought=f"broker decision on draft for {ctx!r}: {kind}; "
+                                            f"the swarm posts nothing", result=kind)
+        self.hub.send(_env("20", "14", "interaction.log", ctx,
+                           {"kind": kind, "draft": draft["text"]}))
+        return kind

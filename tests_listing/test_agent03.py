@@ -15,6 +15,9 @@ import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from nurture_fixture import with_sequences
 from dispatcher.core import Envelope, Routes, AuditLog
 from dispatcher.hub import Hub
 from dispatcher.listing_spokes_03 import Spoke03LeadNurture
@@ -43,7 +46,7 @@ def persisted(hub, intent=None):
 # ------------------------------------------------------------ full hub path
 def test_no_consent_on_any_channel_escalates_no_send(tmp_path):
     hub = make_hub(str(tmp_path))
-    Spoke03LeadNurture(hub)
+    with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
 
     hub.send(nurture_env("n-001", {"consent": {"call": "no", "text": "no", "email": "no"}}))
@@ -52,7 +55,7 @@ def test_no_consent_on_any_channel_escalates_no_send(tmp_path):
 
 def test_consent_present_starts_sequence(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
 
     hub.send(nurture_env("n-002", {"consent": {"email": "yes"}, "sequence_id": "market_drip"}))
@@ -62,7 +65,7 @@ def test_consent_present_starts_sequence(tmp_path):
 
 def test_overlapping_sequence_runs_neither_until_human_picks(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
 
     hub.send(nurture_env("n-003", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -81,7 +84,7 @@ def test_reassignment_supersedes_without_holding_for_human(tmp_path):
     newer signed instruction should supersede outright, logged, not held
     for a human who was never actually needed here."""
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     ctx = "n-003b"
 
@@ -113,7 +116,7 @@ def test_ambiguous_overlap_without_reassignment_flag_still_holds(tmp_path):
     before - this is the genuine simultaneous-eligibility conflict, not
     a deliberate supersession."""
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     ctx = "n-003c"
 
@@ -132,7 +135,7 @@ def test_ambiguous_overlap_without_reassignment_flag_still_holds(tmp_path):
 
 def test_content_review_submitted_before_any_send(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-004", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
     assert spoke.active_sequences["n-004"]["compliance_status"] == "pending"
@@ -142,7 +145,7 @@ def test_content_review_submitted_before_any_send(tmp_path):
 
 def test_content_verdict_flagged_holds_sequence(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-004b", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
     env = Envelope(from_agent="17", to_agent="03", intent="content.verdict",
@@ -157,7 +160,7 @@ def test_content_verdict_flagged_holds_sequence(tmp_path):
 
 def test_content_verdict_approved_clears_sequence(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-004c", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
     env = Envelope(from_agent="17", to_agent="03", intent="content.verdict",
@@ -170,7 +173,7 @@ def test_content_verdict_approved_clears_sequence(tmp_path):
 
 def test_market_update_requests_data_only_when_cleared(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-004d", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
 
@@ -190,7 +193,7 @@ def test_market_update_requests_data_only_when_cleared(tmp_path):
 
 def test_expired_market_data_skips_touch(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     env = Envelope(from_agent="10", to_agent="03", intent="data.package",
                   client_context_id="n-005",
@@ -205,7 +208,7 @@ def test_expired_market_data_skips_touch(tmp_path):
 
 def test_stale_listing_status_pulls_step(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     env = Envelope(from_agent="10", to_agent="03", intent="data.package",
                   client_context_id="n-006",
@@ -223,7 +226,7 @@ def test_lead_reply_now_reaches_agent03_through_the_real_hub(tmp_path):
     """Was: proved lead.reply held in clarification, unreachable. Now: the
     route exists (11 -> 03/04/12/13/20), so it reaches the handler for real."""
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-007", {"consent": {"call": "yes", "text": "yes"},
                                    "sequence_id": "seq_a"}))
@@ -241,7 +244,7 @@ def test_lead_reply_now_reaches_agent03_through_the_real_hub(tmp_path):
 
 def test_explicit_stop_suppresses_all_channels(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-008", {"consent": {"call": "yes", "text": "yes"},
                                    "sequence_id": "seq_a"}))
@@ -261,7 +264,7 @@ def test_explicit_stop_suppresses_all_channels(tmp_path):
 
 def test_engagement_spike_pauses_and_rescores(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-009", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
 
@@ -278,7 +281,7 @@ def test_engagement_spike_pauses_and_rescores(tmp_path):
 
 def test_substantive_question_routes_to_11_for_gated_human_reply(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-010", {"consent": {"call": "yes"}, "sequence_id": "seq_a"}))
 
@@ -295,7 +298,7 @@ def test_substantive_question_routes_to_11_for_gated_human_reply(tmp_path):
 
 def test_compliance_wait_status_pushed_and_cleared_on_approval(tmp_path):
     hub = make_hub(str(tmp_path))
-    Spoke03LeadNurture(hub)
+    with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     hub.send(nurture_env("n-020", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
     status = persisted(hub, "agent.status")
@@ -315,7 +318,7 @@ def test_REGRESSION_frequency_cap_actually_enforced_now(tmp_path):
     frequency_cap_per_week only ever decreased on complaint, nothing ever
     checked touches sent against it. Proves real enforcement now."""
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub, frequency_cap_per_week=2)
+    spoke = with_sequences(Spoke03LeadNurture(hub, frequency_cap_per_week=2))
     hub.on_turn_start()
     ctx = "touch-001"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -337,7 +340,7 @@ def test_REGRESSION_frequency_cap_actually_enforced_now(tmp_path):
 
 def test_REGRESSION_frequency_cap_resets_next_week(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub, frequency_cap_per_week=1)
+    spoke = with_sequences(Spoke03LeadNurture(hub, frequency_cap_per_week=1))
     hub.on_turn_start()
     ctx = "touch-002"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -353,7 +356,7 @@ def test_REGRESSION_frequency_cap_resets_next_week(tmp_path):
 
 def test_REGRESSION_touch_never_sent_for_uncleared_sequence(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     ctx = "touch-003"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -372,7 +375,7 @@ def test_frequency_complaint_reduces_cadence_but_does_not_kill_sequence(tmp_path
     frequency complaint silently killed the entire sequence forever,
     identical in effect to an explicit opt-out it explicitly isn't."""
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub, frequency_cap_per_week=3)
+    spoke = with_sequences(Spoke03LeadNurture(hub, frequency_cap_per_week=3))
     hub.on_turn_start()
     ctx = "freq-001"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -409,7 +412,7 @@ def test_touch_held_outside_legal_contact_hours(tmp_path):
     checked compliance_status/paused/frequency_cap, despite the class
     docstring listing this tuple as done."""
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub, legal_contact_hours=(8, 21))
+    spoke = with_sequences(Spoke03LeadNurture(hub, legal_contact_hours=(8, 21)))
     hub.on_turn_start()
     ctx = "hours-001"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -426,7 +429,7 @@ def test_touch_held_outside_legal_contact_hours(tmp_path):
 
 def test_touch_held_on_legal_holiday(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub)
+    spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     ctx = "hours-002"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
@@ -444,7 +447,7 @@ def test_touch_held_on_legal_holiday(tmp_path):
 
 def test_touch_sends_normally_inside_legal_contact_hours(tmp_path):
     hub = make_hub(str(tmp_path))
-    spoke = Spoke03LeadNurture(hub, legal_contact_hours=(8, 21))
+    spoke = with_sequences(Spoke03LeadNurture(hub, legal_contact_hours=(8, 21)))
     hub.on_turn_start()
     ctx = "hours-003"
     hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))

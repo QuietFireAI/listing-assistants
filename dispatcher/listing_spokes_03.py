@@ -93,6 +93,9 @@ class Spoke03LeadNurture:
         self.frequency_cap_per_week = frequency_cap_per_week
         self.legal_contact_hours = legal_contact_hours
         self.touch_log: dict[str, list] = {}  # ctx -> list of touch timestamps/weeks
+        # broker-signed sequence definitions (owner decision 7a, 2026-10-11):
+        # sequence_id -> {"touches": [{"day": int, "text": str}, ...]}
+        self.sequences: dict[str, dict] = {}
         register_spoke(hub, "03", self)
 
     def _in_legal_contact_hours(self, hour: int) -> bool:
@@ -119,6 +122,37 @@ class Spoke03LeadNurture:
         self.hub.send(_env("03", "10", "data.request", ctx,
                            {"purpose": "market_update"}))
         return True
+
+    def send_due_touches(self, ctx: str, today: str, now_iso: str | None = None):
+        """Daily clock check (owner decision 7a, 2026-10-11): sends every
+        touch of a cleared, unpaused sequence whose day has come and that
+        has not gone yet, in order, through send_scheduled_touch (cap,
+        contact hours). The first touch that is held stops the rest for
+        today; it is tried again on the next tick. Before this, nothing
+        ever called send_scheduled_touch: Lead Nurture never sent a touch."""
+        import datetime
+        seq = self.active_sequences.get(ctx)
+        if not seq or seq.get("compliance_status") != "cleared" or seq.get("paused") \
+                or not seq.get("touches"):
+            return "not_eligible"
+        if not seq.get("started_on"):
+            seq["started_on"] = today   # no start date was supplied: day 0 is today
+        day_n = (datetime.date.fromisoformat(today)
+                 - datetime.date.fromisoformat(seq["started_on"])).days
+        iso = datetime.date.fromisoformat(today).isocalendar()
+        week = f"{iso[0]}-W{iso[1]:02d}"
+        hour = int(now_iso[11:13]) if now_iso and len(now_iso) >= 13 else None
+        sent_now = []
+        for i, t in enumerate(seq["touches"]):
+            if i in seq["sent"] or t["day"] > day_n:
+                continue
+            result = self.send_scheduled_touch(ctx, {"text": t["text"], "touch": i},
+                                               week, hour=hour)
+            if result != "sent":
+                return f"held:{result}" if not sent_now else f"sent:{sent_now},held:{result}"
+            seq["sent"].append(i)
+            sent_now.append(i)
+        return f"sent:{sent_now}" if sent_now else "none_due"
 
     def send_scheduled_touch(self, ctx: str, content: dict, today_week: str,
                              hour: int | None = None, is_legal_holiday: bool = False):
@@ -175,7 +209,50 @@ class Spoke03LeadNurture:
         return "sent"
 
     def handle(self, env: Envelope):
+        if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
+            from .clock import handle_tick
+            return handle_tick(self, "03", env)
         ctx = env.client_context_id
+
+        if env.intent == "config.update" and "nurture_sequences" in env.payload:
+            # Broker-signed sequence definitions (config.update is
+            # signature-gated at the hub). Validated whole; a bad entry
+            # changes nothing. Running sequences keep the touches they were
+            # cleared with - a new definition applies to new starts only.
+            seqs = env.payload["nurture_sequences"]
+            problems = []
+            if not isinstance(seqs, dict) or not seqs:
+                problems.append("nurture_sequences must be a non-empty object")
+            else:
+                for sid, d in seqs.items():
+                    touches = d.get("touches") if isinstance(d, dict) else None
+                    if not isinstance(touches, list) or not touches:
+                        problems.append(f"{sid}: needs a non-empty touches list")
+                        continue
+                    days = []
+                    for i, t in enumerate(touches):
+                        if not (isinstance(t, dict) and isinstance(t.get("day"), int)
+                                and not isinstance(t.get("day"), bool) and t["day"] >= 0
+                                and isinstance(t.get("text"), str) and t["text"].strip()):
+                            problems.append(f"{sid} touch {i}: needs day (whole number, 0 or more) and text")
+                        else:
+                            days.append(t["day"])
+                    if days != sorted(set(days)):
+                        problems.append(f"{sid}: touch days must be increasing with no repeats")
+            if problems:
+                self.hub.send(_env("03", "queue", "clarification.request", ctx,
+                                   {"reason": "nurture sequences rejected; nothing changed",
+                                    "problems": problems}))
+                return
+            self.sequences = {sid: {"touches": [{"day": t["day"], "text": t["text"]}
+                                                for t in d["touches"]]}
+                              for sid, d in seqs.items()}
+            self.hub.ingest_spoke_trace(
+                "03", env.envelope_id,
+                thought=f"broker-signed nurture sequences: "
+                        f"{ {k: len(v['touches']) for k, v in self.sequences.items()} } touches",
+                result="sequences set")
+            return
 
         if env.intent == "lead.nurture":
             consent = env.payload.get("consent") or {}
@@ -244,10 +321,29 @@ class Spoke03LeadNurture:
                                                   "overlap_with": requested_seq}
                     return
 
+            definition = self.sequences.get(requested_seq)
+            if definition is None:
+                # fail closed: no broker-written touches, nothing to send
+                self.hub.ingest_spoke_trace(
+                    "03", env.envelope_id,
+                    thought=f"nurture sequence {requested_seq!r} has no broker-signed "
+                            f"definition - nothing to send, holding for the broker",
+                    result="held: sequence_not_defined")
+                self.hub.send(_env("03", "queue", "clarification.request", ctx,
+                                   {"reason": f"nurture sequence {requested_seq!r} is not "
+                                              f"defined - send a signed config.update with "
+                                              f"nurture_sequences; nothing was sent",
+                                    "sequence_id": requested_seq}))
+                return
             self.active_sequences[ctx] = {"sequence_id": requested_seq,
                                           "paused": False, "touch_count": 0,
                                           "consent": consent,
-                                          "compliance_status": "pending"}
+                                          "compliance_status": "pending",
+                                          # the exact touches 17 reviews and
+                                          # that will be sent, fixed at start
+                                          "touches": [dict(t) for t in definition["touches"]],
+                                          "started_on": env.payload.get("today"),
+                                          "sent": []}
             self.hub.send(_env("03", "18", "agent.status", ctx,
                                {"waiting_on": "compliance_review",
                                 "since": env.payload.get("today")}))
@@ -259,7 +355,8 @@ class Spoke03LeadNurture:
                         f"submitting for review before first send",
                 result="content.review issued, sequence pending compliance")
             self.hub.send(_env("03", "17", "content.review", ctx,
-                               {"sequence_id": requested_seq}))
+                               {"sequence_id": requested_seq,
+                                "draft": {"touches": [t["text"] for t in definition["touches"]]}}))
             return
 
         if env.intent == "lead.reply":
