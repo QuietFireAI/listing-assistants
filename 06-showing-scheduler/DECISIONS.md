@@ -30,4 +30,9 @@ Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
 - (broker's signed seller-report weekday arrives, count each listed property's showings and feedback for the week and hold the report for the broker; continue sends it through 11, cancel skips; once per week per listing)
 - (seller-report setting is malformed, reject it whole; nothing changes)
 
+Code status (checked 2026-10-12): "alternatives are offered" and "offer
+first legal slot" send the client a template naming the required notice
+hours; no alternative time is computed (there is no seller availability
+data). A calendar conflict goes to the broker.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

@@ -35,7 +35,9 @@ entry for 18 carries the day the request was made, not the appointment day
 when the vendor's event says a proof artifact is present
 (`proof_artifact_present`); this agent does not open the file. After a late
 cancellation, 07 and 06 are told at once and a regulated role goes to the
-broker; no replacement vendor is proposed. Scope growing on-site sends the
+broker; the notices and the hold list the roster's other vendors of that kind
+(`roster_alternatives`, credentials checked when the event carries a date) and
+the broker picks. A deadline-critical no-show is held the same way. Scope growing on-site sends the
 vendor a stop-work message (held for the broker's release) and tells the
 broker.
 

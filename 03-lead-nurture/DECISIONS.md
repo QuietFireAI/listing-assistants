@@ -32,4 +32,8 @@ Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
 - (a re-score keeps the lead WARM on the same sequence, the sequence continues; never restart it from day 0)
 - (lead opted out or its sequence is paused, no re-score)
 
+Code status (checked 2026-10-12): contact hours are enforced. The
+legal-holiday half acts only on a send flagged as a holiday, and the daily
+clock flags none (no holiday calendar exists), so holidays are not skipped.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

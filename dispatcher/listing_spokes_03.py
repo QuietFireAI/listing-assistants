@@ -43,7 +43,7 @@ class Spoke03LeadNurture:
          says it isn't. This branch now explicitly resumes the sequence.
          Fixed 2026-07-17: the "+ confirm" half never sent anything to
          the client either - now sends a real client-facing confirmation.
-      3. sequence content has expired market data -> regenerate or skip the touch
+      3. RETIRED 2026-10-12 (owner decision J5): no market data is sent
       4. two sequences eligible -> run neither until human picks, never
          stack. Confirmed 2026-07-16 (owner) distinct from tuple 10: this
          is an ambiguous, simultaneous conflict with no clear precedence
@@ -66,8 +66,8 @@ class Spoke03LeadNurture:
          holiday flag before sending.
       8. engagement spike mid-sequence -> pause + lead.rescored, never keep
          dripping on a hot signal
-      9. content references a listing that changed status -> pull the step,
-         stale claims are fabrications
+      9. RETIRED 2026-10-12 (owner decision J5): no listing or market
+         content is sent; touches are the broker's own text
       10. two sequences target one context -> one per context, newest
           signed instruction wins, overlap logged. Confirmed 2026-07-16
           (owner) distinct from tuple 4: this is a deliberate, later

@@ -24,4 +24,11 @@ constrains everything.
 - (recurring task silently failing (no completion events), surface the pattern; a quiet calendar is a suspect calendar)
 - (timezone ambiguity on any party, confirm before scheduling; assumptions here cost closings)
 
+Code status (checked 2026-10-12): three tuples have no code - a briefing
+cannot name a missing source envelope (nothing records what to expect),
+there is no input for a human instruction to compare against a deadline,
+and no agent reports a recurring task as done (the recurring-task check is
+not on the clock). The overloaded-day tuple attaches a proposed order
+(protected blocks first, then by time) since 2026-10-12.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

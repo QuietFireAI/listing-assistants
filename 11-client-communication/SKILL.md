@@ -29,6 +29,7 @@ giving advice, and it only ever does the first.
 - Sends respect configured quiet hours (TCPA-permissible contact windows) and opt-outs recorded at 14: before every send this agent asks 14 for the client's consent, and an opt-out on every channel blocks the send and logs it (the one opt-out confirmation still goes; added 2026-10-12, before which nothing was checked). A client with no consent on record is not blocked here.
 - Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
+- An angry client (the reply's `angry` flag) gets one acknowledgement that makes no promises (`acknowledge_no_promises`); the complaint goes to the broker (`escalation.complaint`) and routine updates to that client are not sent (each one is logged to 14) until the broker signs `resolve_complaint_hold`.
 - Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## 3. HITL Handoff - The Legal Line
@@ -207,9 +208,12 @@ not a service.
 
 Ambiguity examples for this agent:
 
-- Client reply mixes a routine question with an advice question: the advice
-  phrase sends the whole reply to the Legal Line (with the hand-off
-  acknowledgement); the routine part is not split out or routed separately.
+- Client reply mixes a routine question with an advice question: when the
+  channel system marks the reply as also routine (`has_routine_component`),
+  it goes to the Legal Line and the whole message, labeled `routine_only`,
+  goes to the owning agent; the text is not split and no hand-off
+  acknowledgement is sent. Without that mark, the advice phrase sends the
+  reply to the Legal Line with the hand-off acknowledgement.
 - Update trigger arrives for a client context with an active complaint escalation.
 - Two agents send conflicting statuses for the same milestone.
 

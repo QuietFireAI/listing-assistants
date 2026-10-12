@@ -360,3 +360,38 @@ def test_vendor_request_without_id_selects_from_approved_roster(tmp_path):
     hub.on_turn_start()
     hub.send(vendor_req("p2", {"kind": "photography", "today": "2026-07-17"}))
     assert spoke.scheduled["p2"]["photography"]["vendor_id"] == "v-photo-1"
+
+
+# ------------------------- tuples 1 and 10: roster alternatives (2026-10-12)
+def _alt_roster():
+    r = dict(ROSTER)
+    r["insp-2"] = {"kind": "inspector", "license_expiry": "2027-01-01",
+                   "insurance_expiry": "2027-01-01"}
+    r["insp-3"] = {"kind": "inspector", "license_expiry": "2025-01-01",
+                   "insurance_expiry": "2027-01-01"}               # expired license
+    return r
+
+
+def test_late_cancellation_offers_the_rosters_current_alternatives(tmp_path):
+    hub = make_hub(str(tmp_path))
+    Spoke09VendorCoordination(hub, roster=_alt_roster())
+    hub.on_turn_start()
+    hub.send(vendor_event("v-alt", {"event_kind": "cancellation", "kind": "inspector",
+                                    "vendor_id": "insp-1", "today": "2026-10-12"}))
+    want = {"vendors": ["insp-2"], "credentials_checked_on": "2026-10-12"}
+    [c] = [c for c in persisted(hub, "clarification.request") if "never auto-rebooked" in c["payload"]["reason"]]
+    assert c["payload"]["roster_alternatives"] == want
+    notices = persisted(hub, "vendor.cancellation_notice")
+    assert {n["to_agent"] for n in notices} == {"07", "06"}
+    assert all(n["payload"]["roster_alternatives"] == want for n in notices)
+
+
+def test_alternatives_without_a_date_are_listed_unchecked(tmp_path):
+    hub = make_hub(str(tmp_path))
+    Spoke09VendorCoordination(hub, roster=_alt_roster())
+    hub.on_turn_start()
+    hub.send(vendor_event("v-alt2", {"event_kind": "no_show", "deadline_critical": True,
+                                     "vendor_id": "insp-1"}))
+    [c] = [c for c in persisted(hub, "clarification.request") if "never self-substituted" in c["payload"]["reason"]]
+    assert c["payload"]["roster_alternatives"] == {"vendors": ["insp-2", "insp-3"],
+                                                   "credentials_checked_on": None}

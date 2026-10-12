@@ -27,4 +27,7 @@ constrains everything.
 - (earnest money receipt not confirmed by deadline, escalate; money milestones never get benefit of the doubt)
 - (possession terms ambiguous in contract, clarification with the exact clause quoted; never interpolate intent)
 
+Code status (checked 2026-10-12): "same hour" means the next run of the
+daily clock - deadlines are checked once a day.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

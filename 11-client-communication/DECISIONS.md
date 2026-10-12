@@ -26,4 +26,8 @@ constrains everything.
 - (negative-tone reply received, route P14 complaint intake; never freestyle de-escalation)
 - (client requests contact-channel change, honor immediately, record via 14, confirm once)
 
+Code status (checked 2026-10-12): "split and route both" - the reply goes to
+the Legal Line and the whole message, labeled `routine_only`, to the owning
+agent; the text itself is not split.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

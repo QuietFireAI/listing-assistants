@@ -265,3 +265,20 @@ def test_no_show_ignores_unknown_or_timeless_showings(tmp_path):
     hub.on_turn_start()
     assert spoke.check_showing_no_show("nope", "2026-07-17T13:00:00") == \
         "no_showing_or_no_time"
+
+
+def test_overloaded_day_hold_carries_the_proposed_order(tmp_path):
+    """2026-10-12: the hold used to say 'proposing priority order' with no
+    order attached. Protected blocks first, then by time, new event last."""
+    hub = make_hub(str(tmp_path))
+    Spoke18CalendarTask(hub, max_events_per_day=2)
+    hub.on_turn_start()
+    hub.send(cal_event("cap-a", {"day": "2026-08-12", "event_id": "ev-late", "time": "15:00",
+                                 "timezone_confirmed": True}))
+    hub.send(cal_event("cap-b", {"day": "2026-08-12", "event_id": "ev-deadline", "time": "16:00",
+                                 "protected": True, "timezone_confirmed": True}))
+    hub.send(cal_event("cap-c", {"day": "2026-08-12", "event_id": "ev-new", "time": "09:00",
+                                 "timezone_confirmed": True}))
+    [c] = [c for c in persisted(hub, "clarification.request") if "capacity" in c["payload"]["reason"]]
+    assert c["payload"]["proposed_order"] == ["ev-deadline", "ev-late", "ev-new"]
+    assert "proposing priority order" not in c["payload"]["reason"]

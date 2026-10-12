@@ -49,11 +49,10 @@ class Spoke09VendorCoordination:
       11. work scope grows on-site -> stop-work message per template,
           scope changes are human-approved
 
-    Open question, not resolved here (same class as Agents 04 and 06):
-    tuple 10's "offer next approved vendor" sends only a text reason, no
-    computed candidate from the roster - may be intentional (human's own
-    judgment, or 11's template layer, picks the actual replacement) rather
-    than a gap. Not changed without confirming which it is.
+    Tuples 1 and 10 (2026-10-12): the hold and the cancellation notices
+    carry the roster's other vendors of the same kind (credentials checked
+    when the event carries a date) as roster_alternatives; the broker
+    picks, nothing is booked by this agent.
     """
 
     def __init__(self, hub, roster: dict[str, dict] | None = None):
@@ -77,6 +76,18 @@ class Spoke09VendorCoordination:
             if not exp or datetime.date.fromisoformat(exp) < today_d:
                 return False
         return True
+
+    def _roster_alternatives(self, kind, exclude, today) -> dict:
+        """Tuples 1 and 10 (offer roster alternatives / the next approved
+        vendor to the human; added 2026-10-12): the other roster vendors of
+        the same kind. With a date their credentials are checked and only
+        current ones are listed; without one they are listed unchecked and
+        the record says so. The human picks; nothing is booked here."""
+        others = sorted(vid for vid, v in self.roster.items()
+                        if v.get("kind") == kind and vid != exclude)
+        if today:
+            others = [vid for vid in others if self._credentials_current(vid, today)]
+        return {"vendors": others, "credentials_checked_on": today or None}
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id
@@ -205,14 +216,17 @@ class Spoke09VendorCoordination:
             # a self-reported flag on the cancellation event itself is the
             # same class of bug as trusting an echoed doc_type in Agent 08.
             regulated = self.roster.get(vendor_id, {}).get("regulated", True)
+            alternatives = self._roster_alternatives(kind, vendor_id, payload.get("today"))
             # tuple 1: notify 07/06 IMMEDIATELY - not the 7-day holdup
             # timer (built for silence/non-response, the wrong mechanism
             # for a definitive cancellation) and not silence for 06
             # (previously unreachable - no route existed at all).
             self.hub.send(_env("09", "07", "vendor.cancellation_notice", ctx,
-                               {"vendor_kind": kind, "vendor_id": vendor_id}))
+                               {"vendor_kind": kind, "vendor_id": vendor_id,
+                                "roster_alternatives": alternatives}))
             self.hub.send(_env("09", "06", "vendor.cancellation_notice", ctx,
-                               {"vendor_kind": kind, "vendor_id": vendor_id}))
+                               {"vendor_kind": kind, "vendor_id": vendor_id,
+                                "roster_alternatives": alternatives}))
             self.hub.send(_env("09", "14", "interaction.log", ctx,
                                {"kind": "vendor_cancelled_late",
                                 "vendor_kind": kind}))
@@ -222,7 +236,8 @@ class Spoke09VendorCoordination:
                                    {"reason": f"regulated vendor role "
                                              f"{kind!r} cancelled late - "
                                              f"human picks the replacement, "
-                                             f"never auto-rebooked"}))
+                                             f"never auto-rebooked",
+                                    "roster_alternatives": alternatives}))
             return
 
         if env.intent == "vendor.event" and payload.get("event_kind") == "rate_change":
@@ -319,7 +334,11 @@ class Spoke09VendorCoordination:
                                    {"reason": "vendor no-show on a "
                                              "deadline-critical job - human "
                                              "picks the next approved "
-                                             "vendor, never self-substituted"}))
+                                             "vendor, never self-substituted",
+                                    "roster_alternatives": self._roster_alternatives(
+                                        payload.get("kind") or self.roster.get(
+                                            payload.get("vendor_id"), {}).get("kind"),
+                                        payload.get("vendor_id"), payload.get("today"))}))
             else:
                 self.hub.send(_env("09", "14", "interaction.log", ctx,
                                    {"kind": "vendor_no_show",

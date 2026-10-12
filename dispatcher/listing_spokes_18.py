@@ -43,10 +43,10 @@ class Spoke18CalendarTask:
          distinct "human instruction" input at all.
       4. agent asks to move a protected deadline block -> refuse, human
          confirmation only
-      5. overloaded day -> propose priority order, human confirms. Soft
-         finding, not fixed: the message claims "proposing priority
-         order" but no actual order is computed or attached - same
-         decorative-claim pattern as Agents 04/06/09.
+      5. overloaded day -> propose priority order, human confirms. The
+         proposed order (protected blocks first, then by time, the new
+         event last) is attached since 2026-10-12; before, the message
+         claimed an order and attached none.
       6. two deadline sources disagree -> track both, alert the conflict,
          never pick the friendlier date
       7. owner calendar conflicts with contractual deadline -> deadline
@@ -202,13 +202,22 @@ class Spoke18CalendarTask:
                                              f"never silently moving either"}))
                 return
 
-            # tuple 5: overloaded day -> propose priority order, human confirms
+            # tuple 5: overloaded day -> propose priority order, human confirms.
+            # Fixed 2026-10-12: the message said "proposing priority order"
+            # and attached none. The order put forward is the one the rules
+            # give - protected (07) blocks first, then by time - with the new
+            # event last; the broker confirms or reorders.
             if len(day_events) >= self.max_events_per_day:
+                ordered = sorted(day_events, key=lambda e: (not e.get("protected"),
+                                                            str(e.get("time") or "")))
+                proposed = [e.get("event_id") for e in ordered] + [
+                    payload.get("event_id") or payload.get("event")]
                 self.hub.send(_env("18", "queue", "clarification.request", ctx,
-                                   {"reason": "day is at capacity - "
-                                             "proposing priority order for "
-                                             "human confirmation",
-                                    "day": day}))
+                                   {"reason": "day is at capacity - the new event "
+                                              "was not added; proposed order for "
+                                              "your confirmation (protected "
+                                              "deadline blocks first, then by time)",
+                                    "day": day, "proposed_order": proposed}))
                 return
 
             event_id = payload.get("event_id", f"{day}-{len(day_events)}")

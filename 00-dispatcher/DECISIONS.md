@@ -34,4 +34,15 @@ Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
 - (an audit entry cannot be written to the plain-language view, the chain entry stands; count the failure and report it at the end of the session)
 - (a text page to the broker fails, record the failure on the chain; the on-screen page stands and nothing else waits on the text)
 
+Code status (checked 2026-10-12): the running hub does not do all of
+this. It does not compare two signed config.update instructions (an agent
+that receives conflicting changes holds them - Agent 05 does for listing
+changes); an audit write that fails stops that one envelope, not all
+traffic; there is no playbook engine, so the two playbook-matching tuples,
+siding by class (`dispatcher/priority.py` is not wired in) and the
+same-context-in-two-playbooks tuple cannot fire; an unacknowledged
+escalation is not re-alerted; there is no identity reload to refuse; the
+clarification queue has no depth limit; clock skew is not checked. SKILL.md
+section 2 lists the same gaps.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)
