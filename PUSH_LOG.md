@@ -238,3 +238,12 @@ existing.
 | 2026-10-12 19:39:05 UTC | mortgage-agents | `d8285af186` | requirements: pyyaml; CI green |
 | 2026-10-12 19:39:09 UTC | property-mgmt-agents | `7507eec25f` | requirements: pyyaml; CI green |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Diagrams: README in all 21 agent folders (from routes.json), a real-run sequence for each of the 24 playbooks, hand-drawn pictures on 15 doc pages; gen_diagrams --check + test; 74 diagrams render; 988 passed; push log rows for the identity-repo batch |
+| 2026-10-12 21:37:25 UTC | freight-agents | `0458c52f27` | Diagrams: agent and playbook folder READMEs, playbook priority map, pictures on README/ROSTER/DEPLOY/INSTALL/INTEGRATIONS/AFTER_ACTION/TUNING_MANUAL; tools/gen_diagrams.py + test; 32 passed, 1 skipped |
+| 2026-10-12 21:37:29 UTC | medbilling-agents | `43dbc21610` | Diagrams as freight, plus real playbook runs P01-P14 in docs/PLAY-BY-PLAY.md and pictures on the docs pages; 43 passed |
+| 2026-10-12 21:37:32 UTC | claim-agents | `f7084d53fe` | Diagrams as medbilling; real runs for P01, P05-P14 (tests named p02-p04 exercise other things, so those playbooks get no run picture); 33 passed, 1 skipped |
+| 2026-10-12 21:37:36 UTC | hr-agents | `4c1a267f36` | Diagrams as freight; 10 passed, 1 skipped |
+| 2026-10-12 21:37:39 UTC | enrollment-agents | `357f294fc3` | Diagrams as freight; 10 passed, 1 skipped |
+| 2026-10-12 21:37:43 UTC | practice-agents | `321499f662` | Diagrams as freight; 10 passed |
+| 2026-10-12 21:37:46 UTC | mortgage-agents | `a1cab5588c` | Diagrams as freight; 9 passed, 1 skipped |
+| 2026-10-12 21:37:50 UTC | property-mgmt-agents | `202ef8ee34` | Diagrams as freight; 10 passed, 1 skipped |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the identity-repo diagrams |
