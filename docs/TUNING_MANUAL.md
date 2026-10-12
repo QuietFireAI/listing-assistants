@@ -1,4 +1,4 @@
-# Tuning Manual — listing-agents
+# Tuning Manual — ListingAssistants
 
 ## Runtime & mount status (2026-10-11)
 
@@ -20,7 +20,7 @@ a real gap, not an intentional omission.
 **Re-swept 2026-07-17** (3rd full pass): found 6 more constructor-level
 parameters missed in the first sweep because they're dict/set-shaped, not
 simple numerics - the original grep pattern only caught `int`/`float`
-defaults. Also found 2 core-level (dispatcher-agents, not listing-agents)
+defaults. Also found 2 core-level (dispatcher-agents, not this repository)
 parameters that were self-flagged in their own code comments as
 provisional and never actually ratified - discussed directly with the
 owner the same day and ratified as deliberate placeholders (see their own
@@ -126,7 +126,7 @@ legitimately warrant different defaults.
 ## Ratified as deliberate placeholders (owner, 2026-07-17) — core, not this repo
 
 These two live in **dispatcher-agents** (the shared core, not this repo),
-which is why they weren't caught in a listing-agents-only sweep before.
+which is why they weren't caught in a sweep of this repository alone before.
 Both were previously self-flagged in their own code/doc comments as never
 having been truly decided - "PROVISIONAL AND ARBITRARY, no empirical
 basis" was the literal language at the source. **Discussed directly with

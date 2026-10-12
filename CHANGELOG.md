@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tools/inspect_client_drawer.py` reports real hash results instead of a fixed "VERIFIED" line.
 - Documentation rewritten to match the code; deleted disclosures restored; `docs/WHY_JEV_OVER_LLM.md`, `docs/LEARNING_LOOP_AND_DRIFT_ARCHITECTURE.md`, `docs/WEBSITE_PROJECT_HANDOFF.md` and `docs/SECURITY_AUDIT_REPORT.md` removed from the repository.
 
+- Operator scenes (`scenes/`) and a test that runs them; fourteen real-traffic breaks they exposed fixed (see RELEASE_NOTES.md).
+- Swarm state saved and restored through the SQLite store, vouched for by the audit chain; one swarm builder for console, clock and MCP server.
+- Held threads (duplicate person, owner-less reply, social drafts) through the HITL protocol; console `decide`, `release`, `onboard`.
+- Owner decisions: Agent 03 sequences on the clock, Agent 13 neighborhood path removed, Agent 19 comps, Agent 20 template drafts held for approval, Agent 20 off `behavioral.signal`, P13 on the clock.
+- Unrecognized signed settings and uncovered client replies held instead of dropped; once-only escalations.
+- Repository is the single source; JOB_DESCRIPTIONS generated here; TelsonBase references removed; `SESSION_HANDOFF_6.md` removed.
+
 ### Corrections to the 1.0.0 entry below
 Several 1.0.0 items did not match the code at the time: "MCP tool contract (`tools/call_jev_decision`)" (no such tool), "Dual-key" verifier (single key, and the CLI could not take one), "Immediate real-time alert dispatch via SMS, webhook, or push" for HITL (an optional callback only), "Standardized all 21 agent skills" (no agent SKILL.md changed), the WAL claim (no PRAGMA), and "561 / 561" (the suite at the `archetype-v1.0.0` tag runs 577 tests, all passing; checked 2026-10-11). The entry is kept as written for history.
 

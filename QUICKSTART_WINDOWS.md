@@ -139,8 +139,10 @@ from your own code (see docs/OPERATOR_TUNING_GUIDE.md, section 10).
 
 | When | Action | Command |
 | :--- | :--- | :--- |
-| Morning | Run the daily clock (sweeps + morning briefing), inside the process that holds the swarm; standalone shows the wiring only | `python tools/run_sweeps.py --audit-log logs\sweep-audit.jsonl` |
+| Once | Your key, then who you are | `python tools/console.py init` then `python tools/console.py onboard` |
+| Morning | Run the daily clock (sweeps + morning briefing) on the console's log and saved state; Task Scheduler can run it | `python tools/run_sweeps.py` |
+| Any time | Decisions waiting on you | a session line `{"do": "show", "what": "waits"}` |
 | Any time | Client funnel page | `python tools/dashboard.py --html` |
 | Any time | Recent plain-language events | `python tools/show_logs.py --tail 50` |
-| End of day | End-of-day report | `python tools/show_logs.py --eod` |
+| End of day | End-of-day report | `python tools/show_logs.py --eod --audit-log console-state\console-audit.jsonl` |
 | Any time | Verify the audit chain | `python tools/console.py verify` |

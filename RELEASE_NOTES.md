@@ -30,7 +30,8 @@ end-to-end test.
   `config/authority_signers.json` is an unratified template again.
 - **MCP server.** It signs authority actions for a host only in
   `--demo-signing` mode. Leftover medical-billing code removed.
-- **Optional modules, corrected** (still not called by any agent):
+- **Optional modules, corrected** (the HITL protocol and the SQLite store
+  are now wired, see below; the rest are still not called by any agent):
   client drawers (safe paths, client-bound filing, hash verification),
   signed HITL decisions, offline update packs (public-key verification,
   unlisted files and downgrades refused, `tools/sign_manifest.py`), SQLite
@@ -39,7 +40,47 @@ end-to-end test.
   opt-in for external calls), Hermes seam (no fabricated reasoning or
   drafts), checkpoint manifest (no exam without a model), EOD report
   (integrity computed or labeled "not computed").
+- **The operator scenes.** Ten ready-to-film scenes (`scenes/`) run session
+  by session through the console; `tests_listing/test_operator_scenes.py`
+  runs the same files on every build. Running them first found fourteen
+  places where real agent-to-agent traffic broke while the unit tests,
+  fed hand-written messages, passed. All fixed, among them: the console
+  could not release a held message; the vendor roster always loaded empty;
+  07 asked for documents by the wrong names, so 08 refused the real ones;
+  a new listing matched no buyer; two buyers could be booked into the same
+  house at the same time; nothing recorded a buyer agreement, so no client
+  showing could book; undated vendor bookings skipped the license and
+  insurance checks; the settlement statement's sale price never reached
+  15; four waits never cleared.
+- **Restart survival.** The swarm's state is saved to the SQLite store
+  after each session and clock run and restored only when the audit chain
+  vouches for that exact save. The daily clock runs on that state.
+- **Held threads.** The same person under a new lead, a client reply that
+  names no agent, and an approved social reply draft hold until the broker
+  signs continue or cancel (HITL protocol, now wired).
+- **Owner decisions applied.** Lead Nurture sends broker-written sequences
+  from the clock after 17 clears them; Agent 13's neighborhood path removed
+  (fair-housing steering risk); Agent 19 gets comps for every opportunity;
+  Agent 20 drafts only from the broker's templates; P13 date triggers run
+  from the clock.
+- **Silence removed.** A signed setting an agent does not recognize, and a
+  client reply no rule covers, are held for the broker instead of acked
+  and dropped. An exhausted document chase and a vendor hold-up escalate
+  once, not daily.
+- **Console.** `onboard`, `release`, `decide`, `show held`, `show waits`,
+  `--config-dir`, `--state-db`. The MCP server and the daily clock build
+  the same swarm.
+- **Single source.** This repository is the source of truth (the blueprint
+  repository is retired); `docs/JOB_DESCRIPTIONS.md` is generated here and
+  checked by a test. TelsonBase references removed from this drop.
 - **Docs** rewritten to match the code; deleted risk disclosures restored.
+
+## Known gaps
+
+- P18, P19, P20 and P21 have no trigger in a running swarm (docs/ROADMAP.md).
+- No identity provider is connected, so the signer login binding is off.
+- Client drawers, the JEV adapter, the Hermes seam and the checkpoint
+  manifest are not called by the agents.
 
 ## Corrections to the archetype-v1.0.0 / v1.1.0 notes
 

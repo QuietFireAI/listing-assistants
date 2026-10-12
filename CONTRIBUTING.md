@@ -8,7 +8,7 @@ Because ListingAssistants operates in a highly regulated domain (residential rea
 
 ## 1. Ground Rules & Invariants
 
-1. **The Invariable Railroad Chassis:** Agents never invent routes. The message track is strictly defined by `identity/routes.json`. Adding a route requires formal ratification in listing-agents-blueprint (where `generate_skills.py` and the ratified routes live), the same change here, and tests that drive the new lane through the hub.
+1. **The Invariable Railroad Chassis:** Agents never invent routes. The message track is strictly defined by `identity/routes.json`. Adding a route requires the owner's ratification, the change in `identity/routes.json` and the affected SKILL.md and DECISIONS.md files in this repository (the single source), `python tools/gen_job_descriptions.py`, and tests that drive the new lane through the hub with the payload the real sender produces.
 2. **Deterministic Edge Handling:** Do not introduce unconstrained stochastic improvisation into decision paths. Sensitive decisions must be governed by deterministic tuples (see `DECISIONS.md` per agent).
 3. **No unsigned authority actions:** listing changes, configuration updates, disclosure releases and human decisions require a verified signature.
 4. **Zero Tolerance for Fair Housing Violations:** Any marketing generation must pass statutory compliance screening before publication.
