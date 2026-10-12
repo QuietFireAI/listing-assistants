@@ -1,19 +1,14 @@
 {
- "_status": "UNRATIFIED TEMPLATE - owner must edit, ratify (date + sign-off), then load; loads fail closed while this line stands",
+ "_status": "UNRATIFIED TEMPLATE - owner must replace the example, ratify (write RATIFIED, a YYYY-MM-DD date and your name on this line), then load; loads fail closed while this line stands",
  "_table": "vendor_panel",
- "_purpose": "Approved media/staging/sign vendors with terms",
- "_fields": [
-  "vendor_id",
-  "service",
-  "terms_ref",
-  "insurance_current_until"
- ],
- "entries": [
-  {
-   "vendor_id": "<example>",
-   "service": "<example>",
-   "terms_ref": "<example>",
-   "insurance_current_until": "<example>"
+ "_purpose": "Approved vendors Agent 09 may book. Read by tools/console.py (and any process you build) and passed to Agent 09 as its roster.",
+ "_format": "vendors: vendor_id -> {kind, license_expiry, insurance_expiry, regulated}. kind matches the vendor.request kind (photography, staging, signage, ...). Dates are YYYY-MM-DD; Agent 09 books a vendor only while both dates are current. regulated: true when the work needs a license check (defaults to true). An entry with a missing field or a <placeholder> is skipped and named on the audit log.",
+ "vendors": {
+  "<vendor_id>": {
+   "kind": "<photography>",
+   "license_expiry": "<YYYY-MM-DD>",
+   "insurance_expiry": "<YYYY-MM-DD>",
+   "regulated": false
   }
- ]
+ }
 }

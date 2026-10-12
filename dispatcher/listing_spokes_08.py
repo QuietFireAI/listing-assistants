@@ -31,6 +31,9 @@ DOC_MILESTONE_MAP = {
     "earnest_money_receipt": "earnest_money",
 }
 
+# milestone -> the document that satisfies it (inverse of the map above)
+MILESTONE_DOC_MAP = {m: d for d, m in DOC_MILESTONE_MAP.items() if m}
+
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
@@ -140,7 +143,25 @@ class Spoke08DocumentCollection:
         payload = env.payload
 
         if env.intent == "doc.request":
-            doc_type = payload.get("doc_type") or payload.get("milestone")
+            doc_type = payload.get("doc_type")
+            if not doc_type and payload.get("milestone"):
+                # 07 asks by MILESTONE ({"milestone": "inspection"}); the
+                # party sends a DOCUMENT ("inspection_report"). Fixed
+                # 2026-10-11 (scene run): the milestone name was stored as
+                # the pending document type, so the real inspection report
+                # was then refused as the "wrong type". The milestone maps to
+                # its document through DOC_MILESTONE_MAP; a milestone with no
+                # document there goes to a human, never a guessed name.
+                milestone = payload["milestone"]
+                doc_type = MILESTONE_DOC_MAP.get(milestone)
+                if doc_type is None:
+                    self.hub.send(_env("08", "queue", "clarification.request", ctx,
+                                       {"reason": f"doc.request for milestone "
+                                                  f"{milestone!r}, which has no "
+                                                  f"document type on record - "
+                                                  f"name the document to chase",
+                                        "milestone": milestone}))
+                    return
             self.pending_requests.setdefault(ctx, {})[doc_type] = \
                 {"chase_count": 0}
             self.hub.send(_env("08", "11", "client.message.request", ctx,
@@ -165,6 +186,39 @@ class Spoke08DocumentCollection:
             # lead.reply precedent); vendor-sourced reports (inspection,
             # appraisal) arrive via 09's existing deliverable.release route.
             self._handle_document_received(env, ctx, payload)
+            return
+
+        if env.intent == "config.update" and "expected_senders" in payload:
+            # tuple 4's allowlist, supplied by the broker per transaction
+            # (signed config.update - the hub verified the signature before
+            # this ran). Added 2026-10-11: until now the list could only be
+            # passed to the constructor, so a running swarm quarantined every
+            # settlement statement with no way for the broker to say who
+            # should send it. Validated whole; a bad entry changes nothing.
+            senders = payload["expected_senders"]
+            problems = []
+            if not isinstance(senders, dict) or not senders:
+                problems.append("expected_senders must be a non-empty object "
+                                "of doc_type -> [party, ...]")
+            else:
+                for doc_type, parties in senders.items():
+                    if (not isinstance(parties, list) or not parties
+                            or not all(isinstance(p, str) and p.strip() for p in parties)):
+                        problems.append(f"{doc_type}: needs a non-empty list of party strings")
+            if problems:
+                self.hub.send(_env("08", "queue", "clarification.request", ctx,
+                                   {"reason": "expected-sender config rejected; "
+                                              "nothing changed",
+                                    "problems": problems}))
+                return
+            ctx_map = self.expected_senders.setdefault(ctx, {})
+            for doc_type, parties in senders.items():
+                ctx_map[doc_type] = set(parties)
+            self.hub.ingest_spoke_trace(
+                "08", env.envelope_id,
+                thought=f"broker-signed expected senders for ctx={ctx!r}: "
+                        f"{ {k: sorted(v) for k, v in ctx_map.items()} }",
+                result="expected_senders set")
             return
 
         if env.intent == "config.update" and "retention_query" in payload:
@@ -305,8 +359,15 @@ class Spoke08DocumentCollection:
         # substitute. Checked against ACTUAL pending state (what 08 itself
         # is tracking as outstanding), not an externally-echoed field a
         # sender might get wrong or omit - MANNERS #9, use owned state.
+        # A recognized document type (DOC_MILESTONE_MAP) that was not asked
+        # for is filed as ITSELF and never counts toward another request, so
+        # it is not a substitute (fixed 2026-10-11: a settlement statement
+        # sent while an inspection report was pending was refused and the
+        # client told it was the wrong document). An unrecognized type
+        # ("prequalification" for "preapproval_letter") is the
+        # close-enough case the tuple refuses.
         pending_types = set(self.pending_requests.get(ctx, {}).keys())
-        if pending_types and doc_type not in pending_types:
+        if pending_types and doc_type not in pending_types and doc_type not in DOC_MILESTONE_MAP:
             self.hub.send(_env("08", "11", "client.message.request", ctx,
                                {"template": "wrong_document_type",
                                 "requested": sorted(pending_types),

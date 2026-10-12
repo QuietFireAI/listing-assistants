@@ -188,19 +188,19 @@ def test_INTEGRATION_vendor_and_document_waits_surface_in_briefing(tmp_path):
 
     briefing = cal.generate_briefing()
     waiting_on = {w["waiting_on"] for w in briefing["currently_waiting"]}
-    assert "document:inspection" in waiting_on
+    assert "document:inspection_report" in waiting_on
     assert "vendor_scheduling:inspection" in waiting_on
 
     # now the document actually arrives - its wait should clear
     hub.send(Env2(from_agent="11", to_agent="08", intent="document.submission",
                   client_context_id="integ-001",
-                  payload={"doc_type": "inspection", "opens_correctly": True,
+                  payload={"doc_type": "inspection_report", "opens_correctly": True,
                           "content_hash": "insp-x"},
                   provenance={"source": "spoke-11", "captured_at": "runtime",
                               "verbatim_available": True}))
     briefing2 = cal.generate_briefing()
     waiting_on2 = {w["waiting_on"] for w in briefing2["currently_waiting"]}
-    assert "document:inspection" not in waiting_on2
+    assert "document:inspection_report" not in waiting_on2
     assert "vendor_scheduling:inspection" in waiting_on2  # still waiting on this one
 
 

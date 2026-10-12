@@ -40,6 +40,21 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, escalation_flag=Fals
                                 "verbatim_available": True})
 
 
+
+def _contact_identifiers(payload: dict) -> list[str]:
+    """Normalized identity keys for the cross-context duplicate check:
+    phone as its digits (7 or more), email lower-cased. Nothing else."""
+    out = []
+    phone = payload.get("phone")
+    if isinstance(phone, str):
+        digits = "".join(ch for ch in phone if ch.isdigit())
+        if len(digits) >= 7:
+            out.append("phone:" + digits)
+    email = payload.get("email")
+    if isinstance(email, str) and "@" in email:
+        out.append("email:" + email.strip().lower())
+    return out
+
 class Spoke14CRMPipeline:
     """System of record. Append-only; consent flags are authoritative HERE.
 
@@ -292,6 +307,16 @@ class Spoke14CRMPipeline:
                 known = any(e["kind"] == "interaction.log"
                            and e["payload"].get("kind") == "lead.captured"
                            for e in entries)
+                # same phone/email under ANOTHER context: reported, never
+                # merged here (01 flags it for a human)
+                ids = set(env.payload.get("identifiers") or [])
+                possible = sorted(
+                    other for other, other_entries in self.records.items()
+                    if other != ctx and ids and any(
+                        e["kind"] == "interaction.log"
+                        and e["payload"].get("kind") == "lead.captured"
+                        and ids & set(e["payload"].get("identifiers") or [])
+                        for e in other_entries))
                 consent = dict(self.consent.get(ctx, {}))
                 interests = list(self.property_interests.get(ctx, []))
                 self.hub.ingest_spoke_trace(
@@ -303,7 +328,8 @@ class Spoke14CRMPipeline:
                     result=f"known={known}")
                 self.hub.send(_env("14", env.from_agent, "record.response",
                                    ctx, {"known": known, "consent": consent,
-                                        "property_interests": interests},
+                                        "property_interests": interests,
+                                        "possible_duplicate_of": possible},
                                    confidence=SOURCE_VERIFIED))
                 return
 
@@ -437,6 +463,36 @@ class Spoke01LeadCapture:
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
             from .clock import handle_tick
             return handle_tick(self, "01", env)
+        if env.intent == "config.update" and ("brokerage_scope" in env.payload
+                                              or "dnc_add" in env.payload):
+            # Broker-signed (config.update is signature-gated at the hub).
+            # Added 2026-10-11 (scene run): scope and the do-not-contact list
+            # could only be passed to the constructor, so a running swarm
+            # treated every listing inquiry as out of scope and had no way
+            # to add a number to DNC. brokerage_scope REPLACES the set (a
+            # listing you no longer hold must be removable); dnc_add only
+            # adds - nothing here removes a DNC entry. Validated whole.
+            p, ctx = env.payload, env.client_context_id
+            problems = []
+            for key in ("brokerage_scope", "dnc_add"):
+                if key in p and (not isinstance(p[key], list) or not all(
+                        isinstance(x, str) and x.strip() for x in p[key])):
+                    problems.append(f"{key} must be a list of non-empty strings")
+            if problems:
+                self.hub.send(_env("01", "queue", "clarification.request", ctx,
+                                   {"reason": "lead-capture config rejected; nothing changed",
+                                    "problems": problems}))
+                return
+            if "brokerage_scope" in p:
+                self.brokerage_scope = set(p["brokerage_scope"])
+            if "dnc_add" in p:
+                self.dnc_list |= set(p["dnc_add"])
+            self.hub.ingest_spoke_trace(
+                "01", env.envelope_id,
+                thought=f"broker-signed config: scope={sorted(self.brokerage_scope)}, "
+                        f"dnc entries={len(self.dnc_list)}",
+                result="lead-capture config applied")
+            return
         if env.intent in ("lead.signal", "lead.inbound"):
             payload = env.payload
             ctx = env.client_context_id
@@ -656,9 +712,14 @@ class Spoke01LeadCapture:
                                              f"- human confirmation required "
                                              f"before any history is assumed",
                                    "agent": "01"})
+            # the day this capture happened, forwarded so 02's waits carry a
+            # real "since" (scene run 2026-10-11: briefings showed since=null)
+            if payload.get("today"):
+                captured["today"] = payload["today"]
             self.pending[ctx] = {**captured, "raw_inputs": raw_inputs, "notes": notes,
                                  "property_interests": interests,
-                                 "requested_at": payload.get("today")}
+                                 "requested_at": payload.get("today"),
+                                 "identifiers": _contact_identifiers(payload)}
 
             if on_dnc:
                 self.hub.escalate("escalation.legal_line",
@@ -685,7 +746,8 @@ class Spoke01LeadCapture:
                                {"waiting_on": "crm_dedupe_response",
                                 "since": payload.get("today")}))
             self.hub.send(_env("01", "14", "record.request", ctx,
-                               {"dedupe_key": ctx}))
+                               {"dedupe_key": ctx,
+                                "identifiers": self.pending[ctx]["identifiers"]}))
             return
 
         if env.intent == "record.response":
@@ -710,7 +772,28 @@ class Spoke01LeadCapture:
             payload = dict(pending)
             raw_inputs = payload.pop("raw_inputs")
             notes = payload.pop("notes")
+            identifiers = payload.pop("identifiers", [])
             known = env.payload["known"]
+            # tuple: possible duplicate identity, unconfirmed -> new context
+            # + flag, never merge. Added 2026-10-11 (scene run): 14 only
+            # matched the context id, so the same person arriving under a
+            # new context was never flagged at all.
+            possible_dupes = list(env.payload.get("possible_duplicate_of") or [])
+            if possible_dupes:
+                payload["possible_duplicate_of"] = possible_dupes
+                self.hub.ingest_spoke_trace(
+                    "01", env.envelope_id,
+                    thought=f"same phone/email already on record under "
+                            f"{possible_dupes}; identity unconfirmed - keeping "
+                            f"{ctx!r} as its own context and flagging, never "
+                            f"merging without a human",
+                    result="flagged: possible duplicate identity")
+                self.hub.send(_env("01", "queue", "clarification.request", ctx,
+                                   {"reason": "possible duplicate identity: same "
+                                              "phone or email as an existing lead; "
+                                              "kept as a new context, not merged - "
+                                              "confirm before merging",
+                                    "possible_duplicate_of": possible_dupes}))
             prior_consent = env.payload.get("consent", {})
             prior_interests = env.payload.get("property_interests", [])
             payload["duplicate"] = known
@@ -746,6 +829,8 @@ class Spoke01LeadCapture:
                                confidence=STATED_BY_PARTY))
             self.hub.send(_env("01", "14", "interaction.log", ctx,
                                {"kind": "lead.captured", "duplicate": known,
+                                "identifiers": identifiers,
+                                "possible_duplicate_of": possible_dupes,
                                 "consent": merged_consent,
                                 "property_interests": merged_interests,
                                 "contact": payload.get("contact")}))

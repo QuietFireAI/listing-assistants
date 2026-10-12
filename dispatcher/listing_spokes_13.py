@@ -299,12 +299,31 @@ class Spoke13BuyerSearchMatch:
             # flagged -> criteria simply never gets added to filtering set
             return
 
-        if env.intent == "listing.data":
-            self._match_one(ctx, payload, env)
-            return
-
-        if env.intent == "prospect.opportunity":
-            self._match_one(ctx, payload, env)
+        if env.intent in ("listing.data", "prospect.opportunity"):
+            if ctx in self.buyer_criteria:
+                # addressed to one buyer's context: match for that buyer
+                self._match_one(ctx, payload, env)
+                return
+            # New inventory (SKILL.md: "match new listings (feeds from 05,
+            # opportunities from 19) against profiles"). Fixed 2026-10-11
+            # (scene run): 05 sends listing.data under the LISTING's
+            # context, and 13 looked up buyer criteria under that same
+            # context, so a listing going live matched no buyer at all in
+            # real traffic. The tests had sent listing.data under a buyer's
+            # context, which 05 never does. Now every buyer with stated
+            # criteria is checked; the listing id defaults to the listing's
+            # own context when the payload names none.
+            listing = dict(payload)
+            listing.setdefault("listing_id", ctx)
+            buyers = sorted(self.buyer_criteria)
+            self.hub.ingest_spoke_trace(
+                "13", env.envelope_id,
+                thought=f"new inventory {listing['listing_id']!r} via {env.intent}; "
+                        f"checking {len(buyers)} buyer profile(s) against stated "
+                        f"criteria only",
+                result=f"profiles_checked={len(buyers)}")
+            for buyer_ctx in buyers:
+                self._match_one(buyer_ctx, listing, env)
             return
 
         if env.intent == "lead.reply":

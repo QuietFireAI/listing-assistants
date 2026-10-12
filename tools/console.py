@@ -23,7 +23,25 @@ A session script is JSON Lines; each line is one action:
   {"do": "send", "from": "20", "to": "01", "intent": "lead.signal",
    "ctx": "lead-1", "payload": {...}}                               # spoke/external traffic
   {"do": "sweep", "today": "2026-07-19"}                            # run the clock layer
-  {"do": "show", "what": "queues"}                                  # or "briefing", "anchor"
+  {"do": "show", "what": "queues"}     # or "held", "external", "briefing", "eod", "anchor"
+  {"do": "release", "ctx": "L1", "intent": "campaign.publish"}      # signed release of held outbound
+
+"send" injects one message as if from the named sender. It is the test
+harness's way in: use "external" or "human" where the closed track has
+such a route, and a spoke id only to stand in for that agent. The hub
+still applies every check (closed track, schema, signatures, holds).
+
+"release" signs one disclosure.authority with your key for EACH held
+outbound message matching ctx (required) and intent (optional), the same
+call Hub.release_disclosure makes in production. Nothing else releases.
+
+Every item that lands in a human queue (escalations, clarifications,
+integrity violations, holds) prints as {"HUMAN_QUEUE": ...} the moment it
+lands, the way the SMS notifier would page you.
+
+--config-dir points at a folder holding your ratified config files
+(default: the repo's config/). The vendor roster is read from
+<config-dir>/vendor_panel.json only when its _status is ratified.
 
 Everything prints as JSON lines so a screen recording captures exactly
 what the audit log captured.
@@ -46,7 +64,42 @@ def _p(obj):
     print(json.dumps(obj, default=str))
 
 
-def build(audit_path):
+def load_roster(config_dir):
+    """Returns (roster, verdict, problems). The roster is Agent 09's format:
+    vendor_id -> {kind, license_expiry, insurance_expiry, regulated}. Loaded
+    only from a ratified file; an entry with a missing field or a placeholder
+    value is skipped and named in problems, never guessed."""
+    from dispatcher.config_status import load_ratified_config
+    data, verdict = load_ratified_config(os.path.join(config_dir, "vendor_panel.json"))
+    if verdict != "loaded":
+        return {}, verdict, []
+    vendors = data.get("vendors")
+    if not isinstance(vendors, dict):
+        return {}, "invalid: no 'vendors' object", []
+    roster, problems = {}, []
+    for vid, v in vendors.items():
+        if vid.startswith("<") or not isinstance(v, dict):
+            problems.append(f"{vid}: placeholder or not an object")
+            continue
+        missing = [k for k in ("kind", "license_expiry", "insurance_expiry")
+                   if not isinstance(v.get(k), str) or not v.get(k) or v[k].startswith("<")]
+        bad_dates = []
+        for k in ("license_expiry", "insurance_expiry"):
+            if k not in missing:
+                try:
+                    datetime.date.fromisoformat(v[k])
+                except ValueError:
+                    bad_dates.append(k)
+        if missing or bad_dates:
+            problems.append(f"{vid}: missing {missing}" if missing else f"{vid}: bad date {bad_dates}")
+            continue
+        roster[vid] = {"kind": v["kind"], "license_expiry": v["license_expiry"],
+                       "insurance_expiry": v["insurance_expiry"],
+                       "regulated": bool(v.get("regulated", True))}
+    return roster, verdict, problems
+
+
+def build(audit_path, config_dir=None):
     from dispatcher.core import Routes, AuditLog, Envelope  # noqa: F401
     from dispatcher.hub import Hub
     from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
@@ -86,15 +139,21 @@ def build(audit_path):
     hub.register("human", lambda env: _p(
         {"DELIVERED_TO_HUMAN": env.intent, "ctx": env.client_context_id,
          "payload": env.payload}))
+    # every human-queue landing prints as it happens (the pager, on screen)
+    hub.human_notifier = lambda queue, record: _p({"HUMAN_QUEUE": queue, "record": record})
     # Load the vendor roster only when ratified, and say what happened
     # (audit 2026-10-11: a PROPOSED DRAFT roster was loaded silently and any
-    # read error was swallowed).
-    from dispatcher.config_status import load_ratified_config
-    roster_path = os.path.join(root, "config", "vendor_panel.json")
-    data, verdict = load_ratified_config(roster_path)
-    roster = (data or {}).get("vendors", {}) if verdict == "loaded" else {}
+    # read error was swallowed; scene run 2026-10-11: the console read a
+    # "vendors" key the template never had, so even a ratified roster
+    # loaded empty).
+    config_dir = config_dir or os.path.join(root, "config")
+    roster, verdict, problems = load_roster(config_dir)
     hub.audit.append("config.load", {"agent": "console", "file": "vendor_panel.json",
-                                     "verdict": verdict})
+                                     "config_dir": config_dir, "verdict": verdict,
+                                     "vendors_loaded": sorted(roster),
+                                     "entries_skipped": problems})
+    _p({"vendor_roster": verdict, "vendors_loaded": sorted(roster),
+        "entries_skipped": problems})
     spokes = {
         "01": Spoke01LeadCapture(hub), "02": Spoke02LeadQualification(hub),
         "03": Spoke03LeadNurture(hub), "04": Spoke04ListingDescription(hub),
@@ -144,8 +203,34 @@ def cmd_init(_args):
     return 0
 
 
+def held_list(hub):
+    return [{"held_envelope_id": hid, "intent": e.intent, "from": e.from_agent,
+             "to": e.to_agent, "ctx": e.client_context_id, "payload": e.payload}
+            for hid, e in hub._absolute_holds.items()]
+
+
+def release(hub, signer, ctx, intent=None):
+    """One signed disclosure.authority per matching held message."""
+    from dispatcher.core import Envelope
+    out = []
+    for hid, held in list(hub._absolute_holds.items()):
+        if held.client_context_id != ctx or (intent and held.intent != intent):
+            continue
+        auth = Envelope(from_agent="human", to_agent=held.from_agent,
+                        intent="disclosure.authority", client_context_id=ctx,
+                        payload={"held_envelope_id": hid},
+                        provenance={"source": "human", "captured_at": "runtime",
+                                    "verbatim_available": True})
+        signer.sign(auth)
+        out.append({"released": hid, "intent": held.intent, "to": held.to_agent,
+                    "hub": hub.release_disclosure(auth)})
+    return out or {"released": [], "note": f"nothing held for ctx={ctx!r}"
+                                           + (f" intent={intent!r}" if intent else "")}
+
+
 def cmd_session(args):
-    hub, signer, spokes, external = build(args.audit_log or AUDIT_PATH)
+    hub, signer, spokes, external = build(args.audit_log or AUDIT_PATH,
+                                          getattr(args, "config_dir", None))
     from dispatcher.sweep_runner import run_daily_sweeps
     errors = 0
     for lineno, line in enumerate(open(args.script), 1):
@@ -170,6 +255,12 @@ def cmd_session(args):
             env = make_env(a["from"], a["to"], a["intent"],
                            a.get("ctx", "console"), a.get("payload", {}))
             r = hub.send(env)
+        elif do == "release":
+            if not a.get("ctx"):
+                r = {"error": "release needs ctx (and optionally intent)"}
+                errors += 1
+            else:
+                r = release(hub, signer, a["ctx"], a.get("intent"))
         elif do == "sweep":
             r = run_daily_sweeps(hub, spokes, today=a["today"],
                                  now_iso=a.get("now_iso"))
@@ -186,6 +277,8 @@ def cmd_session(args):
                 out = send_tick(hub, agent, day, checks=[check])
                 r = (out["results"][0]["result"] if out["results"]
                      else {"error": f"clock.tick not delivered: {out['hub']}"})
+            elif what == "held":
+                r = held_list(hub)
             elif what == "external":
                 r = external
             elif what == "anchor":
@@ -219,6 +312,8 @@ def main():
     s = sub.add_parser("session")
     s.add_argument("script")
     s.add_argument("--audit-log", default=None)
+    s.add_argument("--config-dir", default=None,
+                   help="folder with your ratified config files (default: config/)")
     v = sub.add_parser("verify")
     v.add_argument("--audit-log", default=None)
     v.add_argument("--anchor", default=None,
