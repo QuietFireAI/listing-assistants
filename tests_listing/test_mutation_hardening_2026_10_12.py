@@ -708,3 +708,191 @@ def test_guard_unrecognized_payload_and_wrapped_handler_are_exact(tmp_path):
     h = sw.hub.handlers["13"] if hasattr(sw.hub, "handlers") else None
     if h is not None:
         assert h.__wrapped__ == sw.spokes["13"].handle
+
+
+# ============================================================ second pass (run 2 survivors)
+# Every reasoning trace an agent sends in these tests must name a two-digit
+# agent, an envelope id, a thought and a result. Run 2 left ~30 mutants alive
+# that blanked or dropped one of those arguments (02, 04, 05, 06, 14).
+@pytest.fixture(autouse=True)
+def _every_trace_is_well_formed(monkeypatch):
+    import inspect
+    import re
+    from dispatcher.hub import Hub
+    real = Hub.ingest_spoke_trace
+    sig = inspect.signature(real)
+    bad = []
+
+    def checked(self, *a, **kw):
+        try:
+            args = sig.bind(self, *a, **kw).arguments
+        except TypeError as e:
+            bad.append(f"call shape: {e}")
+            raise
+        if not (isinstance(args["agent_id"], str) and re.fullmatch(r"\d\d", args["agent_id"])):
+            bad.append(f"agent_id {args['agent_id']!r}")
+        for k in ("envelope_id", "thought", "result"):
+            if not (isinstance(args[k], str) and args[k].strip()):
+                bad.append(f"{k} {args[k]!r} from agent {args['agent_id']!r}")
+        return real(self, *a, **kw)
+    monkeypatch.setattr(Hub, "ingest_spoke_trace", checked)
+    yield
+    assert not bad, bad
+
+
+def test_04_rejected_drafting_setting_is_traced_and_held(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "04", "c", {"drafting": {"mode": "magic"}}))
+    assert _clar(sw, "c") == [{"reason": "drafting setting rejected - expected "
+                                         "{\"mode\": \"rules\"} or {\"mode\": \"model\"}"}]
+    [t] = [t for t in _traces(sw, "04") if t["result"] == "rejected: drafting"]
+    assert t["thought"] == "drafting setting rejected whole: {'mode': 'magic'}"
+    assert sw.spokes["04"].drafting_mode == "rules"
+
+
+def test_04_a_hub_without_a_drafting_attribute_drafts_by_rules(tmp_path):
+    sw, s = _swarm(tmp_path)
+    hub = sw.hub.unwrapped if hasattr(sw.hub, "unwrapped") else sw.hub
+    del hub.drafting
+    sw.hub.send(_signed(s, "04", "c", {"drafting": {"mode": "model"}}))
+    e = [e for e in sw.hub.audit.read() if e["kind"] == "drafting.mode"][-1]
+    assert e["mode"] == "model" and e["reason"] == "no drafting model wired"
+    sw.hub.send(_env("05", "04", "listing.data", "M3", {"beds": 2, "features": [], "today": "2026-10-12"}))
+    [u] = [e for e in sw.hub.audit.read() if e["kind"] == "drafting.model_unavailable"]
+    assert u["reason"] == "no drafting model wired in this process"
+
+
+def test_02_an_engine_tier_the_agent_cannot_act_on_holds_and_the_reason_is_recorded(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "02", "setup", RUBRIC))
+    sw.hub.decision_adapter = SimpleNamespace(
+        evaluate_lead=lambda ctx, p, r, confidence_threshold: {
+            "tier": "PURPLE", "engine": "x", "fallback_reason": "engine said so", "notes": ["n"]})
+    assert sw.spokes["02"]._score({}, "W1") == ("HELD_FOR_CALIBRATION", None, ["n"])
+    [d] = [e for e in sw.hub.audit.read() if e["kind"] == "decision.lead"]
+    assert d["fallback_reason"] == "engine said so" and d["tier"] == "PURPLE"
+
+
+def test_05_occupied_with_no_watch_is_acked_not_crashed(tmp_path):
+    sw, s = _swarm(tmp_path)
+    res = sw.hub.send(_signed(s, "05", "V9", {"occupancy": "occupied"}))
+    assert res["status"] == "ack", res
+    assert not [e for e in sw.hub.audit.read() if e["kind"] in ("dead.letter", "handoff.failed")]
+
+
+def test_06_a_skipped_showing_does_not_stop_the_rest_of_that_buyers_showings(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sp = sw.spokes["06"]
+    sw.hub.send(_signed(s, "06", "c", {"seller_reports": {"weekday": "monday", "listings": {"LA": "SA"}}}))
+    _show(sp, "b1", "LX", "2026-10-10T09:00")    # another listing, then ours
+    _show(sp, "b1", "LA", "2026-10-10T10:00")
+    _show(sp, "b2", "LA", "garbage")             # unreadable, then a good one
+    _show(sp, "b2", "LA", "2026-10-11T10:00")
+    assert sp.weekly_seller_reports("2026-10-12") == "held:['LA']"
+    assert sp.held_reports["SA"]["showings"] == 2
+
+
+def test_clock_a_skipped_check_does_not_stop_the_next_and_every_context_is_chased(tmp_path):
+    from dispatcher.clock import send_tick, take_results
+    sw, s = _swarm(tmp_path)
+    out = send_tick(sw.hub, "06", "2026-10-12", checks=["seller_weekly_report"])
+    assert [r["sweep"] for r in out["results"]] == ["seller_weekly_report"]
+    sw.spokes["08"].pending_requests.update({"P1": {"appraisal": {"chase_count": 0}},
+                                             "P2": {"appraisal": {"chase_count": 0}}})
+    out = send_tick(sw.hub, "08", "2026-10-12", checks=["chase_timeout"])
+    assert [r["sweep"] for r in out["results"]] == ["chase_timeout", "chase_timeout"]
+    assert take_results("never-sent") == []
+
+
+def test_guard_a_failed_send_to_the_queue_is_recorded_once_and_never_recursed():
+    from dispatcher.core import Envelope
+    from dispatcher.handoff_guard import HandoffGuard
+    sent, appended = [], []
+    fake = SimpleNamespace(send=lambda env: sent.append(env) or {"status": "reject", "reason": "r1"},
+                           audit=SimpleNamespace(append=lambda k, r: appended.append((k, r))),
+                           ingest_spoke_trace=lambda *a, **k: None)
+    g = HandoffGuard(fake, "07")
+    for to, intent in (("queue", "escalation.hot_lead"), ("17", "clarification.request")):
+        sent.clear()
+        appended.clear()
+        env = Envelope(from_agent="07", to_agent=to, intent=intent, client_context_id="G",
+                       payload={}, provenance={"source": "spoke-07", "captured_at": "runtime"})
+        assert g.send(env) == {"status": "reject", "reason": "r1"}
+        assert sent == [env]                                      # nothing else sent
+        assert appended == [("handoff.failed", {"agent": "07", "envelope_id": env.envelope_id,
+                                                "intent": intent, "to_agent": to, "status": "reject",
+                                                "reason": "r1", "clarification_sent": False})]
+
+
+def test_readable_chain_events_skip_other_days_and_keep_going():
+    from dispatcher.readable_audit import events_from_chain
+    day = datetime.datetime.fromtimestamp(0).strftime("%Y-%m-%d")
+    fake = SimpleNamespace(read=lambda: [{"kind": "spoke.trace", "agent": "01", "result": "later", "ts": 4e9},
+                                         {"kind": "spoke.trace", "agent": "02", "result": "today", "ts": 0}])
+    assert [e["message"] for e in events_from_chain(fake, day)] == ["Agent 02: today"]
+
+
+def test_hitl_pause_record_is_the_wait_state_as_indented_json(tmp_path):
+    sw, s = _swarm(tmp_path)
+    ws = sw.hitl.pause_operation("H8", "01", "lead.captured", "r", {"a": 1}, required_decision="CONTINUE_OR_CANCEL")
+    raw = sw.hub.drawers.get_drawer("H8").get_file("timeline", f"{ws.wait_id}_pause.json")
+    assert raw.decode() == json.dumps(ws.to_dict(), indent=2)
+
+
+def test_drawer_role_agent_and_metadata_survive_provision_and_fill(tmp_path):
+    from dispatcher.drawer_filing import file_record
+    sw, s = _swarm(tmp_path)
+    hub = sw.hub
+    file_record(hub, "14", "R1", "interactions", "a", {})              # no identity at all
+    m = hub.drawers.get_drawer("R1").get_manifest()
+    assert (m["role"], m["assigned_human_agent"]) == ("client", "00")
+    hub.drawers.provision_drawer("R2", client_name="", property_address="", role="buyer",
+                                 assigned_agent="00", metadata={"source": "open house"})
+    file_record(hub, "05", "R2", "artifacts", "b", {}, identity={"client_name": "Ann"})
+    m = hub.drawers.get_drawer("R2").get_manifest()
+    assert (m["client_name"], m["role"], m["assigned_human_agent"], m["metadata"]) == \
+        ("Ann", "buyer", "00", {"source": "open house"})
+
+
+def test_model_drafting_passes_the_envelope_and_turns_learning_off(tmp_path):
+    m = _Model()
+    dm = _dm(tmp_path, m)
+    seen = {}
+    real = dm.seam.draft_and_trace
+
+    def spy(agent_id, envelope_id, prompt, *a, **kw):
+        seen.update(agent=agent_id, eid=envelope_id, a=a, kw=kw)
+        return real(agent_id, envelope_id, prompt, *a, **kw)
+    dm.seam.draft_and_trace = spy
+    assert dm.draft_remarks("04", "env-9", [{"text": "3 bedrooms"}], 40)["ok"] is True
+    assert seen == {"agent": "04", "eid": "env-9", "a": (), "kw": {"learn": False}}
+
+
+def test_model_exam_questions_go_to_the_named_model(tmp_path):
+    from dispatcher.model_drafting import DraftingModel
+    from tests_listing.test_wiring_2026_10_12 import EXAM_ANSWERS
+    names = []
+
+    def create(model, messages, **kw):
+        names.append(model)
+        q = messages[-1]["content"]
+        body = next(a for k, a in EXAM_ANSWERS.items() if k.lower() in q.lower())
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=body))])
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    DraftingModel(None, client, "served-7", str(tmp_path / "ck")).examine("ck-7")
+    assert names and set(names) == {"served-7"}
+
+
+def test_pager_custom_base_trailing_slash_existing_dir_and_named_config_error(tmp_path):
+    from dispatcher.pager import send_page, save_config, load_config
+    urls = []
+    send_page(_cfg(api_base="http://127.0.0.1:9/"), "t",
+              opener=lambda req, timeout: urls.append(req.full_url) or _Resp())
+    assert urls == ["http://127.0.0.1:9/2010-04-01/Accounts/AC9/Messages.json"]
+    p = str(tmp_path / "pager.json")
+    save_config(p, _cfg())
+    save_config(p, _cfg(to_number="+15550000003"))                   # directory already there
+    assert load_config(p)["to_number"] == "+15550000003"
+    open(p, "w").write(json.dumps({"account_sid": "AC"}))
+    with pytest.raises(ValueError, match=r"pager\.json is not usable: \['auth_token is required'"):
+        load_config(p)
