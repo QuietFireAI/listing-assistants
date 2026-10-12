@@ -758,7 +758,8 @@ def main(argv=None):
         (f"?t={token}" if token else "")
     print(json.dumps({"desk": url, "mode": "showcase" if args.showcase else "live",
                       "state_dir": state_dir,
-                      "note": "Ctrl+C to stop; state is saved after every action"}))
+                      "note": "Ctrl+C to stop; state is saved after every action"}),
+          flush=True)   # under a service manager or a pipe, the address must not sit in a buffer
     import signal
 
     def _stop(*_a):

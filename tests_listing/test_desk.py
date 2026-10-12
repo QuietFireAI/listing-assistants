@@ -8,9 +8,11 @@ console session and the daily clock from forking the state.
 """
 import json
 import os
+import queue
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -143,12 +145,22 @@ def start(args, state_dir):
     p = subprocess.Popen([sys.executable, os.path.join(ROOT, "tools", "desk.py"), *args,
                           "--state-dir", state_dir, "--port", str(port)],
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=ROOT)
-    url = None
-    for line in p.stdout:
+    # read the startup line on a thread with a deadline: a desk that never
+    # announces itself fails this test instead of hanging the suite
+    lines = queue.Queue()
+    threading.Thread(target=lambda: [lines.put(ln) for ln in p.stdout], daemon=True).start()
+    url, seen, deadline = None, [], time.time() + 60
+    while url is None and time.time() < deadline:
+        try:
+            line = lines.get(timeout=max(0.1, deadline - time.time()))
+        except queue.Empty:
+            break
+        seen.append(line)
         if line.startswith('{"desk"'):
             url = json.loads(line)["desk"].replace("<this-computer>", "127.0.0.1")
-            break
-    assert url, "desk did not start"
+    if url is None:
+        p.kill()
+        raise AssertionError("desk did not announce itself within 60s: " + "".join(seen)[-2000:])
     return p, url, port
 
 
