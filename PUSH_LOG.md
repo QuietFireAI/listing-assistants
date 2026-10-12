@@ -210,3 +210,5 @@ existing.
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the persist-fix push |
 | 2026-10-12 18:18:38 UTC | listing-assistants | `f516d2e583` | Owner decisions: consent required for every client message (11), signed consent_record at 14, angry client straight to the broker with no reply; 8 DECISIONS tuples with sign-off, 1 retired; scenes record consent; docs; test count 984 |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the consent push |
+| 2026-10-12 19:03:48 UTC | listing-assistants | `0d454c1794` | Operator testing manual: running order and every scene line by line, checked against a fresh run |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the manual push |
