@@ -199,3 +199,5 @@ existing.
 | 2026-10-12 16:14:03 UTC | dispatcher-agents | `f7a5347ab0` | J10: signatures cover provenance; HMAC tier removed; JEV boot line jev.key_present; text-command parser removed; core.py no longer names TelsonBase; hub lock contract documented and tested; docs synced; identity path listing-assistants (52 routes) |
 | 2026-10-12 16:16:29 UTC | listing-assistants | `082fa195d4` | J10: core f7a5347 synced; readable log, tests, README, SECURITY, FINANCIAL_CAPABILITY, JEV doc, release notes, changelog; test count 940 |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the J10 push |
+| 2026-10-12 16:30:31 UTC | listing-assistants | `c9f0d8f3ce` | Agent docs checked against the code: SKILL.md headers, route tables (test keeps all 21 in step with routes.json), not-yet-built components marked; narrative docs drop MLS live-verification and RSVP claims; test count 961 |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs push |
