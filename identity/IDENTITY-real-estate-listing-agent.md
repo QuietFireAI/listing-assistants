@@ -1,7 +1,8 @@
-# TelsonBase Identity Module - Real Estate Listing Agent (v0.1, ratified 2026-07-10)
+# ListingAssistants Identity Module - Real Estate (v0.1, ratified 2026-07-10)
 
-Side-loaded vertical identity for a TelsonBase Dispatcher (see
-DISPATCHER_CORE.md). This module declares WHAT is orchestrated; the core
+Side-loaded vertical identity for the dispatcher-agents hub (the core files
+vendored in `dispatcher/`, listed in `tools/sync_core.py`). This module
+declares WHAT is orchestrated; the core
 defines HOW orchestration works. Swap this module to redeploy the same
 dispatcher into another vertical (e.g., insurance/claims).
 
@@ -15,19 +16,23 @@ listening. The licensed human agent performs all fiduciary, legal, pricing,
 negotiation, and representation acts.
 
 ## Declared resources (attested at boot per core)
-- Agent roster: skill folders 00-20 (see ROSTER.md); specs are authoritative - 
+- Agent roster: skill folders 00-20 (each folder's SKILL.md; docs/JOB_DESCRIPTIONS.md lists them all); specs are authoritative - 
   read them, never restate from memory.
-- Playbook library: playbooks/P01-P15 (deployment sequences, gates, proofs).
-- Routing table: section 4.2 of 00-dispatcher/SKILL.md.
+- Playbook library: docs/PLAYBOOKS.md, P01-P24 (triggers, agents, gates);
+  each has an end-to-end test in tests_listing/.
+- Routing table: identity/routes.json (the closed track).
 - Registered human key(s): deployment configuration.
 
 ## Vertical escalation queues
 `escalation.legal_line` (immediate - fiduciary/legal/pricing/negotiation),
 `escalation.hot_lead` (per configured urgency), `escalation.complaint`
-(per configured urgency).
+(per configured urgency). Threads an agent cannot continue on its own hold
+through the HITL protocol until the broker signs continue or cancel.
 
 ## Authority intents requiring signature (per core directive 5)
-`listing.change.authorized`, `config.update`.
+`listing.change.authorized`, `config.update`, and every `*.authority`
+intent: `disclosure.authority` (releasing a held outbound message) and
+`hitl.decision.authority` (continue or cancel on a held thread).
 
 ## Playbook priority classes (per core JIT doctrine - ratified 2026-07-10, owner sign-off)
 - Class 2 (JIT freight - clocks at risk): P02 (signed price execution), P03

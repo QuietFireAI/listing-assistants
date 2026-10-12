@@ -5,7 +5,7 @@ description: "Transaction document management. Use for requesting, receiving, fi
 
 # Agent 08 - Document Collection Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Artifact management
 **Autonomy tier:** Autonomous request/receive/file/chase; no signing, no execution
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

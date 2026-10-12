@@ -148,5 +148,4 @@ no readable confidence, is returned as a hold for human review.
 The MCP wrapper is the mounting socket; the identity it serves is
 licensed under the QuietFire Identity License over an AGPL-3.0 floor (see
 LICENSE). Running this as a network service in production requires a
-commercial license or full AGPL compliance. The supported commercial
-operating environment is TelsonBase.
+commercial license or full AGPL compliance.

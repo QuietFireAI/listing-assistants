@@ -5,7 +5,7 @@ description: "Routine client messaging. Use for delivering scheduling and milest
 
 # Agent 11 - Client Communication Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Client-facing messaging
 **Autonomy tier:** Autonomous for routine transactional updates; instant escalation on advice-seeking
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

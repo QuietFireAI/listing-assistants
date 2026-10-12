@@ -5,7 +5,7 @@ description: "Market data assembly with no opinions. Use for comp packages (rece
 
 # Agent 10 - Market Data Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Data gathering (merged: CMA data + neighborhood & market research)
 **Autonomy tier:** Autonomous data assembly; structurally incapable of rendering opinion - output schema has no opinion field
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

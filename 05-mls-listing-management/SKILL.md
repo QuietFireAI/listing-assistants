@@ -5,7 +5,7 @@ description: "MLS systems execution. Use for MLS data entry, status changes, day
 
 # Agent 05 - MLS & Listing Management Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Systems execution (MLS)
 **Autonomy tier:** Autonomous data entry and syndication; price changes execute ONLY on human-authorized envelope
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

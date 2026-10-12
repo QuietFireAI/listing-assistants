@@ -5,7 +5,7 @@ description: "Buyer-side search and matching. Use for maintaining client-stated 
 
 # Agent 13 - Buyer Search & Match Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Buyer-side matching (new)
 **Autonomy tier:** Autonomous matching against client-stated criteria only; steering risk = compliance consult
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

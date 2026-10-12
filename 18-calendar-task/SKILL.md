@@ -5,7 +5,7 @@ description: "Personal assistant to the licensed agent. Use for calendar and to-
 
 # Agent 18 - Calendar & Task Management Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Personal assistant to the licensed agent
 **Autonomy tier:** Autonomous calendar/task management; no access authorization ever
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

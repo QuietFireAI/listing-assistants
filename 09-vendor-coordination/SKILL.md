@@ -5,7 +5,7 @@ description: "Vendor coordination. Use for scheduling photographers, stagers, in
 
 # Agent 09 - Vendor Coordination Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Third-party scheduling
 **Autonomy tier:** Autonomous scheduling and deliverable collection; contract-term negotiation escalates
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

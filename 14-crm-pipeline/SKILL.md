@@ -5,7 +5,7 @@ description: "System of record. Use for contact database maintenance, interactio
 
 # Agent 14 - CRM & Pipeline Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** System of record
 **Autonomy tier:** Autonomous operation permitted as long as interactions do not cross into negotiating representation
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

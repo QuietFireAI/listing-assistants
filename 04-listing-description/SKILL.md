@@ -5,7 +5,7 @@ description: "Listing asset production. Use when property data needs MLS descrip
 
 # Agent 04 - Listing Description Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Content production (listing assets)
 **Autonomy tier:** Autonomous drafting; NOTHING publishes without a Compliance (17) verdict
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

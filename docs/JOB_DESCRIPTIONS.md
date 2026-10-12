@@ -52,7 +52,7 @@ none of them calls a language model.
 ## Agent 00 - Dispatcher
 
 **Type:** Hub / router / single point of control (and of failure - by design)
-**Summary:** Hub and router for the TelsonBase real estate listing swarm. Use for validating and routing inter-agent envelopes, issuing acks, enforcing client-context isolation, and operating the escalation, clarification, integrity, and dead-letter queues.
+**Summary:** Hub and router for the ListingAssistants real estate swarm. Use for validating and routing inter-agent envelopes, issuing acks, enforcing client-context isolation, and operating the escalation, clarification, integrity, and dead-letter queues.
 **Sends:** (none routed)
 **Receives:** (none routed)
 **Predeliberated tuples:** 15 (see 00-dispatcher/DECISIONS.md)

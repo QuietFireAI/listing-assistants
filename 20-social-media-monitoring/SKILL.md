@@ -5,7 +5,7 @@ description: "Social listening and routing with no public replies. Use for monit
 
 # Agent 20 - Social Media Monitoring Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Listening & routing (new)
 **Autonomy tier:** Monitor, classify, route ONLY - no autonomous public replies, ever
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

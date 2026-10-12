@@ -5,7 +5,7 @@ description: "Marketing distribution. Use for scheduling social posts, newslette
 
 # Agent 12 - Marketing Campaign Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Content distribution & campaigns
 **Autonomy tier:** Autonomous scheduling/distribution of APPROVED assets; all new copy passes Compliance (17)
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

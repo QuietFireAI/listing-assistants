@@ -5,7 +5,7 @@ description: "Compliance guardrail, validation only. Use for reviewing outbound 
 
 # Agent 17 - Compliance & Fair Housing Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Guardrail / validator
 **Autonomy tier:** Validates only - never creates, never edits, never approves its own exceptions
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)

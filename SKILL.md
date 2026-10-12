@@ -1,5 +1,5 @@
 ---
-name: listing-agents
+name: listing-assistants
 description: Governed residential real estate listing swarm identity. Use when operating listing lifecycle work end to end - lead capture, listing onboarding, MLS, showings, transaction coordination, marketing, and fair-housing compliance - under a closed routing track with a hash-chained audit log, signed authority actions, and the six QuietFire pillar packages. 20 agents plus a dispatcher hub. Load this skill to run, side-load, or supervise the listing identity on dispatcher-agents, Hermes, or OpenClaw.
 ---
 

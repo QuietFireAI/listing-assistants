@@ -5,7 +5,7 @@ description: "Financial tracking. Use for commissions per transaction, marketing
 
 # Agent 15 - Financial Tracking Agent
 
-**Swarm:** TelsonBase Listing Agent (Real Estate)
+**Swarm:** ListingAssistants (Real Estate)
 **Type:** Financial records
 **Autonomy tier:** Autonomous tracking and reporting; highest PII sensitivity in the swarm; no legal interpretation
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
