@@ -100,7 +100,8 @@ Specified above, not yet in the code (checked against `dispatcher/hub.py`,
 - Audit log at rest: plain JSON lines, hash-chained and verifiable
   (`console.py verify`), not encrypted. Access and retention are set by the
   operator's machine, not by the hub.
-- Unwritable log: an append failure stops that envelope (no ack); the hub does
+- Unwritable log: an append failure stops that envelope (no ack, no
+  sequence, not marked as seen, so a retry of it goes through); the hub does
   not switch itself off for all traffic.
 - Throughput: one hub delivers one envelope at a time (owner decision J10,
   2026-10-12). Separate offices run side by side with one hub each.
