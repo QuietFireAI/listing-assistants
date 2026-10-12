@@ -73,8 +73,9 @@ model.
 - **State survives a restart.** The swarm's state is saved to a local SQLite
   file after each session or clock run and restored at start-up only when
   the hash-chained audit log vouches for that exact save.
-- **Predeliberated decisions.** 227 decision tuples (each agent's
-  `DECISIONS.md`) say what an agent does at each known crossing. A situation
+- **Predeliberated decisions.** 250 decision tuples (each agent's
+  `DECISIONS.md`; 2 of them marked retired) say what an agent does at each
+  known crossing. A situation
   no tuple covers stops and goes to the human.
 - **Drafts stay drafts.** Configuration files ship as proposed drafts.
   Agents 07 and 08 load their config files only when the file's status

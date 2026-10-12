@@ -56,7 +56,7 @@ none of them calls a language model.
 **Summary:** Hub and router for the ListingAssistants real estate swarm. Use for validating and routing inter-agent envelopes, issuing acks, enforcing client-context isolation, and operating the escalation, clarification, integrity, and dead-letter queues.
 **Sends:** (none routed)
 **Receives:** (none routed)
-**Predeliberated tuples:** 15 (see 00-dispatcher/DECISIONS.md)
+**Predeliberated tuples:** 17 (see 00-dispatcher/DECISIONS.md)
 
 The hub of a hub-and-spoke swarm. Every inter-agent message passes through this
 agent. It validates envelopes, routes by intent, issues acks, assigns per-context
@@ -142,7 +142,7 @@ Nothing in a lead object is ever `source_verified` at capture time.
 **Summary:** Lead scoring and triage. Use when a captured lead needs readiness scoring on timeline, financing, and motivation, a priority tier assignment, tire-kicker archiving, or hot-lead flagging for human handoff.
 **Sends:** agent.status, interaction.log, lead.nurture
 **Receives:** lead.captured, lead.rescored
-**Predeliberated tuples:** 12 (see 02-lead-qualification/DECISIONS.md)
+**Predeliberated tuples:** 16 (see 02-lead-qualification/DECISIONS.md)
 
 Takes raw leads from Lead Capture and scores them on readiness. Assigns a
 priority tier and routes: hot leads to immediate human handoff, warm leads to
@@ -161,18 +161,19 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 ## Agent 03 - Lead Nurture Agent
 
 **Type:** Long-cycle engagement
-**Summary:** Long-cycle lead nurture. Use for drip email/text sequences, market updates, behavioral re-engagement triggers, and returning re-scored leads to qualification.
+**Summary:** Long-cycle lead nurture. Use for drip email/text sequences, behavioral re-engagement triggers, the weekly re-score cadence, and returning re-scored leads to qualification.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.rescored
 **Receives:** behavioral.signal, clock.tick, content.verdict, lead.nurture, lead.reply
-**Predeliberated tuples:** 11 (see 03-lead-nurture/DECISIONS.md)
+**Predeliberated tuples:** 15 (see 03-lead-nurture/DECISIONS.md)
 
 Manages long-cycle leads not yet ready to transact. Executes drip
-sequences and market updates, watches behavioral signals, and hands leads back to
+sequences, re-scores nurtured leads on a cadence, watches behavioral signals, and hands leads back to
 Qualification (02) when readiness changes. It warms; it does not advise.
 
 ### Job components
 - Execute drip email and text sequences on schedule. Amended 2026-10-11 (owner decision): the broker writes each sequence (touch text and day) in a signed configuration; the exact touches go to Compliance (17) when a sequence starts, and the daily clock sends each touch once on its day, inside the frequency cap and contact hours. A sequence with no broker-written definition sends nothing.
-- Send market updates built from Market Data (10) packages - data only, no opinion.
+- Market updates: removed 2026-10-12 (owner decision J5, "staying away from anything financial or legal"). This agent neither requests nor sends market data.
+- Re-score cadence (P21, amended 2026-10-12): every 7 days, ask 02 to re-score each WARM lead in nurture with its stated timeline counted down by the days elapsed and every other input as scored; a lead that does not come back WARM leaves the pool; an opted-out lead or a paused sequence is not re-scored.
 - Trigger re-engagement when behavioral signals indicate readiness (email opens, listing revisits).
 - Hand the lead back to Qualification (02) with `lead.rescored` when the score changes.
 - Submit all new or edited sequence content to Compliance (17) before first send.
@@ -186,7 +187,7 @@ Qualification (02) when readiness changes. It warms; it does not advise.
 **Summary:** Listing asset production. Use when property data needs MLS descriptions, social captions, flyer copy, or virtual tour scripts, with strict MLS and fair-housing compliant language.
 **Sends:** agent.status, asset.release, content.review, interaction.log
 **Receives:** content.verdict, lead.reply, listing.data
-**Predeliberated tuples:** 11 (see 04-listing-description/DECISIONS.md)
+**Predeliberated tuples:** 15 (see 04-listing-description/DECISIONS.md)
 
 Turns property data into listing assets: MLS descriptions, social
 captions, flyer copy, virtual tour scripts. Boundary with Marketing (12): this
@@ -208,7 +209,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 **Summary:** MLS systems execution. Use for MLS data entry, status changes, days-on-market tracking, syndication to Zillow/Realtor.com/Redfin, photo ordering and uploads, and executing human-authorized price adjustments.
 **Sends:** agent.status, compliance.notice, interaction.log, listing.data, status.response, status.update, vendor.request
 **Receives:** asset.release, clock.tick, deliverable.release, listing.change.authorized, status.request
-**Predeliberated tuples:** 11 (see 05-mls-listing-management/DECISIONS.md)
+**Predeliberated tuples:** 13 (see 05-mls-listing-management/DECISIONS.md)
 
 Executes listing operations in MLS systems: data entry, status changes,
 syndication, photo management, days-on-market tracking. It executes decisions; it
@@ -223,6 +224,7 @@ never makes pricing decisions.
 - Execute status changes within MLS-mandated reporting windows (human-supplied config per MLS).
 - Entered data must match the authorized source package field-for-field; any discrepancy is a `clarification.request`, never a judgment call.
 - Never enter offers of buyer-broker compensation in MLS fields - prohibited on MLSs since Aug 17, 2024 (NAR settlement practice change).
+- Vacant property watch (P20, amended 2026-10-12): a listing the broker marks vacant (signed package or `occupancy` setting) gets a property condition check ordered through 09 every 7 days (or the signed interval) until it is marked occupied or the listing ends; a check counts only with proof.
 
 ## Agent 06 - Showing Scheduler Agent
 
@@ -230,7 +232,7 @@ never makes pricing decisions.
 **Summary:** Showing coordination. Use for scheduling buyer showings against seller availability, the confirmation/cancellation/reminder flow, post-showing feedback, and open house RSVPs.
 **Sends:** agent.status, calendar.event, client.message.request, interaction.log, status.request, vendor.request
 **Receives:** clock.tick, showing.feedback_response, showing.no_show, showing.request, status.response, vendor.cancellation_notice
-**Predeliberated tuples:** 11 (see 06-showing-scheduler/DECISIONS.md)
+**Predeliberated tuples:** 13 (see 06-showing-scheduler/DECISIONS.md)
 
 Coordinates buyer showing requests against seller availability, runs the
 confirm/cancel/remind flow, collects post-showing feedback, and manages open house
@@ -245,6 +247,7 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Honor human-configured minimum-notice rules for occupied properties (tenant/seller notice requirements vary by state and lease).
 - Verify requester identity per the human-configured procedure before confirming any access-bearing appointment - vacant-property fraud is a real pattern.
 - Confirm the showing request carries the buyer-agreement-on-file flag (set by 13); flag absent = hold and escalate. Written buyer agreements are required before touring, in person or live-virtual (NAR settlement, effective Aug 17, 2024).
+- Weekly seller report (P18, amended 2026-10-12): on the broker's signed weekday, count each listed property's showings and feedback for the week, hold the report for the broker, and on continue send it to the seller through 11. Numbers only.
 
 ## Agent 07 - Transaction Coordinator Agent
 
@@ -273,7 +276,7 @@ deadline. Boundary with Document Collection (08): this agent owns the timeline;
 **Summary:** Transaction document management. Use for requesting, receiving, filing, and chasing pre-approvals, proof of funds, inspections, appraisals, title commitments, HOA docs, surveys, disclosures, and amendments.
 **Sends:** agent.status, client.message.request, doc.status, interaction.log
 **Receives:** clock.tick, deliverable.release, doc.request, document.submission
-**Predeliberated tuples:** 11 (see 08-document-collection/DECISIONS.md)
+**Predeliberated tuples:** 13 (see 08-document-collection/DECISIONS.md)
 
 Owns transaction ARTIFACTS: requests, receives, files, and chases
 documents. Boundary with TC (07): 07 owns deadlines and asks for documents; this
@@ -285,6 +288,7 @@ agent owns the documents and never sets deadlines.
 - Report document status to TC (07) on receipt and on a fixed cadence.
 - File a document as received only after verifying the file opens and matches the requested type - a received email is not a received document.
 - Accept sensitive documents only from expected, verified senders for that transaction; sender mismatch = flag, not file.
+- Disclosure deadline (amended 2026-10-12, J4): a pending seller disclosure whose deadline is three days or less away is warned once on the legal line.
 
 ## Agent 09 - Vendor Coordination Agent
 
@@ -331,18 +335,18 @@ carries provenance. The output schema contains no recommendation or opinion fiel
 ## Agent 11 - Client Communication Agent
 
 **Type:** Client-facing messaging
-**Summary:** Routine client messaging. Use for delivering scheduling and milestone updates and weekly market updates to clients and routing their replies; escalates all advice-seeking immediately.
+**Summary:** Routine client messaging. Use for delivering scheduling and milestone updates and the broker-approved weekly seller report to clients and routing their replies; escalates all advice-seeking immediately.
 **Sends:** agent.status, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
 **Receives:** client.message.request, client.reply, deadline.alert, record.response, status.update
 **Predeliberated tuples:** 11 (see 11-client-communication/DECISIONS.md)
 
 Single voice for routine client updates: scheduling confirmations,
-milestone notices, weekly market updates. Other agents draft the triggering fact;
+milestone notices, the broker-approved weekly seller report. Other agents draft the triggering fact;
 this agent delivers it. It knows the difference between reporting a fact and
 giving advice, and it only ever does the first.
 
 ### Job components
-- Deliver routine updates: "your inspection is scheduled," "the appraisal came in," "here's your weekly market update."
+- Deliver routine updates: "your inspection is scheduled," "the appraisal came in," "here is this week's showing report." Market data is not sent to clients (removed 2026-10-12, owner decision J5).
 - Send only facts received via envelope from the owning agent - never elaborate a status into an interpretation ("appraisal came in" never becomes "came in strong").
 - Route inbound client replies to the owning agent or escalate.
 - Log every client touch to CRM (14).
@@ -403,7 +407,7 @@ filtering is steering, and steering is a fair housing violation.
 **Summary:** System of record. Use for contact database maintenance, interaction logging, pipeline stage management, date trigger emission (birthdays, anniversaries, holidays), referral source tracking, and pipeline reports.
 **Sends:** date.trigger, record.response, report.package
 **Receives:** clock.tick, interaction.log, record.request, status.update, transaction.closed
-**Predeliberated tuples:** 10 (see 14-crm-pipeline/DECISIONS.md)
+**Predeliberated tuples:** 13 (see 14-crm-pipeline/DECISIONS.md)
 
 The swarm's system of record. Maintains the contact database, logs all
 interactions received from every agent, manages pipeline stages, emits date
@@ -419,6 +423,8 @@ not message clients.
 - Emit date triggers (birthday, holiday, purchase anniversary, move-in anniversary) to 16 per the human-supplied client list.
 - Track referral sources; generate pipeline reports from stored data only - a report never contains a figure that cannot be traced to records.
 - Consent and opt-out flags are authoritative HERE: stored per contact, propagated to 03, 11, and 16 same-day on change, and served on `record.request`; no agent may message contrary to these flags.
+- Property access custody (P19, amended 2026-10-12): keep the broker-signed access grants (party, window end, custody reference - never the code or key) and flag once any window that has ended without the broker closing it.
+- Client drawers (amended 2026-10-12): file a copy of every CRM entry into the client's drawer; a filing that fails is recorded and held for the broker.
 
 ## Agent 15 - Financial Tracking Agent
 

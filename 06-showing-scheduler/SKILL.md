@@ -28,6 +28,7 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Honor human-configured minimum-notice rules for occupied properties (tenant/seller notice requirements vary by state and lease).
 - Verify requester identity per the human-configured procedure before confirming any access-bearing appointment - vacant-property fraud is a real pattern.
 - Confirm the showing request carries the buyer-agreement-on-file flag (set by 13); flag absent = hold and escalate. Written buyer agreements are required before touring, in person or live-virtual (NAR settlement, effective Aug 17, 2024).
+- Weekly seller report (P18, amended 2026-10-12): on the broker's signed weekday, count each listed property's showings and feedback for the week, hold the report for the broker, and on continue send it to the seller through 11. Numbers only.
 
 ## 3. HITL Handoff - The Legal Line
 

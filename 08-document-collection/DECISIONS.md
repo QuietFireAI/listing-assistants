@@ -26,4 +26,8 @@ constrains everything.
 - (party emails a document to the wrong context, do not file; return-path to human; cross-context filing is a confidentiality breach)
 - (retention window question, hold everything; disposal is owner-authorized only)
 
+Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
+- (a pending disclosure's deadline is three days or less away, warn the legal line once; never repeat it daily)
+- (a disclosure deadline is not a readable date, ask the human; never guess the date)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

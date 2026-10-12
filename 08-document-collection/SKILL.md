@@ -25,6 +25,7 @@ agent owns the documents and never sets deadlines.
 - Report document status to TC (07) on receipt and on a fixed cadence.
 - File a document as received only after verifying the file opens and matches the requested type - a received email is not a received document.
 - Accept sensitive documents only from expected, verified senders for that transaction; sender mismatch = flag, not file.
+- Disclosure deadline (amended 2026-10-12, J4): a pending seller disclosure whose deadline is three days or less away is warned once on the legal line.
 
 ## 3. HITL Handoff - The Legal Line
 

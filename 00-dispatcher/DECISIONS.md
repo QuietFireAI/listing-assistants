@@ -30,4 +30,8 @@ constrains everything.
 - (clock skew detected between components, hold time-triggered playbooks; deadlines computed on a bad clock are fabricated deadlines)
 - (same client_context appears in two live playbooks with conflicting next actions, hold both; human sequences them)
 
+Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
+- (an audit entry cannot be written to the plain-language view, the chain entry stands; count the failure and report it at the end of the session)
+- (a text page to the broker fails, record the failure on the chain; the on-screen page stands and nothing else waits on the text)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

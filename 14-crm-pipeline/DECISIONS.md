@@ -25,4 +25,9 @@ constrains everything.
 - (context requested by an agent without a routed intent, refuse; need-to-know is structural)
 - (retention/deletion request received, freeze + owner; deletion is never a spoke decision)
 
+Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
+- (broker-signed access grant, record party, window end and custody reference only; reject any other field and any value that looks like the secret itself)
+- (an access window has ended and the broker has not closed it, flag it once; never daily)
+- (filing a client record into the client's drawer fails, record the refusal and hold it for the broker; the CRM entry stands)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

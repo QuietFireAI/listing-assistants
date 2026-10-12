@@ -1,6 +1,6 @@
 ---
 name: 03-lead-nurture
-description: "Long-cycle lead nurture. Use for drip email/text sequences, market updates, behavioral re-engagement triggers, and returning re-scored leads to qualification."
+description: "Long-cycle lead nurture. Use for drip email/text sequences, behavioral re-engagement triggers, the weekly re-score cadence, and returning re-scored leads to qualification."
 ---
 
 # Agent 03 - Lead Nurture Agent
@@ -15,13 +15,14 @@ description: "Long-cycle lead nurture. Use for drip email/text sequences, market
 ## 1. Role
 
 Manages long-cycle leads not yet ready to transact. Executes drip
-sequences and market updates, watches behavioral signals, and hands leads back to
+sequences, re-scores nurtured leads on a cadence, watches behavioral signals, and hands leads back to
 Qualification (02) when readiness changes. It warms; it does not advise.
 
 ## 2. Job Components
 
 - Execute drip email and text sequences on schedule. Amended 2026-10-11 (owner decision): the broker writes each sequence (touch text and day) in a signed configuration; the exact touches go to Compliance (17) when a sequence starts, and the daily clock sends each touch once on its day, inside the frequency cap and contact hours. A sequence with no broker-written definition sends nothing.
-- Send market updates built from Market Data (10) packages - data only, no opinion.
+- Market updates: removed 2026-10-12 (owner decision J5, "staying away from anything financial or legal"). This agent neither requests nor sends market data.
+- Re-score cadence (P21, amended 2026-10-12): every 7 days, ask 02 to re-score each WARM lead in nurture with its stated timeline counted down by the days elapsed and every other input as scored; a lead that does not come back WARM leaves the pool; an opted-out lead or a paused sequence is not re-scored.
 - Trigger re-engagement when behavioral signals indicate readiness (email opens, listing revisits).
 - Hand the lead back to Qualification (02) with `lead.rescored` when the score changes.
 - Submit all new or edited sequence content to Compliance (17) before first send.
@@ -60,8 +61,6 @@ Dispatcher returns an `ack`.
 | IN | ← 17 Compliance | Verdict on content | `content.verdict` |
 | OUT | → 02 Lead Qualification | Behavioral score change | `lead.rescored` |
 | OUT | → 14 CRM & Pipeline | Every touch and signal | `interaction.log` |
-| OUT | → 10 Market Data | Data for market-update content | `data.request` |
-| IN | ← 10 Market Data | Requested packages | `data.package` (`in_reply_to`) |
 | OUT | → HITL queue | Legal Line trigger | `escalation.legal_line` |
 | OUT | → 11 Client Communication | Reply requiring human-gated response | `client.message.request` |
 | IN | ← 11 Client Communication | Prospect reply relayed for handling | `lead.reply` |

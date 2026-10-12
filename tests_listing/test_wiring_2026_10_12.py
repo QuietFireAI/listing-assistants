@@ -746,3 +746,20 @@ def test_pager_details_are_validated(bad):
     cfg = {"account_sid": "AC1", "auth_token": "t", "from_number": "+15550000001",
            "to_number": "+15550000002", **bad}
     assert validate(cfg)
+
+
+def test_documented_tuple_count_matches_the_decisions_files():
+    """The README and SKILL.md state the number of DECISIONS.md tuples; this
+    keeps the statement true (it drifted once already, 2026-10-12)."""
+    import glob
+    import re
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    lines = [l for f in glob.glob(os.path.join(root, "*", "DECISIONS.md"))
+             for l in open(f, encoding="utf-8") if l.startswith("- (")]
+    retired = sum(1 for l in lines if "RETIRED" in l)
+    for doc in ("README.md", "SKILL.md"):
+        text = open(os.path.join(root, doc), encoding="utf-8").read()
+        total = re.search(r"(\d+) (?:predeliberated )?decision tuples", text)
+        ret = re.search(r"(\d+) (?:of them marked )?retired", text)
+        assert total and ret and int(total.group(1)) == len(lines) and int(ret.group(1)) == retired, \
+            (doc, len(lines), retired)

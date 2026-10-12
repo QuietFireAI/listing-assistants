@@ -28,6 +28,7 @@ never makes pricing decisions.
 - Execute status changes within MLS-mandated reporting windows (human-supplied config per MLS).
 - Entered data must match the authorized source package field-for-field; any discrepancy is a `clarification.request`, never a judgment call.
 - Never enter offers of buyer-broker compensation in MLS fields - prohibited on MLSs since Aug 17, 2024 (NAR settlement practice change).
+- Vacant property watch (P20, amended 2026-10-12): a listing the broker marks vacant (signed package or `occupancy` setting) gets a property condition check ordered through 09 every 7 days (or the signed interval) until it is marked occupied or the listing ends; a check counts only with proof.
 
 ## 3. HITL Handoff - The Legal Line
 

@@ -29,6 +29,8 @@ not message clients.
 - Emit date triggers (birthday, holiday, purchase anniversary, move-in anniversary) to 16 per the human-supplied client list.
 - Track referral sources; generate pipeline reports from stored data only - a report never contains a figure that cannot be traced to records.
 - Consent and opt-out flags are authoritative HERE: stored per contact, propagated to 03, 11, and 16 same-day on change, and served on `record.request`; no agent may message contrary to these flags.
+- Property access custody (P19, amended 2026-10-12): keep the broker-signed access grants (party, window end, custody reference - never the code or key) and flag once any window that has ended without the broker closing it.
+- Client drawers (amended 2026-10-12): file a copy of every CRM entry into the client's drawer; a filing that fails is recorded and held for the broker.
 
 ## 3. HITL Handoff - The Legal Line
 

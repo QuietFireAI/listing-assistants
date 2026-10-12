@@ -26,4 +26,10 @@ constrains everything.
 - (17 returns content.verdict requiring changes, apply exactly; no negotiation with the compliance agent)
 - (remarks exceed MLS field limits, cut by priority list from the identity config; never silently truncate mid-claim)
 
+Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
+- (broker signed drafting mode "model", draft remarks with the model only while the active checkpoint passed the broker exam on the served model; otherwise draft by rules and tell the broker why)
+- (model draft has no reasoning, exceeds the MLS limit, or contains a number not in the data, do not use it; draft by rules and record why)
+- (compliance flags a phrase inside model remarks, remove exactly the sentence carrying it and resubmit)
+- (compliance flags a phrase this agent cannot find in its draft, hold for the broker; never resubmit the same draft)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

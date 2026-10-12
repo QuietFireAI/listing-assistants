@@ -10,7 +10,7 @@ description: Governed residential real estate listing swarm identity. Use when o
 A complete, ratified operating identity: a dispatcher hub (00) and 20 spoke
 agents (01-20), 52 legal routes
 (`identity/routes.json` - the closed track), 24 playbooks (P01-P24) with
-explicit human gates, 227 predeliberated decision tuples, ratified config
+explicit human gates, 250 predeliberated decision tuples (2 retired), ratified config
 doctrine, and a test suite (829 tests, including mutation-hardening
 tests and one end-to-end test per playbook).
 

@@ -27,4 +27,10 @@ constrains everything.
 - (re-score request on a context with an open escalation, hold; the human's read outranks the rubric mid-escalation)
 - (all rubric inputs unknown, tier is UNKNOWN not COLD; unknown is not a low score, it is absent data)
 
+Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
+- (decision engine result is below the confidence floor, hold the lead for the broker; continue = score with the signed rubric and act on that tier, cancel = archive; never act on an uncertain tier)
+- (lead data would go to the live decision engine, only with a key set AND the broker's signed decision_engine.allow_external; a key alone sends nothing)
+- (decision engine returns a tier this agent does not recognize, treat it as below the floor and hold)
+- (lead goes to nurture, send its scoring inputs with it so Lead Nurture can re-score it on the cadence)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

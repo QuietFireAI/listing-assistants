@@ -26,4 +26,8 @@ constrains everything.
 - (listing data and marketing asset disagree, MLS record is truth; asset.release corrected version; discrepancy logged)
 - (withdrawal requested while under contract, halt; 17 + human; status math on a live contract is never autonomous)
 
+Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
+- (listing marked vacant by the broker, order a property condition check through 09 every interval until occupied or the listing ends; a check counts only with proof)
+- (vacant listing ends or is marked occupied, stop the watch and log it to 14)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)
