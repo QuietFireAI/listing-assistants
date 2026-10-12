@@ -94,6 +94,11 @@ def describe(kind: str, rec: dict) -> Optional[tuple[str, str, Optional[str], Op
                 ctx, rec.get("agent") or rec.get("from_agent"))
     if kind == "loop.suspended":
         return ("HOLD", f"Hub suspended a repeating exchange: {rec.get('reason', '')}".strip(), ctx, None)
+    if kind == "pager.sent":
+        return ("DISPATCH", f"Paged you by text ({rec.get('queue')})", ctx, None)
+    if kind == "pager.failed":
+        return ("ALERT", f"Text page failed ({rec.get('queue')}): "
+                         f"{rec.get('http_status') or rec.get('error')}", ctx, None)
     if kind == "sweep.completed":
         return ("CLOCK", f"Daily clock ran for {rec.get('today')}: {rec.get('sweeps_run')} agents, "
                          f"{rec.get('errors')} errors", None, None)

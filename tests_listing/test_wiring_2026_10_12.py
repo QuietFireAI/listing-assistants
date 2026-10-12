@@ -651,3 +651,98 @@ def test_p20_no_property_check_vendor_on_the_roster_holds_for_the_broker(tmp_pat
     held = [q for q in sw.hub.queues["clarification.request"] if q["client_context_id"] == "P20b"]
     assert held and "no approved roster vendor for kind 'property_check'" in held[0]["payload"]["reason"], \
         "09 must hold a check it cannot book, not drop it"
+
+
+# ------------------------------------------------------------ J8: onboarding and the pager
+def _console(tmp_path, *args, stdin=None):
+    import subprocess
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env = {**os.environ, "LISTINGASSISTANTS_STATE_DIR": str(tmp_path / "state")}
+    p = subprocess.run([sys.executable, os.path.join(root, "tools", "console.py"), *args],
+                       capture_output=True, text=True, env=env, cwd=root, input=stdin)
+    return p.returncode, [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")], p
+
+
+def _serve_fake_twilio(seen):
+    import http.server
+    import threading
+    import urllib.parse as up
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = up.parse_qs(self.rfile.read(int(self.headers["Content-Length"])).decode())
+            seen.append({"path": self.path, "auth": self.headers.get("Authorization"),
+                         "body": {k: v[0] for k, v in body.items()}})
+            self.send_response(201)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+def test_onboard_records_the_operator_and_the_pager_needs_onboarding_first(tmp_path):
+    rc, out, _ = _console(tmp_path, "pager", "--account-sid", "AC1", "--from-number", "+15550000001",
+                          "--to-number", "+15550000002")
+    assert rc == 1                                                  # no key, no operator yet
+    assert _console(tmp_path, "init")[0] == 0
+    rc, out, _ = _console(tmp_path, "onboard", "--name", "Test Broker", "--login", "tb@example.com")
+    assert rc == 0 and out[0]["onboarded"]["login"] == "tb@example.com"
+    assert "console.py pager" in out[0]["not_armed"]["sms_pager"]
+    rc, out, _ = _console(tmp_path, "onboard", "--name", "X", "--login", "not-an-email")
+    assert rc == 1 and "nothing saved" in out[0]["error"]
+
+
+def test_pager_pages_with_queue_and_context_only_and_records_each_page(tmp_path):
+    seen = []
+    srv, base = _serve_fake_twilio(seen)
+    try:
+        _console(tmp_path, "init")
+        _console(tmp_path, "onboard", "--name", "Test Broker", "--login", "tb@example.com")
+        tok = tmp_path / "tok"
+        tok.write_text("secret-token\n")
+        rc, out, p = _console(tmp_path, "pager", "--account-sid", "AC123", "--auth-token-file", str(tok),
+                              "--from-number", "+15550000001", "--to-number", "+15550000002",
+                              "--api-base", base)
+        assert rc == 0 and out[0]["pager"] == "on", p.stderr
+        cfg_path = tmp_path / "state" / "pager.json"
+        assert oct(os.stat(cfg_path).st_mode & 0o777) == "0o600"
+        rc, out, _ = _console(tmp_path, "pager", "--test")
+        assert rc == 0 and out[0]["test_page"]["status"] == "sent"
+        script = tmp_path / "s.jsonl"
+        script.write_text(json.dumps({"do": "send", "from": "external", "to": "01", "intent": "lead.inbound",
+                                      "ctx": "PG1", "payload": {"channel": "web_form", "name": "Pat Private",
+                                                                "phone": "555-0177", "demands_human": True,
+                                                                "message": "my budget is 900k call me",
+                                                                "today": "2026-10-12",
+                                                                "consent": {"call": "yes"}}}) + "\n")
+        rc, out, p = _console(tmp_path, "session", str(script), "--no-state")
+        assert out[0]["sms_pager"] == "on" and out[-1]["errors"] == 0
+        pages = [s for s in seen if "test page" not in s["body"]["Body"]]
+        assert pages, p.stdout[-800:]
+        for s in pages:
+            assert s["path"] == "/2010-04-01/Accounts/AC123/Messages.json"
+            assert s["body"]["To"] == "+15550000002" and s["body"]["From"] == "+15550000001"
+            assert "Pat Private" not in s["body"]["Body"] and "900k" not in s["body"]["Body"]
+            assert s["body"]["Body"].startswith("ListingAssistants: ")
+        audit = [json.loads(l) for l in open(tmp_path / "state" / "console-audit.jsonl")]
+        sent = [e for e in audit if e["kind"] == "pager.sent"]
+        assert len(sent) == len(pages) and all("secret-token" not in json.dumps(e) for e in audit)
+        rc, out, _ = _console(tmp_path, "pager", "--off")
+        assert rc == 0 and not cfg_path.exists()
+    finally:
+        srv.shutdown()
+
+
+@pytest.mark.parametrize("bad", [{"to_number": "5551234"}, {"account_sid": ""},
+                                 {"api_base": "http://api.example.com"}])
+def test_pager_details_are_validated(bad):
+    from dispatcher.pager import validate
+    cfg = {"account_sid": "AC1", "auth_token": "t", "from_number": "+15550000001",
+           "to_number": "+15550000002", **bad}
+    assert validate(cfg)

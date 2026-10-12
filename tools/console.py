@@ -57,8 +57,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-STATE_DIR = os.path.join(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))), "console-state")
+# LISTINGASSISTANTS_STATE_DIR moves the whole console state (key, operator,
+# pager, log, state store) - used by the tests; default console-state/.
+STATE_DIR = os.environ.get("LISTINGASSISTANTS_STATE_DIR") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "console-state")
 KEY_PATH = os.path.join(STATE_DIR, "operator-key.bin")
 AUDIT_PATH = os.path.join(STATE_DIR, "console-audit.jsonl")
 
@@ -70,7 +72,7 @@ def _p(obj):
 STATE_DB = os.path.join(STATE_DIR, "swarm-state.sqlite")
 
 
-def build(audit_path, config_dir=None, state_db=None, model=None):
+def build(audit_path, config_dir=None, state_db=None, model=None, pager=None):
     """The console's swarm: dispatcher/swarm.py with this operator's key.
     Returns (swarm, signer). State is restored from state_db (default
     console-state/swarm-state.sqlite) when the audit chain vouches for it."""
@@ -85,7 +87,8 @@ def build(audit_path, config_dir=None, state_db=None, model=None):
         audit_path, state_db=state_db, config_dir=config_dir,
         verifier=verifier.verifier(),
         # every human-queue landing prints as it happens (the pager, on screen)
-        human_notifier=lambda queue, record: _p({"HUMAN_QUEUE": queue, "record": record}),
+        human_notifier=lambda queue, record: (_p({"HUMAN_QUEUE": queue, "record": record}),
+                                              pager(queue, record) if pager else None),
         human_sink=lambda env: _p({"DELIVERED_TO_HUMAN": env.intent,
                                    "ctx": env.client_context_id, "payload": env.payload}),
         model_client=(model or {}).get("client"), model_name=(model or {}).get("name"))
@@ -94,7 +97,10 @@ def build(audit_path, config_dir=None, state_db=None, model=None):
         "entries_skipped": sw.roster_info["entries_skipped"],
         "state": ("restored" if sw.restored is not None else
                   "fresh" if sw.store is not None else "this process only"),
-        "model_drafting": sw.hub.drafting.gate()})
+        "model_drafting": sw.hub.drafting.gate(),
+        "sms_pager": "on" if pager else "off"})
+    if pager:
+        pager.audit = sw.hub.audit
     return sw, signer
 
 
@@ -186,6 +192,53 @@ def decide(sw, signer, a):
 
 
 OPERATOR_PATH = os.path.join(STATE_DIR, "operator.json")
+PAGER_PATH = os.path.join(STATE_DIR, "pager.json")
+
+
+def cmd_pager(args):
+    """Turns the text-message pager on (asks for the Twilio details once,
+    after onboarding), sends a test page, or turns it off (owner decision
+    #10 / J8). Pages carry the queue name and client context id only."""
+    from dispatcher import pager as pg
+    if args.off:
+        existed = os.path.exists(PAGER_PATH)
+        if existed:
+            os.remove(PAGER_PATH)
+        _p({"pager": "off", "details_removed": existed})
+        return 0
+    if args.test:
+        try:
+            cfg = pg.load_config(PAGER_PATH)
+        except ValueError as e:
+            _p({"error": str(e)})
+            return 1
+        if cfg is None:
+            _p({"error": "the pager is off - run `python tools/console.py pager` first"})
+            return 1
+        res = pg.send_page(cfg, "ListingAssistants: test page. If you can read this, paging works.")
+        _p({"test_page": res})
+        return 0 if res["status"] == "sent" else 1
+    if _operator() is None:
+        _p({"error": "onboard first (`python tools/console.py onboard`) - the pager is set up "
+                     "after you are recorded as the operator"})
+        return 1
+    import getpass
+    cfg = {"account_sid": args.account_sid or input("Twilio account SID: ").strip(),
+           "auth_token": (open(args.auth_token_file).read().strip() if args.auth_token_file
+                          else getpass.getpass("Twilio auth token (not shown): ").strip()),
+           "from_number": args.from_number or input("Twilio number to send from (+1...): ").strip(),
+           "to_number": args.to_number or input("Your mobile number (+1...): ").strip()}
+    if args.api_base:
+        cfg["api_base"] = args.api_base
+    problems = pg.validate(cfg)
+    if problems:
+        _p({"error": "pager details rejected; nothing saved", "problems": problems})
+        return 1
+    pg.save_config(PAGER_PATH, cfg)
+    _p({"pager": "on", "saved_to": PAGER_PATH, "file_mode": "0600",
+        "pages_carry": "the queue name and client context id only",
+        "next": "python tools/console.py pager --test"})
+    return 0
 
 
 def cmd_onboard(args):
@@ -214,8 +267,10 @@ def cmd_onboard(args):
                                          "identity provider with MFA; no identity provider is "
                                          "connected, so the hub checks your key's signature and "
                                          "records that the login binding is off",
-                      "sms_pager": "the Twilio notifier asks for your account credentials "
-                                   "when you turn it on; the console prints pages on screen"}})
+                      "sms_pager": "off - `python tools/console.py pager` asks for your Twilio "
+                                   "details and turns it on; pages carry the queue name and "
+                                   "client context id only; the console always prints pages "
+                                   "on screen"}})
     return 0
 
 
@@ -242,9 +297,16 @@ def cmd_session(args):
         except ValueError as e:
             _p({"error": str(e)})
             return 2
+    from dispatcher import pager as pg
+    try:
+        cfg = pg.load_config(PAGER_PATH)
+    except ValueError as e:
+        _p({"error": str(e)})
+        return 2
+    pager = pg.Pager(cfg) if cfg else None
     try:
         sw, signer = build(args.audit_log or AUDIT_PATH, getattr(args, "config_dir", None),
-                           None if args.no_state else (args.state_db or STATE_DB), model)
+                           None if args.no_state else (args.state_db or STATE_DB), model, pager)
     except StateIntegrityError as e:
         _p({"error": "saved state refused", "reason": str(e),
             "action": "nothing was restored or changed; move the state file aside "
@@ -371,13 +433,22 @@ def main():
     s.add_argument("--model-name", default=None, help="the served model's name")
     s.add_argument("--allow-remote-model", action="store_true",
                    help="allow a model endpoint that is not this machine (listing data leaves it)")
+    pg = sub.add_parser("pager")
+    pg.add_argument("--off", action="store_true", help="forget the Twilio details; pages stop")
+    pg.add_argument("--test", action="store_true", help="send one test page")
+    pg.add_argument("--account-sid", default=None)
+    pg.add_argument("--auth-token-file", default=None,
+                    help="read the auth token from this file instead of asking")
+    pg.add_argument("--from-number", default=None)
+    pg.add_argument("--to-number", default=None)
+    pg.add_argument("--api-base", default=None, help=argparse.SUPPRESS)
     v = sub.add_parser("verify")
     v.add_argument("--audit-log", default=None)
     v.add_argument("--anchor", default=None,
                    help="a previously printed anchor JSON to verify against")
     args = ap.parse_args()
     return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
-            "verify": cmd_verify}[args.cmd](args)
+            "verify": cmd_verify, "pager": cmd_pager}[args.cmd](args)
 
 
 if __name__ == "__main__":
