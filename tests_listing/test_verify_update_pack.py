@@ -178,6 +178,10 @@ def test_sign_manifest_keygen_refuses_to_overwrite(tmp_path):
     from tools.sign_manifest import keygen
     prefix = str(tmp_path / "authority")
     k, p = keygen(prefix)
-    assert oct(os.stat(k).st_mode & 0o777) == "0o600" and len(open(p, encoding="utf-8").read()) == 64
+    from dispatcher.private_file import is_private
+    assert is_private(k)[0], is_private(k)[1]
+    if os.name != "nt":
+        assert oct(os.stat(k).st_mode & 0o777) == "0o600"
+    assert len(open(p, encoding="utf-8").read()) == 64
     with pytest.raises(FileExistsError):
         keygen(prefix)

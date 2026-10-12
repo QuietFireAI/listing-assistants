@@ -167,11 +167,12 @@ def cmd_init(_args):
         _p({"error": f"{AUDIT_PATH} exists - a console log is never "
                      f"silently replaced; move it aside yourself"})
         return 1
+    from dispatcher.private_file import write_private, is_private
     signer = Ed25519Signer()
-    with open(KEY_PATH, "wb") as f:
-        f.write(signer.private_key_bytes())
-    os.chmod(KEY_PATH, 0o600)
-    _p({"initialized": STATE_DIR, "operator_key": "generated (0600)",
+    # private from the first byte, on Linux, macOS and Windows alike
+    write_private(KEY_PATH, signer.private_key_bytes())
+    _p({"initialized": STATE_DIR,
+        "operator_key": "generated, private: " + is_private(KEY_PATH)[1],
         "audit_log": AUDIT_PATH,
         "note": "this key signs YOUR authority actions - it stays on "
                 "this machine"})
@@ -301,7 +302,8 @@ def cmd_pager(args):
         _p({"error": "pager details rejected; nothing saved", "problems": problems})
         return 1
     pg.save_config(PAGER_PATH, cfg)
-    _p({"pager": "on", "saved_to": PAGER_PATH, "file_mode": "0600",
+    from dispatcher.private_file import is_private
+    _p({"pager": "on", "saved_to": PAGER_PATH, "private": is_private(PAGER_PATH)[1],
         "pages_carry": "the queue name and client context id only",
         "next": "python tools/console.py pager --test"})
     return 0

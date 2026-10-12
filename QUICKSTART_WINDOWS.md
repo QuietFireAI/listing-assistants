@@ -97,8 +97,10 @@ python tools\desk.py --showcase
 
 Open http://127.0.0.1:8765 in your browser. Press **Next** to play the
 operator scenes; when the bar turns red it is your move: press **Send**
-(twice) or **Continue** / **Cancel** on the outlined card. Stop it with
-Ctrl+C. Your own desk, on your own records, is `python tools\desk.py`.
+(twice) or **Continue** / **Cancel** on the outlined card. A held message
+also has **Don't send**: it signs a decline, with your reason, and that
+message never goes out. Stop the desk with Ctrl+C (or Ctrl+Break). Your own
+desk, on your own records, is `python tools\desk.py`.
 
 ### Step 4: Open the client funnel page
 ```powershell

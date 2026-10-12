@@ -445,7 +445,10 @@ def test_pager_config_round_trip_is_private_and_validated(tmp_path):
     p = str(tmp_path / "sub" / "pager.json")
     assert load_config(p) is None
     save_config(p, _cfg(extra="dropped"))
-    assert oct(os.stat(p).st_mode & 0o777) == "0o600"
+    from dispatcher.private_file import is_private
+    assert is_private(str(p))[0], is_private(str(p))[1]
+    if os.name != "nt":
+        assert oct(os.stat(p).st_mode & 0o777) == "0o600"
     assert load_config(p) == _cfg()
     open(p, "w", encoding="utf-8").write(json.dumps({"account_sid": "AC"}))
     with pytest.raises(ValueError):

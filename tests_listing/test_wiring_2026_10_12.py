@@ -712,7 +712,10 @@ def test_pager_pages_with_queue_and_context_only_and_records_each_page(tmp_path)
                               "--api-base", base)
         assert rc == 0 and out[0]["pager"] == "on", p.stderr
         cfg_path = tmp_path / "state" / "pager.json"
-        assert oct(os.stat(cfg_path).st_mode & 0o777) == "0o600"
+        from dispatcher.private_file import is_private
+        assert is_private(str(cfg_path))[0], is_private(str(cfg_path))[1]
+        if os.name != "nt":
+            assert oct(os.stat(cfg_path).st_mode & 0o777) == "0o600"
         rc, out, _ = _console(tmp_path, "pager", "--test")
         assert rc == 0 and out[0]["test_page"]["status"] == "sent"
         script = tmp_path / "s.jsonl"

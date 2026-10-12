@@ -57,12 +57,13 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 998 passed
+python -m pytest tests_listing/          # expect: 1002 passed, 1 skipped
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```
 
-Expected: the test count; `{"initialized": ..., "operator_key": "generated (0600)", ...}`;
+Expected: the test count; `{"initialized": ..., "operator_key": "generated, private: mode 0o600", ...}`
+(on Windows: `"generated, private: only <your account> has access ..."`);
 then `{"onboarded": {...}, "not_armed": {...}}`. The `not_armed` block says
 plainly what is not switched on: the identity-provider signer binding (no
 identity provider is connected) and the text pager, which

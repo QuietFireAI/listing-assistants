@@ -32,9 +32,8 @@ def keygen(prefix: str) -> tuple[str, str]:
     key_path, pub_path = f"{prefix}.key", f"{prefix}.pub"
     if os.path.exists(key_path):
         raise FileExistsError(f"{key_path} exists - refusing to overwrite a private key")
-    fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "w") as f:
-        f.write(signer.private_key_bytes().hex())
+    from dispatcher.private_file import write_private
+    write_private(key_path, signer.private_key_bytes().hex().encode("ascii"), exclusive=True)
     with open(pub_path, "w", encoding="utf-8") as f:
         f.write(signer.public_key_bytes().hex())
     return key_path, pub_path

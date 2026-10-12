@@ -10,7 +10,8 @@ on" while nothing could turn it on and nothing asked.
   python tools/console.py pager --off    # forgets them
 
 The details are stored in console-state/pager.json, readable by your user
-only (0600). Every console session then pages you, in addition to printing
+only (mode 0600 on Linux/macOS; on Windows only your account is on the
+file's permission list - dispatcher/private_file.py). Every console session then pages you, in addition to printing
 on screen, whenever something lands in a human queue.
 
 What a page says: the queue name and the client context id, nothing else -
@@ -57,11 +58,9 @@ def validate(cfg: dict) -> list[str]:
 
 
 def save_config(path: str, cfg: dict) -> None:
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump({k: cfg[k] for k in (*FIELDS, "api_base") if k in cfg}, f)
-    os.chmod(path, 0o600)
+    from dispatcher.private_file import write_private
+    write_private(path, json.dumps(
+        {k: cfg[k] for k in (*FIELDS, "api_base") if k in cfg}).encode("utf-8"))
 
 
 def load_config(path: str) -> Optional[dict]:
