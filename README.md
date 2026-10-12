@@ -254,7 +254,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 
 ## Layout
 
-- `dispatcher/` - vendored dispatcher-agents core (the 15 files listed in
+- `dispatcher/` - vendored dispatcher-agents core (the 16 files listed in
   `tools/sync_core.py`, kept identical by `--check` in CI), the 20
   `listing_spokes*.py` agents, `handoff_guard.py`, `lead_rubric.py`,
   `config_status.py`, and the modules above.

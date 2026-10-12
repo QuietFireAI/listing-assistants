@@ -3,18 +3,23 @@
 
 Found live 2026-07-17: dispatcher-agents core received fixes
 (queue_and_notify, resume_loop_suspension, the unarmed pillar path) that
-this repo's vendored dispatcher/ never got - 105 diff lines of fork
-drift in hub.py alone, four silent-notification bugs still live here
+listing-assistants' vendored dispatcher/ never got - 105 diff lines of fork
+drift in hub.py alone, four silent-notification bugs still live there
 after they were "fixed". The doctrine says vendored copies are generated
 from core, never hand-copied; until this file existed there was no
 generator, so every sync WAS a hand-copy.
+
+The same file ships in every identity repo (listing, freight, medbilling,
+claim, hr, enrollment, practice, mortgage, property-mgmt); it compares
+the repo it sits in, or --target, against a dispatcher-agents checkout.
 
 Usage:
   python tools/sync_core.py --core ../dispatcher-agents          # sync
   python tools/sync_core.py --core ../dispatcher-agents --check  # CI gate
 
 --check exits 1 on any drift and prints per-file diff-line counts.
-Never syncs identity-owned files (listing_spokes*.py stay untouched);
+Never syncs identity-owned files (*_spokes*.py, identity_mcp.py,
+sweep_runner.py stay untouched);
 never deletes; core is the single source for exactly the files below.
 """
 import argparse
@@ -24,10 +29,13 @@ import shutil
 import subprocess
 import sys
 
-# The vendored core surface. Identity files (listing_spokes*.py) are
-# deliberately absent - they are owned here, not in core.
+# The vendored core surface. Identity files (*_spokes*.py and the like) are
+# deliberately absent - they are owned by the identity repo, not by core.
+# absolute_signal.py added 2026-10-12: hub.py imports it, so a core without
+# it does not boot.
 CORE_FILES = [
-    "__init__.py", "after_action.py", "analysis.py", "attestation.py",
+    "__init__.py", "absolute_signal.py", "after_action.py", "analysis.py",
+    "attestation.py",
     "core.py", "hub.py", "kpi.py", "loader.py", "notifier.py",
     "pillars.py", "priority.py", "runs.py", "signatures.py",
     "signer_registry.py", "territory.py",
@@ -52,7 +60,8 @@ def main() -> int:
     # checks the wrong repo and says "clean" is worse than no checker.
     # Target is now explicit, and the tool PRINTS what it compared so a
     # wrong invocation is visible in the output, not just the exit code.
-    here = os.path.abspath(args.target) if args.target else         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    here = os.path.abspath(args.target) if args.target else \
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     print(f"comparing target={here} against core={os.path.abspath(args.core)}")
     src_dir = os.path.join(os.path.abspath(args.core), "dispatcher")
     dst_dir = os.path.join(here, "dispatcher")
