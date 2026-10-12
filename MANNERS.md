@@ -66,8 +66,8 @@ MANNERS + DISPATCHER_CORE > identity module hard lines > DECISIONS.md (tuple
 layer) > playbooks > task judgment. A lower layer contradicting a higher layer
 is a spec defect: halt, flag, human.
 
-Status: v0.3 (owner sign-off pending for this revision) - Manner 15 (THE
-ABSOLUTE SIGNAL) added 2026-08-01; its canonical, enforceable form is
+Status: v0.3 RATIFIED 2026-10-12, owner sign-off (Jeff Phillips) - Manner 15
+(THE ABSOLUTE SIGNAL) added 2026-08-01; its canonical, enforceable form is
 dispatcher/absolute_signal.py (SIGNAL_TEXT), the gate in hub.py enforces it, and
 docs/FINANCIAL_CAPABILITY.md is the operator-facing detail. THIS EDIT CHANGES THE
 FILE HASH: the boot manifest re-registers the new hash on next attestation, which

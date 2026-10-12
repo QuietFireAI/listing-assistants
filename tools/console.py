@@ -26,6 +26,7 @@ A session script is JSON Lines; each line is one action:
   {"do": "sweep", "today": "2026-07-19"}                            # run the clock layer
   {"do": "show", "what": "queues"}     # or "held", "external", "briefing", "eod", "anchor"
   {"do": "release", "ctx": "L1", "intent": "campaign.publish"}      # signed release of held outbound
+  {"do": "decline", "ctx": "L1", "intent": "campaign.publish", "reason": "wrong photos"}  # signed: never send it
   {"do": "decide", "ctx": "L1", "decision": "continue"}             # signed continue/cancel on a hold
   {"do": "decide", "ctx": "L1", "decision": "continue", "route_to": "13"}   # a hold that asks for an agent
 
@@ -37,6 +38,9 @@ still applies every check (closed track, schema, signatures, holds).
 "release" signs one disclosure.authority with your key for EACH held
 outbound message matching ctx (required) and intent (optional), the same
 call Hub.release_disclosure makes in production. Nothing else releases.
+"decline" signs the same key with decision "decline": the held message is
+removed unsent (Hub.decline_disclosure) and the decline, with your reason,
+goes on the audit log.
 
 Every item that lands in a human queue (escalations, clarifications,
 integrity violations, holds) prints as {"HUMAN_QUEUE": ...} the moment it
@@ -180,23 +184,43 @@ def held_list(hub):
             for hid, e in hub._absolute_holds.items()]
 
 
-def release(hub, signer, ctx, intent=None):
-    """One signed disclosure.authority per matching held message."""
+def _answer_held(hub, signer, ctx, intent, decision, reason=None):
+    """One signed disclosure.authority per held message matching ctx (and
+    intent). decision "release" sends it; "decline" removes it unsent. The
+    decision is inside the signed payload, so one can never stand in for
+    the other."""
     from dispatcher.core import Envelope
     out = []
+    verb = "released" if decision == "release" else "declined"
     for hid, held in list(hub._absolute_holds.items()):
         if held.client_context_id != ctx or (intent and held.intent != intent):
             continue
+        payload = {"held_envelope_id": hid}
+        if decision != "release":
+            payload["decision"] = decision
+            if reason:
+                payload["reason"] = reason
         auth = Envelope(from_agent="human", to_agent=held.from_agent,
                         intent="disclosure.authority", client_context_id=ctx,
-                        payload={"held_envelope_id": hid},
+                        payload=payload,
                         provenance={"source": "human", "captured_at": "runtime",
                                     "verbatim_available": True})
         signer.sign(auth)
-        out.append({"released": hid, "intent": held.intent, "to": held.to_agent,
-                    "hub": hub.release_disclosure(auth)})
-    return out or {"released": [], "note": f"nothing held for ctx={ctx!r}"
-                                           + (f" intent={intent!r}" if intent else "")}
+        call = hub.release_disclosure if decision == "release" else hub.decline_disclosure
+        out.append({verb: hid, "intent": held.intent, "to": held.to_agent,
+                    "hub": call(auth)})
+    return out or {verb: [], "note": f"nothing held for ctx={ctx!r}"
+                                     + (f" intent={intent!r}" if intent else "")}
+
+
+def release(hub, signer, ctx, intent=None):
+    """One signed disclosure.authority per matching held message."""
+    return _answer_held(hub, signer, ctx, intent, "release")
+
+
+def decline(hub, signer, ctx, intent=None, reason=None):
+    """One signed decline per matching held message: removed, never sent."""
+    return _answer_held(hub, signer, ctx, intent, "decline", reason)
 
 
 def decide(sw, signer, a):
@@ -353,6 +377,12 @@ def apply_action(sw, signer, operator, a, external=None):
             error = True
         else:
             r = release(hub, signer, a["ctx"], a.get("intent"))
+    elif do == "decline":
+        if not a.get("ctx"):
+            r = {"error": "decline needs ctx (and optionally intent, reason)"}
+            error = True
+        else:
+            r = decline(hub, signer, a["ctx"], a.get("intent"), a.get("reason"))
     elif do == "decide":
         r = decide(sw, signer, a)
         if isinstance(r, dict) and r.get("error"):

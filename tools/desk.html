@@ -31,6 +31,8 @@ button.primary{background:var(--blue);border-color:var(--blue);color:var(--blue-
 button.warn{border-color:var(--bad);color:var(--bad)}
 button.armed{background:var(--bad);border-color:var(--bad);color:#fff}
 button:disabled{opacity:.5;cursor:default}
+input.reason{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:44px;flex:1 1 220px;min-width:0}
+.decline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 100%}
 select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:44px}
 .showcase{background:var(--panel);border:2px solid var(--you);border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:var(--shadow)}
 .showcase .scene{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
@@ -150,6 +152,7 @@ section{margin-bottom:22px}
 const token = new URLSearchParams(location.search).get("t");
 const H = token ? {"X-Desk-Token": token} : {};
 let S = null, armed = null, autoTimer = null, busy = false;
+const reasons = {};   // a typed "why not" survives the 1.5 s refresh
 
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
@@ -197,6 +200,32 @@ function sendButton(item) {
   };
   return b;
 }
+function declineControls(item) {
+  const key = "decline:" + item.id;
+  if (armed !== key) {
+    const b = el("button", {class: "warn"}, "Don't send");
+    b.onclick = () => {
+      armed = key; render();
+      const r = document.querySelector(`input.reason[data-id="${item.id}"]`);
+      if (r) r.focus();
+    };
+    return b;
+  }
+  const inp = el("input", {class: "reason", "data-id": item.id, maxlength: "200",
+                           placeholder: "Why not? (optional - it goes on the record)"});
+  inp.value = reasons[item.id] || "";
+  inp.oninput = e => { reasons[item.id] = e.target.value; };
+  const go = el("button", {class: "armed"}, "Sign: don't send");
+  go.onclick = () => {
+    const why = reasons[item.id] || "";
+    armed = null; delete reasons[item.id];
+    act({action: "decline", id: item.id, reason: why})
+      .then(j => j && !j.error && toast("Signed: not sent - " + item.title));
+  };
+  const back = el("button", {}, "Keep it held");
+  back.onclick = () => { armed = null; render(); };
+  return el("span", {class: "decline"}, inp, go, back);
+}
 function yourMove() {
   const sc = S && S.showcase;
   if (!sc || !sc.waiting_for_you) return null;
@@ -214,8 +243,8 @@ function needsCard(i) {
   if (i.said) c.append(el("div", {class: "said"}, "“" + i.said + "”"));
   if (i.type === "held") {
     c.append(el("div", {class: "why"}, "What would go out:"), kv(i.content), el("div", {class: "why"}, i.why));
-    c.append(el("div", {class: "actions"}, sendButton(i),
-      el("span", {class: "note"}, "Not ready? Leave it - it stays held until you send it.")));
+    c.append(el("div", {class: "actions"}, sendButton(i), declineControls(i),
+      el("span", {class: "note"}, "Not ready? Leave it - it stays held until you answer.")));
   } else if (i.type === "wait") {
     if (i.why) c.append(el("div", {class: "said"}, i.why));
     if (i.paused) c.append(el("div", {class: "why"}, "Paused: " + i.paused));
@@ -302,7 +331,8 @@ function render() {
        el("div", {class: "lbl"}, "messages to vendors or the public that went out on your signed release")),
     el("div", {class: "tile " + (p.held_now ? "you" : "")},
        el("div", {class: "big"}, String(p.held_now)),
-       el("div", {class: "lbl"}, "held right now, waiting for you")),
+       el("div", {class: "lbl"}, "held right now, waiting for you" +
+          (p.declined ? ` · ${p.declined} you signed not to send` : ""))),
     el("div", {class: "tile"},
        el("div", {class: "big"}, String(p.client_messages)),
        el("div", {class: "lbl"}, "client messages released (recorded; no email or SMS is connected)")));
@@ -335,7 +365,8 @@ async function load() {
   try {
     const r = await fetch("api/state", {headers: H});
     S = await r.json();
-    render();
+    // do not rebuild the page under someone typing a reason
+    if (!(document.activeElement && document.activeElement.classList.contains("reason"))) render();
   } catch (e) { document.getElementById("who").textContent = "desk not reachable: " + e; }
 }
 document.getElementById("sweep").onclick = () =>

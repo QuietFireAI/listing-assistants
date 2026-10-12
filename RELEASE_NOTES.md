@@ -20,6 +20,19 @@ end-to-end test.
   with the broker's key, plus listing progress, hot-lead clocks, the
   agents' status and a proof strip. `--showcase` replays the operator
   scenes for recording (README, "The Broker Desk").
+- **"Don't send."** A held message can now be answered no: a signed
+  decline (`Hub.decline_disclosure`, core `50c65a8`) removes that one
+  message unsent and puts the decline and your reason on the audit log. The
+  decision is inside what is signed, so a decline can never be used as a
+  release, nor the other way round. On the desk it is the **Don't send**
+  button; in a console session, `{"do": "decline", ...}`.
+- **The desk serves several screens at once.** Connections get their own
+  threads; every swarm call still runs on one thread, as SQLite requires. A
+  stalled connection no longer freezes everyone's page.
+- **The desk on Windows is tested.** CI runs the desk's tests on
+  `windows-latest`, including the lock's process check and a clean
+  Ctrl+Break stop (the desk now handles Ctrl+Break). The whole suite also
+  runs there, as information, not yet as a gate.
 - **Pictures for non-technical readers.** Every agent folder has a README
   with a diagram of who it hears from and who it talks to (drawn from
   `identity/routes.json`); every playbook in `docs/PLAY-BY-PLAY.md` has a
@@ -144,7 +157,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 994 passed
+python -m pytest tests_listing/        # expect: 998 passed
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

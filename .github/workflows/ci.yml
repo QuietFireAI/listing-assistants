@@ -37,3 +37,26 @@ jobs:
           tail -1 out.txt
           grep -q "1 failed" out.txt
           grep -q "test_all_six_pillars_fire_on_listing_traffic" out.txt
+  windows-desk:
+    # The Broker Desk on Windows, run for real (added 2026-10-12): the
+    # desk lock's pid check takes a different branch there (OpenProcess /
+    # GetExitCodeProcess - os.kill(pid, 0) would END the process), and a
+    # clean stop is Ctrl+Break, not SIGTERM.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests_listing/test_desk.py -q
+  windows-full-suite:
+    # Informational: the whole suite on Windows. Not a gate yet - QUICKSTART
+    # says Linux and macOS; this job is how we find out what Windows needs.
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests_listing/ -q -p no:cacheprovider

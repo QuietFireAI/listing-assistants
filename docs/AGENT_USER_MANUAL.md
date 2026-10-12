@@ -319,7 +319,9 @@ audit log that the login binding is off.
 Everything in sections 3 and 6 is on it:
 
 - **Needs you** lists every held message with what would go out and to whom
-  (Send signs one release with your key; tap it twice), every paused
+  (Send signs one release with your key; tap it twice; Don't send signs a
+  decline, with your reason if you type one, and that message never goes
+  out), every paused
   thread (Continue or Cancel; a client reply that names no agent asks which
   agent to continue to), and your queues with the client's own words (Done
   records that you handled it; it changes nothing in the swarm).
@@ -329,9 +331,11 @@ Everything in sections 3 and 6 is on it:
 - **Run today's checks** runs the daily clock; **Check the record** walks the
   audit chain.
 
-A held message cannot be thrown away from the desk: it stays held until you
-send it. While the desk runs it holds the state folder, so console sessions
-and `run_sweeps.py` refuse to start against it.
+A held message stays held until you answer it, Send or Don't send; both are
+signed and both are on the record. In a console session the same answers are
+`{"do": "release", ...}` and `{"do": "decline", "ctx": ..., "intent": ...,
+"reason": "..."}`. While the desk runs it holds the state folder, so console
+sessions and `run_sweeps.py` refuse to start against it.
 
 ## 7. Restarts and the daily clock
 

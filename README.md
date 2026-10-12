@@ -350,7 +350,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 994 passed
+python -m pytest tests_listing/        # expect: 998 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -370,7 +370,9 @@ printed access code.
 
 - **Needs you:** each held message with exactly what would go out and who it
   goes to, with a **Send** button (tap twice: it signs one release with your
-  key); each paused thread with **Continue** / **Cancel**; your queues (legal
+  key) and a **Don't send** (signs a decline, with your reason if you type
+  one: that message never goes out); each paused thread with **Continue** /
+  **Cancel**; your queues (legal
   line, upset clients, questions, refused unsigned messages) with the
   client's own words and a **Done** that records who handled it.
 - **Listings:** a progress track per listing (signed, booked, photos, copy
@@ -390,10 +392,14 @@ python tools/desk.py --showcase      # replays the ten operator scenes on synthe
 python tools/desk.py --lan           # open it from a tablet (link with an access code)
 ```
 
-There is no "don't send" that throws a held message away: the hub has no
-such path, so a held message stays held until you send it. While the desk
-runs it holds the state; `console.py session` and `run_sweeps.py` refuse to
-start against the same folder (use the desk's "Run today's checks").
+A held message waits for your answer: **Send** or **Don't send**, each a
+signed decision on the record (`Hub.release_disclosure` /
+`Hub.decline_disclosure`); a signed "don't send" can never be used as a
+"send". While the desk runs it holds the state; `console.py session` and
+`run_sweeps.py` refuse to start against the same folder (use the desk's "Run
+today's checks"). The page serves several screens at once (a phone and a
+tablet, say); every action still reaches the swarm one at a time. CI runs the
+desk's tests on Windows as well as Linux.
 
 ## Run it
 

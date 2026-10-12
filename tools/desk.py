@@ -30,8 +30,11 @@ What a button does:
     with your login. It changes nothing in the swarm; it only takes the
     item off your list.
   - Run today's checks: the daily clock, through the hub, as run_sweeps.py.
-There is no "don't send" that discards a held message: the hub has no such
-path. A held message stays held until you send it.
+  - Don't send: signs the same key with decision "decline" (and your
+    reason, if you type one) - Hub.decline_disclosure removes that one held
+    message unsent and writes disclosure.declined to the audit log. Same
+    call as {"do": "decline"}. A signed "don't send" can never be used as a
+    "send", nor the other way round.
 
 One process at a time: the desk holds the swarm open and saves its state
 after every action. While it runs it writes desk.lock in the state folder,
@@ -406,6 +409,7 @@ class ReadModel:
             "chain_detail": chain,
             "gated_out": len(gated_out), "gated_out_signed": signed_out,
             "held_now": len(hub._absolute_holds),
+            "declined": sum(1 for e in log if e.get("kind") == "disclosure.declined"),
             "client_messages": client_msgs,
             "connections": [
                 {"name": "MLS", "state": "not connected",
@@ -443,6 +447,10 @@ class ReadModel:
             elif k == "disclosure.authorized":
                 out.append({"ts": e.get("ts"), "ctx": None, "kind": "you",
                             "text": f"You signed the release: {words(e.get('intent'))}"})
+            elif k == "disclosure.declined":
+                why = f" ({e.get('reason')})" if e.get("reason") else ""
+                out.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"), "kind": "you",
+                            "text": f"You signed Don't send: {words(e.get('intent'))}{why}"})
             elif k == "desk.acknowledged":
                 out.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"), "kind": "you",
                             "text": f"You marked done: {e.get('title')}"})
@@ -631,23 +639,32 @@ class Desk:
     def act(self, body):
         with self.lock:
             kind = body.get("action")
-            if kind == "send":
+            if kind in ("send", "decline"):
                 hid = body.get("id")
                 held = self.sw.hub._absolute_holds.get(hid)
                 if held is None:
                     return {"error": "that message is no longer held"}
                 from dispatcher.core import Envelope
+                payload = {"held_envelope_id": hid}
+                if kind == "decline":
+                    payload["decision"] = "decline"
+                    reason = str(body.get("reason") or "").strip()
+                    if reason:
+                        payload["reason"] = reason[:500]
                 auth = Envelope(from_agent="human", to_agent=held.from_agent,
                                 intent="disclosure.authority",
                                 client_context_id=held.client_context_id,
-                                payload={"held_envelope_id": hid},
+                                payload=payload,
                                 provenance={"source": "human", "captured_at": "runtime",
                                             "verbatim_available": True})
                 if self.operator:
                     auth.provenance["operator"] = self.operator["login"]
                 self.signer.sign(auth)
-                return self._done(f"Sent: {words(held.intent)} ({held.client_context_id})",
-                                  self.sw.hub.release_disclosure(auth))
+                if kind == "send":
+                    return self._done(f"Sent: {words(held.intent)} ({held.client_context_id})",
+                                      self.sw.hub.release_disclosure(auth))
+                return self._done(f"Not sent: {words(held.intent)} ({held.client_context_id})",
+                                  self.sw.hub.decline_disclosure(auth))
             if kind == "decide":
                 w = next((w for w in self.sw.hitl.get_pending_waits()
                           if w["wait_id"] == body.get("id")), None)
@@ -684,6 +701,31 @@ class Desk:
 
 
 # ----------------------------------------------------------------- http
+class OwnerThread:
+    """Every call into the desk runs on ONE thread - the thread that built
+    it. The swarm's SQLite store may only be used from the thread that
+    opened it, so the page server can take many connections at once (a
+    stalled tablet no longer freezes everyone else's page) while the swarm
+    itself still sees one caller at a time."""
+
+    def __init__(self, factory):
+        from concurrent.futures import ThreadPoolExecutor
+        self._ex = ThreadPoolExecutor(max_workers=1, thread_name_prefix="desk-owner")
+        self.desk = self._ex.submit(factory).result()
+
+    def state(self):
+        return self._ex.submit(self.desk.state).result()
+
+    def act(self, body):
+        return self._ex.submit(self.desk.act, body).result()
+
+    def close(self):
+        try:
+            self._ex.submit(self.desk.close).result()
+        finally:
+            self._ex.shutdown(wait=True)
+
+
 def make_handler(desk, token):
     class H(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -748,12 +790,12 @@ def main(argv=None):
                                    else console.STATE_DIR)
     if args.showcase and args.fresh and os.path.isdir(state_dir):
         shutil.rmtree(state_dir)
-    desk = Desk(state_dir, args.config_dir, showcase=args.showcase)
+    desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase))
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
-    # one thread: the swarm's SQLite store may only be used from the thread
-    # that opened it, and one broker's page does not need more
-    srv = http.server.HTTPServer((host, args.port), make_handler(desk, token))
+    # connections on their own threads; the swarm on one (OwnerThread)
+    srv = http.server.ThreadingHTTPServer((host, args.port), make_handler(desk, token))
+    srv.daemon_threads = True
     url = f"http://{'<this-computer>' if args.lan else '127.0.0.1'}:{args.port}/" + \
         (f"?t={token}" if token else "")
     print(json.dumps({"desk": url, "mode": "showcase" if args.showcase else "live",
@@ -765,6 +807,10 @@ def main(argv=None):
     def _stop(*_a):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, _stop)
+    if hasattr(signal, "SIGBREAK"):
+        # Windows: SIGTERM cannot be sent to a process there (terminate() is
+        # TerminateProcess, a hard kill); Ctrl+Break is the clean stop
+        signal.signal(signal.SIGBREAK, _stop)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

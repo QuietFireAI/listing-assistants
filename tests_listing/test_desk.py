@@ -121,6 +121,47 @@ def test_send_signs_and_releases_once(played):
     assert "no longer held" in again["error"]
 
 
+def test_dont_send_signs_a_decline_and_nothing_goes_out(played):
+    d, *_ = played
+    held = [i for i in d.state()["needs_you"] if i["type"] == "held"]
+    assert held, "the scenes leave messages held"
+    target = held[-1]
+    before = d.state()["proof"]
+    r = d.act({"action": "decline", "id": target["id"], "reason": "wrong photographer"})
+    assert r["status"] == "declined" and r["envelope_id"] == target["id"]
+    log = d.sw.hub.audit.read()
+    dec = [e for e in log if e["kind"] == "disclosure.declined"
+           and e["held_envelope_id"] == target["id"]]
+    assert len(dec) == 1 and dec[0]["reason"] == "wrong photographer"
+    # the signed key on the chain names the decision and who signed it
+    persisted = {e["envelope_id"] for e in log if e["kind"] == "envelope.persisted"}
+    assert target["id"] not in persisted                      # never went out
+    after = d.state()
+    assert target["id"] not in {i["id"] for i in after["needs_you"]}
+    assert after["proof"]["held_now"] == before["held_now"] - 1
+    assert after["proof"]["declined"] == before["declined"] + 1
+    assert after["proof"]["gated_out"] == before["gated_out"]
+    assert any("signed Don't send" in a["text"] and "wrong photographer" in a["text"]
+               for a in after["activity"])
+    # too late to change your mind into a send: it is gone
+    assert "no longer held" in d.act({"action": "send", "id": target["id"]})["error"]
+    assert d.sw.hub.audit.verify_chain()["ok"]
+
+
+def test_console_decline_line_does_the_same(played):
+    import console
+    d, *_ = played
+    held = [i for i in d.state()["needs_you"] if i["type"] == "held"]
+    assert held
+    t = held[0]
+    r, err = console.apply_action(d.sw, d.signer, d.operator,
+                                  {"do": "decline", "ctx": t["ctx"], "intent": t["intent"],
+                                   "reason": "seller pulled it"})
+    assert not err and r and all(x["hub"]["status"] == "declined" for x in r)
+    assert t["id"] in {x["declined"] for x in r}
+    assert t["id"] not in d.sw.hub._absolute_holds
+
+
 def test_done_records_who_and_takes_the_item_off_the_list(played):
     d, *_ = played
     q = next(i for i in d.state()["needs_you"] if i["type"] == "queue")
@@ -140,11 +181,28 @@ def free_port():
     return port
 
 
+WINDOWS = os.name == "nt"
+
+
+def stop(p):
+    """A clean stop on both systems: SIGTERM on Linux/macOS; on Windows,
+    Ctrl+Break to the desk's own process group (terminate() there is a
+    hard kill that would leave desk.lock behind)."""
+    if WINDOWS:
+        import signal
+        p.send_signal(signal.CTRL_BREAK_EVENT)
+    else:
+        p.terminate()
+    p.wait(timeout=20)
+
+
 def start(args, state_dir):
     port = free_port()
+    extra = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if WINDOWS else {}
     p = subprocess.Popen([sys.executable, os.path.join(ROOT, "tools", "desk.py"), *args,
                           "--state-dir", state_dir, "--port", str(port)],
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=ROOT)
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=ROOT,
+                         **extra)
     # read the startup line on a thread with a deadline: a desk that never
     # announces itself fails this test instead of hanging the suite
     lines = queue.Queue()
@@ -180,6 +238,14 @@ def test_http_page_state_lock_and_access_code(tmp_path):
         req = urllib.request.Request(f"{base}/api/act?t={token}", method="POST",
                                      data=json.dumps({"action": "send", "id": "nope"}).encode())
         assert "no longer held" in json.load(urllib.request.urlopen(req))["error"]
+        # a real step over HTTP: runs the swarm and saves its SQLite state,
+        # from a server thread, through the desk's owner thread
+        for _ in range(3):
+            step = urllib.request.Request(f"{base}/api/act?t={token}", method="POST",
+                                          data=json.dumps({"action": "showcase.step"}).encode())
+            r = json.load(urllib.request.urlopen(step))
+            assert r.get("stepped") and r.get("error") is not True, r
+        assert json.load(urllib.request.urlopen(f"{base}/api/state?t={token}"))["showcase"]["pos"] >= 3
         # the lock: a console session and the daily clock refuse this folder
         env = {**os.environ, "LISTINGASSISTANTS_STATE_DIR": state}
         script = tmp_path / "s.jsonl"
@@ -193,6 +259,45 @@ def test_http_page_state_lock_and_access_code(tmp_path):
                                cwd=ROOT, capture_output=True, text=True)
         assert clock.returncode == 2 and "Broker Desk is running" in clock.stdout
     finally:
-        p.terminate()
-        p.wait(timeout=20)
+        stop(p)
     assert not os.path.exists(os.path.join(state, "desk.lock"))   # removed on a clean stop
+
+
+def test_a_stalled_connection_does_not_freeze_the_page(tmp_path):
+    """A tablet on bad Wi-Fi that opens a connection and stops mid-request
+    must not block anyone else's page (it did while the server was
+    single-threaded)."""
+    p, url, port = start(["--showcase"], str(tmp_path / "show"))
+    stalled = socket.create_connection(("127.0.0.1", port))
+    try:
+        stalled.sendall(b"GET /api/state HTTP/1.1\r\nHost: x\r\n")   # never finished
+        time.sleep(0.3)
+        t0 = time.time()
+        s = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state", timeout=10))
+        assert s["mode"] == "showcase" and time.time() - t0 < 5
+    finally:
+        stalled.close()
+        stop(p)
+
+
+def test_lock_left_by_a_dead_desk_is_ignored_and_a_live_one_holds(tmp_path):
+    """The pid check behind the lock, on whatever system runs the suite -
+    on Windows it is the OpenProcess/GetExitCodeProcess branch, where
+    os.kill(pid, 0) would have ended the process instead of asking."""
+    import console
+    state = str(tmp_path)
+    lock = os.path.join(state, "desk.lock")
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait(timeout=30)
+    with open(lock, "w") as f:
+        f.write(str(gone.pid))
+    assert console.desk_running(state) is None            # a crashed desk does not lock you out
+    alive = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        with open(lock, "w") as f:
+            f.write(str(alive.pid))
+        assert console.desk_running(state) == alive.pid
+        assert alive.poll() is None                       # asking did not end it
+    finally:
+        alive.kill()
+        alive.wait(timeout=30)

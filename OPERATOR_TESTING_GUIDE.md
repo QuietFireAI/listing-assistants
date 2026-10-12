@@ -15,10 +15,10 @@ Repo: `github.com/QuietFireAI/listing-assistants`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
-python3 -m pytest tests_listing -q  # expect: 994 passed
+python3 -m pytest tests_listing -q  # expect: 998 passed
 ```
 
-If `994 passed` prints, the build is sound and nothing needs addressing before you
+If `998 passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 
@@ -36,7 +36,7 @@ python tools/desk.py --showcase --fresh     # then open http://127.0.0.1:8765
 The yellow bar at the top plays the ten operator scenes one step per
 **Next** (or tick "play on its own"). When a scene reaches something that is
 the broker's to do, the bar turns red, the card in **Needs you** is outlined,
-and nothing moves until the presenter presses it. Five clips:
+and nothing moves until the presenter presses it. Six clips:
 
 | Clip | Where in the showcase | What the viewer sees |
 |---|---|---|
@@ -45,6 +45,7 @@ and nothing moves until the presenter presses it. Five clips:
 | 3 - A hot lead | Scene 3 | the lead card turns red with a five-minute call clock |
 | 4 - An upset client | Scene 9 | the client's words in Needs you; the activity feed shows nothing sent back |
 | 5 - The record | the end | press "Check the record": "The record is intact" |
+| 6 - **Saying no** | the end (messages are still held) | on a held message, the presenter taps **Don't send**, types a reason ("wrong photographer"), taps **Sign: don't send**; the card leaves, the feed reads "You signed Don't send: ... (wrong photographer)", the held tile counts "1 you signed not to send", and the "N of N" tile does not move: nothing went out |
 
 Say on camera what the proof strip says: MLS and email/SMS are not
 connected, so a released client message is recorded, not delivered to a
