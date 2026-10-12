@@ -48,9 +48,9 @@ After the demo, three optional checks you can show on screen:
 
 | Check | Command | What it shows |
 |---|---|---|
-| Daily clock | `python3 tools/run_sweeps.py --audit-log logs/sweep-audit.jsonl` | each agent's `clock.tick` delivered through the hub; JSON line per check. Standalone it acts on an empty swarm, so expect no deadlines. |
+| Daily clock | `python3 tools/run_sweeps.py` | each agent's `clock.tick` delivered through the hub, on the console's audit log and saved state; one JSON line per check |
 | Audit chain | `python3 tools/console.py verify` | `"chain": {"ok": true, ...}` for the console's log |
-| Client funnel page | `python3 tools/dashboard.py --html` | the drawers under `drawers/` and their funnel stage; empty until you create drawers |
+| Client funnel page | `python3 tools/dashboard.py --html` | the drawers under `drawers/` and their funnel stage; empty, because the agents do not file into drawers yet |
 
 **The single strongest moment for the camera is Act 4.** Pause there. It shows the
 lock holding, the human's key turning, and only then the action completing. That is

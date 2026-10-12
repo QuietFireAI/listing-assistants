@@ -135,71 +135,24 @@ class GovernedIdentity:
         self.demo_signing = demo_signing
         self.audit_path = os.path.join(
             tempfile.gettempdir(), f"{IDENTITY_NAME}-mcp-{uuid.uuid4().hex[:8]}.jsonl")
-        self.hub = Hub(routes, AuditLog(self.audit_path),
-                       signature_verifier=verifier.verifier())
-        self.external = []
-        self.hub.register("external", lambda e: self.external.append(e))
-        self.hub.register("human", lambda e: None)
-        self._wire_spokes()
-        self.hub.on_turn_start()
-
-    # Spoke modules known to this wrapper, by detection (not by folder name).
-    KNOWN = {"listing_spokes": "_wire_listing"}
-
-    def _wire_spokes(self):
-        """Mount real spokes by DETECTING which spoke module is present in
-        dispatcher/ - never by directory name (fork-safe). Absence is
-        honest: describe/audit still work; submit reports spec-only."""
-        self.spokes = {}
-        self.spoke_mod = None
-        import glob
-        disp = os.path.join(ROOT, "dispatcher")
-        for path in glob.glob(os.path.join(disp, "*_spokes.py")):
-            name = os.path.basename(path)[:-3]  # e.g. listing_spokes
-            if name in self.KNOWN:
-                try:
-                    mod = __import__(f"dispatcher.{name}", fromlist=["*"])
-                except Exception:
-                    continue
-                self.spoke_mod = mod
-                getattr(self, self.KNOWN[name])(mod)
-                return
-
-    def _wire_listing(self, _m):
-        """Wire the full listing swarm (18 spokes) exactly as the e2e
-        harness does. The entry module is listing_spokes; the rest are
-        listing_spokes_NN."""
-        import importlib
-        L = lambda n: importlib.import_module(f"dispatcher.{n}")
-        base = L("listing_spokes")
-        s = {
-            "01": base.Spoke01LeadCapture(self.hub,
-                                          brokerage_scope={"L1", "MLS-1"}),
-            "02": L("listing_spokes_02").Spoke02LeadQualification(self.hub),
-            "04": L("listing_spokes_04").Spoke04ListingDescription(self.hub),
-            "05": L("listing_spokes_05").Spoke05MLSListingManagement(self.hub),
-            "06": L("listing_spokes_06").Spoke06ShowingScheduler(self.hub),
-            "07": L("listing_spokes_07").Spoke07TransactionCoordinator(self.hub),
-            "08": L("listing_spokes_08").Spoke08DocumentCollection(
-                self.hub, expected_senders={}),
-            "09": L("listing_spokes_09").Spoke09VendorCoordination(
-                self.hub, roster={"v-photo": {"kind": "photography",
-                                              "license_expiry": "2027-01-01",
-                                              "insurance_expiry": "2027-01-01",
-                                              "regulated": False}}),
-            "10": L("listing_spokes_10").Spoke10MarketData(self.hub),
-            "11": L("listing_spokes_11").Spoke11ClientCommunication(self.hub),
-            "12": L("listing_spokes_12").Spoke12MarketingCampaign(self.hub),
-            "13": L("listing_spokes_13").Spoke13BuyerSearchMatch(self.hub),
-            "14": base.Spoke14CRMPipeline(self.hub),
-            "15": L("listing_spokes_15").Spoke15FinancialTracking(self.hub),
-            "16": L("listing_spokes_16").Spoke16AfterCloseReferral(self.hub),
-            "17": L("listing_spokes_17").Spoke17ComplianceFairHousing(self.hub),
-            "18": L("listing_spokes_18").Spoke18CalendarTask(self.hub),
-        }
-        for aid, sp in s.items():
-            self.hub.register(aid, sp.handle)
-        self.spokes = s
+        # One swarm builder for every entry point (dispatcher/swarm.py),
+        # fixed 2026-10-11: this server used to build 18 of the 20 agents by
+        # hand, with a made-up photography vendor ("v-photo") and made-up
+        # listing scope, and re-registered each agent's bare handler so the
+        # unrecognized-config check was skipped. Now: all 20 agents, the HITL
+        # manager, the vendor roster only from a ratified file
+        # (LISTING_CONFIG_DIR, default config/), and saved state only when
+        # LISTING_STATE_DB names a file.
+        from .swarm import build_swarm
+        self.swarm = build_swarm(self.audit_path,
+                                 state_db=os.environ.get("LISTING_STATE_DB") or None,
+                                 config_dir=os.environ.get("LISTING_CONFIG_DIR") or None,
+                                 verifier=verifier.verifier())
+        self.hub = self.swarm.hub
+        self.external = self.swarm.external
+        self.spokes = self.swarm.spokes
+        from . import listing_spokes as _ls
+        self.spoke_mod = _ls
 
     # --- front-door operations -------------------------------------------
     def describe(self):

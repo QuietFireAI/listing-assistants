@@ -37,12 +37,17 @@ same check our CI runs on every change.
 **What day one looks like.** You configure what only you can: your
 lead-scoring rubric (the thresholds are yours, signed, versioned),
 your approved vendor roster with credential dates, your compliance
-ruleset, your message templates, your cadences. Then a daily scheduler
+ruleset, your nurture sequences, your message templates, your cadences.
+Then a daily scheduler
 invokes the clock layer (`tools/run_sweeps.py` — one cron line), and
 the swarm starts doing what the docs describe. Until your external
 adapters are connected, outbound actions (MLS writes, client sends,
 ad publishes) queue visibly rather than pretending — the system tells
 you what's dark.
+
+**Test it yourself on camera.** `docs/OPERATOR_TESTING_MANUAL.md` walks
+ten ready-made scenes (`scenes/`), each with the exact output to expect;
+the suite runs the same ten files on every build.
 
 **Where to read next, in order:**
 1. `docs/AGENT_USER_MANUAL.md` — your day with ListingAssistants, as a broker
