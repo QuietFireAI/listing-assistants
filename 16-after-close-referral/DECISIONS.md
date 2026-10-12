@@ -24,4 +24,7 @@ constrains everything.
 - (referral reward mention requested, 17 gate first; inducement rules vary by state)
 - (contact bounced/disconnected, mark stale, no skip-tracing; re-permission is a human choice)
 
+Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
+- (compliance verdict on a past client's referral-reward mention, send it to the broker with the client's own words; the broker answers the client)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

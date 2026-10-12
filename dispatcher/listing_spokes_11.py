@@ -65,18 +65,11 @@ class Spoke11ClientCommunication:
          (including the advice portion) is what's forwarded. Real
          sentence-splitting would be invented NLP logic this review
          won't guess at; flagging rather than pretending it's done.
-      2. client is angry -> acknowledge + escalation.complaint, no
-         defensiveness, no promises. CONFLICT WITH THE RATIFIED PLAYBOOK,
-         NOT RESOLVED HERE: checked playbooks/P14-complaint-response
-         directly - its HITL gates say "No agent replies publicly or
-         privately to the complaint - drafting is permitted, sending is
-         human-only." This tuple's own text says to send an
-         acknowledgment. These are in direct conflict for the same real
-         event. Did not silently pick a side - left the existing
-         acknowledgment send untouched, added P14's other requirement
-         (the outbound hold, step 2) since that part doesn't touch the
-         disputed question. Needs an owner decision: does the
-         acknowledgment stay, or does P14's human-only reply rule win?
+      2. client is angry -> amended 2026-10-12 (owner decision): straight
+         to the human (escalation.complaint, verbatim), logged to 14,
+         outbound held (P14 step 2); nothing is sent to the client. The
+         tuple used to say acknowledge, which conflicted with P14's
+         human-only response; the owner resolved it for P14.
       3. two agents report conflicting statuses -> send nothing,
          clarification. Fixed 2026-07-16: the conflict-detection logic
          only ran for status.update - deadline.alert and
@@ -124,6 +117,7 @@ class Spoke11ClientCommunication:
         # consent as 14 last reported it, per context (opt-out check before
         # every client send - 2026-10-12 doc review: none existed)
         self.consent_seen: dict[str, dict] = {}
+        self.no_consent_reported: set[str] = set()   # broker told once per client
         self._consent_check_open: str | None = None
         register_spoke(hub, "11", self)
         register_resumer(hub, "11", self._resume)
@@ -238,13 +232,12 @@ class Spoke11ClientCommunication:
                                          "human notified instead"}))
             return False
 
-        # opt-out check against 14, the system of record for consent
-        # (2026-10-12 doc review: 01 and this SKILL.md said 11 respects
-        # 14's consent flags; nothing checked them, so a client who opted
-        # out on every channel kept getting status updates). An opt-out on
-        # every channel blocks the send; the one opt-out confirmation
-        # (01's tuple 15) still goes. A context with no consent on record is
-        # not blocked here - whether that should block is the owner's call.
+        # consent check against 14, the system of record for consent.
+        # Owner decision 2026-10-12: a client message needs consent on
+        # record - at least one channel marked "yes" at 14. No consent on
+        # record, or an opt-out on every channel, blocks the send; each
+        # blocked send is logged to 14 and the broker is told once per
+        # client. The one opt-out confirmation (01's tuple 15) still goes.
         if template != "opt_out_confirmed":
             self.consent_seen.pop(ctx, None)
             self._consent_check_open = ctx
@@ -254,14 +247,23 @@ class Spoke11ClientCommunication:
             finally:
                 self._consent_check_open = None
             consent = self.consent_seen.pop(ctx, None) or {}
-            if consent and all(v == "no" for v in consent.values()):
+            if not any(v == "yes" for v in consent.values()):
+                opted_out = bool(consent) and all(v == "no" for v in consent.values())
+                why = "opted_out" if opted_out else "no_consent"
                 self.hub.ingest_spoke_trace(
                     "11", env.envelope_id if env else "internal",
-                    thought=f"14 records an opt-out on every channel for {ctx!r} - "
-                            f"{template!r} is not sent",
-                    result="blocked: opted_out")
+                    thought=f"14 records {'an opt-out on every channel' if opted_out else 'no consent on any channel'} "
+                            f"for {ctx!r} - {template!r} is not sent",
+                    result=f"blocked: {why}")
                 self.hub.send(_env("11", "14", "interaction.log", ctx,
-                                   {"kind": "send_blocked_opted_out", "template": template}))
+                                   {"kind": f"send_blocked_{why}", "template": template}))
+                if why == "no_consent" and ctx not in self.no_consent_reported:
+                    self.no_consent_reported.add(ctx)
+                    self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                       {"reason": "client messages are not being sent - no "
+                                                  "consent on record at 14; record the client's "
+                                                  "consent with a signed consent_record",
+                                        "first_blocked_template": template}))
                 return False
         self.hub.send(_env("11", "external", "client.message.send", ctx,
                            {"template": template, "variables": variables}))
@@ -411,15 +413,19 @@ class Spoke11ClientCommunication:
                                           payload.get("hour", 12), env=env)
                 return
 
-            # tuple 2: angry client -> acknowledge + complaint escalation
+            # tuple 2, amended 2026-10-12 (owner decision): an angry client
+            # goes to the human at once and is logged; no message is sent to
+            # the client (the acknowledgement was removed - P14: the entire
+            # response is human).
             if payload.get("angry"):
                 self.complaint_hold.add(ctx)  # P14 step 2: outbound hold
                 self.hub.escalate("escalation.complaint",
                                   {"client_context_id": ctx,
                                    "trigger": "angry client contact",
                                    "verbatim": message})
-                self._send_client_message(ctx, "acknowledge_no_promises", {},
-                                          payload.get("hour", 12), env=env)
+                self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                   {"kind": "complaint_received", "verbatim": message,
+                                    "routed_to": "escalation.complaint"}))
                 return
 
             # tuple 10: negative tone -> route P14 complaint intake, never

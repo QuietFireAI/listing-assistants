@@ -200,8 +200,8 @@ When the route itself is uncertain:
    the agent has it, the exact input verbatim.
 3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
    Paused is not off. A "someone will follow up" message goes to a waiting
-   party only where an agent's section 2 says so (Agent 11's advice and
-   complaint acknowledgements, Agent 20's reply when a question in a mention
+   party only where an agent's own sections say so (Agent 11's advice
+   acknowledgement, Agent 20's reply when a question in a mention
    may involve an existing client);
    otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement

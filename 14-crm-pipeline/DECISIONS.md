@@ -30,4 +30,7 @@ Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
 - (an access window has ended and the broker has not closed it, flag it once; never daily)
 - (filing a client record into the client's drawer fails, record the refusal and hold it for the broker; the CRM entry stands)
 
+Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
+- (broker signs a client's consent record, set each channel as signed; a channel the client opted out of stays "no" unless the record says the client reconfirmed; a malformed record is rejected whole)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

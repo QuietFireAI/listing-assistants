@@ -441,6 +441,46 @@ class Spoke14CRMPipeline:
                                               or "access_closed" in env.payload):
             return self._access_record(ctx, env)
 
+        if env.intent == "config.update" and "consent_record" in env.payload:
+            # Owner decision 2026-10-12: Agent 11 sends nothing to a client
+            # without consent on record here. Leads get theirs from 01 at
+            # capture; for any other client (a seller, a buyer, a party to a
+            # deal) the broker records it with this signed setting, e.g.
+            # {"consent_record": {"email": "yes", "text": "no"}}. A channel
+            # the client opted out of stays "no" unless the setting says the
+            # client reconfirmed ("reconfirmed_by_client": true).
+            rec = env.payload["consent_record"]
+            extra = sorted(set(env.payload) - {"consent_record", "reconfirmed_by_client"})
+            ok = (isinstance(rec, dict) and rec and not extra
+                  and all(k in ("call", "text", "email") and v in ("yes", "no")
+                          for k, v in rec.items())
+                  and isinstance(env.payload.get("reconfirmed_by_client", False), bool))
+            if not ok:
+                self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                                   {"reason": "consent_record rejected; nothing changed - "
+                                              "expected {\"consent_record\": {\"call\"|\"text\"|"
+                                              "\"email\": \"yes\"|\"no\"}} and optionally "
+                                              "\"reconfirmed_by_client\": true"}))
+                return
+            current = self.consent.setdefault(ctx, {})
+            kept_no = sorted(ch for ch, v in rec.items()
+                             if v == "yes" and current.get(ch) == "no"
+                             and not env.payload.get("reconfirmed_by_client"))
+            for ch, v in rec.items():
+                if ch not in kept_no:
+                    current[ch] = v
+            self._append(ctx, "config.update", env)
+            if kept_no:
+                self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                                   {"reason": "the client opted out on these channels; they stay "
+                                              "\"no\" until the setting says the client reconfirmed",
+                                    "channels": kept_no}))
+            self.hub.ingest_spoke_trace("14", env.envelope_id,
+                                        thought=f"broker-signed consent for {ctx!r}: {dict(current)}"
+                                                + (f"; kept 'no' on {kept_no}" if kept_no else ""),
+                                        result="consent recorded")
+            return
+
         if env.intent == "config.update" and "client_dates" in env.payload:
             # P13 dates for this client (broker-signed). Validated whole.
             import re as _re

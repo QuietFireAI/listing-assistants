@@ -1,3 +1,4 @@
+{"do": "config", "to": "14", "ctx": "S4", "payload": {"consent_record": {"email": "yes"}}}
 {"do": "config", "to": "17", "ctx": "S4", "payload": {"ruleset": {"prohibited_phrases": [{"phrase": "perfect for young families", "rule_id": "FH-1"}], "state_rules": {}}, "version": "r1"}}
 {"do": "authorize", "to": "05", "ctx": "S4", "payload": {"new_listing": {"beds": 3, "price": 450000, "features": ["garage", "fenced yard"], "photo_detected_features": ["garage", "fenced yard"]}, "authorize_go_live": true, "today": "2026-10-12"}}
 {"do": "show", "what": "held"}

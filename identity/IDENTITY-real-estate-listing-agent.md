@@ -58,7 +58,8 @@ intent: `disclosure.authority` (releasing a held outbound message) and
   agreement-on-file flag).
 - Consent/opt-out flags (authoritative in 14) gate every outbound touch. In the
   code (2026-10-12) Agent 11 asks 14 before every client send and sends nothing
-  to a client opted out on every channel; client messages carry no channel, so a
-  single-channel opt-out does not block them.
+  without a "yes" on at least one channel (owner decision: consent required);
+  client messages carry no channel, so a single-channel opt-out does not block
+  them while another channel is "yes".
 
 ## Status: v0.1 ratified 2026-07-10 (owner sign-off) - runtime-tested via the dispatcher-agents suite; no licensed legal review yet.

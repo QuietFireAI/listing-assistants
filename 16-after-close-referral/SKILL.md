@@ -30,7 +30,7 @@ the date triggers, this agent executes the greetings.
 - Solicit referrals on a periodic cadence per the supplied client list.
 - Send birthday and holiday greetings on `date.trigger` from CRM (14), per the human-supplied list - no list entry, no greeting.
 - Solicit reviews and testimonials post-close.
-- Check consent/opt-out flags before every touch; opt-out halts all touches for that contact. In the code this agent checks the `opt_out` flag on its own client list (set by the broker's signed setting); every touch goes through Agent 11, which also refuses to message a client 14 records as opted out on every channel.
+- Check consent/opt-out flags before every touch; opt-out halts all touches for that contact. In the code this agent checks the `opt_out` flag on its own client list (set by the broker's signed setting); every touch goes through Agent 11, which also sends nothing to a client without a "yes" on some channel at 14.
 
 How the code does it today (checked 2026-10-12): the daily clock sends the 30,
 90 and 365-day check-ins from the close date; greetings and anniversaries come
@@ -200,8 +200,8 @@ When the route itself is uncertain:
    the agent has it, the exact input verbatim.
 3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
    Paused is not off. A "someone will follow up" message goes to a waiting
-   party only where an agent's section 2 says so (Agent 11's advice and
-   complaint acknowledgements, Agent 20's reply when a question in a mention
+   party only where an agent's own sections say so (Agent 11's advice
+   acknowledgement, Agent 20's reply when a question in a mention
    may involve an existing client);
    otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement

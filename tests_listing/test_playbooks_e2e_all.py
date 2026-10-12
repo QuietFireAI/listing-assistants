@@ -224,6 +224,7 @@ def test_p07_tour_day_coordination(tmp_path):
     feedback logged, profile updated only from explicit statements."""
     hub, signer, spokes, external = full_swarm(str(tmp_path))
     ctx = "p07"
+    hub.send(signed(signer, "14", "config.update", ctx, {"consent_record": {"email": "yes"}}))  # client's consent on record
     hub.send(spoke_env("13", "06", "showing.request", ctx,
                        {"listing_id": "L1", "buyer_agreement_on_file": True,
                         "requester_identity_verified": True,
@@ -512,6 +513,7 @@ def test_p18_seller_weekly_report(tmp_path):
     """Assembled draft is compliance-screened, then sent on approval."""
     hub, signer, spokes, external = full_swarm(str(tmp_path))
     ctx = "p18"
+    hub.send(signed(signer, "14", "config.update", ctx, {"consent_record": {"email": "yes"}}))  # client's consent on record
     hub.send(signed(signer, "17", "config.update", ctx,
                     {"ruleset": RULESET, "version": "r1"}))
     # 4: fair-housing screen on the assembled draft

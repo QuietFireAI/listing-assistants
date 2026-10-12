@@ -15,7 +15,7 @@ stored before the run. Swarm-wide tuples in /SWARM.md apply first; MANNERS.md
 constrains everything.
 
 - (client reply mixes routine + advice questions, answer neither; split and route both)
-- (client is angry, acknowledge + escalation.complaint; no defensiveness, no promises)
+- (client is angry, acknowledge + escalation.complaint; no defensiveness, no promises) - RETIRED 2026-10-12 (owner decision): angry clients go straight to the human; no acknowledgement is sent (replacement tuple below)
 - (two agents report conflicting statuses, send nothing; clarification)
 - (urgent deadline alert lands inside quiet hours, send only if human config marks that alert class exempt; otherwise wake the human, not the client)
 - ('what would you do?' from a client, escalation.legal_line with the question verbatim)
@@ -25,6 +25,11 @@ constrains everything.
 - (client references a conversation not on the log, acknowledge + ask for particulars; never pretend recall)
 - (negative-tone reply received, route P14 complaint intake; never freestyle de-escalation)
 - (client requests contact-channel change, honor immediately, record via 14, confirm once)
+
+Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
+- (client has no consent on record at 14 on any channel, send nothing; log each blocked message to 14 and tell the broker once for that client)
+- (client opted out on every channel, send nothing and log it; the one opt-out confirmation still goes)
+- (client is angry, straight to the human: escalation.complaint with the words verbatim, logged to 14, outbound held; nothing is sent to the client - the response is human)
 
 Code status (checked 2026-10-12): "split and route both" - the reply goes to
 the Legal Line and the whole message, labeled `routine_only`, to the owning

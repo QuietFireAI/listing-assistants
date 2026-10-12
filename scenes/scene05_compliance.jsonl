@@ -1,3 +1,4 @@
+{"do": "config", "to": "14", "ctx": "S5", "payload": {"consent_record": {"email": "yes"}}}
 {"do": "config", "to": "17", "ctx": "S5", "payload": {"ruleset": {"prohibited_phrases": [{"phrase": "perfect for young families", "rule_id": "FH-1"}], "state_rules": {}}, "version": "r1"}}
 {"do": "authorize", "to": "05", "ctx": "S5", "payload": {"new_listing": {"beds": 4, "price": 525000, "features": ["garage", "perfect for young families"]}, "authorize_go_live": true, "today": "2026-10-12"}}
 {"do": "release", "ctx": "S5", "intent": "vendor.schedule"}

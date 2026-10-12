@@ -81,6 +81,11 @@ end-to-end test.
   hub's JEV start-up line reports a key as present, never as live; the
   unauthenticated text-message command parser is removed. Signatures made
   before this release do not verify after it.
+- **Consent and complaints (owner decisions, 2026-10-12).** Agent 11 sends
+  nothing to a client without consent on record at Agent 14; a lead's
+  consent comes in at capture, and the broker records any other client's
+  with a signed `consent_record`. An angry client goes straight to the
+  broker, logged, with no automatic reply.
 - **Also fixed while wiring.** A capitalized prohibited phrase was flagged
   by 17 but never found by 04, so the draft bounced twenty times until the
   hub suspended the loop; a signed setting re-sent with the same values
@@ -126,7 +131,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 974 passed
+python -m pytest tests_listing/        # expect: 984 passed
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

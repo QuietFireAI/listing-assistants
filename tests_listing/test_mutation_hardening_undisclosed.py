@@ -19,6 +19,7 @@ from dispatcher.hub import Hub
 from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
 from dispatcher.listing_spokes_06 import Spoke06ShowingScheduler
 from dispatcher.listing_spokes_11 import Spoke11ClientCommunication
+from tests_listing.consent_fixture import give_consent
 
 IDENTITY_ROUTES = os.path.join(os.path.dirname(__file__), "..", "identity",
                                "routes.json")
@@ -134,6 +135,7 @@ def test_11_unresolved_template_var_holds_not_sends(tmp_path):
     'sent' and a blank-filled message would go to the client."""
     s = Spoke11ClientCommunication(make_hub(str(tmp_path)))
     s.hub.on_turn_start()
+    give_consent(s.hub, "u-1", "u-2")
     result = s._send_client_message("u-1", "update",
                                     {"name": None}, hour=10)  # unresolved
     assert result is False, \

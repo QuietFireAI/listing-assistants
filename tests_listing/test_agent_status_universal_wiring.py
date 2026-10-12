@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from dispatcher.core import Envelope, Routes, AuditLog
 from dispatcher.hub import Hub
 from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
+from tests_listing.consent_fixture import give_consent
 
 IDENTITY_ROUTES = os.path.join(os.path.dirname(__file__), "..", "identity",
                                "routes.json")
@@ -378,6 +379,7 @@ def test_TUNABLE_agent11_exempt_alert_classes_is_real(tmp_path):
     hub, signer = make_signed_hub(str(tmp_path))
     Spoke11ClientCommunication(hub, exempt_alert_classes={"wire_fraud_alert"})
     hub.on_turn_start()
+    give_consent(hub, "t-1")
     env = Envelope(from_agent="07", to_agent="11", intent="deadline.alert",
                   client_context_id="t-1",
                   payload={"template": "wire_fraud_alert",

@@ -74,8 +74,8 @@ model.
 - **State survives a restart.** The swarm's state is saved to a local SQLite
   file after each session or clock run and restored at start-up only when
   the hash-chained audit log vouches for that exact save.
-- **Predeliberated decisions.** 250 decision tuples (each agent's
-  `DECISIONS.md`; 2 of them marked retired) say what an agent does at each
+- **Predeliberated decisions.** 258 decision tuples (each agent's
+  `DECISIONS.md`; 3 of them marked retired) say what an agent does at each
   known crossing. A situation
   no tuple covers stops and goes to the human.
 - **Drafts stay drafts.** Configuration files ship as proposed drafts.
@@ -211,7 +211,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 974 passed
+python -m pytest tests_listing/        # expect: 984 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

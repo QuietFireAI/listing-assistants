@@ -45,7 +45,7 @@ on 2026-10-11. For every numeric parameter, see
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 974 passed
+python -m pytest tests_listing/          # expect: 984 passed
 python tools/console.py init             # your signing key, mode 0600, stays on this machine
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
@@ -99,6 +99,7 @@ a setting the agent does not recognize is held too.
 | 08 | `expected_senders` | who should send each sensitive document: `{"closing_settlement_statement": ["title@..."]}` |
 | 11 | `resolve_complaint_hold`, `resolve_advice_response` | releases a complaint hold; closes an advice wait |
 | 13 | `buyer_criteria` | a buyer's stated criteria |
+| 14 | `consent_record` | the client's consent per channel, e.g. `{"email": "yes", "text": "no"}`; Agent 11 sends a client nothing without a "yes" on some channel. A channel the client opted out of stays "no" unless you add `"reconfirmed_by_client": true` |
 | 14 | `buyer_agreement_on_file`, `requester_identity_verified` | your record that the agreement is signed / identity checked |
 | 14 | `client_dates` | P13 dates for a client: `{"purchase_anniversary": "07-18"}` (MM-DD every year, YYYY-MM-DD once) |
 | 14 | `access_grant`, `access_closed` | P19: `{"party": "...", "window_end": "YYYY-MM-DD", "custody_ref": "..."}` - never the code or key; `{"party": "..."}` when it is back or changed |

@@ -32,13 +32,14 @@ not message clients.
 - Consent and opt-out flags are authoritative HERE: stored per contact, propagated to 03, 11, and 16 same-day on change, and served on `record.request`; no agent may message contrary to these flags.
 - Property access custody (P19, amended 2026-10-12): keep the broker-signed access grants (party, window end, custody reference - never the code or key) and flag once any window that has ended without the broker closing it.
 - Client drawers (amended 2026-10-12): file a copy of every CRM entry into the client's drawer; a filing that fails is recorded and held for the broker.
-- Broker-signed record updates: `client_dates` (date triggers), `buyer_agreement_on_file`, `requester_identity_verified`, access grants and closings, `release_record_freeze`, `delete_record` (a deletion or retention request goes to the broker on the legal line).
+- Broker-signed record updates: `consent_record` (the client's consent per channel - call, text, email - for a client who did not come in as a lead; a channel the client opted out of stays "no" unless the record says the client reconfirmed; added 2026-10-12), `client_dates` (date triggers), `buyer_agreement_on_file`, `requester_identity_verified`, access grants and closings, `release_record_freeze`, `delete_record` (a deletion or retention request goes to the broker on the legal line).
 - End-of-day report to the broker on request (`eod_report`, through the daily clock).
 
 How the code does it today (checked 2026-10-12): consent and opt-out flags are
 stored here and served on every `record.request`; they are not pushed to 03, 11
 or 16 when they change (no route carries that). Agent 11 asks for them before
-every client send and does not send to a client opted out on every channel;
+every client send and sends nothing to a client without a "yes" on some
+channel;
 03 uses the consent in the lead it was given; 16 uses the opt-out flag on its
 own client list. Pipeline stages and referral sources are not yet in the code.
 Reports go to the broker only. Conflicting facts are flagged on the new entry
@@ -194,8 +195,8 @@ When the route itself is uncertain:
    the agent has it, the exact input verbatim.
 3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
    Paused is not off. A "someone will follow up" message goes to a waiting
-   party only where an agent's section 2 says so (Agent 11's advice and
-   complaint acknowledgements, Agent 20's reply when a question in a mention
+   party only where an agent's own sections say so (Agent 11's advice
+   acknowledgement, Agent 20's reply when a question in a mention
    may involve an existing client);
    otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement

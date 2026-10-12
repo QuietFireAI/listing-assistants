@@ -169,7 +169,7 @@ This agent does not qualify, score, nurture, or advise. It captures.
 - Capture, at minimum: prospect name and contact info; property interest (address, listing ID, or criteria); timeline to transact; budget range; pre-approval status (yes / no / unknown - never inferred).
 - Emit a structured lead object to the Dispatcher (`lead.captured`).
 - If a field cannot be captured, it stays empty (null; pre-approval is `unknown`) - never estimated, never filled from a prior lead. A low-confidence call transcript empties name, timeline, budget and pre-approval.
-- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork. In the code (checked 2026-10-12): 03 sends nothing without a "yes" on some channel; 11 refuses a client 14 records as opted out on every channel but does not require an opt-in; 16 follows the opt-out flag on its own client list. Whether a client with no consent on record may get messages from 11 is open for the owner.
+- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork. In the code (checked 2026-10-12): 03 sends nothing without a "yes" on some channel; 11 sends nothing to a client without a "yes" on some channel at 14 (owner decision 2026-10-12); 16 also follows the opt-out flag on its own client list.
 - On every inbound with contact info, query CRM via `record.request` before creating a new lead object - dedupe against existing contexts; never merge identities without confirmation.
 - Possible duplicate person (owner decision 2026-10-11): when 14 reports the same phone or email under another context, the whole thread holds for the broker. Continue = a separate person, scored as a new lead; cancel = the thread closes, nothing merged.
 - If 14 has not answered the dedupe request within `record_response_timeout_days` (default 1), the daily clock retries once, then holds the lead with `handoff.failed`. A lead is never scored undeduped.
@@ -206,7 +206,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 **Summary:** Long-cycle lead nurture. Use for drip email/text sequences, behavioral re-engagement triggers, the weekly re-score cadence, and returning re-scored leads to qualification.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.rescored
 **Receives:** behavioral.signal, clock.tick, content.verdict, lead.nurture, lead.reply
-**Predeliberated tuples:** 15 (see 03-lead-nurture/DECISIONS.md)
+**Predeliberated tuples:** 16 (see 03-lead-nurture/DECISIONS.md)
 
 Manages long-cycle leads not yet ready to transact. Executes drip
 sequences, re-scores nurtured leads on a cadence, watches behavioral signals, and hands leads back to
@@ -446,7 +446,7 @@ the supplied data would pass through.
 **Summary:** Routine client messaging. Use for delivering scheduling and milestone updates and the broker-approved weekly seller report to clients and routing their replies; escalates all advice-seeking immediately.
 **Sends:** agent.status, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
 **Receives:** client.message.request, client.reply, deadline.alert, record.response, status.update
-**Predeliberated tuples:** 11 (see 11-client-communication/DECISIONS.md)
+**Predeliberated tuples:** 14 (see 11-client-communication/DECISIONS.md)
 
 Single voice for routine client updates: scheduling confirmations,
 milestone notices, the broker-approved weekly seller report. Other agents draft the triggering fact;
@@ -458,10 +458,10 @@ giving advice, and it only ever does the first.
 - Send only facts received via envelope from the owning agent - never elaborate a status into an interpretation ("appraisal came in" never becomes "came in strong").
 - Route inbound client replies to the owning agent or escalate.
 - Log every client touch to CRM (14).
-- Sends respect configured quiet hours (TCPA-permissible contact windows) and opt-outs recorded at 14: before every send this agent asks 14 for the client's consent, and an opt-out on every channel blocks the send and logs it (the one opt-out confirmation still goes; added 2026-10-12, before which nothing was checked). A client with no consent on record is not blocked here.
+- Sends respect configured quiet hours (TCPA-permissible contact windows) and consent recorded at 14 (owner decision 2026-10-12: a client message needs consent): before every send this agent asks 14 for the client's consent. No channel marked "yes" - no consent on record, or an opt-out on every channel - blocks the send; each blocked message is logged to 14, and for a client with no consent on record the broker is told once. The one opt-out confirmation still goes. Leads get their consent recorded by 01 at capture; for any other client the broker signs a `consent_record` at 14.
 - Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
-- An angry client (the reply's `angry` flag) gets one acknowledgement that makes no promises (`acknowledge_no_promises`); the complaint goes to the broker (`escalation.complaint`) and routine updates to that client are not sent (each one is logged to 14) until the broker signs `resolve_complaint_hold`.
+- An angry client (the reply's `angry` flag) goes straight to the broker (`escalation.complaint`, the words verbatim) and is logged to 14; nothing is sent to the client (owner decision 2026-10-12 - the response is human). Routine updates to that client are not sent (each one is logged to 14) until the broker signs `resolve_complaint_hold`.
 - Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## Agent 12 - Marketing Campaign Agent
@@ -470,7 +470,7 @@ giving advice, and it only ever does the first.
 **Summary:** Marketing distribution. Use for scheduling social posts, newsletters, and Facebook/Instagram/Google ad copy from compliance-approved assets, and tracking engagement metrics.
 **Sends:** agent.status, behavioral.signal, campaign.publish, content.review, interaction.log
 **Receives:** asset.release, content.verdict, lead.reply, platform.metrics, status.update
-**Predeliberated tuples:** 10 (see 12-marketing-campaign/DECISIONS.md)
+**Predeliberated tuples:** 11 (see 12-marketing-campaign/DECISIONS.md)
 
 Distributes and schedules marketing: social posts (just listed, just
 sold, open house, market updates), email newsletters, ad copy for
@@ -506,7 +506,7 @@ setting to check against; demographic targeting is refused.
 **Summary:** Buyer-side search and matching. Use for maintaining client-stated buyer criteria, matching new inventory to buyers, delivering matches, and generating showing requests, with anti-steering safeguards.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, record.request, showing.request
 **Receives:** clock.tick, content.verdict, lead.reply, listing.data, prospect.opportunity, record.response
-**Predeliberated tuples:** 10 (see 13-buyer-search-match/DECISIONS.md)
+**Predeliberated tuples:** 11 (see 13-buyer-search-match/DECISIONS.md)
 
 Owns the buyer side of finding property - the gap in the original
 roster. Maintains buyer criteria profiles, matches new inventory to buyers,
@@ -533,7 +533,7 @@ filtering is steering, and steering is a fair housing violation.
 **Summary:** System of record. Use for contact database maintenance, interaction logging, pipeline stage management, date trigger emission (birthdays, anniversaries, holidays), referral source tracking, and pipeline reports.
 **Sends:** date.trigger, record.response, report.package
 **Receives:** clock.tick, interaction.log, record.request, status.update, transaction.closed
-**Predeliberated tuples:** 13 (see 14-crm-pipeline/DECISIONS.md)
+**Predeliberated tuples:** 14 (see 14-crm-pipeline/DECISIONS.md)
 
 The swarm's system of record. Maintains the contact database, logs all
 interactions received from every agent, manages pipeline stages, emits date
@@ -551,13 +551,14 @@ not message clients.
 - Consent and opt-out flags are authoritative HERE: stored per contact, propagated to 03, 11, and 16 same-day on change, and served on `record.request`; no agent may message contrary to these flags.
 - Property access custody (P19, amended 2026-10-12): keep the broker-signed access grants (party, window end, custody reference - never the code or key) and flag once any window that has ended without the broker closing it.
 - Client drawers (amended 2026-10-12): file a copy of every CRM entry into the client's drawer; a filing that fails is recorded and held for the broker.
-- Broker-signed record updates: `client_dates` (date triggers), `buyer_agreement_on_file`, `requester_identity_verified`, access grants and closings, `release_record_freeze`, `delete_record` (a deletion or retention request goes to the broker on the legal line).
+- Broker-signed record updates: `consent_record` (the client's consent per channel - call, text, email - for a client who did not come in as a lead; a channel the client opted out of stays "no" unless the record says the client reconfirmed; added 2026-10-12), `client_dates` (date triggers), `buyer_agreement_on_file`, `requester_identity_verified`, access grants and closings, `release_record_freeze`, `delete_record` (a deletion or retention request goes to the broker on the legal line).
 - End-of-day report to the broker on request (`eod_report`, through the daily clock).
 
 How the code does it today (checked 2026-10-12): consent and opt-out flags are
 stored here and served on every `record.request`; they are not pushed to 03, 11
 or 16 when they change (no route carries that). Agent 11 asks for them before
-every client send and does not send to a client opted out on every channel;
+every client send and sends nothing to a client without a "yes" on some
+channel;
 03 uses the consent in the lead it was given; 16 uses the opt-out flag on its
 own client list. Pipeline stages and referral sources are not yet in the code.
 Reports go to the broker only. Conflicting facts are flagged on the new entry
@@ -596,7 +597,7 @@ connected.
 **Summary:** Post-close relationship and referrals. Use for 30/90/365 check-ins, home anniversary and maintenance touches, refinance rate alerts, periodic referral solicitation, review requests, and birthday and holiday greetings per the supplied client list.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.captured
 **Receives:** clock.tick, content.verdict, date.trigger, lead.reply, transaction.closed
-**Predeliberated tuples:** 9 (see 16-after-close-referral/DECISIONS.md)
+**Predeliberated tuples:** 10 (see 16-after-close-referral/DECISIONS.md)
 
 Merged agent (former After-Close Nurture + new Referral Agent - 60%
 overlap eliminated). Owns the post-closing relationship end to end: timed
@@ -612,7 +613,7 @@ the date triggers, this agent executes the greetings.
 - Solicit referrals on a periodic cadence per the supplied client list.
 - Send birthday and holiday greetings on `date.trigger` from CRM (14), per the human-supplied list - no list entry, no greeting.
 - Solicit reviews and testimonials post-close.
-- Check consent/opt-out flags before every touch; opt-out halts all touches for that contact. In the code this agent checks the `opt_out` flag on its own client list (set by the broker's signed setting); every touch goes through Agent 11, which also refuses to message a client 14 records as opted out on every channel.
+- Check consent/opt-out flags before every touch; opt-out halts all touches for that contact. In the code this agent checks the `opt_out` flag on its own client list (set by the broker's signed setting); every touch goes through Agent 11, which also sends nothing to a client without a "yes" on some channel at 14.
 
 How the code does it today (checked 2026-10-12): the daily clock sends the 30,
 90 and 365-day check-ins from the close date; greetings and anniversaries come

@@ -25,4 +25,7 @@ constrains everything.
 - (saved-search returns a property with data anomalies, flag before presenting; never present suspect data as inventory)
 - (buyer pre-approval expires mid-search, notify + mark; matches continue flagged unverified-financing)
 
+Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
+- (compliance does not approve buyer criteria, do not use them for matching; tell the broker which criteria and why)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

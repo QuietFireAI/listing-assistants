@@ -25,6 +25,9 @@ constrains everything.
 - (published asset found factually stale, correct or retract within the same day; log the delta)
 - (budget change requested verbally, current signed budget stands until config.update)
 
+Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
+- (compliance flags campaign copy, publish nothing; tell the broker with 17's findings and wait for corrected signed copy)
+
 Code status (checked 2026-10-12): the "farm rules apply" half of the
 geography tuple has no code - no farm-area boundary is configured to check a
 targeted geography against. The demographic-refusal half is in the code.

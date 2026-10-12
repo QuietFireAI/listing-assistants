@@ -29,7 +29,7 @@ This agent does not qualify, score, nurture, or advise. It captures.
 - Capture, at minimum: prospect name and contact info; property interest (address, listing ID, or criteria); timeline to transact; budget range; pre-approval status (yes / no / unknown - never inferred).
 - Emit a structured lead object to the Dispatcher (`lead.captured`).
 - If a field cannot be captured, it stays empty (null; pre-approval is `unknown`) - never estimated, never filled from a prior lead. A low-confidence call transcript empties name, timeline, budget and pre-approval.
-- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork. In the code (checked 2026-10-12): 03 sends nothing without a "yes" on some channel; 11 refuses a client 14 records as opted out on every channel but does not require an opt-in; 16 follows the opt-out flag on its own client list. Whether a client with no consent on record may get messages from 11 is open for the owner.
+- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork. In the code (checked 2026-10-12): 03 sends nothing without a "yes" on some channel; 11 sends nothing to a client without a "yes" on some channel at 14 (owner decision 2026-10-12); 16 also follows the opt-out flag on its own client list.
 - On every inbound with contact info, query CRM via `record.request` before creating a new lead object - dedupe against existing contexts; never merge identities without confirmation.
 - Possible duplicate person (owner decision 2026-10-11): when 14 reports the same phone or email under another context, the whole thread holds for the broker. Continue = a separate person, scored as a new lead; cancel = the thread closes, nothing merged.
 - If 14 has not answered the dedupe request within `record_response_timeout_days` (default 1), the daily clock retries once, then holds the lead with `handoff.failed`. A lead is never scored undeduped.
@@ -206,8 +206,8 @@ When the route itself is uncertain:
    the agent has it, the exact input verbatim.
 3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
    Paused is not off. A "someone will follow up" message goes to a waiting
-   party only where an agent's section 2 says so (Agent 11's advice and
-   complaint acknowledgements, Agent 20's reply when a question in a mention
+   party only where an agent's own sections say so (Agent 11's advice
+   acknowledgement, Agent 20's reply when a question in a mention
    may involve an existing client);
    otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement

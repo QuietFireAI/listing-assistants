@@ -34,6 +34,13 @@ finding: capture it, do not work around it.
 - **Threads an agent cannot finish on its own hold** until you sign
   `{"do": "decide", "ctx": "...", "decision": "continue"}` or `"cancel"`.
   `{"do": "show", "what": "waits"}` lists them.
+- **No client hears from the swarm without consent on record.** Agent 11
+  sends nothing to a client until Agent 14 holds a "yes" on at least one
+  channel (owner decision 2026-10-12). A lead brings its consent in at
+  capture; for a seller, a buyer or a party to a deal, the scene's first
+  lines record it with your signed `consent_record` - the same step you take
+  for a real client. Without it the message is logged as blocked and you
+  are told once.
 - `{"do": "send", ...}` injects a message as if from the named sender. Use
   `external` (the outside world) or `human` where the closed track has a
   route; the hub applies every check either way.
@@ -50,7 +57,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 974 passed
+python -m pytest tests_listing/          # expect: 984 passed
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```
@@ -108,22 +115,24 @@ Expected:
 
 ## Scene 4 - New listing, end to end (`scene04_new_listing.jsonl`)
 
-One signed listing authorization with go-live, then the outside world answers.
+Line 1 records the seller's consent. Then one signed listing authorization
+with go-live, and the outside world answers.
 
 Expected:
 - The photography booking holds for you (`HUMAN_QUEUE` with
-  `"absolute_signal"`); `show held` lists it; line 4 releases it.
+  `"absolute_signal"`); `show held` lists it; line 5 releases it.
 - A photo delivery with `"proof_artifact_present": false` releases
-  **nothing**: line 6 shows only the booking in `external`. The claim is not
+  **nothing**: line 7 shows only the booking in `external`. The claim is not
   the artifact.
 - The real delivery: 04 drafts, 17 approves, the assets go to 05 and 12, the
   listing goes active (11, 12, 14 told), and the campaign holds for you.
-- After line 9's release, `external` shows the booking, the seller's
+- After line 10's release, `external` shows the booking, the seller's
   "active" notice and the campaign.
 
 ## Scene 5 - Compliance catches your planted phrase (`scene05_compliance.jsonl`)
 
-A listing whose features include the phrase from your Scene 2 ruleset.
+A listing whose features include the phrase from your Scene 2 ruleset (line 1
+records the seller's consent).
 
 Expected (on the audit log): `content.verdict: flagged` citing the phrase
 and rule FH-1; 04 removes exactly that phrase and resubmits; the second
@@ -138,8 +147,9 @@ naming `in-ground pool`; no draft reaches 17.
 
 ## Scene 7 - Under contract to close (`scene07_contract_to_close.jsonl`)
 
-The executed contract arrives by email (through 11), the signed status flip
-to pending, the signed timeline, then the clock.
+Line 1 records the client's consent. The executed contract arrives by email
+(through 11), the signed status flip to pending, the signed timeline, then the
+clock.
 
 Expected:
 - 07 asks 08 for the inspection report and the financing-contingency removal
@@ -148,16 +158,18 @@ Expected:
 - Sweep on 2026-10-21: the inspection and financing-contingency deadlines
   alert as overdue, **once**; the financing contingency also goes to the legal
   line; the vendor hold-up escalates once.
-- Line 8 names the title company as the expected sender of the settlement
-  statement (signed). Line 9: it arrives by email; 07 closes the transaction
+- Line 9 names the title company as the expected sender of the settlement
+  statement (signed). Line 10: it arrives by email; 07 closes the transaction
   to 14, 15 and 16 with the sale price and close date.
 - Sweep on 2026-12-02: `{"agent": "16", "sweep": "post_close_milestones", "result": "sent:30"}` -
-  the 30-day check-in, from the clock, with nobody asking.
+  the 30-day check-in, from the clock, with nobody asking; it leaves the
+  swarm because the client's consent is on record.
 
 ## Scene 8 - Showing bump needs hotness AND you (`scene08_showing_bump.jsonl`)
 
-Three buyers want the same house Saturday morning. You record each buyer's
-signed representation agreement first (Agent 14).
+Three buyers want the same house Saturday morning. You record buyers A and
+B's signed representation agreements and their consent first (Agent 14);
+buyer C comes in as a web lead with consent.
 
 Expected:
 - Buyer A is booked at 10:00.
@@ -165,12 +177,13 @@ Expected:
   sequencing, reason naming the tier gate, **no bump offered**.
 - Buyer C is a hot lead (scored by 02 from a real web lead) with the same
   claim: the bump **holds for you**; A's showing stands.
-- Line 9, your signed confirmation: A gets a `showing_bumped_notice`, C gets a
+- Line 11, your signed confirmation: A gets a `showing_bumped_notice`, C gets a
   confirmation.
 
 ## Scene 9 - Complaint containment (`scene09_complaint.jsonl`)
 
-A viral complaint on a monitored channel.
+A viral complaint on a monitored channel (line 2 records the seller's
+consent).
 
 Expected: an `escalation.complaint` page with the verbatim text and
 `"priority": "viral"`; a scheduled touch to that client **holds**

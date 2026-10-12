@@ -1,4 +1,5 @@
 {"do": "config", "to": "20", "ctx": "setup", "payload": {"monitored_channels": ["facebook"]}}
+{"do": "config", "to": "14", "ctx": "S9", "payload": {"consent_record": {"email": "yes"}}}
 {"do": "send", "from": "external", "to": "20", "intent": "social.mention", "ctx": "S9", "payload": {"channel": "facebook", "sentiment": "complaint", "is_viral": true, "text": "Nobody from this brokerage has called me back in two weeks. Terrible."}}
 {"do": "send", "from": "06", "to": "11", "intent": "client.message.request", "ctx": "S9", "payload": {"template": "seller_weekly_report", "hour": 10}}
 {"do": "show", "what": "external"}

@@ -942,10 +942,11 @@ def test_11_does_not_message_a_client_who_opted_out_on_every_channel(tmp_path):
     sw.hub.send(_env("06", "11", "client.message.request", "OPT2",
                      {"template": "showing_confirmation", "variables": {}}))
     assert len(_persisted(sw, "client.message.send", "OPT2")) == 1
-    # nothing on record: not blocked here (owner's call whether it should be)
+    # nothing on record: blocked too (owner decision 2026-10-12, consent required)
     sw.hub.send(_env("06", "11", "client.message.request", "NOREC",
                      {"template": "showing_confirmation", "variables": {}}))
-    assert len(_persisted(sw, "client.message.send", "NOREC")) == 1
+    assert not _persisted(sw, "client.message.send", "NOREC")
+    assert {"kind": "send_blocked_no_consent", "template": "showing_confirmation"} in _logs(sw, "NOREC")
 
 
 def test_11_still_sends_the_one_opt_out_confirmation(tmp_path):
@@ -1039,3 +1040,43 @@ def test_16_sends_the_clients_own_words_to_17(tmp_path):
                      {"message": "Do I get a gift card for referring?", "mentions_referral_reward": True}))
     [r] = _persisted(sw, "content.review", "RW")
     assert r["payload"]["draft"] == "Do I get a gift card for referring?"
+
+
+# ------------------------------------------------ 14 consent_record (owner decision 2026-10-12)
+@pytest.mark.parametrize("payload", [
+    {"consent_record": {}},
+    {"consent_record": {"fax": "yes"}},
+    {"consent_record": {"email": "maybe"}},
+    {"consent_record": "yes"},
+    {"consent_record": {"email": "yes"}, "note": "x"},
+    {"consent_record": {"email": "yes"}, "reconfirmed_by_client": "yes"},
+])
+def test_14_consent_record_rejected_whole_when_malformed(tmp_path, payload):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "14", "CR", payload))
+    assert _clar(sw, "CR") == [{"reason": 'consent_record rejected; nothing changed - expected '
+                                          '{"consent_record": {"call"|"text"|"email": "yes"|"no"}} and '
+                                          'optionally "reconfirmed_by_client": true'}]
+    assert sw.spokes["14"].consent.get("CR", {}) == {}
+
+
+def test_14_consent_record_sets_channels_and_keeps_an_opt_out_unless_reconfirmed(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sp = sw.spokes["14"]
+    sw.hub.send(_signed(s, "14", "CR2", {"consent_record": {"email": "yes", "text": "no"}}))
+    assert sp.consent["CR2"] == {"email": "yes", "text": "no"}
+    sw.hub.send(_signed(s, "14", "CR2", {"consent_record": {"text": "yes"}}))
+    assert sp.consent["CR2"]["text"] == "no"
+    assert {"reason": 'the client opted out on these channels; they stay "no" until the setting '
+                      'says the client reconfirmed', "channels": ["text"]} in _clar(sw, "CR2")
+    sw.hub.send(_signed(s, "14", "CR2", {"consent_record": {"text": "yes"}, "reconfirmed_by_client": True}))
+    assert sp.consent["CR2"] == {"email": "yes", "text": "yes"}
+    sw.hub.send(_signed(s, "14", "CR2", {"consent_record": {"email": "no"}}))   # a downgrade always applies
+    assert sp.consent["CR2"]["email"] == "no"
+    # each signed record is on the CRM log, and 11 now sends to this client
+    assert [e["payload"] for e in sp.records["CR2"] if e["kind"] == "config.update"] == [
+        {"consent_record": {"email": "yes", "text": "no"}}, {"consent_record": {"text": "yes"}},
+        {"consent_record": {"text": "yes"}, "reconfirmed_by_client": True},
+        {"consent_record": {"email": "no"}}]
+    sw.hub.send(_env("06", "11", "client.message.request", "CR2", {"template": "showing_confirmation", "variables": {}}))
+    assert len(_persisted(sw, "client.message.send", "CR2")) == 1

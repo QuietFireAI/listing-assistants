@@ -11,6 +11,7 @@ from dispatcher.core import Envelope, Routes, AuditLog
 from dispatcher.hub import Hub
 from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
 from dispatcher.listing_spokes_11 import Spoke11ClientCommunication
+from tests_listing.consent_fixture import give_consent
 
 IDENTITY_ROUTES = os.path.join(os.path.dirname(__file__), "..", "identity",
                                "routes.json")
@@ -53,6 +54,7 @@ def test_11_quiet_hours_holds_send_normal_hours_send(tmp_path):
     Kills the 153 quiet-hours `return False`."""
     s = spoke(str(tmp_path), quiet_hours=(21, 8))
     s.hub.on_turn_start()
+    give_consent(s.hub, "q-1", "q-2")
     # hour 23 -> quiet -> held
     result = s._send_client_message("q-1", "update", {"name": "Jo"}, hour=23)
     assert result is False, "a quiet-hours send must be held"

@@ -32,6 +32,9 @@ Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
 - (a re-score keeps the lead WARM on the same sequence, the sequence continues; never restart it from day 0)
 - (lead opted out or its sequence is paused, no re-score)
 
+Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
+- (compliance flags a sequence, keep it paused and send nothing; tell the broker with 17's findings and wait for a corrected signed sequence)
+
 Code status (checked 2026-10-12): contact hours are enforced. The
 legal-holiday half acts only on a send flagged as a holiday, and the daily
 clock flags none (no holiday calendar exists), so holidays are not skipped.

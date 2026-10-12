@@ -100,9 +100,9 @@ def test_scene03_hot_lead_paged_duplicate_held_and_cancelled_no_outreach(run):
 
 def test_scene04_listing_end_to_end_and_no_proof_releases_nothing(run):
     r = results(run, "scene04")
-    assert [x["intent"] for x in r[6] if x["ctx"] == "S4"] == ["vendor.schedule"], \
+    assert [x["intent"] for x in r[7] if x["ctx"] == "S4"] == ["vendor.schedule"], \
         "the proof-less deliverable must release nothing"
-    final = [x["intent"] for x in r[10] if x["ctx"] == "S4"]
+    final = [x["intent"] for x in r[11] if x["ctx"] == "S4"]
     assert final[0] == "vendor.schedule" and "campaign.publish" in final \
         and "client.message.send" in final
     assert {e["to_agent"] for e in persisted(run, "asset.release", "S4")} == {"05", "12"}
@@ -133,8 +133,11 @@ def test_scene07_contract_to_close(run):
     assert {e["to_agent"] for e in closed} == {"14", "15", "16"}
     assert all(e["payload"]["sale_price"] == 405000 and e["payload"]["close_date"] == "2026-11-01"
                for e in closed)
-    sweep = results(run, "scene07")[11]
+    sweep = results(run, "scene07")[12]
     assert {"agent": "16", "sweep": "post_close_milestones", "result": "sent:30"} in sweep
+    # the client has consent on record (line 1), so the check-in actually leaves
+    assert any(e["payload"]["template"] == "post_close_checkin_30day"
+               for e in persisted(run, "client.message.send", "S7"))
 
 
 def test_scene08_tier_gate_then_human_confirmed_bump(run):
@@ -142,7 +145,7 @@ def test_scene08_tier_gate_then_human_confirmed_bump(run):
     assert any(x["client_context_id"] == "S8-buyerB" and "lead tier not HOT" in x["payload"]["reason"] for x in q)
     assert any(x["client_context_id"] == "S8-buyerC" and "human confirmation required" in x["payload"]["reason"]
                for x in q)
-    ext = results(run, "scene08")[10]
+    ext = results(run, "scene08")[12]
     assert {"intent": "client.message.send", "ctx": "S8-buyerA",
             "payload": {"template": "showing_bumped_notice",
                         "variables": {"original_time": "2026-10-17T10:00",
@@ -154,8 +157,8 @@ def test_scene09_complaint_holds_touches_until_released(run):
     c = pages(run, "scene09", "escalation.complaint")
     assert c and c[0]["priority"] == "viral" and c[0]["trigger"].startswith("Nobody from this brokerage")
     r = results(run, "scene09")
-    assert not [x for x in r[4] if x["ctx"] == "S9"]
-    assert [x["payload"]["template"] for x in r[7] if x["ctx"] == "S9"] == ["seller_weekly_report"]
+    assert not [x for x in r[5] if x["ctx"] == "S9"]
+    assert [x["payload"]["template"] for x in r[8] if x["ctx"] == "S9"] == ["seller_weekly_report"]
     kinds = [e["payload"].get("kind") for e in persisted(run, "interaction.log", "S9")]
     assert kinds.index("touch_held_complaint_hold") < kinds.index("complaint_hold_released")
 
@@ -191,3 +194,12 @@ def test_no_wait_is_resolved_before_it_is_opened(run):
             else:
                 assert k not in early, f"wait {k} was resolved before it was opened"
                 open_.add(k)
+
+
+def test_no_scene_client_message_is_blocked_for_missing_consent(run):
+    """Owner decision 2026-10-12: Agent 11 sends nothing without consent on
+    record at 14. Every scene client that gets messages has its consent
+    recorded first (the broker's signed consent_record, or 01 at capture)."""
+    blocked = [e for e in persisted(run, "interaction.log")
+               if e["payload"].get("kind") == "send_blocked_no_consent"]
+    assert blocked == []

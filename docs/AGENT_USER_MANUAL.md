@@ -116,9 +116,10 @@ sources attached; any amount that does not reconcile to $0.00 comes to you.
 
 ## 5. When something goes wrong
 
-- **An upset client (P14).** Agent 11 places that client on an outbound hold,
-  so no scheduled touch goes out, sends a neutral acknowledgment, and puts
-  the message verbatim in your complaint queue.
+- **An upset client (P14).** Agent 11 puts the message verbatim in your
+  complaint queue at once, logs it, and places that client on an outbound
+  hold, so no scheduled touch goes out. Nothing is sent to the client: the
+  response is yours.
 - **A template with a missing fact.** If a client message would go out with
   a blank (an unknown closing date, say), Agent 11 does not send it and asks
   you for the fact.
@@ -127,7 +128,10 @@ sources attached; any amount that does not reconcile to $0.00 comes to you.
   marked exempt in configuration.
 - **Opt-outs.** "Stop" stops every channel at once, and Agent 14 records it.
   Agent 11 checks 14 before every client message and sends nothing to a client
-  opted out on every channel.
+  without consent on record (a "yes" on at least one channel). A lead's
+  consent is recorded at capture; for a seller or any other client, record it
+  yourself with a signed `consent_record` to Agent 14. The first message held
+  for a client without consent tells you so.
   When consent flags disagree, the most restrictive one wins, and a channel
   that was opted out stays out until you confirm the client's new opt-in.
 - **A handoff that fails.** If the hub rejects or cannot deliver a message

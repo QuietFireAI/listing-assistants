@@ -564,6 +564,7 @@ def test_p18_weekly_seller_report_holds_for_the_broker_then_goes_to_the_seller(t
     sw, s = _swarm(tmp_path)
     sw.hub.send(_signed(s, "06", "setup", {"seller_reports": {"weekday": "monday",
                                                               "listings": {"L8": "S8-seller"}}}))
+    sw.hub.send(_signed(s, "14", "S8-seller", {"consent_record": {"email": "yes"}}))   # seller's consent
     _confirm_showing(sw, "B1", "L8", "2026-10-10T10:00")
     _confirm_showing(sw, "B2", "L8", "2026-10-11T11:00")
     _confirm_showing(sw, "B3", "L8", "2026-09-20T11:00")      # older than 7 days

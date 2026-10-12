@@ -8,6 +8,7 @@ from dispatcher.core import Envelope, Routes, AuditLog
 from dispatcher.hub import Hub
 from dispatcher.listing_spokes_11 import Spoke11ClientCommunication
 from dispatcher.listing_spokes import Spoke14CRMPipeline
+from tests_listing.consent_fixture import give_consent
 
 IDENTITY_ROUTES = os.path.join(os.path.dirname(__file__), "..", "identity",
                                "routes.json")
@@ -48,6 +49,7 @@ def test_routine_update_sends_during_daytime(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-001")
     hub.send(status_update("c-001", {"template": "inspection_scheduled",
                                      "variables": {"date": "Aug 10"}, "hour": 14}))
     sends = persisted(hub, "client.message.send")
@@ -69,6 +71,7 @@ def test_exempt_alert_class_sends_during_quiet_hours(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub, exempt_alert_classes={"urgent_deadline"})
     hub.on_turn_start()
+    give_consent(hub, "c-003")
     hub.send(status_update("c-003", {"template": "urgent", "variables": {},
                                      "hour": 23, "alert_class": "urgent_deadline"}))
     assert persisted(hub, "client.message.send")
@@ -89,6 +92,7 @@ def test_conflicting_statuses_send_nothing(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-005")
     hub.send(status_update("c-005", {"template": "status", "milestone": "closing",
                                      "conflict_key": "closing-date", "value": "Sept 1",
                                      "variables": {}, "hour": 12}))
@@ -114,6 +118,7 @@ def test_pricing_question_escalates_with_template_ack(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-007")
     hub.send(client_reply("c-007", {"message": "what's it worth to you, negotiate"}))
     assert hub.queues["escalation.legal_line"]
     sends = persisted(hub, "client.message.send")
@@ -132,14 +137,21 @@ def test_mixed_routine_and_advice_splits_and_routes_both(tmp_path):
     assert reply and reply[0]["payload"]["split"] == "routine_only"
 
 
-def test_angry_client_acknowledges_no_promises(tmp_path):
+def test_angry_client_goes_to_the_human_logged_and_gets_no_message(tmp_path):
+    """Owner decision 2026-10-12 (tuple 2 amended): an angry client goes to
+    the human at once and is logged; nothing is sent to the client. It used
+    to get an 'acknowledge_no_promises' message."""
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-009")                      # consent does not change this
     hub.send(client_reply("c-009", {"message": "this is unacceptable", "angry": True}))
-    assert hub.queues["escalation.complaint"]
-    sends = persisted(hub, "client.message.send")
-    assert any(s["payload"]["template"] == "acknowledge_no_promises" for s in sends)
+    [c] = hub.queues["escalation.complaint"]
+    assert c["client_context_id"] == "c-009" and c["verbatim"] == "this is unacceptable"
+    assert not persisted(hub, "client.message.send")
+    logs = [e["payload"] for e in persisted(hub, "interaction.log") if e["client_context_id"] == "c-009"]
+    assert {"kind": "complaint_received", "verbatim": "this is unacceptable",
+            "routed_to": "escalation.complaint"} in logs
 
 
 # --------------------------- THE FIX: negative_tone really escalates (P14)
@@ -172,6 +184,7 @@ def test_complaint_hold_blocks_scheduled_touch_until_released(tmp_path):
              signature_verifier=verifier.verifier())
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-021")
     ctx = "c-021"
     hub.send(client_reply(ctx, {"message": "furious about this", "angry": True}))
 
@@ -205,6 +218,7 @@ def test_conflicting_deadline_alerts_now_also_send_nothing(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-022")
     ctx = "c-022"
     hub.send(deadline_alert(ctx, {"template": "inspection_deadline",
                                   "conflict_key": "inspection",
@@ -249,6 +263,7 @@ def test_off_log_reference_asks_for_particulars_never_pretends_recall(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke11ClientCommunication(hub)
     hub.on_turn_start()
+    give_consent(hub, "c-012")
     hub.send(client_reply("c-012", {"message": "like we discussed on the phone",
                                     "references_unlogged_conversation": True}))
     sends = persisted(hub, "client.message.send")
@@ -508,3 +523,38 @@ def test_04_and_12_report_their_state_for_the_client(tmp_path):
     for aid, ctx in (("04", "ctx-d"), ("12", "ctx-p")):
         t = [t for t in hub.spoke_traces if t["agent"] == aid and t["result"] == "held: client_reply_needs_human"]
         assert any(ctx in x["thought"] for x in t)
+
+
+
+# ---------------- owner decision 2026-10-12: consent on record is required
+def test_no_consent_on_record_blocks_the_send_logs_it_and_tells_the_broker_once(tmp_path):
+    hub = make_hub(str(tmp_path))
+    Spoke11ClientCommunication(hub)
+    Spoke14CRMPipeline(hub)
+    hub.on_turn_start()
+    for t in ("inspection_scheduled", "appraisal_in"):
+        hub.send(status_update("nc-1", {"template": t, "variables": {}, "hour": 12}))
+    assert not persisted(hub, "client.message.send")
+    logs = [e["payload"] for e in persisted(hub, "interaction.log") if e["client_context_id"] == "nc-1"]
+    assert [l for l in logs if l.get("kind") == "send_blocked_no_consent"] == [
+        {"kind": "send_blocked_no_consent", "template": "inspection_scheduled"},
+        {"kind": "send_blocked_no_consent", "template": "appraisal_in"}]
+    clar = [c["payload"] for c in persisted(hub, "clarification.request") if c["client_context_id"] == "nc-1"]
+    assert clar == [{"reason": "client messages are not being sent - no consent on record at 14; "
+                               "record the client's consent with a signed consent_record",
+                     "first_blocked_template": "inspection_scheduled"}]
+
+
+def test_unknown_on_every_channel_is_not_consent(tmp_path):
+    hub = make_hub(str(tmp_path))
+    Spoke11ClientCommunication(hub)
+    Spoke14CRMPipeline(hub)
+    hub.on_turn_start()
+    hub.send(Envelope(from_agent="01", to_agent="14", intent="interaction.log", client_context_id="nc-2",
+                      payload={"consent": {"call": "unknown", "text": "unknown", "email": "unknown"}},
+                      provenance={"source": "spoke-01", "captured_at": "runtime"}))
+    hub.send(status_update("nc-2", {"template": "inspection_scheduled", "variables": {}, "hour": 12}))
+    assert not persisted(hub, "client.message.send")
+    give_consent(hub, "nc-2", channels=("text",))
+    hub.send(status_update("nc-2", {"template": "inspection_scheduled", "variables": {}, "hour": 12}))
+    assert len(persisted(hub, "client.message.send")) == 1

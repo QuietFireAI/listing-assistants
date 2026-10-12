@@ -1,3 +1,4 @@
+{"do": "config", "to": "14", "ctx": "S7", "payload": {"consent_record": {"email": "yes", "text": "yes"}}}
 {"do": "authorize", "to": "05", "ctx": "S7", "payload": {"new_listing": {"beds": 3, "sqft_tax_record": 1900, "price": 410000, "features": ["garage"]}, "authorize_go_live": false, "today": "2026-10-01"}}
 {"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S7", "payload": {"message": "Signed contract attached", "document_attached": true, "doc_type": "executed_contract", "submitting_party": "seller@example.test", "content_hash": "sha256-contract-synthetic", "opens_correctly": true, "today": "2026-10-02"}}
 {"do": "authorize", "to": "05", "ctx": "S7", "payload": {"field": "status", "value": "pending", "signed_contract_artifact": "sha256-contract-synthetic", "live_verified": true, "today": "2026-10-02"}}
