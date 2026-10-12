@@ -350,7 +350,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1002 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1015 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -390,7 +390,13 @@ python tools/desk.py                 # your desk, on console-state/
 python tools/desk.py --showcase      # replays the ten operator scenes on synthetic data,
                                      # stopping at every Send / Continue / Cancel for you
 python tools/desk.py --lan           # open it from a tablet (link with an access code)
+python tools/desk.py --config-dir scenes/config --script scenes/scene04_new_listing.jsonl
+                                     # your desk, with a test script played in, stopping at your moves
 ```
+
+Every part and button is explained, with pictures, in
+[docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md); twelve tests to run
+it end to end are in [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md).
 
 A held message waits for your answer: **Send** or **Don't send**, each a
 signed decision on the record (`Hub.release_disclosure` /
@@ -430,9 +436,11 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 5. [docs/PLAYBOOKS.md](docs/PLAYBOOKS.md) - all 24 playbooks: triggers, agents, gates
 6. [docs/TUNING_MANUAL.md](docs/TUNING_MANUAL.md) - every number you can turn
 7. [docs/AGENT_USER_MANUAL.md](docs/AGENT_USER_MANUAL.md) - a broker's day with the system
-8. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, drawers, the decision engine and model drafting
-9. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - ten filmable operator scenes (`scenes/`), each checked by the suite
-10. [docs/FINANCIAL_CAPABILITY.md](docs/FINANCIAL_CAPABILITY.md) - the financial locks and the security reviewer's risk list
+8. [docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md) - the Broker Desk, part by part and button by button, with pictures
+9. [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md) - twelve desk tests, each with what you should see
+10. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, drawers, the decision engine and model drafting
+11. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - ten filmable operator scenes (`scenes/`), each checked by the suite
+12. [docs/FINANCIAL_CAPABILITY.md](docs/FINANCIAL_CAPABILITY.md) - the financial locks and the security reviewer's risk list
 
 ## Layout
 

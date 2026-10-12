@@ -314,6 +314,9 @@ audit log that the login binding is off.
 
 ## 6a. The Broker Desk
 
+The full manual, part by part with pictures, is
+[BROKER_DESK_MANUAL.md](BROKER_DESK_MANUAL.md); this section is the summary.
+
 `python tools/desk.py` opens your desk at http://127.0.0.1:8765 (add
 `--lan` to open it from a tablet; it prints a link with an access code).
 Everything in sections 3 and 6 is on it:

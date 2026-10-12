@@ -32,12 +32,22 @@ end-to-end test.
 - **The desk on Windows is tested.** CI runs the desk's tests on
   `windows-latest`, including the lock's process check and a clean
   Ctrl+Break stop (the desk now handles Ctrl+Break).
+- **The Broker Desk has its own manual and testing guide.**
+  `docs/BROKER_DESK_MANUAL.md` explains every part and button of the page
+  with real screenshots; `docs/BROKER_DESK_TESTING_GUIDE.md` is twelve tests,
+  each with what you should see. `tests_listing/test_desk_manual.py` fails if
+  a button, title, step, flag, picture or link they name stops existing.
+- **Test scripts on your own desk.** `python tools/desk.py --script FILE`
+  plays a session file into your live desk, signed with your key, stopping at
+  your moves (Send, Continue/Cancel, Don't send). Its place is saved, so a
+  restarted desk resumes it and applies no line twice; a broken line is
+  refused at start with its line number.
 - **Windows: the whole suite passes, and CI holds it there.** The first
   Windows runs found text files read without an encoding (Windows reads
   cp1252; 118 places fixed, 33 in core) and secrets "made private" with
   chmod, which does nothing on Windows - the signing keys and pager config
   were readable by other accounts. `dispatcher/private_file.py` now makes
-  them private on every system. Windows: 1003 passed; Linux: 1002 passed,
+  them private on every system. Windows: 1016 passed; Linux: 1015 passed,
   1 skipped (a Windows-only test).
 - **Pictures for non-technical readers.** Every agent folder has a README
   with a diagram of who it hears from and who it talks to (drawn from
@@ -163,7 +173,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1002 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1015 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

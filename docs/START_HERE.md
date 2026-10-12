@@ -85,7 +85,7 @@ minutes:
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1002 passed, 1 skipped)
+python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1015 passed, 1 skipped)
 ```
 
 That last command isn't a formality — it executes every playbook,
@@ -109,6 +109,7 @@ the suite runs the same ten files on every build.
 
 **Where to read next, in order:**
 1. `docs/AGENT_USER_MANUAL.md` — your day with ListingAssistants, as a broker
+   (and `docs/BROKER_DESK_MANUAL.md` — the one page you work from, with pictures)
 2. `docs/OPERATOR_TUNING_GUIDE.md` — setup, storage, offline updates, and the optional modules
 3. `docs/WHAT_SUCCESS_MEANS.md` — what each playbook delivers and what it takes off your plate
 4. `docs/PLAY-BY-PLAY.md` — the step-by-step narration of what actually moves between agents

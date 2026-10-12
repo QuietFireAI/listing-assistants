@@ -145,7 +145,7 @@ section{margin-bottom:22px}
     <div class="feed" id="feed"></div>
   </section>
   <p class="note">Every number on this page is read from the swarm and its audit log.
-  Send and Continue/Cancel sign with your key on this computer, the same as the console.</p>
+  Send, Don't send and Continue/Cancel sign with your key on this computer, the same as the console.</p>
 </main>
 <div class="toast" id="toast"></div>
 <script>
@@ -233,8 +233,10 @@ function yourMove() {
 }
 function needsCard(i) {
   const mv = yourMove();
-  const hl = mv && i.ctx && mv.next.includes(i.ctx) &&
-             ((i.type === "held" && mv.next.includes("Send")) || (i.type === "wait" && !mv.next.includes("Send")));
+  const ln = mv && mv.line;
+  const hl = ln && i.ctx && i.ctx === ln.ctx &&
+             (ln.do === "decide" ? i.type === "wait"
+                                 : i.type === "held" && (!ln.intent || ln.intent === i.intent));
   const c = el("div", {class: `card ${i.type}${hl ? " highlight" : ""}`});
   c.append(el("h3", {}, i.title));
   c.append(el("div", {class: "meta"},
@@ -314,8 +316,13 @@ function render() {
   box.hidden = !sc;
   if (sc) {
     box.classList.toggle("yourmove", !!sc.waiting_for_you);
-    document.getElementById("sc-scene").textContent = sc.done ? "Showcase complete" : `Scene ${sc.scene} · ${sc.title}`;
-    document.getElementById("sc-next").textContent = sc.done ? "All ten scenes played. Check the record to finish."
+    const isScript = sc.kind === "script";
+    document.getElementById("sc-scene").textContent = sc.done
+      ? (isScript ? "Test script complete" : "Showcase complete")
+      : (isScript ? `Test script · ${sc.title}` : `Scene ${sc.scene} · ${sc.title}`);
+    document.getElementById("sc-next").textContent = sc.done
+      ? (isScript ? `All ${sc.total} lines played. Check the record to finish.`
+                  : "All ten scenes played. Check the record to finish.")
       : (sc.waiting_for_you ? sc.next : "Next: " + sc.next);
     document.getElementById("sc-step").disabled = sc.done || sc.waiting_for_you;
     document.getElementById("sc-pos").textContent = `step ${sc.pos} of ${sc.total}`;

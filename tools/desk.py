@@ -7,6 +7,9 @@ is doing and lets them act on what is waiting for them.
                                          # ten operator scenes on synthetic data
     python tools/desk.py --lan           # reachable from a tablet on your network;
                                          # prints a link with an access code
+    python tools/desk.py --config-dir scenes/config --script scenes/scene04_new_listing.jsonl
+                                         # your desk, with a test script played into it one
+                                         # step at a time, stopping at your moves
 
 What the page shows (every number is read from the swarm itself: the hub's
 holds and queues, the HITL manager's paused threads, and the audit log):
@@ -172,7 +175,7 @@ class ReadModel:
             "team": self.team(log, hub, sw),
             "proof": self.proof(log, hub, sw, audience),
             "activity": self.activity(log),
-            "showcase": self.d.show.status() if self.d.showcase else None,
+            "showcase": self.d.show.status() if self.d.show else None,
             "last_action": self.d.last_action,
         }
 
@@ -460,28 +463,80 @@ class ReadModel:
 
 
 # ----------------------------------------------------------------- showcase
-class Showcase:
-    """Replays the ten operator scenes into the desk, one line per step.
-    Lines that are yours (release, decide) are not run for you: the step
-    waits until you press the button on the held message or the paused
-    thread, exactly as you would in real use."""
+YOUR_MOVES = ("release", "decide", "decline")
 
-    def __init__(self, desk):
+
+class Showcase:
+    """Plays session lines into the desk, one line per step. Lines that are
+    yours (release, decide, decline) are not run for you: the step waits
+    until you press the button on the held message or the paused thread,
+    exactly as you would in real use.
+
+    Two uses: the showcase (no files given) replays the ten operator scenes
+    on synthetic state; a test script (--script FILE, live mode) plays your
+    own session files into your own desk, with your key. A script's place is
+    saved in the state folder, keyed to the files' fingerprint, so a
+    restarted desk resumes it instead of playing lines twice."""
+
+    @staticmethod
+    def read_script(files):
+        """Every line of the script files, checked before the desk starts:
+        a broken line is refused with its file and line number."""
+        lines = []
+        for n, f in enumerate(files, 1):
+            for i, line in enumerate(open(f, encoding="utf-8"), 1):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                try:
+                    a = json.loads(line)
+                except ValueError as e:
+                    raise SystemExit(f"{f} line {i} is not a JSON line: {e}")
+                if not isinstance(a, dict) or "do" not in a:
+                    raise SystemExit(f'{f} line {i} has no "do": {line[:80]}')
+                lines.append({"scene": n, "title": os.path.basename(f), "a": a})
+        return lines
+
+    def __init__(self, desk, files=None, lines=None):
         self.d = desk
         self.lines = []
-        manual = open(os.path.join(ROOT, "docs", "OPERATOR_TESTING_MANUAL.md"), encoding="utf-8").read()
-        import re
-        titles = {int(m.group(1)): m.group(2) for m in
-                  re.finditer(r"^## Scene (\d+) - (.+?) \(`scene\d+_[a-z_]+\.jsonl`\)$", manual, re.M)}
-        for f in sorted(x for x in os.listdir(os.path.join(ROOT, "scenes")) if x.endswith(".jsonl")):
-            n = int(f[5:7])
-            for line in open(os.path.join(ROOT, "scenes", f), encoding="utf-8"):
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    self.lines.append({"scene": n, "title": titles.get(n, f), "a": json.loads(line)})
+        self.kind = "script" if files else "showcase"
+        if files:
+            self.lines = lines if lines is not None else self.read_script(files)
+            fp = hashlib.sha256()
+            for f in files:
+                fp.update(open(f, "rb").read())
+            self.fingerprint = fp.hexdigest()
+            self.progress_path = os.path.join(desk.state_dir, "script-progress.json")
+        else:
+            manual = open(os.path.join(ROOT, "docs", "OPERATOR_TESTING_MANUAL.md"), encoding="utf-8").read()
+            import re
+            titles = {int(m.group(1)): m.group(2) for m in
+                      re.finditer(r"^## Scene (\d+) - (.+?) \(`scene\d+_[a-z_]+\.jsonl`\)$", manual, re.M)}
+            for f in sorted(x for x in os.listdir(os.path.join(ROOT, "scenes")) if x.endswith(".jsonl")):
+                n = int(f[5:7])
+                for line in open(os.path.join(ROOT, "scenes", f), encoding="utf-8"):
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        self.lines.append({"scene": n, "title": titles.get(n, f), "a": json.loads(line)})
+            self.fingerprint = self.progress_path = None
         self.pos = 0
         self.log = []
-        self.reached = set()      # your lines the showcase has shown you
+        self.reached = set()      # your lines the player has shown you
+        if self.progress_path and os.path.exists(self.progress_path):
+            saved = json.load(open(self.progress_path, encoding="utf-8"))
+            if saved.get("fingerprint") == self.fingerprint:
+                self.pos = int(saved.get("pos", 0))
+                self.reached = set(saved.get("reached", []))
+
+    def save_progress(self):
+        if not self.progress_path:
+            return
+        tmp = self.progress_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"fingerprint": self.fingerprint, "pos": self.pos,
+                       "reached": sorted(self.reached)}, f)
+        os.replace(tmp, self.progress_path)
 
     def caption(self, a):
         do = a.get("do")
@@ -512,12 +567,16 @@ class Showcase:
         if do == "decide":
             return (f"Your move: press {a.get('decision', '').title()} on the paused "
                     f"thread for {a.get('ctx')}")
+        if do == "decline":
+            noun = {"vendor.schedule": "vendor booking", "campaign.publish": "marketing"}.get(
+                a.get("intent"), "message")
+            return f"Your move: press Don't send on the held {noun} for {a.get('ctx')}"
         return f"{do}"
 
     def _pending(self, a):
         """For a line that is yours: is it still waiting for your press?"""
         sw = self.d.sw
-        if a.get("do") == "release":
+        if a.get("do") in ("release", "decline"):
             return any(e.client_context_id == a.get("ctx") and
                        (not a.get("intent") or e.intent == a.get("intent"))
                        for e in sw.hub._absolute_holds.values())
@@ -535,7 +594,7 @@ class Showcase:
             if a.get("do") == "show" and a.get("what") not in ("briefing", "eod"):
                 self.pos += 1
                 continue
-            if a.get("do") in ("release", "decide") and self.pos in self.reached \
+            if a.get("do") in YOUR_MOVES and self.pos in self.reached \
                     and not self._pending(a):
                 self.log.append({"scene": cur["scene"],
                                  "text": self.caption(a).replace("Your move: press", "You pressed")})
@@ -546,13 +605,14 @@ class Showcase:
     def status(self):
         self.skip_noise()
         if self.pos >= len(self.lines):
-            return {"done": True, "pos": self.pos, "total": len(self.lines), "log": self.log[-8:]}
+            return {"done": True, "kind": self.kind, "pos": self.pos, "total": len(self.lines),
+                    "log": self.log[-8:]}
         cur = self.lines[self.pos]
         a = cur["a"]
-        yours = a.get("do") in ("release", "decide")
+        yours = a.get("do") in YOUR_MOVES
         if yours:
             self.reached.add(self.pos)
-        return {"done": False, "pos": self.pos, "total": len(self.lines),
+        return {"done": False, "kind": self.kind, "pos": self.pos, "total": len(self.lines),
                 "scene": cur["scene"], "title": cur["title"],
                 "next": self.caption(a), "yours": yours, "line": a if yours else None,
                 "waiting_for_you": yours and self._pending(a),
@@ -564,7 +624,7 @@ class Showcase:
             return {"done": True}
         cur = self.lines[self.pos]
         a = cur["a"]
-        if a.get("do") in ("release", "decide"):
+        if a.get("do") in YOUR_MOVES:
             self.reached.add(self.pos)
             if self._pending(a):
                 return {"waiting_for_you": True, "next": self.caption(a)}
@@ -579,8 +639,12 @@ class Showcase:
 
 # ----------------------------------------------------------------- the desk
 class Desk:
-    def __init__(self, state_dir, config_dir=None, showcase=False):
+    def __init__(self, state_dir, config_dir=None, showcase=False, scripts=None):
         from dispatcher.state_snapshot import StateIntegrityError  # noqa: F401
+        # refuse a bad request before taking the lock or opening the swarm
+        if showcase and scripts:
+            raise SystemExit("--script plays into your own desk; leave out --showcase")
+        script_lines = Showcase.read_script(scripts) if scripts else None
         self.state_dir = state_dir
         self.showcase = showcase
         self.lock = threading.RLock()
@@ -589,8 +653,8 @@ class Desk:
         key = os.path.join(state_dir, "operator-key.bin")
         if showcase and not os.path.exists(key):
             from dispatcher.signatures import Ed25519Signer
-            with open(key, "wb") as f:
-                f.write(Ed25519Signer().private_key_bytes())
+            from dispatcher.private_file import write_private
+            write_private(key, Ed25519Signer().private_key_bytes())
             json.dump({"name": "Showcase Broker", "login": "showcase@example.test",
                        "note": "showcase desk - synthetic data, not your records"},
                       open(os.path.join(state_dir, "operator.json"), "w", encoding="utf-8"), indent=1)
@@ -617,7 +681,8 @@ class Desk:
         self.sw, self.signer = console.build(
             os.path.join(state_dir, "console-audit.jsonl"), config_dir,
             os.path.join(state_dir, "swarm-state.sqlite"))
-        self.show = Showcase(self) if showcase else None
+        self.show = Showcase(self) if showcase else \
+            (Showcase(self, scripts, script_lines) if scripts else None)
         self.model = ReadModel(self)
 
     def close(self):
@@ -696,6 +761,7 @@ class Desk:
                 r = self.show.step()
                 if r.get("stepped"):
                     self.sw.save_state()
+                    self.show.save_progress()      # after the swarm's own save
                 return r
             return {"error": f"unknown action {kind!r}"}
 
@@ -783,6 +849,10 @@ def main(argv=None):
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--lan", action="store_true",
                     help="listen on the network (for a tablet); prints a link with an access code")
+    ap.add_argument("--script", action="append", metavar="FILE", default=None,
+                    help="live mode: play a session file (JSON lines, the console's format) into "
+                         "your desk one step at a time, stopping at your moves; repeat for more files. "
+                         "Its place is saved, so a restart resumes it")
     ap.add_argument("--fresh", action="store_true",
                     help="with --showcase: start the showcase from scene 1 on empty state")
     args = ap.parse_args(argv)
@@ -790,7 +860,12 @@ def main(argv=None):
                                    else console.STATE_DIR)
     if args.showcase and args.fresh and os.path.isdir(state_dir):
         shutil.rmtree(state_dir)
-    desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase))
+    scripts = [os.path.abspath(f) for f in (args.script or [])]
+    for f in scripts:
+        if not os.path.isfile(f):
+            raise SystemExit(f"--script {f}: no such file")
+    desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase,
+                                    scripts=scripts or None))
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
     # connections on their own threads; the swarm on one (OwnerThread)

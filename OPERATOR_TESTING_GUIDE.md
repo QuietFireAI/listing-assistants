@@ -15,16 +15,20 @@ Repo: `github.com/QuietFireAI/listing-assistants`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
-python3 -m pytest tests_listing -q  # expect: 1002 passed, 1 skipped
+python3 -m pytest tests_listing -q  # expect: 1015 passed, 1 skipped
 ```
 
-If `1002 passed, 1 skipped` prints, the build is sound and nothing needs addressing before you
+If `1015 passed, 1 skipped` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 
 ---
 
 ## 0a. The client video: the Broker Desk
+
+To test the desk itself end to end (live mode, test scripts, the lock,
+restarts, a tablet, Windows), follow
+[docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md).
 
 This is the recording for brokers and agents: no terminal on screen, just the
 desk filling up and the presenter pressing the buttons a broker would.
