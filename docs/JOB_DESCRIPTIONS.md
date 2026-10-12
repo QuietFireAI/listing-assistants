@@ -207,7 +207,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 **Type:** Systems execution (MLS)
 **Summary:** MLS systems execution. Use for MLS data entry, status changes, days-on-market tracking, syndication to Zillow/Realtor.com/Redfin, photo ordering and uploads, and executing human-authorized price adjustments.
 **Sends:** agent.status, compliance.notice, interaction.log, listing.data, status.response, status.update, vendor.request
-**Receives:** asset.release, deliverable.release, listing.change.authorized, status.request
+**Receives:** asset.release, clock.tick, deliverable.release, listing.change.authorized, status.request
 **Predeliberated tuples:** 11 (see 05-mls-listing-management/DECISIONS.md)
 
 Executes listing operations in MLS systems: data entry, status changes,

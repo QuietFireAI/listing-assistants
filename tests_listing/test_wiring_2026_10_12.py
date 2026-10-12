@@ -551,3 +551,103 @@ def test_a_filed_disclosure_satisfies_its_milestone_and_is_never_warned(tmp_path
     assert sw.spokes["07"].timelines["DF"]["seller_disclosure"]["satisfied"] is True
     out = send_tick(sw.hub, "08", "2026-10-19", checks=["disclosure_deadline"])
     assert not [q for q in sw.hub.queues["escalation.legal_line"] if q["client_context_id"] == "DF"]
+
+
+# ------------------------------------------------------------ J3: P18-P20 from the clock
+def _confirm_showing(sw, buyer, listing, when):
+    sw.spokes["06"].confirmed_showings.setdefault(buyer, []).append(
+        {"time": when, "confirmed": True, "listing_id": listing})
+
+
+def test_p18_weekly_seller_report_holds_for_the_broker_then_goes_to_the_seller(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "06", "setup", {"seller_reports": {"weekday": "monday",
+                                                              "listings": {"L8": "S8-seller"}}}))
+    _confirm_showing(sw, "B1", "L8", "2026-10-10T10:00")
+    _confirm_showing(sw, "B2", "L8", "2026-10-11T11:00")
+    _confirm_showing(sw, "B3", "L8", "2026-09-20T11:00")      # older than 7 days
+    _confirm_showing(sw, "B4", "L9", "2026-10-10T11:00")      # another listing
+    sw.hub.send(_env("11", "06", "showing.feedback_response", "B1", {"response": "liked it"}))
+    out = send_tick(sw.hub, "06", "2026-10-11", checks=["seller_weekly_report"])   # a Sunday
+    assert out["results"][0]["result"] == "not_today"
+    out = send_tick(sw.hub, "06", "2026-10-12", checks=["seller_weekly_report"])   # Monday
+    assert out["results"][0]["result"] == "held:['L8']"
+    [w] = sw.hitl.get_pending_waits("S8-seller")
+    assert sw.spokes["06"].held_reports["S8-seller"] == {
+        "listing_id": "L8", "week_ending": "2026-10-12", "showings": 2, "feedback_received": 1}
+    assert not _persisted(sw, "client.message.request", "S8-seller")              # nothing before you decide
+    out = send_tick(sw.hub, "06", "2026-10-12", checks=["seller_weekly_report"])
+    assert out["results"][0]["result"] == "none_due"                             # once a week
+    auth = _env("human", "06", "hitl.decision.authority", "S8-seller",
+                {"wait_id": w["wait_id"], "decision": "APPROVE"})
+    s.sign(auth)
+    assert sw.hitl.resume_operation(auth)["handler_result"] == "continued: report sent to 11"
+    [req] = _persisted(sw, "client.message.request", "S8-seller")
+    assert req["payload"]["template"] == "seller_weekly_report" and req["payload"]["variables"]["showings"] == 2
+    assert any(e["intent"] == "client.message.send" and e["ctx"] == "S8-seller" for e in sw.external)
+
+
+@pytest.mark.parametrize("bad", [{"weekday": "funday", "listings": {"L": "S"}},
+                                 {"weekday": "monday", "listings": {}},
+                                 {"weekday": "monday"}])
+def test_p18_bad_settings_are_rejected(tmp_path, bad):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "06", "c", {"seller_reports": bad}))
+    assert sw.spokes["06"].seller_reports is None
+    assert any(q["payload"].get("reason") == "seller_reports setting rejected"
+               for q in sw.hub.queues["clarification.request"])
+
+
+def test_p19_expired_access_window_is_flagged_once_and_never_carries_a_secret(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "14", "P19", {"access_grant": {"party": "inspector-1", "window_end": "2026-10-15",
+                                                          "custody_ref": "lockbox-4"}}))
+    sw.hub.send(_signed(s, "14", "P19", {"access_grant": {"party": "photographer", "window_end": "2026-10-15",
+                                                          "custody_ref": "code 4471"}}))
+    assert len(sw.spokes["14"].access_grants["P19"]) == 1                 # the secret-looking one refused
+    assert any("names the access secret" in str(q["payload"].get("problems"))
+               for q in sw.hub.queues["clarification.request"])
+    out = send_tick(sw.hub, "14", "2026-10-15", checks=["access_custody"])
+    assert out["results"][0]["result"] == "none_due"
+    out = send_tick(sw.hub, "14", "2026-10-16", checks=["access_custody"])
+    assert out["results"][0]["result"] == "flagged:['inspector-1']"
+    out = send_tick(sw.hub, "14", "2026-10-17", checks=["access_custody"])
+    assert out["results"][0]["result"] == "none_due"
+    sw.hub.send(_signed(s, "14", "P19", {"access_closed": {"party": "inspector-1"}}))
+    assert sw.spokes["14"].access_grants["P19"][0]["closed"] is True
+
+
+def test_p19_a_party_name_containing_pin_letters_is_not_mistaken_for_a_secret(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "14", "P19b", {"access_grant": {"party": "Pinewood Inspections",
+                                                           "window_end": "2026-10-15",
+                                                           "custody_ref": "lockbox-4"}}))
+    assert len(sw.spokes["14"].access_grants["P19b"]) == 1
+
+
+def test_p20_vacant_listing_gets_a_check_on_its_interval_until_it_ends(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "05", "P20", {"new_listing": {"beds": 2, "occupancy": "vacant", "features": []},
+                                        "today": "2026-10-01"}, intent="listing.change.authorized"))
+    assert "P20" in sw.spokes["05"].vacant_watch
+    out = send_tick(sw.hub, "05", "2026-10-02", checks=["vacant_watch"])
+    assert out["hub"]["status"] == "ack" and out["results"][0]["result"] == "check_requested"
+    reqs = [e for e in _persisted(sw, "vendor.request", "P20") if e["payload"].get("kind") == "property_check"]
+    assert len(reqs) == 1 and reqs[0]["to_agent"] == "09"
+    assert send_tick(sw.hub, "05", "2026-10-05", checks=["vacant_watch"])["results"][0]["result"] == "not_due"
+    assert send_tick(sw.hub, "05", "2026-10-09", checks=["vacant_watch"])["results"][0]["result"] == "check_requested"
+    sw.hub.send(_signed(s, "05", "P20", {"occupancy": "occupied"}))
+    assert "P20" not in sw.spokes["05"].vacant_watch
+
+
+def test_p20_no_property_check_vendor_on_the_roster_holds_for_the_broker(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "05", "P20b", {"occupancy": "vacant", "today": "2026-10-01"}))
+    send_tick(sw.hub, "05", "2026-10-02", checks=["vacant_watch"])
+    held = [q for q in sw.hub.queues["clarification.request"] if q["client_context_id"] == "P20b"]
+    assert held and "no approved roster vendor for kind 'property_check'" in held[0]["payload"]["reason"], \
+        "09 must hold a check it cannot book, not drop it"

@@ -134,6 +134,10 @@ class Spoke14CRMPipeline:
         # (every year) or "YYYY-MM-DD" (once). Read by the daily clock.
         self.client_dates: dict[str, dict[str, str]] = {}
         self._dates_fired: set = set()
+        # P19 Property Access Custody (J3, 2026-10-12): broker-signed access
+        # grants per listing context - who has access and until when. The
+        # code, combination or key itself is never recorded or sent.
+        self.access_grants: dict[str, list[dict]] = {}
         register_spoke(hub, "14", self)
 
     def _new_entry_id(self) -> str:
@@ -197,6 +201,71 @@ class Spoke14CRMPipeline:
                     {**entry, "client_context_id": ctx},
                     identity={"client_name": name} if isinstance(name, str) else None)
         return entry_id
+
+    _SECRET_WORDS = ("code", "combo", "combination", "password", "pin", "passcode")
+
+    def _access_record(self, ctx: str, env: Envelope):
+        """P19 (J3, 2026-10-12). {"access_grant": {"party", "window_end",
+        "custody_ref"}} records who may enter and until when;
+        {"access_closed": {"party"}} records that the key came back or the
+        code was changed. Any field beyond those, or a value that looks like
+        it carries the secret itself, is rejected whole: access secrets never
+        ride a message (playbook P19)."""
+        import datetime
+        p = env.payload
+        problems = []
+        if "access_grant" in p:
+            g = p["access_grant"]
+            if not isinstance(g, dict) or set(g) != {"party", "window_end", "custody_ref"}:
+                problems.append("access_grant takes exactly party, window_end, custody_ref")
+            else:
+                try:
+                    datetime.date.fromisoformat(str(g["window_end"]))
+                except ValueError:
+                    problems.append("window_end must be YYYY-MM-DD")
+                import re as _re
+                if any(_re.search(rf"\b{w}\b", str(v).lower())
+                       for v in g.values() for w in self._SECRET_WORDS):
+                    problems.append("a value looks like it names the access secret - "
+                                    "never send the code or key itself")
+        if "access_closed" in p:
+            c = p["access_closed"]
+            if not isinstance(c, dict) or set(c) != {"party"}:
+                problems.append("access_closed takes exactly party")
+        if problems:
+            self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                               {"reason": "access record rejected; nothing changed",
+                                "problems": problems}))
+            return
+        if "access_grant" in p:
+            self.access_grants.setdefault(ctx, []).append(
+                {**p["access_grant"], "closed": False, "flagged": False})
+        if "access_closed" in p:
+            for g in self.access_grants.get(ctx, []):
+                if g["party"] == p["access_closed"]["party"]:
+                    g["closed"] = True
+        self._append(ctx, "config.update", env)
+        self.hub.ingest_spoke_trace("14", env.envelope_id,
+                                    thought=f"broker-signed access record for {ctx!r} "
+                                            f"(no secret recorded)",
+                                    result="access record kept")
+
+    def check_access_custody(self, ctx: str, today: str):
+        """Daily clock check, P19 (J3, 2026-10-12): an access grant whose
+        window has ended and that the broker has not closed is flagged once."""
+        flagged = []
+        for g in self.access_grants.get(ctx, []):
+            if g["closed"] or g["flagged"] or str(g["window_end"]) >= today:
+                continue
+            g["flagged"] = True
+            flagged.append(g["party"])
+            self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                               {"reason": f"access window for {g['party']!r} ended "
+                                          f"{g['window_end']} and is not closed - confirm the "
+                                          f"key is back or the code was changed, then sign "
+                                          f"access_closed",
+                                "custody_ref": g["custody_ref"]}))
+        return f"flagged:{flagged}" if flagged else "none_due"
 
     def _update_consent(self, ctx: str, new_flags: dict):
         """Most-restrictive-per-channel tuple: a channel already marked
@@ -366,6 +435,10 @@ class Spoke14CRMPipeline:
                         f"conflicting external import, flagged if conflict",
                 result=f"appended={entry_id}")
             return
+
+        if env.intent == "config.update" and ("access_grant" in env.payload
+                                              or "access_closed" in env.payload):
+            return self._access_record(ctx, env)
 
         if env.intent == "config.update" and "client_dates" in env.payload:
             # P13 dates for this client (broker-signed). Validated whole.

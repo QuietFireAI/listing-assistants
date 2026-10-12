@@ -7,6 +7,9 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
+
+_WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -76,7 +79,98 @@ class Spoke06ShowingScheduler:
         self.pending_bumps: dict[str, dict] = {}  # ctx -> held protected-bump request
         # per-state or per-property minimum notice hours for occupied homes
         self.min_notice_hours = min_notice_hours or {"default": 24}
+        # P18 Seller Weekly Report (J3, 2026-10-12). Broker-signed:
+        # {"weekday": 0-6, "listings": {listing_id: seller context}}. None = off.
+        self.seller_reports: dict | None = None
+        self.seller_report_weeks: dict[str, str] = {}   # listing_id -> ISO week reported
+        self.held_reports: dict[str, dict] = {}         # seller ctx -> report awaiting the broker
         register_spoke(hub, "06", self)
+        register_resumer(hub, "06", self._resume)
+
+    def _configure_seller_reports(self, env: Envelope) -> None:
+        cfg = env.payload.get("seller_reports")
+        problems = []
+        if not isinstance(cfg, dict) or set(cfg) != {"weekday", "listings"}:
+            problems.append('expected {"weekday": "<day>", "listings": {"<listing_id>": "<seller context>"}}')
+        else:
+            if str(cfg["weekday"]).lower() not in _WEEKDAYS:
+                problems.append(f"weekday {cfg['weekday']!r} is not a day name")
+            lst = cfg["listings"]
+            if not isinstance(lst, dict) or not lst or not all(
+                    isinstance(k, str) and k and isinstance(v, str) and v for k, v in lst.items()):
+                problems.append("listings must map each listing id to the seller's context id")
+        if problems:
+            self.hub.send(_env("06", "queue", "clarification.request", env.client_context_id,
+                               {"reason": "seller_reports setting rejected", "problems": problems}))
+            return
+        self.seller_reports = {"weekday": _WEEKDAYS.index(str(cfg["weekday"]).lower()),
+                               "listings": dict(cfg["listings"])}
+        self.hub.ingest_spoke_trace(
+            "06", env.envelope_id,
+            thought=f"weekly seller reports set by the broker's signature: "
+                    f"{cfg['weekday']} for {sorted(cfg['listings'])}",
+            result="seller_reports configured")
+
+    def weekly_seller_reports(self, today: str):
+        """Daily clock check, P18 (J3, 2026-10-12). On the broker's chosen
+        weekday, for each listing in the signed setting: counts the showings
+        confirmed for that listing in the 7 days ending today and how many of
+        them have feedback, and holds the report for the broker. Continue
+        sends it to the seller through Agent 11 (template
+        seller_weekly_report); cancel skips this week. Numbers only - no
+        free text - so there is nothing for Agent 17 to screen."""
+        import datetime
+        if not self.seller_reports:
+            return "not_configured"
+        day = datetime.date.fromisoformat(today)
+        if day.weekday() != self.seller_reports["weekday"]:
+            return "not_today"
+        iso = day.isocalendar()
+        week = f"{iso[0]}-W{iso[1]:02d}"
+        start = day - datetime.timedelta(days=7)
+        held = []
+        for listing_id, seller_ctx in sorted(self.seller_reports["listings"].items()):
+            if self.seller_report_weeks.get(listing_id) == week:
+                continue
+            shown = []
+            for showings in self.confirmed_showings.values():
+                for s in showings:
+                    if s.get("listing_id") != listing_id or not s.get("time"):
+                        continue
+                    try:
+                        d = datetime.date.fromisoformat(str(s["time"])[:10])
+                    except ValueError:
+                        continue
+                    if start < d <= day:
+                        shown.append(s)
+            report = {"listing_id": listing_id, "week_ending": today,
+                      "showings": len(shown),
+                      "feedback_received": sum(1 for s in shown if s.get("feedback_received"))}
+            self.seller_report_weeks[listing_id] = week
+            self.held_reports[seller_ctx] = report
+            hold_for_human(self.hub, "06", seller_ctx, "client.message.request",
+                           f"weekly seller report for {listing_id}: {report['showings']} "
+                           f"showing(s), {report['feedback_received']} with feedback. "
+                           f"Continue = send it to the seller; cancel = skip this week.",
+                           {"report": report})
+            held.append(listing_id)
+        return f"held:{held}" if held else "none_due"
+
+    def _resume(self, ws, decision_payload: dict):
+        """The broker's signed decision on a held weekly seller report."""
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        report = self.held_reports.get(ctx)
+        if report is None or d == "other":
+            return "nothing held for this context" if report is None else "decision not continue/cancel"
+        self.held_reports.pop(ctx)
+        if d == "cancel":
+            self.hub.send(_env("06", "14", "interaction.log", ctx,
+                               {"kind": "seller_report_skipped", **report}))
+            return "cancelled: report not sent"
+        self.hub.send(_env("06", "11", "client.message.request", ctx,
+                           {"template": "seller_weekly_report", "variables": report}))
+        return "continued: report sent to 11"
 
     def _access_request_hit(self, text: str) -> str | None:
         low = text.lower()
@@ -115,6 +209,10 @@ class Spoke06ShowingScheduler:
             from .clock import handle_tick
             return handle_tick(self, "06", env)
         ctx = env.client_context_id
+
+        if env.intent == "config.update" and "seller_reports" in env.payload:
+            self._configure_seller_reports(env)
+            return
 
         if env.intent == "config.update" and "confirm_protected_bump" in env.payload:
             # Human's confirmation of a held protected-deadline bump - the
@@ -271,6 +369,8 @@ class Spoke06ShowingScheduler:
 
         if env.intent == "showing.feedback_response":
             self.feedback_asks.pop(ctx, None)
+            for s in self.confirmed_showings.get(ctx, []):   # P18 counts these
+                s["feedback_received"] = True
             self.hub.send(_env("06", "18", "agent.status", ctx,
                                {"waiting_on": "showing_feedback",
                                 "resolved": True}))

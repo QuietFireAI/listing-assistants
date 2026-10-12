@@ -30,15 +30,19 @@ from typing import Any
 #   args: names resolved from the tick ("ctx", "today", "now_iso", "doc_type")
 CHECKS: dict[str, list[tuple]] = {
     "01": [("record_response_timeout", "check_record_response_timeout", "pending", ("ctx", "today"), True)],
-    "03": [("nurture_touches", "send_due_touches", "active_sequences", ("ctx", "today", "now_iso"), True)],
-    "06": [("showing_feedback", "request_showing_feedback", "confirmed_showings", ("ctx", "today"), True)],
+    "03": [("nurture_touches", "send_due_touches", "active_sequences", ("ctx", "today", "now_iso"), True),
+           ("rescore_cadence", "rescore_cadence", "rescore_pool", ("ctx", "today"), True)],
+    "05": [("vacant_watch", "check_vacant_watch", "vacant_watch", ("ctx", "today"), True)],
+    "06": [("showing_feedback", "request_showing_feedback", "confirmed_showings", ("ctx", "today"), True),
+           ("seller_weekly_report", "weekly_seller_reports", None, ("today",), True)],
     "07": [("deadlines", "check_deadlines", "timelines", ("ctx", "today"), True),
            ("vendor_holdups", "check_vendor_holdups", "timelines", ("ctx", "today"), True)],
     "08": [("chase_timeout", "check_chase_timeout", "pending_requests", ("ctx", "doc_type"), True),
            ("disclosure_deadline", "check_disclosure_deadlines", "pending_requests", ("ctx", "today"), True)],
     "13": [("match_digest_flush", "flush_match_digest", "matches_today", ("ctx",), True)],
     "14": [("eod_report", "generate_report", None, ("eod",), False),
-           ("date_triggers", "check_client_dates", "client_dates", ("ctx", "today"), True)],
+           ("date_triggers", "check_client_dates", "client_dates", ("ctx", "today"), True),
+           ("access_custody", "check_access_custody", "access_grants", ("ctx", "today"), True)],
     "16": [("post_close_milestones", "check_post_close_milestones", "closed_transactions", ("ctx", "today"), True)],
     "17": [("review_sla", "check_sla", "pending_reviews", ("ctx", "today"), True)],
     "18": [("showing_no_show", "check_showing_no_show", "showings", ("ctx", "now_iso"), True),
@@ -77,7 +81,10 @@ def handle_tick(spoke: Any, agent_id: str, env: Any) -> None:
             continue
         fn = getattr(spoke, method)
         if source is None:
-            run(name, fn, *argnames)
+            # once per tick; "today"/"now_iso" resolve from the tick, other
+            # names are passed as written (e.g. "eod", "morning")
+            vals = {"today": today, "now_iso": now_iso}
+            run(name, fn, *[vals.get(a, a) for a in argnames])
             continue
         state = getattr(spoke, source, {}) or {}
         for ctx in list(state):

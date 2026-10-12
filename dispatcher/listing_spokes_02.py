@@ -26,6 +26,10 @@ UNKNOWN = "unknown"
 # default is authoring, however small.
 from .lead_rubric import REQUIRED_RUBRIC_KEYS  # noqa: E402  (single definition, shared with the JEV fallback)
 
+# the lead fields dispatcher/lead_rubric.py reads (both spellings)
+RESCORE_INPUT_KEYS = ("budget", "stated_budget", "preapproval_doc", "preapproval_document",
+                      "timeline_days", "stated_urgency", "financing_progress")
+
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
@@ -404,11 +408,15 @@ class Spoke02LeadQualification:
             # conflict (Agent 03's tuple 4, a different scenario -
             # confirmed distinct 2026-07-16). This is the actual
             # distinguishing signal Agent 03 needs and never had.
+            # P21 (J3, 2026-10-12): the scoring inputs ride along so Lead
+            # Nurture can re-score this lead on its cadence
+            inputs = {k: payload[k] for k in RESCORE_INPUT_KEYS if k in payload}
             self.hub.send(_env("02", "03", "lead.nurture", ctx,
                                {"tier": tier, "score": score,
                                 "consent": payload.get("consent"),
                                 "today": payload.get("today"),
-                                "reassignment": rescored}))
+                                "reassignment": rescored,
+                                "scoring_inputs": inputs}))
         elif tier == "COLD":
             pass  # archived via the interaction.log below, never deleted
         elif tier == "UNKNOWN":

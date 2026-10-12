@@ -84,7 +84,67 @@ class Spoke05MLSListingManagement:
         # a closing/settlement artifact on file first
         self.required_artifacts = required_artifacts or {
             "sold": "closing_artifact", "pending": "signed_contract_artifact"}
+        # P20 Vacant Property Watch (J3, 2026-10-12): ctx -> {"since",
+        # "last_check", "interval_days"} for listings the broker marked vacant
+        self.vacant_watch: dict[str, dict] = {}
         register_spoke(hub, "05", self)
+
+    # TUNABLE (J3, 2026-10-12): days between condition checks on a vacant listing
+    VACANT_CHECK_INTERVAL_DAYS = 7
+    _ENDED = ("sold", "withdrawn", "expired", "cancelled", "closed")
+
+    def _set_occupancy(self, ctx: str, env: Envelope, occupancy, interval, today):
+        if occupancy not in ("vacant", "occupied") or (
+                interval is not None and (isinstance(interval, bool) or not isinstance(interval, int)
+                                          or interval < 1)):
+            self.hub.send(_env("05", "queue", "clarification.request", ctx,
+                               {"reason": "occupancy setting rejected - occupancy must be "
+                                          "\"vacant\" or \"occupied\"; watch_interval_days a "
+                                          "whole number of days"}))
+            return
+        if occupancy == "occupied":
+            if self.vacant_watch.pop(ctx, None) is not None:
+                self.hub.send(_env("05", "14", "interaction.log", ctx,
+                                   {"kind": "vacant_watch_ended", "reason": "marked occupied"}))
+            return
+        entry = self.vacant_watch.setdefault(ctx, {"since": today, "last_check": None,
+                                                   "interval_days": self.VACANT_CHECK_INTERVAL_DAYS})
+        if interval is not None:
+            entry["interval_days"] = interval
+        self.hub.send(_env("05", "14", "interaction.log", ctx,
+                           {"kind": "vacant_watch_started", "interval_days": entry["interval_days"]}))
+        self.hub.ingest_spoke_trace("05", env.envelope_id,
+                                    thought=f"listing {ctx!r} marked vacant by the broker - "
+                                            f"condition check every {entry['interval_days']} days "
+                                            f"through 09 until occupied or the listing ends",
+                                    result="vacant watch on")
+
+    def check_vacant_watch(self, ctx: str, today: str):
+        """Daily clock check, P20 (J3, 2026-10-12). Orders a property
+        condition check from Agent 09 every interval_days while the listing
+        is marked vacant and has not ended. 09 books only a credentialed
+        vendor of kind "property_check" from the ratified roster (or holds
+        for the broker), and a check counts only with proof attached."""
+        import datetime
+        entry = self.vacant_watch.get(ctx)
+        if entry is None:
+            return None
+        status = (self.mls_records.get(ctx) or {}).get("status")
+        if status in self._ENDED:
+            self.vacant_watch.pop(ctx)
+            self.hub.send(_env("05", "14", "interaction.log", ctx,
+                               {"kind": "vacant_watch_ended", "reason": f"listing {status}"}))
+            return f"ended:{status}"
+        if entry["last_check"]:
+            days = (datetime.date.fromisoformat(today)
+                    - datetime.date.fromisoformat(entry["last_check"])).days
+            if days < entry["interval_days"]:
+                return "not_due"
+        entry["last_check"] = today
+        self.hub.send(_env("05", "09", "vendor.request", ctx,
+                           {"kind": "property_check", "today": today,
+                            "purpose": "vacant_watch"}))
+        return "check_requested"
 
     def _conflicting_authorization(self, ctx: str, field: str, value,
                                     authorizing_identity: str) -> dict | None:
@@ -104,6 +164,19 @@ class Spoke05MLSListingManagement:
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id
+        if env.intent == "clock.tick":   # P20 vacant watch (J3, 2026-10-12)
+            from .clock import handle_tick
+            return handle_tick(self, "05", env)
+        if env.intent == "config.update" and "occupancy" in env.payload:
+            p = env.payload
+            unknown = set(p) - {"occupancy", "watch_interval_days", "today"}
+            if unknown:
+                self.hub.send(_env("05", "queue", "clarification.request", ctx,
+                                   {"reason": "occupancy setting rejected - unknown keys",
+                                    "keys": sorted(unknown)}))
+                return
+            return self._set_occupancy(ctx, env, p["occupancy"], p.get("watch_interval_days"),
+                                       p.get("today"))
 
         if env.intent == "asset.release":
             draft = env.payload.get("draft", {})
@@ -198,6 +271,8 @@ class Spoke05MLSListingManagement:
             if "new_listing" in change:
                 package = change["new_listing"]
                 self.property_data[ctx] = package
+                if package.get("occupancy") == "vacant":   # P20 (J3)
+                    self._set_occupancy(ctx, env, "vacant", None, change.get("today"))
                 file_record(self.hub, "05", ctx, "artifacts", f"listing_package_{env.envelope_id[:12]}",
                             {"new_listing": package, "authorize_go_live": bool(change.get("authorize_go_live")),
                              "signed_envelope": env.envelope_id},

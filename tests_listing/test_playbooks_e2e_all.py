@@ -587,9 +587,12 @@ def test_p20_vacant_property_watch_cycle(tmp_path):
 
 # ---------------------------------------------------------------- P21
 def test_p21_lead_rescore_cycle(tmp_path):
-    """Refreshed evidence -> rescore submitted -> 02 routes it; a lead
-    with an open escalation HOLDS (the human's read outranks the
-    rubric) - no lead in an unknown state."""
+    """Started by the daily clock since 2026-10-12 (J3): a WARM lead in the
+    nurture pool is re-scored by 02 every 7 days with its stated timeline
+    counted down by the days elapsed, so a lead that said 60 days comes
+    back HOT a month later. Before, this test sent the first message by
+    hand and nothing in a running swarm started P21."""
+    from dispatcher.clock import send_tick
     hub, signer, spokes, external = full_swarm(str(tmp_path))
     hub.send(signed(signer, "02", "config.update", "p21",
                     {"rubric": {"budget_threshold": 400_000,
@@ -599,22 +602,22 @@ def test_p21_lead_rescore_cycle(tmp_path):
                                 "financing_weight": 20,
                                 "hot_threshold": 70, "warm_threshold": 40},
                      "version": "v1"}))
-    # 1a/1b: evidence refresh round trip
-    hub.send(spoke_env("03", "10", "data.request", "p21",
-                       {"purpose": "market_update", "mode": "comp",
-                        "license_scope": "internal",
-                        "comps": [{"id": f"c{i}", "age_days": 1,
-                                   "source": "mls",
-                                   "retrieved": "2026-07-17"}
-                                  for i in range(6)]}))
-    # 2b: rescore lands in 02 and produces a tier
-    hub.send(spoke_env("03", "02", "lead.rescored", "p21",
-                       {"budget": 450_000, "timeline_days": 10,
-                        "financing_progress": "preapproved",
-                        "today": "2026-07-17"}))
-    tiers = [e for e in persisted(hub, "interaction.log")
-             if e["payload"].get("tier")]
-    assert tiers, "2c: rescore never produced a logged tier"
+    hub.send(spoke_env("01", "02", "lead.captured", "p21",
+                       {"budget": 450_000, "timeline_days": 60,
+                        "financing_progress": "preapproved", "today": "2026-09-01",
+                        "consent": {"email": "yes"}}))
+    assert spokes["03"].rescore_pool["p21"]["inputs"]["timeline_days"] == 60
+    assert not hub.queues["escalation.hot_lead"]                     # WARM: 40 + 20 points
+    out = send_tick(hub, "03", "2026-09-05", checks=["rescore_cadence"])
+    assert out["results"][0]["result"] == "not_due"
+    out = send_tick(hub, "03", "2026-10-01", checks=["rescore_cadence"])
+    assert out["results"][0]["result"] == "rescored"
+    [r] = [e for e in persisted(hub, "lead.rescored") if e["client_context_id"] == "p21"]
+    assert r["payload"]["timeline_days"] == 30                       # 60 - 30 days elapsed
+    assert [h["client_context_id"] for h in hub.queues["escalation.hot_lead"]] == ["p21"]
+    # a HOT lead leaves the nurture pool on the next tick, it is not re-scored weekly
+    out = send_tick(hub, "03", "2026-10-09", checks=["rescore_cadence"])
+    assert out["results"][0]["result"] == "left_pool:not_warm" and "p21" not in spokes["03"].rescore_pool
     clean(hub)
 
 

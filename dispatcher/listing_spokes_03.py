@@ -96,6 +96,10 @@ class Spoke03LeadNurture:
         # broker-signed sequence definitions (owner decision 7a, 2026-10-11):
         # sequence_id -> {"touches": [{"day": int, "text": str}, ...]}
         self.sequences: dict[str, dict] = {}
+        # P21 Lead Re-Score Cycle (J3, 2026-10-12): ctx -> {"inputs",
+        # "scored_on", "last_rescore", "awaiting"} for leads in the pool
+        self.rescore_pool: dict[str, dict] = {}
+        self.rescore_interval_days = self.RESCORE_INTERVAL_DAYS
         register_spoke(hub, "03", self)
 
     def _in_legal_contact_hours(self, hour: int) -> bool:
@@ -116,6 +120,62 @@ class Spoke03LeadNurture:
     # or legal"): market figures sent to a nurtured lead are pricing
     # information, and the request named no data mode, so Agent 10 refused
     # every one. Nothing called it.
+
+    # TUNABLE (J3, 2026-10-12): days between cadence re-scores of a nurtured lead
+    RESCORE_INTERVAL_DAYS = 7
+
+    def rescore_cadence(self, ctx: str, today: str):
+        """Daily clock check, P21 (J3, 2026-10-12). A lead in the nurture pool
+        is re-scored by Agent 02 every RESCORE_INTERVAL_DAYS. Its stated
+        timeline counts down with the days elapsed since it was scored, so
+        "buying in 60 days" scores as 30 days a month later - the reason a
+        warming lead can come back into the hot-lead path. Nothing else is
+        guessed: the other inputs are re-sent as they were scored.
+
+        Leaves the pool when: the lead opted out (consent all "no"), its
+        sequence is paused, or a re-score did not come back WARM (02 sends
+        lead.nurture only for WARM; HOT goes to the broker, COLD is archived)."""
+        import datetime
+        entry = self.rescore_pool.get(ctx)
+        if entry is None:
+            return None
+        seq = self.active_sequences.get(ctx) or {}
+        if seq.get("consent") and not any(v == "yes" for v in seq["consent"].values()):
+            self.rescore_pool.pop(ctx)
+            return "left_pool:opted_out"
+        if seq.get("paused"):
+            return "skipped:sequence_paused"
+        if entry.get("awaiting"):
+            # the last re-score did not come back to nurture - the lead left WARM
+            self.rescore_pool.pop(ctx)
+            self.hub.send(_env("03", "14", "interaction.log", ctx,
+                               {"kind": "left_rescore_pool",
+                                "reason": "last re-score did not return the lead to nurture"}))
+            return "left_pool:not_warm"
+        try:
+            since_last = (datetime.date.fromisoformat(today)
+                          - datetime.date.fromisoformat(entry["last_rescore"])).days
+            elapsed = (datetime.date.fromisoformat(today)
+                       - datetime.date.fromisoformat(entry["scored_on"])).days
+        except (TypeError, ValueError):
+            self.rescore_pool.pop(ctx)
+            self.hub.send(_env("03", "queue", "clarification.request", ctx,
+                               {"reason": "nurtured lead has no readable scoring date - "
+                                          "cannot re-score it on a cadence",
+                                "scored_on": entry.get("scored_on")}))
+            return "left_pool:no_date"
+        if since_last < self.rescore_interval_days:
+            return "not_due"
+        inputs = dict(entry["inputs"])
+        if isinstance(inputs.get("timeline_days"), (int, float)) \
+                and not isinstance(inputs.get("timeline_days"), bool):
+            inputs["timeline_days"] = max(0, inputs["timeline_days"] - elapsed)
+        entry["last_rescore"] = today
+        entry["awaiting"] = True
+        self.hub.send(_env("03", "02", "lead.rescored", ctx,
+                           {**inputs, "today": today, "consent": seq.get("consent"),
+                            "rescore_reason": f"cadence: {elapsed} days since scored"}))
+        return "rescored"
 
     def send_due_touches(self, ctx: str, today: str, now_iso: str | None = None):
         """Daily clock check (owner decision 7a, 2026-10-11): sends every
@@ -250,6 +310,25 @@ class Spoke03LeadNurture:
 
         if env.intent == "lead.nurture":
             consent = env.payload.get("consent") or {}
+            inputs = env.payload.get("scoring_inputs")
+            if isinstance(inputs, dict) and env.payload.get("today"):
+                prior = self.rescore_pool.get(ctx)
+                self.rescore_pool[ctx] = {"inputs": inputs, "scored_on": env.payload["today"],
+                                          "last_rescore": env.payload["today"],
+                                          "awaiting": False}
+                existing_seq = self.active_sequences.get(ctx)
+                if (prior is not None and env.payload.get("reassignment") and existing_seq
+                        and existing_seq["sequence_id"] == env.payload.get("sequence_id", "default_drip")):
+                    # a cadence re-score kept the lead WARM on the same
+                    # sequence: the pool entry is refreshed and the running
+                    # sequence carries on - it is NOT restarted from day 0
+                    self.hub.ingest_spoke_trace(
+                        "03", env.envelope_id,
+                        thought=f"re-score kept ctx={ctx!r} WARM on "
+                                f"{existing_seq['sequence_id']!r} - sequence continues, "
+                                f"no touches re-sent",
+                        result="rescore: still WARM, sequence continues")
+                    return
             # Job component: verify consent before ANY send - no consent on
             # file = no send, escalate.
             if not any(v == "yes" for v in consent.values()):
