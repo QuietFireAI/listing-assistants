@@ -384,6 +384,35 @@ class Spoke14CRMPipeline:
                 result=f"appended={entry_id}")
             return
 
+        if env.intent == "config.update" and ("buyer_agreement_on_file" in env.payload
+                                              or "requester_identity_verified" in env.payload):
+            # The broker's signed record that a buyer representation
+            # agreement is on file / the requester's identity is verified.
+            # Added 2026-10-11 (real-traffic check): nothing in the swarm
+            # ever recorded either fact, so every client showing request
+            # stopped at "no buyer agreement" - P06/P07 only worked from
+            # hand-built test logs. Both must be true/false, nothing else.
+            p = env.payload
+            bad = [k for k in ("buyer_agreement_on_file", "requester_identity_verified")
+                   if k in p and not isinstance(p[k], bool)]
+            if bad:
+                self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                                   {"reason": "record update rejected; nothing changed",
+                                    "problems": [f"{k} must be true or false" for k in bad]}))
+                return
+            if "buyer_agreement_on_file" in p:
+                self.buyer_agreement[ctx] = p["buyer_agreement_on_file"]
+            if "requester_identity_verified" in p:
+                self.identity_verified[ctx] = p["requester_identity_verified"]
+            self._append(ctx, "config.update", env)
+            self.hub.ingest_spoke_trace(
+                "14", env.envelope_id,
+                thought=f"broker-signed record for ctx={ctx!r}: buyer agreement="
+                        f"{self.buyer_agreement.get(ctx, False)}, identity verified="
+                        f"{self.identity_verified.get(ctx, False)}",
+                result="record updated")
+            return
+
         if env.intent == "config.update" and env.payload.get("action") == "release_record_freeze":
             # The owner's signed resolution of a retention question - the
             # ONLY unfreeze path, and config.update is signature-gated at

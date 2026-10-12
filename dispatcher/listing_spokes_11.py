@@ -399,7 +399,12 @@ class Spoke11ClientCommunication:
             # not routing around the problem.
             if payload.get("requests_showing"):
                 self.pending_showing_requests[ctx] = {
-                    "requested_time": payload.get("requested_time")}
+                    "requested_time": payload.get("requested_time"),
+                    # fixed 2026-10-11: the listing never reached 06, so
+                    # showings of one property by two buyers could not
+                    # conflict
+                    "listing_id": payload.get("listing_id") or payload.get("requested_listing_id"),
+                    "protected_deadline": payload.get("protected_deadline", False)}
                 self.hub.send(_env("11", "14", "record.request", ctx, {}))
                 return
 
@@ -462,8 +467,18 @@ class Spoke11ClientCommunication:
                                              "agreement on file yet",
                                     "requested_time": pending["requested_time"]}))
                 return
+            # lead tier relayed from 14's record (02 logged it there), the
+            # same relay 13 uses - never taken from the client's message
+            tier = None
+            for e in payload.get("entries", []):
+                t = (e.get("payload") or {}).get("tier")
+                if t:
+                    tier = t
             self.hub.send(_env("11", "06", "showing.request", ctx,
                                {"requested_time": pending["requested_time"],
+                                "listing_id": pending.get("listing_id"),
+                                "protected_deadline": pending.get("protected_deadline", False),
+                                "lead_tier": tier,
                                 "buyer_agreement_on_file": buyer_agreement,
                                 "requester_identity_verified": identity_verified}))
             return

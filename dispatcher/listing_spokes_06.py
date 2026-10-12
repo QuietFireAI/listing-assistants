@@ -121,21 +121,36 @@ class Spoke06ShowingScheduler:
             # only path that ever executes it. config.update reaches this
             # handler only via the hub's signed-authority pipeline.
             held = self.pending_bumps.pop(ctx, None)
-            if held is None or not env.payload["confirm_protected_bump"]:
+            if held is None:
+                self.hub.ingest_spoke_trace(
+                    "06", env.envelope_id,
+                    thought=f"bump confirmation for ctx={ctx!r}, but no bump is "
+                            f"held for this context - nothing moved",
+                    result="no held bump")
                 return
-            existing = self.confirmed_showings.setdefault(ctx, [])
-            for bumped in [s for s in existing
-                           if self._time_conflict(s.get("time"),
-                                                  held["requested_time"],
-                                                  held["buffer_minutes"])]:
-                existing.remove(bumped)
-                self.hub.send(_env("06", "11", "client.message.request", ctx,
-                                   {"template": "showing_bumped_notice",
-                                    "original_time": bumped["time"],
-                                    "reason": "protected_deadline_priority"}))
-                self.hub.send(_env("06", "14", "interaction.log", ctx,
-                                   {"kind": "showing_bumped",
-                                    "time": bumped["time"]}))
+            if not env.payload["confirm_protected_bump"]:
+                self.hub.ingest_spoke_trace(
+                    "06", env.envelope_id,
+                    thought=f"broker declined the bump for ctx={ctx!r} - the "
+                            f"confirmed showing(s) stand",
+                    result="bump declined")
+                return
+            # the displaced showings may belong to other buyers (same listing)
+            for other_ctx, time in held.get("displaced", [(ctx, None)]):
+                showings = self.confirmed_showings.get(other_ctx, [])
+                for bumped in [s for s in showings
+                               if (time is not None and s.get("time") == time)
+                               or (time is None and self._time_conflict(
+                                   s.get("time"), held["requested_time"],
+                                   held["buffer_minutes"]))]:
+                    showings.remove(bumped)
+                    self.hub.send(_env("06", "11", "client.message.request", other_ctx,
+                                       {"template": "showing_bumped_notice",
+                                        "original_time": bumped["time"],
+                                        "reason": "protected_deadline_priority"}))
+                    self.hub.send(_env("06", "14", "interaction.log", other_ctx,
+                                       {"kind": "showing_bumped",
+                                        "time": bumped["time"]}))
             self._schedule(ctx, held["payload"], env)
             return
 
@@ -325,14 +340,20 @@ class Spoke06ShowingScheduler:
                                     "required_notice_hours": required}))
                 return
 
-        existing = self.confirmed_showings.setdefault(ctx, [])
         # tuple 9: overlapping showings -> sequence with buffer, never
-        # double-book and hope
+        # double-book and hope. Fixed 2026-10-11 (scene run): only this
+        # context's own showings were checked, and the context is the BUYER,
+        # so two buyers could be booked into the same property at the same
+        # time. Showings of the same listing now conflict across buyers.
         requested_time = payload.get("requested_time")
         buffer_minutes = payload.get("buffer_minutes", 30)
-        conflicting = [s for s in existing
-                      if self._time_conflict(s.get("time"), requested_time,
-                                             buffer_minutes)]
+        listing_id = payload.get("listing_id")
+        conflicting_pairs = [
+            (c, s) for c, showings in self.confirmed_showings.items()
+            for s in showings
+            if (c == ctx or (listing_id is not None and s.get("listing_id") == listing_id))
+            and self._time_conflict(s.get("time"), requested_time, buffer_minutes)]
+        conflicting = [s for _c, s in conflicting_pairs]
         if conflicting:
             protected = payload.get("protected_deadline", False)
             if not protected:
@@ -386,6 +407,7 @@ class Spoke06ShowingScheduler:
             self.pending_bumps[ctx] = {"requested_time": requested_time,
                                        "buffer_minutes": buffer_minutes,
                                        "payload": payload,
+                                       "displaced": [(c, s["time"]) for c, s in conflicting_pairs],
                                        "conflicting_times":
                                            [s["time"] for s in conflicting]}
             self.hub.send(_env("06", "queue", "clarification.request", ctx,
@@ -421,8 +443,9 @@ class Spoke06ShowingScheduler:
             self.hub.send(_env("06", "09", "vendor.request", ctx,
                                {"kind": "open_house_signage"}))
 
-        showing = {"time": requested_time, "confirmed": True}
-        existing.append(showing)
+        showing = {"time": requested_time, "confirmed": True,
+                   "listing_id": listing_id}
+        self.confirmed_showings.setdefault(ctx, []).append(showing)
         self.hub.ingest_spoke_trace(
             "06", env.envelope_id,
             thought="all gates cleared (buyer agreement on file, identity "

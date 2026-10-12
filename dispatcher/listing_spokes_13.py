@@ -326,6 +326,30 @@ class Spoke13BuyerSearchMatch:
                 self._match_one(buyer_ctx, listing, env)
             return
 
+        if env.intent == "lead.reply" and str(payload.get("reason", "")).startswith(
+                "showing requested, no buyer agreement"):
+            # 11's agreement gate: a client asked for a showing and 14 has no
+            # buyer agreement on file. 13 owns getting it signed; until the
+            # broker records it (signed config.update to 14) no showing is
+            # requested. Added 2026-10-11 - this arrived with no "message"
+            # and matched no rule.
+            self.hub.ingest_spoke_trace(
+                "13", env.envelope_id,
+                thought=f"showing requested for {payload.get('requested_time')!r} with "
+                        f"no buyer agreement on file - agreement first, no showing "
+                        f"request goes to 06",
+                result="held: buyer_agreement_required")
+            self.hub.send(_env("13", "18", "agent.status", ctx,
+                               {"waiting_on": "buyer_agreement_signature",
+                                "since": payload.get("today")}))
+            self.hub.send(_env("13", "queue", "clarification.request", ctx,
+                               {"reason": "client asked for a showing; no buyer "
+                                          "representation agreement on file - get it "
+                                          "signed, then record it with a signed "
+                                          "config.update to Agent 14",
+                                "requested_time": payload.get("requested_time")}))
+            return
+
         if env.intent == "lead.reply":
             message = str(payload.get("message", "")).lower()
 

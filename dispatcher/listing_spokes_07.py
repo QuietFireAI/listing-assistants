@@ -464,16 +464,22 @@ class Spoke07TransactionCoordinator:
         import datetime
         pending = self.vendor_requests_pending.get(ctx, {})
         today_d = datetime.date.fromisoformat(today)
+        # once per (context, milestone), like overdue deadlines (scene run
+        # 2026-10-11: the same hold-up escalated again on every daily sweep)
+        if not hasattr(self, "_holdup_alerted"):
+            self._holdup_alerted: set = set()
         flagged = []
         for milestone, sent_date in list(pending.items()):
             sent_d = datetime.date.fromisoformat(sent_date)
-            if (today_d - sent_d).days >= self.vendor_holdup_days:
+            if ((today_d - sent_d).days >= self.vendor_holdup_days
+                    and (ctx, milestone) not in self._holdup_alerted):
+                self._holdup_alerted.add((ctx, milestone))
                 self.hub.escalate("escalation.legal_line",
                                   {"client_context_id": ctx,
                                    "trigger": f"vendor scheduling for "
                                              f"{milestone!r} unconfirmed "
-                                             f"after 7 days - hold-up to "
-                                             f"HITL",
+                                             f"after {self.vendor_holdup_days} "
+                                             f"days - hold-up to HITL",
                                    "agent": "07"})
                 flagged.append(milestone)
         return flagged
