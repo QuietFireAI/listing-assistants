@@ -261,11 +261,11 @@ def test_TUNABLE_agent10_opinion_press_threshold_is_real(tmp_path):
     hub, signer = make_signed_hub(str(tmp_path))
     Spoke10MarketData(hub, opinion_press_threshold=1)
     hub.on_turn_start()
-    env = Envelope(from_agent="03", to_agent="10", intent="data.request",
+    env = Envelope(from_agent="19", to_agent="10", intent="data.request",
                   client_context_id="t-1",
                   payload={"mode": "comp", "message": "what's your opinion on this one",
                           "license_scope": "internal"},
-                  provenance={"source": "spoke-03", "captured_at": "runtime",
+                  provenance={"source": "spoke-19", "captured_at": "runtime",
                               "verbatim_available": True})
     hub.send(env)
     assert hub.queues["escalation.legal_line"]  # fires on 1st ask, not the old 2nd

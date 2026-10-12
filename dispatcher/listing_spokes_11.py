@@ -240,12 +240,13 @@ class Spoke11ClientCommunication:
                            {"kind": "client_touch", "template": template}))
         return True
 
-    def request_market_update(self, ctx: str):
-        """Job component: 'data for client market updates' via 10. Called
-        on a weekly schedule (matching the established schedule-driven
-        method pattern), not envelope-triggered."""
-        self.hub.send(_env("11", "10", "data.request", ctx,
-                           {"mode": "neighborhood", "license_scope": "internal"}))
+    # request_market_update() and the data.package -> client branch were
+    # removed 2026-10-12 (owner decision J5): the request asked Agent 10 for
+    # NEIGHBORHOOD data (the same steering risk as Agent 13's path removed in
+    # 7b), nothing called it, and any market package that reached 11 was
+    # forwarded to the client - including comps a broker had asked for to
+    # make a pricing decision. Market data now goes only to the broker
+    # (human) and to Agent 19 (owner decision 7c).
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id
@@ -479,20 +480,6 @@ class Spoke11ClientCommunication:
             # implements for real)
             self._route_lead_reply(ctx, payload.get("owning_agent"),
                                    {"message": message}, env)
-            return
-
-        if env.intent == "data.package":
-            if ctx in self.complaint_hold:
-                self.hub.send(_env("11", "14", "interaction.log", ctx,
-                                   {"kind": "touch_held_complaint_hold"}))
-                return
-            # market update package arrived for a client send - delivered
-            # as sourced figures, never characterized (job component: route
-            # neighborhood questions to 10's sourced packages, report facts
-            # never characterizations)
-            self._send_client_message(ctx, "weekly_market_update",
-                                      {"package": payload}, payload.get("hour", 12),
-                                      env=env)
             return
 
         if env.intent == "record.response":

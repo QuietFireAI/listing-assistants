@@ -94,7 +94,7 @@ def test_10_external_scope_package_to_human(swarm):
     hub, _, _ = swarm
     from test_agent10 import data_req
     hub.send(data_req("m-007", {"mode": "comp", "license_scope": "external",
-                                "comps": [], "today": "2026-07-15"}, frm="11"))
+                                "comps": [], "today": "2026-07-15"}, frm="19"))
     assert delivered(hub, "10", "data.package", "human") and no_handoff_failures(hub)
 
 

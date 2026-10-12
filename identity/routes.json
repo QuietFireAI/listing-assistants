@@ -142,8 +142,6 @@
       "intent": "data.request",
       "senders": [
         "human",
-        "03",
-        "11",
         "19"
       ],
       "receivers": [
@@ -157,8 +155,6 @@
       ],
       "receivers": [
         "human",
-        "03",
-        "11",
         "19"
       ]
     },

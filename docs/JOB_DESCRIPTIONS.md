@@ -162,8 +162,8 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 
 **Type:** Long-cycle engagement
 **Summary:** Long-cycle lead nurture. Use for drip email/text sequences, market updates, behavioral re-engagement triggers, and returning re-scored leads to qualification.
-**Sends:** agent.status, client.message.request, content.review, data.request, interaction.log, lead.rescored
-**Receives:** behavioral.signal, clock.tick, content.verdict, data.package, lead.nurture, lead.reply
+**Sends:** agent.status, client.message.request, content.review, interaction.log, lead.rescored
+**Receives:** behavioral.signal, clock.tick, content.verdict, lead.nurture, lead.reply
 **Predeliberated tuples:** 11 (see 03-lead-nurture/DECISIONS.md)
 
 Manages long-cycle leads not yet ready to transact. Executes drip
@@ -332,8 +332,8 @@ carries provenance. The output schema contains no recommendation or opinion fiel
 
 **Type:** Client-facing messaging
 **Summary:** Routine client messaging. Use for delivering scheduling and milestone updates and weekly market updates to clients and routing their replies; escalates all advice-seeking immediately.
-**Sends:** agent.status, client.message.send, data.request, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
-**Receives:** client.message.request, client.reply, data.package, deadline.alert, record.response, status.update
+**Sends:** agent.status, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
+**Receives:** client.message.request, client.reply, deadline.alert, record.response, status.update
 **Predeliberated tuples:** 11 (see 11-client-communication/DECISIONS.md)
 
 Single voice for routine client updates: scheduling confirmations,

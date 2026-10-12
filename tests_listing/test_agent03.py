@@ -171,54 +171,16 @@ def test_content_verdict_approved_clears_sequence(tmp_path):
     assert spoke.active_sequences["n-004c"]["compliance_status"] == "cleared"
 
 
-def test_market_update_requests_data_only_when_cleared(tmp_path):
-    hub = make_hub(str(tmp_path))
-    spoke = with_sequences(Spoke03LeadNurture(hub))
-    hub.on_turn_start()
-    hub.send(nurture_env("n-004d", {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
-
-    # not yet cleared - must not request data
-    assert spoke.request_market_update("n-004d") is None
-    assert not persisted(hub, "data.request")
-
-    env = Envelope(from_agent="17", to_agent="03", intent="content.verdict",
-                  client_context_id="n-004d", payload={"verdict": "approved"},
-                  provenance={"source": "spoke-17", "captured_at": "runtime",
-                              "verbatim_available": True})
-    hub.send(env)
-    assert spoke.request_market_update("n-004d") is True
-    dr = persisted(hub, "data.request")
-    assert dr and dr[0]["to_agent"] == "10"
-
-
-def test_expired_market_data_skips_touch(tmp_path):
-    hub = make_hub(str(tmp_path))
-    spoke = with_sequences(Spoke03LeadNurture(hub))
-    hub.on_turn_start()
-    env = Envelope(from_agent="10", to_agent="03", intent="data.package",
-                  client_context_id="n-005",
-                  payload={"expired": True},
-                  provenance={"source": "spoke-10", "captured_at": "runtime",
-                              "verbatim_available": True})
-    hub.send(env)
-    events = hub.audit.read()
-    trace = [e for e in events if e["kind"] == "spoke.trace"][-1]
-    assert "expired" in trace["thought"]
-
-
-def test_stale_listing_status_pulls_step(tmp_path):
-    hub = make_hub(str(tmp_path))
-    spoke = with_sequences(Spoke03LeadNurture(hub))
-    hub.on_turn_start()
-    env = Envelope(from_agent="10", to_agent="03", intent="data.package",
-                  client_context_id="n-006",
-                  payload={"listing_status": "changed"},
-                  provenance={"source": "spoke-10", "captured_at": "runtime",
-                              "verbatim_available": True})
-    hub.send(env)
-    events = hub.audit.read()
-    trace = [e for e in events if e["kind"] == "spoke.trace"][-1]
-    assert "fabrications" in trace["thought"]
+def test_no_market_update_path_owner_decision_j5():
+    """Owner decision J5 (2026-10-12): Lead Nurture no longer requests
+    market data or builds market-update touches (pricing information to a
+    nurtured lead; the request also named no data mode, so 10 refused it).
+    The route lanes 03 -data.request-> 10 and 10 -data.package-> 03 are gone."""
+    import json
+    assert not hasattr(Spoke03LeadNurture, "request_market_update")
+    routes = json.load(open(os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json")))
+    by = {r["intent"]: r for r in routes["routes"]}
+    assert "03" not in by["data.request"]["senders"] and "03" not in by["data.package"]["receivers"]
 
 
 # --------------------------------------------------- confirm the gap is closed

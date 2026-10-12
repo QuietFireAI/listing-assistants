@@ -111,17 +111,11 @@ class Spoke03LeadNurture:
                 return text.strip()
         return None
 
-    def request_market_update(self, ctx: str):
-        """Job component: 'send market updates built from Market Data (10)
-        packages' - the data.request half of that, called when a
-        market-update touch is due in an active sequence. Data only, no
-        opinion - built entirely from whatever 10 returns in data.package."""
-        seq = self.active_sequences.get(ctx)
-        if not seq or seq.get("compliance_status") != "cleared":
-            return None  # no send-eligible sequence, nothing to update
-        self.hub.send(_env("03", "10", "data.request", ctx,
-                           {"purpose": "market_update"}))
-        return True
+    # request_market_update() and the data.package branch were removed
+    # 2026-10-12 (owner decision J5, "staying away from anything financial
+    # or legal"): market figures sent to a nurtured lead are pricing
+    # information, and the request named no data mode, so Agent 10 refused
+    # every one. Nothing called it.
 
     def send_due_touches(self, ctx: str, today: str, now_iso: str | None = None):
         """Daily clock check (owner decision 7a, 2026-10-11): sends every
@@ -494,33 +488,4 @@ class Spoke03LeadNurture:
                 thought=f"unrecognized verdict {verdict!r} - 17's contract "
                         f"is only 'approved' or 'flagged'",
                 result="held: unknown verdict type")
-            return
-
-        if env.intent == "data.package":
-            listing_status = env.payload.get("listing_status")
-            if listing_status == "changed":
-                # tuple 9: stale property claims are fabrications - pull
-                # the step rather than send with outdated status
-                self.hub.ingest_spoke_trace(
-                    "03", env.envelope_id,
-                    thought="market-update package references a listing "
-                            "whose status changed - stale property claims "
-                            "are fabrications, pulling the step rather "
-                            "than sending",
-                    result="step pulled: stale listing status")
-                return
-            if env.payload.get("expired"):
-                # tuple 3: expired market data -> regenerate or skip
-                self.hub.ingest_spoke_trace(
-                    "03", env.envelope_id,
-                    thought="market data package is expired - regenerating "
-                            "before send, or skipping this touch if a "
-                            "fresh package isn't available in time",
-                    result="skipped touch: expired data")
-                return
-            self.hub.ingest_spoke_trace(
-                "03", env.envelope_id,
-                thought="fresh, current-status market data package received "
-                        "- clear to build the update touch",
-                result="package accepted")
             return

@@ -68,7 +68,7 @@ def test_p02_price_adjustment(tmp_path):
     ctx = "p02"
     _new_listing(hub, signer, ctx)
     # Phase A: human requests decision support from 10
-    hub.send(spoke_env("11", "10", "data.request", ctx,
+    hub.send(spoke_env("human", "10", "data.request", ctx,
                        {"mode": "comp", "license_scope": "internal",
                         "comps": [{"id": f"c{i}", "age_days": 3,
                                    "source": "mls", "retrieved": "2026-07-02"}
@@ -453,7 +453,7 @@ def test_p15_cma_prep(tmp_path):
     hub, signer, spokes, external = full_swarm(str(tmp_path))
     ctx = "p15"
     # thin comps (3 < comp_minimum 5)
-    hub.send(spoke_env("11", "10", "data.request", ctx,
+    hub.send(spoke_env("human", "10", "data.request", ctx,
                        {"mode": "comp", "license_scope": "internal",
                         "comps": [{"id": f"c{i}", "age_days": 2,
                                    "source": "mls",
@@ -650,7 +650,7 @@ def test_p23_price_review_evidence(tmp_path):
     hub, signer, spokes, external = full_swarm(str(tmp_path))
     ctx = "p23"
     # 1b/2a: evidence to human
-    hub.send(spoke_env("11", "10", "data.request", ctx,
+    hub.send(spoke_env("human", "10", "data.request", ctx,
                        {"mode": "comp", "license_scope": "internal",
                         "deliver_to": "human",
                         "comps": [{"id": f"c{i}", "age_days": 4,

@@ -335,27 +335,16 @@ def test_routine_reply_routes_to_owning_agent(tmp_path):
     assert reply and reply[0]["to_agent"] == "03"
 
 
-def test_market_update_package_delivered_via_data_package(tmp_path):
-    hub = make_hub(str(tmp_path))
-    Spoke11ClientCommunication(hub)
-    hub.on_turn_start()
-    env = Envelope(from_agent="10", to_agent="11", intent="data.package",
-                  client_context_id="c-017",
-                  payload={"figures": {"school_rating": {"value": 8}}, "hour": 12},
-                  provenance={"source": "spoke-10", "captured_at": "runtime",
-                              "verbatim_available": True})
-    hub.send(env)
-    sends = persisted(hub, "client.message.send")
-    assert any(s["payload"]["template"] == "weekly_market_update" for s in sends)
-
-
-def test_request_market_update_sends_data_request(tmp_path):
-    hub = make_hub(str(tmp_path))
-    spoke = Spoke11ClientCommunication(hub)
-    hub.on_turn_start()
-    spoke.request_market_update("c-018")
-    req = persisted(hub, "data.request")
-    assert req and req[0]["to_agent"] == "10"
+def test_no_market_package_reaches_a_client_owner_decision_j5():
+    """Owner decision J5 (2026-10-12): 11 asked 10 for NEIGHBORHOOD data and
+    forwarded any market package to the client, including comps meant for
+    the broker's pricing decision. Both paths are removed and the route no
+    longer lets 11 request or receive market data."""
+    import json
+    assert not hasattr(Spoke11ClientCommunication, "request_market_update")
+    routes = json.load(open(os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json")))
+    by = {r["intent"]: r for r in routes["routes"]}
+    assert "11" not in by["data.request"]["senders"] and "11" not in by["data.package"]["receivers"]
 
 
 def test_advice_escalation_tracked_and_resolved_via_config_update(tmp_path):

@@ -17,11 +17,14 @@ def make_hub(tmp_path, **kw):
     return Hub(Routes(IDENTITY_ROUTES), AuditLog(audit_path), **kw)
 
 
-def data_req(ctx, payload, frm="03"):
+def data_req(ctx, payload, frm="human"):
+    # 2026-10-12 (owner decision J5): only the broker and Agent 19 request
+    # market data; these tests were written with 03 as the requester.
     payload = {"license_scope": "internal", **payload}
     return Envelope(from_agent=frm, to_agent="10", intent="data.request",
                     client_context_id=ctx, payload=payload,
-                    provenance={"source": f"spoke-{frm}", "captured_at": "runtime",
+                    provenance={"source": "human" if frm == "human" else f"spoke-{frm}",
+                                "captured_at": "runtime",
                                 "verbatim_available": True})
 
 
@@ -111,7 +114,7 @@ def test_external_license_scope_delivers_to_human_only(tmp_path):
     Spoke10MarketData(hub, comp_minimum=1)
     hub.on_turn_start()
     hub.send(data_req("m-007", {"mode": "comp", "license_scope": "external",
-                                "comps": [], "today": "2026-07-15"}, frm="11"))
+                                "comps": [], "today": "2026-07-15"}, frm="19"))
     pkgs = persisted(hub, "data.package")
     assert pkgs[0]["to_agent"] == "human"
 
@@ -216,10 +219,10 @@ def test_REGRESSION_missing_license_scope_fails_closed_to_human(tmp_path):
     hub = make_hub(str(tmp_path))
     Spoke10MarketData(hub, comp_minimum=1)
     hub.on_turn_start()
-    env = Envelope(from_agent="03", to_agent="10", intent="data.request",
+    env = Envelope(from_agent="19", to_agent="10", intent="data.request",
                   client_context_id="m-010",
                   payload={"mode": "comp", "comps": [], "today": "2026-07-15"},
-                  provenance={"source": "spoke-03", "captured_at": "runtime",
+                  provenance={"source": "spoke-19", "captured_at": "runtime",
                               "verbatim_available": True})
     hub.send(env)
     pkgs = persisted(hub, "data.package")
