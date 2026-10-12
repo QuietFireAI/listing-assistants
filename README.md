@@ -208,7 +208,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 937 passed
+python -m pytest tests_listing/        # expect: 938 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

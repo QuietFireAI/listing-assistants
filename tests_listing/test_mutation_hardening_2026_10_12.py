@@ -896,3 +896,23 @@ def test_pager_custom_base_trailing_slash_existing_dir_and_named_config_error(tm
     open(p, "w").write(json.dumps({"account_sid": "AC"}))
     with pytest.raises(ValueError, match=r"pager\.json is not usable: \['auth_token is required'"):
         load_config(p)
+
+
+def test_console_questions_with_no_terminal_give_a_plain_error_not_a_traceback(tmp_path):
+    import subprocess
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env = dict(os.environ, LISTINGASSISTANTS_STATE_DIR=str(tmp_path / "st"))
+    run = lambda *a: subprocess.run([sys.executable, os.path.join(root, "tools", "console.py"), *a],
+                                    stdin=subprocess.DEVNULL, capture_output=True, text=True, env=env)
+    assert run("init").returncode == 0
+    for cmd in (["onboard"], ["pager"]):
+        r = run(*cmd)
+        if cmd == ["pager"]:
+            assert run("onboard", "--name", "N", "--login", "n@example.com").returncode == 0
+            r = run(*cmd)
+        assert r.returncode == 1 and "Traceback" not in r.stderr + r.stdout
+        last = r.stdout.strip().splitlines()[-1]                      # the unanswered prompt precedes it
+        assert json.loads(last[last.index("{"):]) == {
+            "error": f"`{cmd[0]}` asks for answers and none could be read - run it in a terminal, "
+                     f"or pass every answer as an option (see --help)"}

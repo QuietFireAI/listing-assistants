@@ -447,8 +447,15 @@ def main():
     v.add_argument("--anchor", default=None,
                    help="a previously printed anchor JSON to verify against")
     args = ap.parse_args()
-    return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
-            "verify": cmd_verify, "pager": cmd_pager}[args.cmd](args)
+    try:
+        return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
+                "verify": cmd_verify, "pager": cmd_pager}[args.cmd](args)
+    except EOFError:
+        # onboard and pager ask questions; with no terminal attached there
+        # is nobody to answer them
+        _p({"error": f"`{args.cmd}` asks for answers and none could be read - run it in "
+                     f"a terminal, or pass every answer as an option (see --help)"})
+        return 1
 
 
 if __name__ == "__main__":
