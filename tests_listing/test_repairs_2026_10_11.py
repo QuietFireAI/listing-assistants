@@ -291,3 +291,14 @@ def test_job_descriptions_match_their_sources():
     p = subprocess.run([sys.executable, os.path.join(root, "tools", "gen_job_descriptions.py"), "--check"],
                        capture_output=True, text=True)
     assert p.returncode == 0, p.stdout
+
+
+def test_swarm_manifest_matches_the_closed_track():
+    import re
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    routes = json.load(open(os.path.join(root, "identity", "routes.json")))["routes"]
+    intents = {r["intent"] for r in routes}
+    s = open(os.path.join(root, "SWARM.md"), encoding="utf-8").read()
+    assert f"- Routes: {len(routes)} entries, {len(intents)} distinct intents" in s
+    listed = set(re.findall(r"`([^`]+)`", re.search(r"^- Intents: (.*)$", s, re.M).group(1)))
+    assert intents <= listed
