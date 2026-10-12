@@ -20,7 +20,7 @@ Qualification (02) when readiness changes. It warms; it does not advise.
 
 ## 2. Job Components
 
-- Execute drip email and text sequences on schedule.
+- Execute drip email and text sequences on schedule. Amended 2026-10-11 (owner decision): the broker writes each sequence (touch text and day) in a signed configuration; the exact touches go to Compliance (17) when a sequence starts, and the daily clock sends each touch once on its day, inside the frequency cap and contact hours. A sequence with no broker-written definition sends nothing.
 - Send market updates built from Market Data (10) packages - data only, no opinion.
 - Trigger re-engagement when behavioral signals indicate readiness (email opens, listing revisits).
 - Hand the lead back to Qualification (02) with `lead.rescored` when the score changes.
@@ -65,7 +65,8 @@ Dispatcher returns an `ack`.
 | OUT | → HITL queue | Legal Line trigger | `escalation.legal_line` |
 | OUT | → 11 Client Communication | Reply requiring human-gated response | `client.message.request` |
 | IN | ← 11 Client Communication | Prospect reply relayed for handling | `lead.reply` |
-| IN | ← 12 Marketing Campaign / 20 Social Media Monitoring | Engagement/behavioral signal | `behavioral.signal` |
+| IN | ← 12 Marketing Campaign | Engagement/behavioral signal | `behavioral.signal` |
+| IN | ← Clock (through the hub) | Daily tick: send the touches that are due | `clock.tick` |
 | OUT | → 18 Calendar & Task | Wait-state signal (compliance review pending) | `agent.status` |
 
 This agent has no other edges. If a task appears to require any other

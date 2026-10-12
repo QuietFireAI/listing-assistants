@@ -283,3 +283,11 @@ def test_opportunity_comps_reach_the_broker(tmp_path):
                      {"listing_id": "M-1", "zip_code": "44811", "source": "mls", "status": "new"}))
     ups = [e for e in _persisted(sw, "prospect.opportunity") if e["payload"].get("update") == "market_context"]
     assert ups and ups[0]["payload"]["market_context"]["package_type"] == "comp"
+
+
+def test_job_descriptions_match_their_sources():
+    import subprocess, sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    p = subprocess.run([sys.executable, os.path.join(root, "tools", "gen_job_descriptions.py"), "--check"],
+                       capture_output=True, text=True)
+    assert p.returncode == 0, p.stdout

@@ -62,7 +62,7 @@ Dispatcher returns an `ack`.
 | IN | ← human via 00 | Zip code list and cadence config | `config.update` |
 | OUT | → human review queue | Opportunities | `prospect.opportunity` |
 | OUT | → 13 Buyer Search & Match | Buyer-matching opportunities | `prospect.opportunity` |
-| OUT | → 10 Market Data | Market context for opportunity records | `data.request` |
+| OUT | → 10 Market Data | Market context for opportunity records (requested automatically for every recorded opportunity, amended 2026-10-11; the package reaches the broker on the opportunity record) | `data.request` |
 | IN | ← 10 Market Data | Requested packages | `data.package` (`in_reply_to`) |
 | OUT | → 14 CRM & Pipeline | Discovery log | `interaction.log` |
 | IN | ← external prospecting sources | Raw discovery feed | `discovery.feed` |

@@ -30,6 +30,7 @@ filtering is steering, and steering is a fair housing violation.
 - Submit any criteria language with fair-housing sensitivity (e.g., neighborhood composition phrasing) to Compliance (17) before use in filtering.
 - BUYER AGREEMENT GATE: before emitting any `showing.request`, verify a signed written buyer agreement is on file (query 14 via `record.request`); absent = human escalation. Required before touring, in person or live-virtual (NAR settlement practice change, effective Aug 17, 2024). Set the agreement-on-file flag in the showing.request payload.
 - Present matches with sourced data only; no neighborhood characterizations (10's presentation rule applies here too).
+- Amended 2026-10-11 (owner decision): this agent does not request or relay neighborhood packages. Neighborhood information pushed toward buyers is the classic fair-housing steering risk; the broker can still ask Market Data (10) directly.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -63,8 +64,6 @@ Dispatcher returns an `ack`.
 | OUT | → 06 Showing Scheduler | Client wants to see it | `showing.request` |
 | OUT | → 17 Compliance | Sensitive criteria language | `content.review` |
 | IN | ← 17 Compliance | Criteria language verdicts | `content.verdict` (`in_reply_to`) |
-| OUT | → 10 Market Data | Neighborhood packages for buyer profiles | `data.request` |
-| IN | ← 10 Market Data | Requested packages | `data.package` (`in_reply_to`) |
 | OUT | → 14 CRM & Pipeline | Buyer-agreement verification | `record.request` |
 | IN | ← 14 CRM & Pipeline | Agreement status | `record.response` (`in_reply_to`) |
 | OUT | → 14 CRM & Pipeline | Match and reaction logs | `interaction.log` |
