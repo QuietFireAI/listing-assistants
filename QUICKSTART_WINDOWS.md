@@ -149,6 +149,7 @@ cover: docs/OPERATOR_TUNING_GUIDE.md, section 10.
 | When | Action | Command |
 | :--- | :--- | :--- |
 | Once | Your key, then who you are | `python tools/console.py init` then `python tools/console.py onboard` |
+| Once (optional) | Text pages to your phone | `python tools/console.py pager` (asks for your Twilio details) |
 | Morning | Run the daily clock (sweeps + morning briefing) on the console's log and saved state; Task Scheduler can run it | `python tools/run_sweeps.py` |
 | Any time | Decisions waiting on you | a session line `{"do": "show", "what": "waits"}` |
 | Any time | Client funnel page | `python tools/dashboard.py --html` |

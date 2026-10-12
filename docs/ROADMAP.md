@@ -37,22 +37,19 @@ in Agent 02, and model drafting for Agent 04 behind the broker exam. Left:
 MFA. Connecting an identity provider that stamps each signed envelope with
 the login, MFA and session is what arms it.
 
-## 3. Playbooks with no trigger in a running swarm
+## 3. Playbooks started by the clock (done 2026-10-12)
 
-P18 (weekly seller report), P19 (custody audit), P20 (vacant property
-watch) and P21 (lead re-score cadence) are proven by tests that send the
-first message as the agent that would, but no clock check or broker action
-starts them. Each needs an owner decision on its cadence and data, then a
-`dispatcher/clock.py` entry and a scene.
+P18, P19, P20 and P21 now start from the daily clock (owner decision J3).
+What still needs real data from you: the weekday and the listing-to-seller
+map for P18 (signed to Agent 06), the access grants for P19 (signed to
+Agent 14), a vacant flag on a listing for P20, and a vendor of kind
+`property_check` on your roster so P20's checks can be booked.
 
-## 4. Uncalled scheduled checks
+## 4. Scheduled checks (done 2026-10-12)
 
-These have code but nothing calls them: `Agent 08.check_disclosure_deadline`
-(no source of disclosure deadlines exists yet), and
-`Agent 03.request_market_update` / `Agent 11.request_market_update` (market
-updates to clients through Agent 10). Each needs an owner decision: put it
-on the daily clock (`dispatcher/clock.py`) with its data source, or remove
-it. (P13's date triggers were wired to the clock on 2026-10-11.)
+Agent 08's disclosure-deadline warning runs on the clock (J4). The market
+update paths in Agents 03 and 11 were removed (J5): market data goes only to
+the broker and to Agent 19.
 
 ## 5. Signed actions over MCP
 
@@ -64,7 +61,7 @@ not built.
 
 - Connect the external adapters (MLS writes, client messaging, ad publishing)
   to your providers; until then they queue visibly.
-- Twilio credentials for the SMS notifier.
+- Twilio details for text pages: `python tools/console.py pager` asks for them.
 - Storage: keep drawers and the SQLite file on a local disk, on an encrypted
   volume if encryption at rest is required.
 - Offline updates: the signing and verification tools exist

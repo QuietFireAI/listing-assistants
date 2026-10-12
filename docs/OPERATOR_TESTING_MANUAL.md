@@ -58,7 +58,9 @@ python tools/console.py onboard          # your name and login, asked once
 Expected: the test count; `{"initialized": ..., "operator_key": "generated (0600)", ...}`;
 then `{"onboarded": {...}, "not_armed": {...}}`. The `not_armed` block says
 plainly what is not switched on: the identity-provider signer binding (no
-identity provider is connected) and the SMS pager.
+identity provider is connected) and the text pager, which
+`python tools/console.py pager` turns on if you want pages on your phone
+while filming (optional; every page also prints on screen).
 
 **Ratify the test vendor roster on camera.** Open `scenes/config/vendor_panel.json`.
 Its `_status` line says UNRATIFIED. Replace that line's text with

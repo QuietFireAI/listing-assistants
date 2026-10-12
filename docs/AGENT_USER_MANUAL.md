@@ -60,9 +60,10 @@ You decide:
 
 ## 3. Your queues
 
-Everything that needs a human lands in a named queue. The hub can text you
-when something lands (the SMS notifier uses Twilio; it needs your account
-credentials before it can send).
+Everything that needs a human lands in a named queue and prints on your
+console. To be texted as well, run `python tools/console.py pager` once
+(it asks for your Twilio details); a text says which queue and which client
+context, never the client's words.
 
 | Queue | What lands there |
 |---|---|

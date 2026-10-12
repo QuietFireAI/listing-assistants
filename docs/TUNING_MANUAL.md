@@ -49,8 +49,10 @@ in this table it's real, wired code.
 
 | Item | Where | Status | What blocks / what to do |
 |---|---|---|---|
-| Twilio credentials | `dispatcher/notifier.py` (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` env vars) | **PLACEHOLDER — declared** | Real Twilio implementation; with placeholder creds every send fails with a genuine 401, never a fake success. Set both env vars for production. |
-| SMS destination | `dispatcher/notifier.py` (`+1-555-555-0100`) | **PLACEHOLDER — declared** | NANP reserved-for-fiction block, cannot reach a real phone. Replace with the operator's number at deployment. |
+| Text pages | `python tools/console.py pager` → `console-state/pager.json` (0600) | **OFF until you set it** | The console's pager (`dispatcher/pager.py`) asks for the Twilio details; pages carry queue + client context only. The core `dispatcher/notifier.py` placeholders (env vars, `+1-555-555-0100`) are not used by the console. |
+| Re-score cadence (P21) | `Spoke03LeadNurture.RESCORE_INTERVAL_DAYS` | **7 days** | WARM leads in nurture are re-scored this often. |
+| Vacant check interval (P20) | `Spoke05MLSListingManagement.VACANT_CHECK_INTERVAL_DAYS` | **7 days** (signed `watch_interval_days` per listing overrides) | |
+| Disclosure warning lead (J4) | `Spoke08DocumentCollection.DISCLOSURE_LEAD_DAYS` | **3 days** | Warned once on the legal line. |
 | `loop_threshold=20` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | No empirical basis existed to pick a better number; revisit after production traffic. |
 | MANNERS `N=10` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | Same: deliberate, revisit with real data. |
 | `config/authority_signers.json` | this repo | **UNRATIFIED — fails closed** | Template for identity-provider logins with MFA. No identity provider is connected in this build, so leave it unratified; the hub checks the key's signature and records that the login binding is off. |

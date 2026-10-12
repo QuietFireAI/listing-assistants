@@ -214,11 +214,11 @@ escalates to your queue if the answer never comes — held and named,
 never lost.
 
 ### P21 — Lead Rescore Cycle
-*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
-On cadence, **03** refreshes the evidence per lead (market signals from
-10), applies the rubric, and submits promotions/demotions to **02** —
-which owns the tier decision and routes a promotion to HOT straight
-into the P11 SLA path. The completion rule is the point: every lead in
+*Started by the daily clock every 7 days for WARM leads in nurture (since 2026-10-12).*
+On cadence, **03** sends each lead's scoring inputs back to **02** with
+the stated timeline counted down by the days elapsed (no market data;
+removed by owner decision J5) — 02 owns the tier decision and routes a
+promotion to HOT straight into the P11 SLA path. The completion rule is the point: every lead in
 the cycle ends re-scored *or* explicitly marked no-change — no lead
 left in an unknown state, ever.
 
@@ -273,15 +273,15 @@ with activity but no log entries is *named as a logging gap*, never
 smoothed over. Tonight's books are tomorrow's P16 input.
 
 ### P18 — Seller Weekly Report
-*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
+*Started by the daily clock on the weekday you sign to 06 (since 2026-10-12).*
 The report sellers judge you by, assembled from what actually happened:
-06's showings and feedback, 10's market movement with provenance, 05's
-status summary. The draft is fair-housing screened by 17, then it
-waits for *your* approval before 11 sends it. Next week's is already
-scheduled.
+06 counts each listing's confirmed showings for the week and how many
+came back with feedback. Numbers only, so there is nothing for 17 to
+screen; the report waits for *your* continue before 11 sends it, and a
+cancel skips the week.
 
 ### P19 — Property Access Custody
-*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
+*Started by the daily clock from the access grants you sign to 14 (since 2026-10-12): a window that ends without your `access_closed` is flagged once. The vendor-window scheduling and exposure events below are what the playbook describes; the clock check covers expiry.*
 Who can get into which property, until when — as a ledger. Grants are
 recorded in 14, vendor windows scheduled through 09 with entry/exit
 confirmations, and the one rule that matters most: *the secret itself
@@ -291,7 +291,7 @@ audit flags any grant past its window; an exposure event escalates to
 you same-day with a rotation task.
 
 ### P20 — Vacant Property Watch
-*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
+*Started by the daily clock for listings you mark vacant (since 2026-10-12): 05 orders a property check from 09 every 7 days. Utility tracking and activity anomalies below are what the playbook describes; they are not built.*
 Standing vigilance over the riskiest asset class you touch: 18
 schedules the walkthrough cadence, 09 books the vendor, and here's the
 tooth in it — a walkthrough report *without a proof artifact does not

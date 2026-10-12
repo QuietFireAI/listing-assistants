@@ -68,6 +68,12 @@ end-to-end test.
   model on this machine for listing remarks, only on the broker's signed
   switch and only while the active checkpoint passed the broker exam on
   that model (`restore_point.py --exam`).
+- **Owner's J decisions applied (2026-10-12).** P18-P21 start from the daily
+  clock; Agent 08 warns three days before a seller disclosure is due; the
+  market-update paths in 03 and 11 are removed (market data goes only to
+  the broker and Agent 19); the six pillar packages are pinned to exact
+  commits; the console's text pager can be turned on (`console.py pager`).
+  23 new decision tuples record these behaviors.
 - **Also fixed while wiring.** A capitalized prohibited phrase was flagged
   by 17 but never found by 04, so the draft bounced twenty times until the
   hub suspended the loop; a signed setting re-sent with the same values
@@ -92,7 +98,6 @@ end-to-end test.
 
 ## Known gaps
 
-- P18, P19, P20 and P21 have no trigger in a running swarm (docs/ROADMAP.md).
 - No identity provider is connected, so the signer login binding is off.
 - Drawer files are not encrypted. The SQLite CRM, consent and ledger
   tables are not written by Agents 14 and 15 (their records live in the

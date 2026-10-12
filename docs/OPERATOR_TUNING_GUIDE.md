@@ -92,13 +92,16 @@ a setting the agent does not recognize is held too.
 | 02 | `decision_engine` | `{"allow_external": true\|false, "confidence_floor": 0..1}`: lets lead data go to live JEV (needs `JEV_API_KEY` too); the floor under which a lead holds for you |
 | 04 | `drafting` | `{"mode": "rules"}` (default) or `{"mode": "model"}`: model-written remarks, used only when section 10's conditions hold |
 | 03 | `nurture_sequences` | each sequence's touches: `{"touches": [{"day": 0, "text": "..."}]}` |
+| 05 | `occupancy`, `watch_interval_days` | `"vacant"` starts the P20 property-check watch (every 7 days unless you set the interval); `"occupied"` stops it. A listing package with `"occupancy": "vacant"` does the same |
 | 06 | `confirm_protected_bump` | confirms a held showing bump |
+| 06 | `seller_reports` | P18: `{"weekday": "monday", "listings": {"L8": "<seller context>"}}` - which day, and which seller gets each listing's report |
 | 07 | `timeline_init` | a transaction's milestone dates |
 | 08 | `expected_senders` | who should send each sensitive document: `{"closing_settlement_statement": ["title@..."]}` |
 | 11 | `resolve_complaint_hold`, `resolve_advice_response` | releases a complaint hold; closes an advice wait |
 | 13 | `buyer_criteria` | a buyer's stated criteria |
 | 14 | `buyer_agreement_on_file`, `requester_identity_verified` | your record that the agreement is signed / identity checked |
 | 14 | `client_dates` | P13 dates for a client: `{"purchase_anniversary": "07-18"}` (MM-DD every year, YYYY-MM-DD once) |
+| 14 | `access_grant`, `access_closed` | P19: `{"party": "...", "window_end": "YYYY-MM-DD", "custody_ref": "..."}` - never the code or key; `{"party": "..."}` when it is back or changed |
 | 16 | `client_list_entry` | puts a closed client on the after-close program |
 | 17 | `ruleset` | the fair-housing ruleset |
 | 19 | `zip_codes`, `approved_sources`, `dnc_entries` | prospecting scope |
@@ -121,7 +124,11 @@ SLA timers, the morning briefing) run when something calls
 It reaches each agent with a `clock.tick` envelope through the hub, so
 every tick is persisted, acknowledged and on the audit log like any other
 message; nothing calls an agent directly. The checks per agent are listed
-in `dispatcher/clock.py`. Call it once a day inside the process that holds
+in `dispatcher/clock.py`. Since 2026-10-12 they include P18 (06, weekly
+seller report on your signed weekday), P19 (14, access windows ended and
+not closed), P20 (05, property checks on vacant listings), P21 (03, WARM
+leads re-scored every 7 days) and Agent 08's disclosure warning (three days
+before a pending seller disclosure is due). Call it once a day inside the process that holds
 the swarm.
 
 `tools/run_sweeps.py` is the scheduler's caller. By default it uses the
@@ -435,7 +442,22 @@ A registry of provider settings read from `config/integrations.json`
 display. It makes no network calls and no agent reads it; it records which
 providers you intend to connect.
 
-## 14. Health checks
+## 14. Text-message pages
+
+```bash
+python tools/console.py pager          # asks for the Twilio account SID, auth token, from and to numbers
+python tools/console.py pager --test   # one test page
+python tools/console.py pager --off    # forget the details
+```
+
+Run it after `onboard`. The details are saved in `console-state/pager.json`
+(readable by your user only). From then on every console session texts you
+whenever something lands in a human queue, as well as printing it. A page
+says which queue and which client context, never the client's words, and
+every page attempt is on the audit chain (`pager.sent` / `pager.failed`)
+without the credentials.
+
+## 15. Health checks
 
 ```bash
 python -m pytest tests_listing/ -q

@@ -43,7 +43,7 @@ model.
 
 ## How it stays accountable
 
-- **Closed track.** Only the 52 routes in `identity/routes.json` (149
+- **Closed track.** Only the 52 routes in `identity/routes.json` (146
   sender-intent-receiver lanes) are legal, and every message to or from an
   agent travels on one of them, including the daily clock (`clock.tick`). Anything else is rejected and logged;
   a well-formed message on an unknown route is held for a human.
@@ -91,13 +91,11 @@ model.
 Each playbook has an end-to-end test through the hub
 (`tests_listing/test_playbooks_e2e.py`, `tests_listing/test_playbooks_e2e_all.py`).
 Triggers, agents and human gates are in [docs/PLAYBOOKS.md](docs/PLAYBOOKS.md).
-Four playbooks have no trigger in a running swarm yet: **P18** (weekly seller
-report), **P19** (key and access custody audit), **P20** (vacant property
-watch) and **P21** (lead re-score cadence). Their tests start them by
-sending the first message as the agent that would. Each needs its cadence
-put on the daily clock (an owner decision on the interval and the data);
-see docs/ROADMAP.md. P13 (date triggers) runs from the clock since
-2026-10-11, and P17 (end-of-day books) runs when you ask for it
+Since 2026-10-12 the daily clock also starts **P18** (weekly seller report,
+on the weekday you sign), **P19** (access windows you record, flagged when
+they end unclosed), **P20** (a property check every 7 days on listings you
+mark vacant) and **P21** (WARM leads re-scored every 7 days). P13 (date
+triggers) runs from the clock since 2026-10-11, and P17 (end-of-day books) runs when you ask for it
 (`{"do": "show", "what": "eod"}`).
 
 | | Playbook | | Playbook |
@@ -186,8 +184,9 @@ Operator tools, not part of the message path:
 
 - **External adapters queue until connected.** MLS writes, client sends and
   ad publishes stay visibly queued until you wire your providers
-  (`docs/TUNING_MANUAL.md`). The SMS notifier is a real Twilio client with
-  placeholder credentials and fails with a 401 until you supply real ones.
+  (`docs/TUNING_MANUAL.md`). Text-message pages are off until you run
+  `python tools/console.py pager` with your Twilio details; a page carries
+  the queue name and client context id only.
 - **Signer identities need an identity provider.** `config/authority_signers.json`
   binds signers to an identity-provider login with MFA. No identity provider
   is connected, so the hub verifies the key's signature and records on the

@@ -144,10 +144,9 @@ drawer into a tiered pipeline by dinner — every walk-in captured with
 consent recorded on the spot, deduplicated, scored, and a hot one on
 your phone inside the SLA while they're still in the driveway.
 
-> **Not yet running on their own:** P18, P19, P20 and P21 below describe
-> what each playbook delivers once started. Nothing in a running swarm starts
-> them yet; their cadences still need to go on the daily clock
-> (docs/ROADMAP.md, item 3).
+> **Started by the daily clock since 2026-10-12:** P18 on the weekday you
+> sign, P19 from the access grants you record, P20 on listings you mark
+> vacant, P21 every 7 days for WARM leads in nurture.
 
 ## The lead machine
 
@@ -191,9 +190,9 @@ makes "what happened yesterday" a lookup — and it's honest about
 itself: activity that exists in system state without log entries is
 named as a logging gap, never smoothed over. **P18** produces the
 weekly seller report — the document sellers judge their agent by and
-agents dread compiling — assembled from what actually happened,
-compliance-screened, and sent only on your approval, with next week's
-already scheduled.
+agents dread compiling — the week's showings and feedback counted from
+what actually happened, held for your approval, and sent through 11 only
+when you say continue; next week's runs on the same weekday.
 
 Two playbooks stand watch. **P19** runs property access as a ledger —
 who holds what, until when, expiries flagged — with one absolute: the

@@ -12,6 +12,8 @@
 * **Client drawers:** `dispatcher/client_drawer.py` refuses unsafe paths and cross-client filing (`ComminglingBreachError`). Agents 04, 05, 07, 08, 14 and 15 file each client's records there through `dispatcher/drawer_filing.py`; every filing and every refusal is on the audit chain. Files are stored unencrypted.
 * **Model drafting (off by default):** Agent 04 uses a model only on the broker's signed switch, with a model on this machine (other hosts refused unless explicitly allowed), and only while the active checkpoint passed the broker exam on that model. Model remarks go through Agent 17 like every draft.
 * **Lead data off the machine:** only to live JEV, only with a key set **and** the broker's signed `decision_engine.allow_external`.
+* **Text pages:** off until the broker runs `console.py pager`; a page carries the queue name and client context id only; credentials are stored 0600 and never written to the audit log.
+* **Access secrets:** Agent 14 records access grants without the code or key and rejects a grant whose values look like they carry one.
 
 Known limits are listed in the README ("Current limits") and in `docs/FINANCIAL_CAPABILITY.md` ("Where the real risk is").
 
