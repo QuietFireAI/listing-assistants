@@ -350,7 +350,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 988 passed
+python -m pytest tests_listing/        # expect: 994 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -359,10 +359,47 @@ a clean clone, checks that the vendored core files match dispatcher-agents
 byte for byte, and checks that the swarm still routes with no pillars
 installed. Windows setup: [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md).
 
+## The Broker Desk
+
+One page that shows the broker what the swarm is doing, and the buttons for
+what is waiting on them. It runs on the broker's own computer and opens in
+any browser; with `--lan`, a tablet on the office network can open it with a
+printed access code.
+
+![The Broker Desk during the showcase: the marketing for listing S4 is held, and the presenter's next move is to press Send](docs/images/desk-your-move.png)
+
+- **Needs you:** each held message with exactly what would go out and who it
+  goes to, with a **Send** button (tap twice: it signs one release with your
+  key); each paused thread with **Continue** / **Cancel**; your queues (legal
+  line, upset clients, questions, refused unsigned messages) with the
+  client's own words and a **Done** that records who handled it.
+- **Listings:** a progress track per listing (signed, booked, photos, copy
+  approved, live, marketed, under contract, closed) read from the record.
+- **Leads:** a hot lead shows its five-minute call clock.
+- **Your team:** the twenty agents - working, waiting, waiting for you, idle,
+  or a problem.
+- **Proof:** the record's chain check, how many messages to vendors or the
+  public went out and how many carried your signed release, and which
+  outside connections exist (today: no MLS, no email or SMS to clients - a
+  released client message is recorded, not delivered to a phone).
+
+```bash
+python tools/desk.py                 # your desk, on console-state/
+python tools/desk.py --showcase      # replays the ten operator scenes on synthetic data,
+                                     # stopping at every Send / Continue / Cancel for you
+python tools/desk.py --lan           # open it from a tablet (link with an access code)
+```
+
+There is no "don't send" that throws a held message away: the hub has no
+such path, so a held message stays held until you send it. While the desk
+runs it holds the state; `console.py session` and `run_sweeps.py` refuse to
+start against the same folder (use the desk's "Run today's checks").
+
 ## Run it
 
 ```bash
 python tools/run_demo.py                 # one listing, six acts, on the real hub
+python tools/desk.py --showcase          # the Broker Desk, replaying the operator scenes
 python tools/mcp_roundtrip.py            # live stdio round trip of the MCP server
 python tools/console.py init             # create your signing key
 python tools/console.py onboard          # who you are, asked once
@@ -401,6 +438,8 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 - `00-dispatcher/` ... `20-social-media-monitoring/` - each agent's ratified
   SKILL.md and DECISIONS.md, and a README.md with a picture of who it works
   with (GitHub shows it when you open the folder).
+- `tools/desk.py`, `tools/desk.html` - the Broker Desk (see above);
+  `tests_listing/test_desk.py` plays the whole showcase through it.
 - `tools/gen_diagrams.py`, `tools/doc_diagrams.py` - the diagrams in the docs:
   agent pictures from `identity/routes.json`, playbook pictures from real test
   runs, the rest drawn by hand; `--check` (and a test) fails when one is stale.

@@ -10,3 +10,4 @@ dashboard.html
 *.bin
 *.safetensors
 *.pt
+showcase-state/

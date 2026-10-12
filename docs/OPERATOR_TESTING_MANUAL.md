@@ -57,7 +57,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 988 passed
+python -m pytest tests_listing/          # expect: 994 passed
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```
@@ -99,6 +99,10 @@ python tools/console.py session scenes/scene02_configure.jsonl --config-dir scen
 python tools/console.py session scenes/scene10_books.jsonl --config-dir scenes/config
 python tools/console.py verify
 ```
+
+The same ten scenes play in the Broker Desk, with buttons instead of
+`release` and `decide` lines: `python tools/desk.py --showcase` (README,
+"The Broker Desk").
 
 Each scene below lists its lines in file order with what the screen shows.
 The console prints each line's result as `{"line": N, ...}`; a page

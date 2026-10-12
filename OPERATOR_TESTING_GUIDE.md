@@ -15,12 +15,41 @@ Repo: `github.com/QuietFireAI/listing-assistants`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
-python3 -m pytest tests_listing -q  # expect: 988 passed
+python3 -m pytest tests_listing -q  # expect: 994 passed
 ```
 
-If `988 passed` prints, the build is sound and nothing needs addressing before you
+If `994 passed` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
+
+---
+
+## 0a. The client video: the Broker Desk
+
+This is the recording for brokers and agents: no terminal on screen, just the
+desk filling up and the presenter pressing the buttons a broker would.
+
+```bash
+python tools/desk.py --showcase --fresh     # then open http://127.0.0.1:8765
+```
+
+The yellow bar at the top plays the ten operator scenes one step per
+**Next** (or tick "play on its own"). When a scene reaches something that is
+the broker's to do, the bar turns red, the card in **Needs you** is outlined,
+and nothing moves until the presenter presses it. Five clips:
+
+| Clip | Where in the showcase | What the viewer sees |
+|---|---|---|
+| 1 - A listing goes live | Scene 4 | the S4 card's track fills: signed, booked, photos, copy approved, live |
+| 2 - **The hold** | Scene 4, "press Send on the held marketing" | the ad is held with its exact words; the presenter taps Send twice; the track reaches Marketed and the proof tile reads "N of N went out on your signed release" |
+| 3 - A hot lead | Scene 3 | the lead card turns red with a five-minute call clock |
+| 4 - An upset client | Scene 9 | the client's words in Needs you; the activity feed shows nothing sent back |
+| 5 - The record | the end | press "Check the record": "The record is intact" |
+
+Say on camera what the proof strip says: MLS and email/SMS are not
+connected, so a released client message is recorded, not delivered to a
+phone. The showcase runs on synthetic data in `showcase-state/`, never on
+your records; `--fresh` starts it over.
 
 ---
 

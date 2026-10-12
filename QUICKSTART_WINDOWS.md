@@ -74,7 +74,7 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `988 passed`. The suite runs every agent's rules and all 24
+Expected: `994 passed`. The suite runs every agent's rules and all 24
 playbooks end to end against the real hub.
 
 ### Step 2: Run the six-act demo
@@ -89,7 +89,18 @@ One listing, on the real hub, with real signatures and the real audit log:
 * Act 5: a pricing question goes to the legal-line queue; no agent answers it.
 * Act 6: the audit chain is verified.
 
-### Step 3: Open the client funnel page
+### Step 3: Open the Broker Desk
+
+```powershell
+python tools\desk.py --showcase
+```
+
+Open http://127.0.0.1:8765 in your browser. Press **Next** to play the
+operator scenes; when the bar turns red it is your move: press **Send**
+(twice) or **Continue** / **Cancel** on the outlined card. Stop it with
+Ctrl+C. Your own desk, on your own records, is `python tools\desk.py`.
+
+### Step 4: Open the client funnel page
 ```powershell
 python tools/dashboard.py --html
 Start-Process dashboard.html

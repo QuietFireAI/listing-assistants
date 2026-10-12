@@ -256,3 +256,4 @@ existing.
 | 2026-10-12 21:46:49 UTC | mortgage-agents | `ab93023cee` | gen_diagrams parity |
 | 2026-10-12 21:46:52 UTC | property-mgmt-agents | `e174e08841` | gen_diagrams parity |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the claim tests and generator parity |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Broker Desk: tools/desk.py + desk.html (Needs you with signed Send / Continue / Cancel / Done, listing tracks, hot-lead clocks, team, proof strip; --showcase replays the ten scenes; --lan with access code); console apply_action shared; desk lock honoured by console and run_sweeps; test_desk.py (6); docs + screenshots; 994 passed |

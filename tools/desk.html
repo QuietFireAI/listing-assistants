@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broker Desk</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1f2328; --muted:#59636e; --line:#d8dee4;
+  --blue:#1f6feb; --blue-ink:#ffffff; --you:#f2cc60; --you-bg:#fff8c5; --you-ink:#4d2d00;
+  --ok:#1a7f37; --ok-bg:#dafbe1; --bad:#cf222e; --bad-bg:#ffebe9; --idle:#8c959f;
+  --shadow:0 1px 2px rgba(31,35,40,.08),0 2px 8px rgba(31,35,40,.06);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0d1117; --panel:#161b22; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
+  --you-bg:#3b2e00; --you-ink:#f2cc60; --ok-bg:#0f2e1a; --bad-bg:#3d1214; --shadow:none;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header h1{font-size:20px;margin:0}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.badge.show{background:var(--you);color:#1f2328}
+.badge.live{background:var(--ok-bg);color:var(--ok)}
+main{max-width:1400px;margin:0 auto;padding:16px 20px 60px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:10px 16px;min-height:44px;cursor:pointer}
+button.primary{background:var(--blue);border-color:var(--blue);color:var(--blue-ink);font-weight:600}
+button.warn{border-color:var(--bad);color:var(--bad)}
+button.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:44px}
+.showcase{background:var(--panel);border:2px solid var(--you);border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:var(--shadow)}
+.showcase .scene{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.showcase .next{font-size:20px;font-weight:600;margin:4px 0 10px}
+.showcase.yourmove{border-color:var(--bad);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(207,34,46,.0)}50%{box-shadow:0 0 0 6px rgba(207,34,46,.18)}}
+.proof{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.tile .big{font-size:28px;font-weight:700}
+.tile .lbl{color:var(--muted);font-size:14px}
+.tile.good{border-color:var(--ok)} .tile.good .big{color:var(--ok)}
+.tile.bad{border-color:var(--bad)} .tile.bad .big{color:var(--bad)}
+.tile.you{border-color:var(--you)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px;background:var(--panel)}
+.chip b{font-weight:600}
+.chip.off b{color:var(--bad)} .chip.on b{color:var(--ok)}
+.cols{display:grid;grid-template-columns:minmax(320px,1.1fr) minmax(320px,1fr);gap:18px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+h2{font-size:18px;margin:6px 0 10px;display:flex;gap:8px;align-items:center}
+h2 .count{background:var(--bad);color:#fff;border-radius:999px;font-size:13px;padding:1px 9px}
+h2 .count.zero{background:var(--ok)}
+.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card.held,.card.wait{border-left-color:var(--you)}
+.card.queue{border-left-color:var(--bad)}
+.card.highlight{outline:3px solid var(--bad);outline-offset:2px}
+.card h3{margin:0 0 4px;font-size:17px}
+.meta{color:var(--muted);font-size:14px;margin-bottom:8px}
+.said{border-left:3px solid var(--line);padding:6px 10px;margin:8px 0;font-style:italic}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;font-size:14px;margin:8px 0;
+  background:var(--bg);border-radius:8px;padding:8px 10px;overflow:auto}
+.kv dt{color:var(--muted)} .kv dd{margin:0;word-break:break-word}
+.why{font-size:14px;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:12px;text-align:center}
+.track{display:flex;gap:4px;margin:10px 0 4px}
+.step{flex:1;height:10px;border-radius:5px;background:var(--line)}
+.step.done{background:var(--ok)} .step.you{background:var(--you)}
+.steplabels{display:flex;gap:4px;font-size:11px;color:var(--muted)}
+.steplabels span{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.now{font-weight:600}
+.flag{color:var(--bad);font-size:14px;margin-top:6px}
+.team{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.agent{background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--idle);border-radius:10px;padding:10px;font-size:14px}
+.agent b{display:block}
+.agent.working{border-top-color:var(--ok)} .agent.you{border-top-color:var(--you)}
+.agent.waiting{border-top-color:var(--blue)} .agent.problem{border-top-color:var(--bad)}
+.agent .st{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.feed{font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;max-height:340px;overflow:auto}
+.feed div{padding:5px 0;border-bottom:1px solid var(--line)}
+.feed div:last-child{border-bottom:0}
+.feed .you{font-weight:600} .feed .hold{color:var(--you-ink);background:var(--you-bg);border-radius:6px;padding:5px 8px}
+.timer{font-variant-numeric:tabular-nums;font-weight:700;color:var(--bad)}
+.lead{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:10px;font-size:14px;max-width:90vw;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+.note{font-size:13px;color:var(--muted)}
+section{margin-bottom:22px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Broker Desk</h1>
+    <div class="note" id="who">loading…</div>
+  </div>
+  <div class="bar">
+    <span id="mode" class="badge"></span>
+    <button id="sweep">Run today's checks</button>
+    <button id="verify">Check the record</button>
+  </div>
+</header>
+<main>
+  <div id="showcase" class="showcase" hidden>
+    <div class="scene" id="sc-scene"></div>
+    <div class="next" id="sc-next"></div>
+    <div class="bar">
+      <button class="primary" id="sc-step">Next</button>
+      <label class="note"><input type="checkbox" id="sc-auto"> play on its own (stops at your moves)</label>
+      <span class="note" id="sc-pos"></span>
+    </div>
+  </div>
+
+  <section>
+    <div class="proof" id="proof"></div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>Needs you <span class="count" id="needs-count">0</span></h2>
+      <div id="needs"></div>
+    </section>
+    <section>
+      <h2>Listings</h2>
+      <div id="listings"></div>
+      <h2>Leads</h2>
+      <div id="leads"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Your team</h2>
+    <div class="team" id="team"></div>
+  </section>
+
+  <section>
+    <h2>What just happened</h2>
+    <div class="feed" id="feed"></div>
+  </section>
+  <p class="note">Every number on this page is read from the swarm and its audit log.
+  Send and Continue/Cancel sign with your key on this computer, the same as the console.</p>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const token = new URLSearchParams(location.search).get("t");
+const H = token ? {"X-Desk-Token": token} : {};
+let S = null, armed = null, autoTimer = null, busy = false;
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k === "onclick") e.onclick = v;
+    else if (v !== undefined && v !== null) e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false)
+    e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 3200);
+}
+async function act(body) {
+  if (busy) return; busy = true;
+  try {
+    const r = await fetch("api/act", {method: "POST", headers: {"Content-Type": "application/json", ...H},
+                                      body: JSON.stringify(body)});
+    const j = await r.json();
+    if (j.error) toast("Not done: " + j.error);
+    return j;
+  } finally { busy = false; await load(); }
+}
+function kv(obj) {
+  if (!obj || typeof obj !== "object") return null;
+  const dl = el("dl", {class: "kv"});
+  for (const [k, v] of Object.entries(obj)) {
+    if (["absolute_signal", "provenance", "signal_sha256"].includes(k)) continue;
+    dl.append(el("dt", {}, k.replaceAll("_", " ")),
+              el("dd", {}, typeof v === "object" ? JSON.stringify(v) : String(v)));
+  }
+  return dl.children.length ? dl : null;
+}
+function sendButton(item) {
+  const key = "send:" + item.id;
+  const b = el("button", {class: armed === key ? "armed" : "primary"},
+               armed === key ? "Tap again to sign and send" : "Send");
+  b.onclick = () => {
+    if (armed !== key) { armed = key; render(); setTimeout(() => { if (armed === key) { armed = null; render(); } }, 5000); return; }
+    armed = null; act({action: "send", id: item.id}).then(j => j && !j.error && toast("Signed and sent: " + item.title));
+  };
+  return b;
+}
+function yourMove() {
+  const sc = S && S.showcase;
+  if (!sc || !sc.waiting_for_you) return null;
+  return sc;
+}
+function needsCard(i) {
+  const mv = yourMove();
+  const hl = mv && i.ctx && mv.next.includes(i.ctx) &&
+             ((i.type === "held" && mv.next.includes("Send")) || (i.type === "wait" && !mv.next.includes("Send")));
+  const c = el("div", {class: `card ${i.type}${hl ? " highlight" : ""}`});
+  c.append(el("h3", {}, i.title));
+  c.append(el("div", {class: "meta"},
+    [i.ctx && `Client ${i.ctx}`, i.from_name && `from ${i.from} ${i.from_name}`, i.to && `to ${i.to}`]
+      .filter(Boolean).join(" · ")));
+  if (i.said) c.append(el("div", {class: "said"}, "“" + i.said + "”"));
+  if (i.type === "held") {
+    c.append(el("div", {class: "why"}, "What would go out:"), kv(i.content), el("div", {class: "why"}, i.why));
+    c.append(el("div", {class: "actions"}, sendButton(i),
+      el("span", {class: "note"}, "Not ready? Leave it - it stays held until you send it.")));
+  } else if (i.type === "wait") {
+    if (i.why) c.append(el("div", {class: "said"}, i.why));
+    if (i.paused) c.append(el("div", {class: "why"}, "Paused: " + i.paused));
+    let sel = null;
+    if (i.needs_route) {
+      sel = el("select", {}, el("option", {value: ""}, "Continue to which agent?"),
+               i.route_choices.map(r => el("option", {value: r.id}, `${r.id} ${r.name}`)));
+    }
+    const go = el("button", {class: "primary"}, "Continue");
+    go.onclick = () => {
+      if (sel && !sel.value) { toast("Pick the agent to continue to"); return; }
+      act({action: "decide", id: i.id, decision: "continue", route_to: sel ? sel.value : undefined})
+        .then(j => j && !j.error && toast("Signed: continue"));
+    };
+    const no = el("button", {class: "warn"}, "Cancel");
+    no.onclick = () => act({action: "decide", id: i.id, decision: "cancel"})
+      .then(j => j && !j.error && toast("Signed: cancel"));
+    c.append(el("div", {class: "actions"}, sel, go, no));
+  } else {
+    if (!i.said) c.append(kv(i.content));
+    const done = el("button", {}, "Done");
+    done.onclick = () => act({action: "ack", id: i.id, title: i.title, ctx: i.ctx});
+    c.append(el("div", {class: "actions"}, done,
+      el("span", {class: "note"}, "Marks it handled on the record; changes nothing in the swarm.")));
+  }
+  return c;
+}
+function listingCard(l) {
+  const c = el("div", {class: "card"});
+  const facts = Object.entries(l.facts || {}).map(([k, v]) =>
+    k === "price" ? "$" + Number(v).toLocaleString() : `${v} ${k}`).join(" · ");
+  c.append(el("h3", {}, `Listing ${l.ctx}`), el("div", {class: "meta"}, facts || " "));
+  const track = el("div", {class: "track"}), labels = el("div", {class: "steplabels"});
+  for (const s of l.steps) { track.append(el("div", {class: "step " + s.state, title: s.label})); labels.append(el("span", {}, s.label)); }
+  c.append(track, labels);
+  c.append(el("div", {}, "Now: ", el("span", {class: "now"}, l.now)));
+  if (l.waiting_on_you.length) c.append(el("div", {class: "flag", style: "color:var(--you-ink)"},
+    "Waiting for you to send " + l.waiting_on_you.join(" and ")));
+  for (const f of l.flags) c.append(el("div", {class: "flag"}, f));
+  return c;
+}
+function leadRow(l) {
+  const c = el("div", {class: "card " + (l.hot_open ? "queue" : "")});
+  const right = el("div", {});
+  if (l.hot_open && l.hot_since) {
+    const left = Math.max(0, Math.round(l.hot_since + (l.sla_s || 300) - Date.now() / 1000));
+    right.append(el("span", {class: "timer"},
+      left > 0 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} to call` : "call window passed"));
+    const done = el("button", {}, "Called");
+    done.onclick = () => act({action: "ack", id: l.ack_id, title: `Hot lead ${l.name || l.ctx}`, ctx: l.ctx});
+    right.append(" ", done);
+  }
+  c.append(el("div", {class: "lead"},
+    el("div", {}, el("b", {}, l.name || l.ctx), el("div", {class: "meta"}, `${l.status} · ${l.channel || ""} · ${l.ctx}`)),
+    right));
+  return c;
+}
+function render() {
+  if (!S) return;
+  document.getElementById("who").textContent =
+    (S.operator ? `${S.operator.name} · ${S.operator.login}` : "not onboarded") + " · updated " + S.generated_at.slice(11);
+  const mode = document.getElementById("mode");
+  mode.className = "badge " + (S.mode === "showcase" ? "show" : "live");
+  mode.textContent = S.mode === "showcase" ? "SHOWCASE · synthetic data" : "LIVE · your records";
+
+  const sc = S.showcase, box = document.getElementById("showcase");
+  box.hidden = !sc;
+  if (sc) {
+    box.classList.toggle("yourmove", !!sc.waiting_for_you);
+    document.getElementById("sc-scene").textContent = sc.done ? "Showcase complete" : `Scene ${sc.scene} · ${sc.title}`;
+    document.getElementById("sc-next").textContent = sc.done ? "All ten scenes played. Check the record to finish."
+      : (sc.waiting_for_you ? sc.next : "Next: " + sc.next);
+    document.getElementById("sc-step").disabled = sc.done || sc.waiting_for_you;
+    document.getElementById("sc-pos").textContent = `step ${sc.pos} of ${sc.total}`;
+  }
+
+  const p = S.proof, proof = document.getElementById("proof");
+  proof.replaceChildren(
+    el("div", {class: "tile " + (p.chain_ok ? "good" : "bad")},
+       el("div", {class: "big"}, p.chain_ok ? "✓ Intact" : "✗ Broken"),
+       el("div", {class: "lbl"}, `The record: ${p.entries} entries, each chained to the last`)),
+    el("div", {class: "tile " + (p.gated_out === p.gated_out_signed ? "good" : "bad")},
+       el("div", {class: "big"}, `${p.gated_out_signed} of ${p.gated_out}`),
+       el("div", {class: "lbl"}, "messages to vendors or the public that went out on your signed release")),
+    el("div", {class: "tile " + (p.held_now ? "you" : "")},
+       el("div", {class: "big"}, String(p.held_now)),
+       el("div", {class: "lbl"}, "held right now, waiting for you")),
+    el("div", {class: "tile"},
+       el("div", {class: "big"}, String(p.client_messages)),
+       el("div", {class: "lbl"}, "client messages released (recorded; no email or SMS is connected)")));
+  document.getElementById("chips").replaceChildren(...p.connections.map(c =>
+    el("span", {class: "chip " + (/^(on|loaded)$/.test(c.state) ? "on" : "off"), title: c.note},
+       c.name + ": ", el("b", {}, c.state))));
+
+  const needs = S.needs_you;
+  const cnt = document.getElementById("needs-count");
+  cnt.textContent = needs.length; cnt.className = "count" + (needs.length ? "" : " zero");
+  const mv = yourMove();
+  const isHl = i => mv && i.ctx && mv.next.includes(i.ctx) &&
+    ((i.type === "held" && mv.next.includes("Send")) || (i.type === "wait" && !mv.next.includes("Send")));
+  needs.sort((a, b) => (isHl(b) ? 1 : 0) - (isHl(a) ? 1 : 0));
+  document.getElementById("needs").replaceChildren(...(needs.length ? needs.map(needsCard)
+    : [el("div", {class: "empty"}, "Nothing is waiting for you.")]));
+  document.getElementById("listings").replaceChildren(...(S.listings.length ? S.listings.map(listingCard)
+    : [el("div", {class: "empty"}, "No listings yet.")]));
+  document.getElementById("leads").replaceChildren(...(S.leads.length ? S.leads.map(leadRow)
+    : [el("div", {class: "empty"}, "No leads yet.")]));
+  const stateWord = {working: "working", you: "waiting for you", waiting: "waiting", problem: "problem", idle: "idle"};
+  document.getElementById("team").replaceChildren(...S.team.map(a =>
+    el("div", {class: "agent " + a.state},
+       el("span", {class: "st"}, stateWord[a.state]), el("b", {}, `${a.id} ${a.name}`), a.note)));
+  document.getElementById("feed").replaceChildren(...S.activity.map(f =>
+    el("div", {class: f.kind || ""},
+       new Date(f.ts * 1000).toLocaleTimeString() + " · " + (f.ctx ? f.ctx + " · " : "") + f.text)));
+}
+async function load() {
+  try {
+    const r = await fetch("api/state", {headers: H});
+    S = await r.json();
+    render();
+  } catch (e) { document.getElementById("who").textContent = "desk not reachable: " + e; }
+}
+document.getElementById("sweep").onclick = () =>
+  act({action: "sweep"}).then(j => j && !j.error && toast("Today's checks ran"));
+document.getElementById("verify").onclick = () =>
+  act({action: "verify"}).then(j => j && toast(j.ok ? "The record is intact" : "The record is BROKEN: " + JSON.stringify(j)));
+document.getElementById("sc-step").onclick = () => act({action: "showcase.step"});
+document.getElementById("sc-auto").onchange = e => {
+  clearInterval(autoTimer);
+  if (e.target.checked) autoTimer = setInterval(() => {
+    const sc = S && S.showcase;
+    if (sc && !sc.done && !sc.waiting_for_you && !busy) act({action: "showcase.step"});
+  }, 2200);
+};
+load();
+setInterval(() => { if (!busy) load(); }, 1500);
+</script>
+</body>
+</html>

@@ -312,6 +312,27 @@ login, with MFA, may sign which intent) is not armed: no identity provider
 is connected. The hub verifies your key's signature and records on the
 audit log that the login binding is off.
 
+## 6a. The Broker Desk
+
+`python tools/desk.py` opens your desk at http://127.0.0.1:8765 (add
+`--lan` to open it from a tablet; it prints a link with an access code).
+Everything in sections 3 and 6 is on it:
+
+- **Needs you** lists every held message with what would go out and to whom
+  (Send signs one release with your key; tap it twice), every paused
+  thread (Continue or Cancel; a client reply that names no agent asks which
+  agent to continue to), and your queues with the client's own words (Done
+  records that you handled it; it changes nothing in the swarm).
+- **Listings**, **Leads** (a hot lead with its five-minute clock), **Your
+  team** (each agent: working, waiting, waiting for you, idle, problem) and
+  **What just happened** are read from the record as it is written.
+- **Run today's checks** runs the daily clock; **Check the record** walks the
+  audit chain.
+
+A held message cannot be thrown away from the desk: it stays held until you
+send it. While the desk runs it holds the state folder, so console sessions
+and `run_sweeps.py` refuse to start against it.
+
 ## 7. Restarts and the daily clock
 
 The swarm saves its state at the end of every console session and clock

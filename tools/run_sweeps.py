@@ -46,6 +46,13 @@ def main(argv=None) -> int:
     today = args.today or now.date().isoformat()
     now_iso = args.now_iso or now.replace(microsecond=0).isoformat()
 
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from console import desk_running
+    other = desk_running(os.path.dirname(os.path.abspath(args.audit_log)))
+    if other:
+        print(json.dumps({"error": f"the Broker Desk is running on this state (pid {other}); "
+                                   f"use its 'Run today's checks' button, or stop it first"}))
+        return 2
     from dispatcher.sweep_runner import run_daily_sweeps
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError

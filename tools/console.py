@@ -48,6 +48,10 @@ lands, the way the SMS notifier would page you.
 
 Everything prints as JSON lines so a screen recording captures exactly
 what the audit log captured.
+
+The Broker Desk (tools/desk.py) runs actions through the same
+apply_action(); while a desk holds a state folder, `session` refuses to
+start against it (desk_running()).
 """
 import argparse
 import datetime
@@ -102,6 +106,44 @@ def build(audit_path, config_dir=None, state_db=None, model=None, pager=None):
     if pager:
         pager.audit = sw.hub.audit
     return sw, signer
+
+
+def desk_running(state_dir):
+    """The pid of a Broker Desk (tools/desk.py) holding this state folder,
+    or None. The desk keeps the swarm open; a second process on the same
+    files would fork the state, so console sessions and the daily clock
+    refuse to start while a desk runs. A lock left by a desk that died is
+    ignored (its pid is gone)."""
+    path = os.path.join(state_dir, "desk.lock")
+    try:
+        pid = int(open(path).read().strip())
+    except (OSError, ValueError):
+        return None
+    if pid == os.getpid():
+        return None
+    return pid if _pid_alive(pid) else None
+
+
+def _pid_alive(pid):
+    """Whether a process is running. On Windows os.kill(pid, 0) would END
+    the process (it calls TerminateProcess), so ask the kernel instead."""
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(0x1000, False, pid)      # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
+        k32.CloseHandle(h)
+        return bool(ok) and code.value == 259         # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except (PermissionError, OSError):
+        return True
+    return True
 
 
 def make_env(frm, to, intent, ctx, payload):
@@ -282,8 +324,87 @@ def _operator():
         return None
 
 
+def apply_action(sw, signer, operator, a, external=None):
+    """Runs one session action (the JSON-line format above) and returns
+    (result, error). The console's session loop and the Broker Desk
+    (tools/desk.py) both run actions through here, so a click on the Desk
+    and a line in a session script do exactly the same thing."""
+    hub, spokes = sw.hub, sw.spokes
+    external = sw.external if external is None else external
+    from dispatcher.sweep_runner import run_daily_sweeps
+    error = False
+    do = a.get("do")
+    if do in ("config", "authorize"):
+        intent = "config.update" if do == "config" \
+            else "listing.change.authorized"
+        env = make_env("human", a["to"], intent, a.get("ctx", "console"),
+                       a.get("payload", {}))
+        if operator:
+            env.provenance["operator"] = operator["login"]
+        signer.sign(env)
+        r = hub.send(env)
+    elif do == "send":
+        env = make_env(a["from"], a["to"], a["intent"],
+                       a.get("ctx", "console"), a.get("payload", {}))
+        r = hub.send(env)
+    elif do == "release":
+        if not a.get("ctx"):
+            r = {"error": "release needs ctx (and optionally intent)"}
+            error = True
+        else:
+            r = release(hub, signer, a["ctx"], a.get("intent"))
+    elif do == "decide":
+        r = decide(sw, signer, a)
+        if isinstance(r, dict) and r.get("error"):
+            error = True
+    elif do == "sweep":
+        r = run_daily_sweeps(hub, spokes, today=a["today"],
+                             now_iso=a.get("now_iso"))
+    elif do == "show":
+        what = a.get("what")
+        if what == "queues":
+            r = {k: v for k, v in hub.queues.items() if v}
+        elif what in ("briefing", "eod"):
+            # through the hub as a clock.tick (owner rule 2026-10-11:
+            # no direct calls into an agent)
+            from dispatcher.clock import send_tick
+            agent, check = ("18", "morning_briefing") if what == "briefing" else ("14", "eod_report")
+            day = a.get("today") or datetime.date.today().isoformat()
+            out = send_tick(hub, agent, day, checks=[check])
+            r = (out["results"][0]["result"] if out["results"]
+                 else {"error": f"clock.tick not delivered: {out['hub']}"})
+            if what == "eod" and isinstance(r, dict):
+                # the plain-language ledger, built from the chain (2026-10-12)
+                led = sw.write_eod(a.get("ledger_date"))
+                r = {**r, "readable_ledger": {"file": led["report_file"],
+                                              "events": led["total_events"],
+                                              "chain_ok": (led["integrity"]["chain"] or {}).get("ok")}}
+        elif what == "held":
+            r = held_list(hub)
+        elif what == "waits":
+            r = [{k: w[k] for k in ("wait_id", "client_context_id", "agent_id",
+                                    "paused_intent", "reason", "required_decision")}
+                 for w in sw.hitl.get_pending_waits()]
+        elif what == "external":
+            r = external
+        elif what == "anchor":
+            r = hub.audit.anchor()
+        else:
+            r = {"error": f"unknown show target {what!r}"}
+    else:
+        r = {"error": f"unknown action {do!r}"}
+        error = True
+    return r, error
+
+
 def cmd_session(args):
     from dispatcher.state_snapshot import StateIntegrityError
+    folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
+    other = desk_running(folder)
+    if other:
+        _p({"error": f"the Broker Desk is running on {folder} (pid {other}) - stop it, or "
+                     f"do this from the desk; two processes on the same state would fork it"})
+        return 2
     model = None
     if getattr(args, "model_url", None):
         if not args.model_name:
@@ -317,7 +438,6 @@ def cmd_session(args):
     if operator is None:
         _p({"note": "not onboarded - run `python tools/console.py onboard` to record who "
                     "signs; signed actions still carry your key's signature"})
-    from dispatcher.sweep_runner import run_daily_sweeps
     errors = 0
     for lineno, line in enumerate(open(args.script), 1):
         line = line.strip()
@@ -330,65 +450,8 @@ def cmd_session(args):
             errors += 1
             continue
         do = a.get("do")
-        if do in ("config", "authorize"):
-            intent = "config.update" if do == "config" \
-                else "listing.change.authorized"
-            env = make_env("human", a["to"], intent, a.get("ctx", "console"),
-                           a.get("payload", {}))
-            if operator:
-                env.provenance["operator"] = operator["login"]
-            signer.sign(env)
-            r = hub.send(env)
-        elif do == "send":
-            env = make_env(a["from"], a["to"], a["intent"],
-                           a.get("ctx", "console"), a.get("payload", {}))
-            r = hub.send(env)
-        elif do == "release":
-            if not a.get("ctx"):
-                r = {"error": "release needs ctx (and optionally intent)"}
-                errors += 1
-            else:
-                r = release(hub, signer, a["ctx"], a.get("intent"))
-        elif do == "decide":
-            r = decide(sw, signer, a)
-            if isinstance(r, dict) and r.get("error"):
-                errors += 1
-        elif do == "sweep":
-            r = run_daily_sweeps(hub, spokes, today=a["today"],
-                                 now_iso=a.get("now_iso"))
-        elif do == "show":
-            what = a.get("what")
-            if what == "queues":
-                r = {k: v for k, v in hub.queues.items() if v}
-            elif what in ("briefing", "eod"):
-                # through the hub as a clock.tick (owner rule 2026-10-11:
-                # no direct calls into an agent)
-                from dispatcher.clock import send_tick
-                agent, check = ("18", "morning_briefing") if what == "briefing" else ("14", "eod_report")
-                day = a.get("today") or datetime.date.today().isoformat()
-                out = send_tick(hub, agent, day, checks=[check])
-                r = (out["results"][0]["result"] if out["results"]
-                     else {"error": f"clock.tick not delivered: {out['hub']}"})
-                if what == "eod" and isinstance(r, dict):
-                    # the plain-language ledger, built from the chain (2026-10-12)
-                    led = sw.write_eod(a.get("ledger_date"))
-                    r = {**r, "readable_ledger": {"file": led["report_file"],
-                                                  "events": led["total_events"],
-                                                  "chain_ok": (led["integrity"]["chain"] or {}).get("ok")}}
-            elif what == "held":
-                r = held_list(hub)
-            elif what == "waits":
-                r = [{k: w[k] for k in ("wait_id", "client_context_id", "agent_id",
-                                        "paused_intent", "reason", "required_decision")}
-                     for w in sw.hitl.get_pending_waits()]
-            elif what == "external":
-                r = external
-            elif what == "anchor":
-                r = hub.audit.anchor()
-            else:
-                r = {"error": f"unknown show target {what!r}"}
-        else:
-            r = {"error": f"unknown action {do!r}"}
+        r, err = apply_action(sw, signer, operator, a, external)
+        if err:
             errors += 1
         _p({"line": lineno, "do": do, "result": r})
     saved = sw.save_state()

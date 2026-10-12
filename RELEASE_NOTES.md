@@ -15,6 +15,11 @@ end-to-end test.
 
 ## Changes in this release
 
+- **The Broker Desk.** `python tools/desk.py` shows the broker everything
+  waiting on them, with Send, Continue/Cancel and Done buttons that sign
+  with the broker's key, plus listing progress, hot-lead clocks, the
+  agents' status and a proof strip. `--showcase` replays the operator
+  scenes for recording (README, "The Broker Desk").
 - **Pictures for non-technical readers.** Every agent folder has a README
   with a diagram of who it hears from and who it talks to (drawn from
   `identity/routes.json`); every playbook in `docs/PLAY-BY-PLAY.md` has a
@@ -139,7 +144,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 988 passed
+python -m pytest tests_listing/        # expect: 994 passed
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```
