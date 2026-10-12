@@ -143,29 +143,9 @@ def test_14_report_tiers_only_from_tier_bearing_logs(tmp_path):
 
 
 # ------------------------------------------------------------ 253
-def test_14_merge_candidates_need_contact_value(tmp_path):
-    """check_merge_candidates flags two contexts sharing a contact VALUE;
-    a lead.captured log whose contact has no value contributes nothing.
-    Kills the 253 `contact and contact.get("value")` guard."""
-    hub, _ = make_hub(str(tmp_path))
-    s = Spoke14CRMPipeline(hub)
-    hub.on_turn_start()
-    # two contexts, same contact value -> merge candidate
-    for ctx in ("m1", "m2"):
-        s.records[ctx] = [{"kind": "interaction.log", "entry_id": ctx,
-                           "payload": {"kind": "lead.captured",
-                                       "contact": {"value": "555-0100"}}}]
-    # a third with a contact but NO value -> must not group
-    s.records["m3"] = [{"kind": "interaction.log", "entry_id": "m3",
-                        "payload": {"kind": "lead.captured",
-                                    "contact": {"label": "home"}}}]
-    s.check_merge_candidates()
-    flagged = persisted(hub, "clarification.request")
-    text = " ".join(str(e["payload"]) for e in flagged)
-    assert "m1" in text and "m2" in text, \
-        "two contexts sharing a contact value must be flagged to merge"
-    assert "m3" not in text, \
-        "a contact with no value must not be grouped (kills the guard flip)"
+# test_14_merge_candidates_need_contact_value removed 2026-10-11 with the
+# uncalled check_merge_candidates() sweep it tested; the capture-time match
+# that replaced it is tested in test_agent01_agent14.py.
 
 
 # ============================================================================

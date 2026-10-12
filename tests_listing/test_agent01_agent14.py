@@ -604,9 +604,10 @@ def test_generate_report_no_gaps_when_everything_is_logged(tmp_path):
 
 
 # --------------------------------------- THE FIX: tuple 6, merge candidates
-def test_merge_candidates_proposed_never_auto_merged(tmp_path):
-    """Was: zero detection logic, and the underlying data (contact info)
-    wasn't even being sent to 14 by Agent 01 until that was fixed too."""
+def test_same_person_under_a_new_context_holds_never_merges_never_scores(tmp_path):
+    """Was: 14.check_merge_candidates() - a sweep nothing ever called. Since
+    2026-10-11 (owner decision #3) the match is made at capture: the second
+    context is held for the broker, not scored, and nothing is merged."""
     hub = make_hub(str(tmp_path))
     crm = Spoke14CRMPipeline(hub)
     Spoke01LeadCapture(hub)
@@ -615,16 +616,13 @@ def test_merge_candidates_proposed_never_auto_merged(tmp_path):
     hub.send(signal("lead-034", {"channel": "call", "name": "Same Person A",
                                  "phone": "555-1234", "consent": {"call": "yes"}}))
     hub.send(signal("lead-035", {"channel": "web_form", "name": "Same Person B",
-                                 "phone": "555-1234", "consent": {"call": "yes"}}))
-
-    proposals = crm.check_merge_candidates()
-    assert proposals and set(proposals[0]["contexts"]) == {"lead-034", "lead-035"}
-    assert "555-1234" in proposals[0]["evidence"]
-    clar = persisted(hub, "clarification.request")
-    assert any("merge candidate" in c["payload"].get("reason", "") for c in clar)
-    # never auto-merge: both contexts remain fully independent records
-    assert "lead-034" in crm.records and "lead-035" in crm.records
-    assert crm.records["lead-034"] is not crm.records["lead-035"]
+                                 "phone": "(555) 1234", "consent": {"call": "yes"}}))
+    held = [c for c in persisted(hub, "clarification.request")
+            if c["client_context_id"] == "lead-035" and "held" in c["payload"]]
+    assert held and held[0]["payload"]["held"]["possible_duplicate_of"] == ["lead-034"]
+    captured = [e for e in persisted(hub, "lead.captured")]
+    assert [e["client_context_id"] for e in captured] == ["lead-034"]
+    assert "lead-034" in crm.records and "lead-035" not in crm.records
 
 
 def test_no_merge_candidates_when_contacts_genuinely_differ(tmp_path):
@@ -636,8 +634,9 @@ def test_no_merge_candidates_when_contacts_genuinely_differ(tmp_path):
                                  "phone": "555-1111", "consent": {"call": "yes"}}))
     hub.send(signal("lead-037", {"channel": "call", "name": "Person B",
                                  "phone": "555-2222", "consent": {"call": "yes"}}))
-    proposals = crm.check_merge_candidates()
-    assert proposals == []
+    # different people: neither is held, both reach Lead Qualification
+    assert [e["client_context_id"] for e in persisted(hub, "lead.captured")] == ["lead-036", "lead-037"]
+    assert not [c for c in persisted(hub, "clarification.request") if "held" in c["payload"]]
 
 
 # ------------------------------------------------- 01 -> 18 wait-state edge

@@ -399,7 +399,10 @@ def test_lead_reply_to_unhandled_owner_goes_to_a_human(tmp_path, owner):
     assert ("envelope.persisted", "lead.reply") not in kinds
     assert not [e for e in hub.audit.read() if e["kind"] == "reject"]
     held = hub.queues["clarification.request"]
-    assert len(held) == 1 and held[0]["payload"]["verbatim"] == "Thanks, Saturday works"
+    # owner decision #6 (2026-10-11): held for the broker; with no HITL manager
+    # in this harness the hold is a clarification that says it cannot resume
+    assert len(held) == 1 and held[0]["payload"]["held"]["verbatim"] == "Thanks, Saturday works"
+    assert held[0]["payload"]["held"]["route_to"] is None
 
 
 @pytest.mark.parametrize("owner", ["03", "13", "16", "20"])
@@ -469,13 +472,18 @@ def _lead_replies(hub):
     return [e for e in hub.audit.read() if e["kind"] == "envelope.persisted" and e["intent"] == "lead.reply"]
 
 
-def test_mixed_advice_routine_reply_default_owner_is_13(tmp_path):
+def test_mixed_advice_routine_reply_without_owner_is_held_not_sent_to_13(tmp_path):
+    """Was: a reply naming no owner defaulted to Agent 13. Owner decision #6
+    (2026-10-11): it holds for the broker; the advice half still goes to the
+    legal line."""
     hub = _full(tmp_path)
     hub.send(client_reply("ctx-mix", {"message": "should i offer 400k? also send the hoa docs",
                                       "has_routine_component": True}))
-    [lr] = _lead_replies(hub)
-    assert lr["to_agent"] == "13" and lr["client_context_id"] == "ctx-mix"
-    assert lr["payload"] == {"message": "should i offer 400k? also send the hoa docs", "split": "routine_only"}
+    assert _lead_replies(hub) == []
+    held = [q for q in hub.queues["clarification.request"] if q["client_context_id"] == "ctx-mix"]
+    assert held and held[0]["payload"]["held"]["lead_reply"] == {
+        "message": "should i offer 400k? also send the hoa docs", "split": "routine_only"}
+    assert any(r["client_context_id"] == "ctx-mix" for r in hub.queues["escalation.legal_line"])
 
 
 def test_negative_tone_reply_goes_to_named_owner_with_p14_route(tmp_path):
@@ -491,7 +499,7 @@ def test_unhandled_owner_trace_names_agent_11_and_the_envelope(tmp_path):
     hub = _full(tmp_path)
     env = client_reply("ctx-u", {"message": "hi", "owning_agent": "07"})
     hub.send(env)
-    t = [t for t in hub.spoke_traces if t.get("result") == "held: lead_reply_owner_unhandled"][-1]
+    t = [t for t in hub.spoke_traces if t.get("result") == "held: lead_reply_owner"][-1]
     assert t["agent"] == "11" and t["envelope_id"] == env.envelope_id and "'07'" in t["thought"]
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -81,9 +82,10 @@ class Spoke14CRMPipeline:
       - merge candidates detected -> propose w/ evidence, never auto-merge.
         Fixed 2026-07-17: zero detection logic existed, and the data it
         would need (contact info) wasn't even being sent here by Agent 01
-        until that was fixed too. check_merge_candidates() compares
-        contact info across different contexts' lead.captured entries and
-        proposes (never auto-merges) on a genuine match.
+        until that was fixed too. Since 2026-10-11 the match is made at
+        capture: the dedupe lookup compares phone/email across contexts
+        and 01 holds a match for the broker (continue or cancel) - the
+        uncalled check_merge_candidates() sweep was removed.
       - record edit erasing history -> append-correct, never overwrite
         (structurally true: no edit/overwrite method exists anywhere in
         this class, only _append)
@@ -253,44 +255,6 @@ class Spoke14CRMPipeline:
         }
         self.hub.send(_env("14", "human", "report.package", "eod-report", report))
         return report
-
-    def check_merge_candidates(self):
-        """Tuple 6: merge candidates detected -> propose merge with
-        evidence, never auto-merge client contexts. Fixed 2026-07-17 -
-        zero detection logic existed; this agent had no way to compare
-        contact info across contexts at all until Agent 01's interaction.log
-        send was fixed to actually include it. Called by a scheduler/sweep,
-        matching the pattern of other periodic checks in this codebase."""
-        contacts_by_ctx = {}
-        for ctx, entries in self.records.items():
-            for e in entries:
-                if e["kind"] == "interaction.log" and e["payload"].get("kind") == "lead.captured":
-                    contact = e["payload"].get("contact")
-                    if contact and contact.get("value"):
-                        contacts_by_ctx[ctx] = contact["value"]
-
-        seen: dict[str, list[str]] = {}
-        for ctx, value in contacts_by_ctx.items():
-            seen.setdefault(value, []).append(ctx)
-
-        proposals = []
-        for value, ctxs in seen.items():
-            if len(ctxs) > 1:
-                proposal = {"contexts": sorted(ctxs), "evidence": f"matching contact: {value!r}"}
-                proposals.append(proposal)
-                self.hub.ingest_spoke_trace(
-                    "14", f"merge-candidate-{'-'.join(sorted(ctxs))}",
-                    thought=f"contexts {sorted(ctxs)} share contact {value!r} "
-                            f"- proposing merge with evidence, never "
-                            f"auto-merging client contexts",
-                    result=f"proposed: {sorted(ctxs)}")
-                self.hub.send(_env("14", "queue", "clarification.request",
-                                   ctxs[0],
-                                   {"reason": f"merge candidate detected: "
-                                             f"contexts {sorted(ctxs)} share "
-                                             f"contact {value!r} - human "
-                                             f"confirms before any merge"}))
-        return proposals
 
     def handle(self, env: Envelope):
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
@@ -470,7 +434,10 @@ class Spoke01LeadCapture:
         # this at all; a non-answering 14 left pending[ctx] stuck forever
         # with no timeout, no retry, no signal.
         self.retry_count: dict[str, int] = {}
+        # possible-duplicate leads held for the broker (owner decision #3)
+        self.held_duplicates: dict[str, dict] = {}
         register_spoke(hub, "01", self)
+        register_resumer(hub, "01", self._resume)
 
     def _legal_line_hit(self, payload: dict) -> str | None:
         note = str(payload.get("message", "")) + " " + str(payload.get("request", ""))
@@ -810,19 +777,6 @@ class Spoke01LeadCapture:
             possible_dupes = list(env.payload.get("possible_duplicate_of") or [])
             if possible_dupes:
                 payload["possible_duplicate_of"] = possible_dupes
-                self.hub.ingest_spoke_trace(
-                    "01", env.envelope_id,
-                    thought=f"same phone/email already on record under "
-                            f"{possible_dupes}; identity unconfirmed - keeping "
-                            f"{ctx!r} as its own context and flagging, never "
-                            f"merging without a human",
-                    result="flagged: possible duplicate identity")
-                self.hub.send(_env("01", "queue", "clarification.request", ctx,
-                                   {"reason": "possible duplicate identity: same "
-                                              "phone or email as an existing lead; "
-                                              "kept as a new context, not merged - "
-                                              "confirm before merging",
-                                    "possible_duplicate_of": possible_dupes}))
             prior_consent = env.payload.get("consent", {})
             prior_interests = env.payload.get("property_interests", [])
             payload["duplicate"] = known
@@ -846,24 +800,83 @@ class Spoke01LeadCapture:
             payload["property_interests"] = merged_interests
 
             self.pending.pop(ctx, None)
+            captured = {"payload": payload, "known": known, "identifiers": identifiers,
+                        "possible_duplicate_of": possible_dupes}
 
-            self.hub.ingest_spoke_trace(
-                "01", env.envelope_id,
-                thought=f"dedupe answer known={known}; consent and "
-                        f"property interests merged against 14's "
-                        f"authoritative state; forwarding complete lead "
-                        f"object to Lead Qualification (02)",
-                result="lead.captured issued")
-            self.hub.send(_env("01", "02", "lead.captured", ctx, payload,
-                               confidence=STATED_BY_PARTY))
-            self.hub.send(_env("01", "14", "interaction.log", ctx,
-                               {"kind": "lead.captured", "duplicate": known,
-                                "identifiers": identifiers,
-                                "possible_duplicate_of": possible_dupes,
-                                "consent": merged_consent,
-                                "property_interests": merged_interests,
-                                "contact": payload.get("contact")}))
+            if possible_dupes:
+                # Owner decision 2026-10-11 (#3): the same phone/email already on
+                # record under another context -> the WHOLE thread holds for the
+                # broker. Nothing is scored, paged or logged as a lead until the
+                # broker signs continue (a separate person) or cancel.
+                self.held_duplicates[ctx] = captured
+                self.hub.ingest_spoke_trace(
+                    "01", env.envelope_id,
+                    thought=f"same phone/email already on record under "
+                            f"{possible_dupes}; identity unconfirmed - holding "
+                            f"{ctx!r} for the broker, never merging and never "
+                            f"scoring until a signed continue",
+                    result="held: possible duplicate identity")
+                hold_for_human(self.hub, "01", ctx, "lead.captured",
+                               f"possible duplicate person: same phone or email as "
+                               f"{', '.join(possible_dupes)}. Continue = a separate "
+                               f"person, scored as a new lead. Cancel = this thread "
+                               f"closes, nothing merged.",
+                               {"possible_duplicate_of": possible_dupes,
+                                "contact": payload.get("contact"),
+                                "name": payload.get("name")})
+                return
+            self._forward_captured(ctx, captured, env.envelope_id)
             return
+
+    def _forward_captured(self, ctx: str, captured: dict, eid: str) -> None:
+        payload = captured["payload"]
+        self.hub.ingest_spoke_trace(
+            "01", eid,
+            thought=f"dedupe answer known={captured['known']}; consent and "
+                    f"property interests merged against 14's "
+                    f"authoritative state; forwarding complete lead "
+                    f"object to Lead Qualification (02)",
+            result="lead.captured issued")
+        self.hub.send(_env("01", "02", "lead.captured", ctx, payload,
+                           confidence=STATED_BY_PARTY))
+        self.hub.send(_env("01", "14", "interaction.log", ctx,
+                           {"kind": "lead.captured", "duplicate": captured["known"],
+                            "identifiers": captured["identifiers"],
+                            "possible_duplicate_of": captured["possible_duplicate_of"],
+                            "consent": payload["consent"],
+                            "property_interests": payload["property_interests"],
+                            "contact": payload.get("contact")}))
+
+    def _resume(self, ws, decision_payload: dict):
+        """The broker's signed decision on a held possible-duplicate lead.
+        Only continue or cancel act; any other decision leaves it held."""
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        if ctx not in self.held_duplicates:
+            self.hub.ingest_spoke_trace("01", ws.wait_id,
+                                        thought=f"decision for {ctx!r} but nothing is held there",
+                                        result="no held lead")
+            return "nothing_held"
+        if d == "other":
+            self.hub.ingest_spoke_trace("01", ws.wait_id,
+                                        thought=f"decision {decision_payload.get('decision')!r} is "
+                                                f"neither continue nor cancel - {ctx!r} stays held",
+                                        result="still held")
+            return "unsupported decision - still held"
+        captured = self.held_duplicates.pop(ctx)
+        if d == "continue":
+            self._forward_captured(ctx, captured, ws.wait_id)
+            return "continued: scored as a separate person"
+        self.hub.ingest_spoke_trace(
+            "01", ws.wait_id,
+            thought=f"broker cancelled the possible-duplicate thread {ctx!r}; nothing "
+                    f"merged, nothing scored",
+            result="cancelled")
+        self.hub.send(_env("01", "14", "interaction.log", ctx,
+                           {"kind": "duplicate_thread_cancelled",
+                            "possible_duplicate_of": captured["possible_duplicate_of"],
+                            "contact": captured["payload"].get("contact")}))
+        return "cancelled"
 
     def check_record_response_timeout(self, ctx: str, today: str):
         """Tuple 16: record.response never returns -> retry once, then hold

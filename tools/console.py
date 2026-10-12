@@ -25,6 +25,8 @@ A session script is JSON Lines; each line is one action:
   {"do": "sweep", "today": "2026-07-19"}                            # run the clock layer
   {"do": "show", "what": "queues"}     # or "held", "external", "briefing", "eod", "anchor"
   {"do": "release", "ctx": "L1", "intent": "campaign.publish"}      # signed release of held outbound
+  {"do": "decide", "ctx": "L1", "decision": "continue"}             # signed continue/cancel on a hold
+  {"do": "decide", "ctx": "L1", "decision": "continue", "route_to": "13"}   # a hold that asks for an agent
 
 "send" injects one message as if from the named sender. It is the test
 harness's way in: use "external" or "human" where the closed track has
@@ -146,6 +148,40 @@ def release(hub, signer, ctx, intent=None):
                                            + (f" intent={intent!r}" if intent else "")}
 
 
+def decide(sw, signer, a):
+    """Signs one hitl.decision.authority for the pending hold on ctx (and
+    agent, if given) and applies it through the HITL manager."""
+    from dispatcher.core import Envelope
+    from dispatcher.hitl_protocol import HITLAuthorizationError
+    waits = [w for w in sw.hitl.get_pending_waits(a.get("ctx"))
+             if not a.get("agent") or w["agent_id"] == a["agent"]]
+    if len(waits) != 1:
+        return {"error": f"{len(waits)} pending holds match ctx={a.get('ctx')!r}"
+                         f"{' agent=' + repr(a['agent']) if a.get('agent') else ''} - "
+                         f"name the agent so exactly one matches",
+                "pending": [{"wait_id": w["wait_id"], "agent": w["agent_id"]} for w in waits]}
+    w = waits[0]
+    choice = str(a.get("decision", "")).lower()
+    if choice == "continue":
+        payload = {"wait_id": w["wait_id"], "decision": "APPROVE"}
+        if a.get("route_to") is not None:
+            payload = {"wait_id": w["wait_id"], "decision": "APPROVE_WITH_OVERRIDE",
+                       "updated_fields": {"route_to": str(a["route_to"])}}
+    elif choice == "cancel":
+        payload = {"wait_id": w["wait_id"], "decision": "REJECT_AND_ABORT"}
+    else:
+        return {"error": "decision must be continue or cancel"}
+    auth = Envelope(from_agent="human", to_agent=w["agent_id"],
+                    intent="hitl.decision.authority", client_context_id=w["client_context_id"],
+                    payload=payload, provenance={"source": "human", "captured_at": "runtime",
+                                                 "verbatim_available": True})
+    signer.sign(auth)
+    try:
+        return sw.hitl.resume_operation(auth)
+    except (HITLAuthorizationError, ValueError) as e:
+        return {"error": str(e)}
+
+
 def cmd_session(args):
     from dispatcher.state_snapshot import StateIntegrityError
     try:
@@ -187,6 +223,10 @@ def cmd_session(args):
                 errors += 1
             else:
                 r = release(hub, signer, a["ctx"], a.get("intent"))
+        elif do == "decide":
+            r = decide(sw, signer, a)
+            if isinstance(r, dict) and r.get("error"):
+                errors += 1
         elif do == "sweep":
             r = run_daily_sweeps(hub, spokes, today=a["today"],
                                  now_iso=a.get("now_iso"))
@@ -205,6 +245,10 @@ def cmd_session(args):
                      else {"error": f"clock.tick not delivered: {out['hub']}"})
             elif what == "held":
                 r = held_list(hub)
+            elif what == "waits":
+                r = [{k: w[k] for k in ("wait_id", "client_context_id", "agent_id",
+                                        "paused_intent", "reason", "required_decision")}
+                     for w in sw.hitl.get_pending_waits()]
             elif what == "external":
                 r = external
             elif what == "anchor":

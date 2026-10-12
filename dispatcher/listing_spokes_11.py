@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -118,7 +119,10 @@ class Spoke11ClientCommunication:
         # open. Was missing entirely - neither tuple 2 (angry) nor tuple 10
         # (negative tone) implemented this half of the playbook.
         self.complaint_hold: set[str] = set()
+        # client replies held for the broker (owner decision #6)
+        self.held_replies: dict[str, dict] = {}
         register_spoke(hub, "11", self)
+        register_resumer(hub, "11", self._resume)
 
     def _in_quiet_hours(self, hour: int) -> bool:
         start, end = self.quiet_hours
@@ -138,27 +142,66 @@ class Spoke11ClientCommunication:
         return any(w in text for w in _WIRE_WORDS)
 
     def _route_lead_reply(self, ctx: str, owner, body: dict, env: Envelope | None) -> dict:
-        """Sends lead.reply to the owning agent only when that agent has a
-        lead.reply handler; otherwise the client's words go to
-        clarification.request (root rule: no suitable tuple -> STOP and ask
-        the human)."""
-        owner = str(owner)
+        """Sends lead.reply to the owning agent only when the reply names
+        one and that agent has a lead.reply handler. Otherwise the whole
+        thread holds for the broker (owner decision 2026-10-11, #6): no
+        default owner is guessed (it used to be 13), and nothing moves until
+        a signed continue naming the agent (route_to) or a cancel."""
         eid = env.envelope_id if env else "internal"
-        if owner not in LEAD_REPLY_HANDLERS:
+        if owner is None or str(owner) not in LEAD_REPLY_HANDLERS:
+            why = ("names no owning agent" if owner is None else
+                   f"names owning_agent {str(owner)!r}, which has no lead.reply handler")
             self.hub.ingest_spoke_trace(
                 "11", eid,
-                thought=f"client reply names owning_agent {owner!r}; no lead.reply "
-                        f"handler exists there - holding for a human, not guessing an owner",
-                result="held: lead_reply_owner_unhandled")
-            return self.hub.send(_env("11", "queue", "clarification.request", ctx,
-                                      {"reason": f"client reply for owning_agent {owner!r}, "
-                                                 f"which has no lead.reply handler",
-                                       "verbatim": body.get("message"), "lead_reply": body}))
+                thought=f"client reply {why} - holding the thread for the broker, "
+                        f"never guessing an owner",
+                result="held: lead_reply_owner")
+            self.held_replies[ctx] = dict(body)
+            return hold_for_human(
+                self.hub, "11", ctx, "lead.reply",
+                f"client reply {why}. Continue with route_to = one of "
+                f"{sorted(LEAD_REPLY_HANDLERS)} to deliver it there; cancel to "
+                f"close the thread (the reply stays on the record).",
+                {"route_to": None, "verbatim": body.get("message"), "lead_reply": body})
         # a reject / dead.letter is handled by HandoffGuard (handoff.failed +
         # clarification.request with the failed envelope, which carries the
         # client's message)
-        res = self.hub.send(_env("11", owner, "lead.reply", ctx, body))
-        return res
+        return self.hub.send(_env("11", str(owner), "lead.reply", ctx, body))
+
+    def _resume(self, ws, decision_payload: dict):
+        """The broker's signed decision on a held client reply."""
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        if ctx not in self.held_replies or d == "other":
+            self.hub.ingest_spoke_trace("11", ws.wait_id,
+                                        thought=f"decision {decision_payload.get('decision')!r} for "
+                                                f"{ctx!r}: nothing held or not continue/cancel - unchanged",
+                                        result="unchanged")
+            return "unchanged"
+        if d == "continue":
+            route_to = (decision_payload.get("updated_fields") or {}).get("route_to") \
+                or ws.original_payload.get("route_to")
+            if str(route_to) not in LEAD_REPLY_HANDLERS:
+                self.hub.ingest_spoke_trace("11", ws.wait_id,
+                                            thought=f"continue named route_to={route_to!r}, which "
+                                                    f"has no lead.reply handler - still held",
+                                            result="still held")
+                hold_for_human(self.hub, "11", ctx, "lead.reply",
+                               f"continue named route_to={route_to!r}; it must be one of "
+                               f"{sorted(LEAD_REPLY_HANDLERS)}",
+                               {"route_to": None, "verbatim": self.held_replies[ctx].get("message"),
+                                "lead_reply": self.held_replies[ctx]})
+                return "still held: bad route_to"
+            body = self.held_replies.pop(ctx)
+            self.hub.send(_env("11", str(route_to), "lead.reply", ctx, body))
+            return f"delivered to {route_to}"
+        body = self.held_replies.pop(ctx)
+        self.hub.ingest_spoke_trace("11", ws.wait_id,
+                                    thought=f"broker cancelled the held reply thread {ctx!r}",
+                                    result="cancelled")
+        self.hub.send(_env("11", "14", "interaction.log", ctx,
+                           {"kind": "reply_thread_cancelled", "verbatim": body.get("message")}))
+        return "cancelled"
 
     def _send_client_message(self, ctx: str, template: str, variables: dict,
                              hour: int, alert_class: str | None = None,
@@ -321,7 +364,7 @@ class Spoke11ClientCommunication:
                 self.hub.escalate("escalation.legal_line",
                                   {"client_context_id": ctx,
                                    "trigger": advice_hit, "agent": "11"})
-                self._route_lead_reply(ctx, payload.get("owning_agent", "13"),
+                self._route_lead_reply(ctx, payload.get("owning_agent"),
                                        {"message": message, "split": "routine_only"}, env)
                 return
 
@@ -364,7 +407,7 @@ class Spoke11ClientCommunication:
                                   {"client_context_id": ctx,
                                    "trigger": "negative-tone reply",
                                    "verbatim": message})
-                self._route_lead_reply(ctx, payload.get("owning_agent", "13"),
+                self._route_lead_reply(ctx, payload.get("owning_agent"),
                                        {"message": message, "route": "P14_complaint_intake"}, env)
                 return
 
@@ -434,7 +477,7 @@ class Spoke11ClientCommunication:
             # routine reply -> route to owning agent (by content, per the
             # swarm-wide "routed by content" convention this agent
             # implements for real)
-            self._route_lead_reply(ctx, payload.get("owning_agent", "13"),
+            self._route_lead_reply(ctx, payload.get("owning_agent"),
                                    {"message": message}, env)
             return
 
