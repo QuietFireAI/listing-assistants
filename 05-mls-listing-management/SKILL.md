@@ -8,7 +8,8 @@ description: "MLS systems execution. Use for MLS data entry, status changes, day
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Systems execution (MLS)
 **Autonomy tier:** Autonomous data entry and syndication; price changes execute ONLY on human-authorized envelope
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke05MLSListingManagement` in `dispatcher/listing_spokes_05.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -29,6 +30,14 @@ never makes pricing decisions.
 - Entered data must match the authorized source package field-for-field; any discrepancy is a `clarification.request`, never a judgment call.
 - Never enter offers of buyer-broker compensation in MLS fields - prohibited on MLSs since Aug 17, 2024 (NAR settlement practice change).
 - Vacant property watch (P20, amended 2026-10-12): a listing the broker marks vacant (signed package or `occupancy` setting) gets a property condition check ordered through 09 every 7 days (or the signed interval) until it is marked occupied or the listing ends; a check counts only with proof.
+- File each authorized listing package in the client's drawer (`artifacts`) (added 2026-10-12).
+
+Not yet in the code (checked 2026-10-12): this agent keeps its own listing
+record; no MLS system, syndication feed or portal is connected, so entering
+data in an MLS, syndicating to Zillow / Realtor.com / Redfin, checking the
+live listing, days-on-market tracking and per-MLS reporting windows do not
+happen. The three tuples that need a portal or MLS answer (portal differs,
+portal stale, MLS rejects an entry) cannot fire until one exists.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -56,7 +65,7 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | IN | ← 04 Listing Description | Approved MLS description | `asset.release` |
-| IN | ← human via 00 | Authorized price/status change | `listing.change.authorized` |
+| IN | ← Broker (signed) | Authorized price/status change, go-live | `listing.change.authorized` |
 | IN | ← 09 Vendor Coordination | Photo deliverables | `deliverable.release` |
 | OUT | → 04 / 10 / 13 | Listing data packages | `listing.data` |
 | OUT | → 09 Vendor Coordination | Photo order | `vendor.request` |
@@ -65,6 +74,11 @@ Dispatcher returns an `ack`.
 | OUT | → 06 Showing Scheduler | Current listing status | `status.response` |
 | OUT | → 17 Compliance | Withdrawal requested while under contract | `compliance.notice` |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |
+| OUT | → 14 CRM & Pipeline | Vacant-watch events, listing events | `interaction.log` |
+| OUT | → HITL queue | Withdrawal under contract, request to fill a compensation field | `escalation.legal_line` |
+| OUT | → HITL queue | Conflicting authorized changes, invalid status or field, price conflict, failed photo deliverable, occupancy setting rejected | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: vacant-property checks | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `occupancy` (`vacant` / `occupied`, `watch_interval_days`) | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

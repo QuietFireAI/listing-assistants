@@ -8,7 +8,8 @@ description: "Social listening and routing with no public replies. Use for monit
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Listening & routing (new)
 **Autonomy tier:** Monitor, classify, route ONLY - no autonomous public replies, ever
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke20SocialMediaMonitoring` in `dispatcher/listing_spokes_20.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -28,6 +29,10 @@ is a human act.
 - Optionally draft a suggested response attached to the routed envelope - clearly labeled DRAFT, never published by this agent. Amended 2026-10-11 (owner decision): drafts come only from the broker's signed reply templates (question, praise); Compliance (17) reviews each; a flagged draft is discarded and reported, an approved draft holds for the broker to continue (approve for the broker to post) or cancel.
 - Sentiment classifications carry the classified text verbatim in provenance; the classification is this agent's output, the text is the source.
 - Drafted responses never state or imply pricing, legal, or contractual content, and never confirm any person's client relationship - confirming representation is itself confidential client information.
+
+How the code does it today (checked 2026-10-12): mentions arrive as
+`social.mention` from outside; no social platform is connected yet, and this
+agent never posts.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -55,10 +60,12 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← human via 00 | Channel list and monitoring config | `config.update` |
+| IN | ← Broker (signed) | Settings: `monitored_channels`, `reply_templates` | `config.update` |
 | OUT | → 01 Lead Capture | Prospect questions/lead signals | `lead.signal` |
 | OUT | → 11 Client Communication | Existing-client routine matters | `client.message.request` |
 | OUT | → HITL queue | Complaints, sensitive mentions | `escalation.complaint` |
+| OUT | → HITL queue | Draft would state pricing, legal or contractual content | `escalation.legal_line` |
+| OUT | → HITL queue | Draft flagged by compliance, unrecognized sentiment, reply with no owning rule, template setting rejected; approved draft held for continue/cancel | `clarification.request` / HITL hold |
 | OUT | → 17 Compliance | Draft responses, when drafted | `content.review` |
 | IN | ← 17 Compliance | Draft response verdicts | `content.verdict` (`in_reply_to`) |
 | OUT | → 14 CRM & Pipeline | Mention log | `interaction.log` |

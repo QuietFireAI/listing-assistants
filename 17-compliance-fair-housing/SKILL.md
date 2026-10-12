@@ -8,14 +8,16 @@ description: "Compliance guardrail, validation only. Use for reviewing outbound 
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Guardrail / validator
 **Autonomy tier:** Validates only - never creates, never edits, never approves its own exceptions
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke17ComplianceFairHousing` in `dispatcher/listing_spokes_17.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
 ## 1. Role
 
 Guardrail agent. Mandatory pre-publication hop for content from 03, 04,
-12, 13 (criteria language), and 20 (draft responses). Validates; does not create.
+12, 13 (criteria language), 16 (referral and anniversary content) and 20
+(draft responses). Validates; does not create.
 Returns a verdict with specific flags. It never rewrites content - rewriting
 makes the validator an author, and an author cannot be its own guardrail.
 
@@ -28,6 +30,13 @@ makes the validator an author, and an author cannot be its own guardrail.
 - Maintain the prohibited-language ruleset as human-supplied configuration; the agent applies the ruleset, it does not author it.
 - Every verdict records the ruleset version applied; verdicts are reproducible against that version.
 - Operate within a configured turnaround SLA so the guardrail does not become the bottleneck; SLA breach = alert, not silent queue growth.
+
+How the code does it today (checked 2026-10-12): the ruleset arrives as a signed
+`ruleset` + `version`; matching of prohibited phrases is case-insensitive. The
+daily clock checks the turnaround (`sla_days`, default 1) and alerts the broker on a
+breach. A pattern of near-misses from one agent (`near_miss_pattern_threshold`,
+default 3) goes to the broker as a report. Checking that required disclosures are
+present is not yet in the code.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -54,13 +63,16 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← 03 / 04 / 12 / 13 / 20 | Content for review | `content.review` |
-| OUT | → submitting agent | Verdict with itemized flags | `content.verdict` |
-| OUT | → HITL queue | Flagged content requiring licensed review | `escalation.legal_line` |
+| IN | ← 03 / 04 / 12 / 13 / 16 / 20 | Content for review | `content.review` |
+| OUT | → 03 / 04 / 12 / 13 / 16 / 20 (the submitter) | Verdict with itemized flags | `content.verdict` |
+| OUT | → HITL queue | Content resubmitted unchanged after a flag, state-specific rule question | `escalation.legal_line` |
+| OUT | → HITL queue | Malformed ruleset, no ruleset active, SLA breach | `clarification.request` |
 | OUT | → 14 CRM & Pipeline | Review log | `interaction.log` |
 | IN | ← 10 Market Data / 05 MLS & Listing Mgmt | Data-derived compliance concern | `compliance.notice` |
-| OUT | → human | Compliance activity report | `report.package` |
+| OUT | → human | Near-miss pattern report | `report.package` |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |
+| IN | ← Clock (through the hub) | Daily tick: review turnaround SLA | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `ruleset` + `version` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

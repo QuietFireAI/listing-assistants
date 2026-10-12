@@ -8,7 +8,8 @@ description: "Transaction document management. Use for requesting, receiving, fi
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Artifact management
 **Autonomy tier:** Autonomous request/receive/file/chase; no signing, no execution
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke08DocumentCollection` in `dispatcher/listing_spokes_08.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -26,6 +27,13 @@ agent owns the documents and never sets deadlines.
 - File a document as received only after verifying the file opens and matches the requested type - a received email is not a received document.
 - Accept sensitive documents only from expected, verified senders for that transaction; sender mismatch = flag, not file.
 - Disclosure deadline (amended 2026-10-12, J4): a pending seller disclosure whose deadline is three days or less away is warned once on the legal line.
+- File each received document in the client's drawer (`documents`) (added 2026-10-12).
+
+How the code does it today (checked 2026-10-12): status goes to 07 on receipt and
+on a problem (missing, incomplete, partial, conflicting versions); the daily clock
+chases each missing document once a day through 11 and, at `document_chase_cap` (default 3),
+escalates once and reports it missing. Whether a file opens is read from the
+submission's `opens_correctly` flag. There is no separate periodic status report.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -60,6 +68,10 @@ Dispatcher returns an `ack`.
 | OUT | → 14 CRM & Pipeline | Filing log | `interaction.log` |
 | IN | ← 11 Client Communication | Party-submitted document, party-level identity | `document.submission` |
 | OUT | → 18 Calendar & Task | Wait-state signal (chase timeout pending) | `agent.status` |
+| OUT | → HITL queue | Wire instructions in a document, sensitive document from an unexpected sender, two versions, chase exhausted, disclosure due soon | `escalation.legal_line` |
+| OUT | → HITL queue | Document addressed to another party, sender setting rejected, retention question, unknown milestone, unreadable disclosure date | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: document chases, disclosure deadlines | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `expected_senders`; `retention_query` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

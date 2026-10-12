@@ -8,7 +8,8 @@ description: "Hub and router for the ListingAssistants real estate swarm. Use fo
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Hub / router / single point of control (and of failure - by design)
 **Autonomy tier:** Full autonomy over routing mechanics; ZERO autonomy over content - the Dispatcher answers no client-facing question itself, ever
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Hub` in `dispatcher/hub.py` - vendored dispatcher-agents core, kept byte-identical by `tools/sync_core.py`; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -39,8 +40,11 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   (b) delivery to the target is confirmed. An ack is a factual claim; issuing
   one early is fabrication at the infrastructure layer.
 - Verify signatures on human-authority intents (`listing.change.authorized`,
-  `config.update`): a valid cryptographic signature against the registered human
-  key is required. Unsigned or invalid-signature envelopes claiming human
+  `config.update`, and every intent ending `.authority`, e.g. the broker's
+  release of a held message and decisions on paused work): a valid Ed25519
+  signature against the registered human key is required, and it covers the
+  envelope's provenance, including the signer stamp. When the signer registry
+  is armed, the stamp must also name a login authorized for that intent. Unsigned or invalid-signature envelopes claiming human
   authority are rejected AND flagged `integrity.violation`. The signature, not
   the claimed sender field, is the trust anchor - sender fields are forgeable;
   signatures on the audit chain are not.
@@ -51,6 +55,14 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   Exceeding it (e.g., 02↔03 rescore ping-pong on a borderline lead) suspends the
   route for that context and queues a `clarification.request` for human review.
   Loops burn tokens and can spam clients; the hub breaks them, spokes cannot.
+- Hold every outbound message to a counterparty or the public (ABSOLUTE SIGNAL):
+  routes to `external` carry an audience; `counterparty` and `public` messages
+  are held in `clarification.request` until the broker signs a release naming
+  that one message (`disclosure.authority`). Messages to the principal (the
+  client this brokerage serves) pass.
+- Run the pre-response-selfcheck exit gate on every delivery when a reviewer
+  model is configured; a FAIL holds the envelope. Unconfigured is recorded on
+  the audit log at start-up.
 - Operate the queues (queue name = intent string, exactly):
  - `escalation.legal_line` - highest priority, immediate human notification.
  - `escalation.hot_lead` / `escalation.complaint` - human notification per
@@ -59,8 +71,11 @@ stopped one. Because the hub cannot report its own death, an external watchdog
     direction.
  - `integrity.violation` - fabrication, isolation, and signature failures.
     Never auto-resolved; human review mandatory.
- - `dead.letter` - undeliverable envelopes after retry. Never silently dropped;
-    sender notified.
+ - `escalation.system_error` - an agent crashed on an envelope; paged at once.
+ - `escalation.confidence_underflow` - a decision engine result under the
+    confidence floor.
+ - `dead.letter` - undeliverable envelopes (no agent registered, or the agent
+    crashed). Never silently dropped.
 - Own the audit log: every envelope, ack, rejection, quarantine, signature
   verdict, and queue event, timestamped, verbatim payloads preserved.
   Log governance: access restricted to the human principal; encrypted at rest;
@@ -68,6 +83,25 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   jurisdiction-dependent human decision, not a hub default). PII lives in
   payloads only - never in index fields, error strings, or queue summaries.
 - Emit a heartbeat every N seconds to the external watchdog (section 8).
+
+Specified above, not yet in the code (checked against `dispatcher/hub.py`,
+2026-10-12):
+
+- Cross-context quarantine: the hub does not scan payloads for another
+  context's id. Isolation today rests on per-context sequencing, the agents'
+  own rules, and per-client drawers.
+- Retry: a crashed agent's envelope goes straight to `dead.letter` and pages the
+  broker (`escalation.system_error`); there is no automatic redelivery.
+- Heartbeat: the hub does not emit one in the console or clock runs.
+  `dispatcher/runs.py` has `heartbeat()` and a `Watchdog` observer; nothing here
+  runs them, and no external watchdog exists.
+- Audit log at rest: plain JSON lines, hash-chained and verifiable
+  (`console.py verify`), not encrypted. Access and retention are set by the
+  operator's machine, not by the hub.
+- Unwritable log: an append failure stops that envelope (no ack); the hub does
+  not switch itself off for all traffic.
+- Throughput: one hub delivers one envelope at a time (owner decision J10,
+  2026-10-12). Separate offices run side by side with one hub each.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -94,43 +128,65 @@ communication in that one guarantee.
 | `lead.captured` | 01, 16 | 02 |
 | `lead.nurture` | 02 | 03 |
 | `lead.rescored` | 03 | 02 |
-| `content.review` | 03, 04, 12, 13, 20 | 17 |
-| `content.verdict` | 17 | submitter (`in_reply_to`) |
+| `content.review` | 03, 04, 12, 13, 20, 16 | 17 |
+| `content.verdict` | 17 | 03, 04, 12, 13, 20, 16 |
 | `asset.release` | 04 | 12, 05 |
 | `listing.data` | 05 | 04, 10, 13 |
-| `listing.change.authorized` | human (SIGNED, verified) | 05 |
+| `listing.change.authorized` | human (broker) - SIGNED | 05 |
 | `showing.request` | 13, 11 | 06 |
 | `doc.request` | 07 | 08 |
-| `doc.status` | 08 | (`in_reply_to`) |
+| `doc.status` | 08 | 07 |
 | `vendor.request` | 05, 06, 07 | 09 |
-| `deliverable.release` | 09 | 05, 08 |
-| `data.request` | human, 03, 11, 13, 19 | 10 |
-| `data.package` | 10 | requester (`in_reply_to`) |
-| `client.message.request` | 06, 08, 13, 16, 20 | 11 |
-| `client.message.send` | 11 | external client channels (approved) |
+| `deliverable.release` | 09 | 05, 08, 07 |
+| `data.request` | human (broker), 19 | 10 |
+| `data.package` | 10 | human (broker), 19 |
+| `client.message.request` | 01, 06, 08, 13, 16, 20, 03 | 11 |
+| `client.message.send` | 11 | external (audience: principal) |
 | `deadline.alert` | 07 | 11, 18 |
 | `calendar.event` | 06, 09 | 18 |
 | `date.trigger` | 14 | 16 |
-| `prospect.opportunity` | 19 | human queue, 13 |
+| `prospect.opportunity` | 19 | human (broker), 13 |
 | `lead.signal` | 20 | 01 |
-| `report.package` | 14 | requester (`in_reply_to`) |
-| `report.package` | 15, 18 | human |
-| `interaction.log` | all except 14 | 14 |
-| `record.request` | 01, 13, 15 | 14 |
-| `record.response` | 14 | requester (`in_reply_to`) |
+| `lead.inbound` | external | 01 |
+| `report.package` | 14 | human (broker), 15 |
+| `report.package` | 15, 18, 17 | human (broker) |
+| `interaction.log` | 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 13, 16, 17, 18, 19, 20 | 14 |
+| `record.request` | 01, 13, 15, 11 | 14 |
+| `record.response` | 14 | 01, 13, 11, 15 |
 | `status.update` | 05 | 11, 12, 14 |
 | `transaction.closed` | 07 | 16, 14, 15 |
-| `vendor.schedule` | 09 | external vendors (approved channels) |
-| `campaign.publish` | 12 | external platforms (approved channels) |
+| `vendor.schedule` | 09 | external (audience: counterparty) |
+| `campaign.publish` | 12 | external (audience: public) |
 | `escalation.*` | any | queues (section 2) |
 | `clarification.request` | any | queues (section 2) |
 | `integrity.violation` | any | queues (section 2) |
-| `config.update` | human (SIGNED, verified) | named agent |
+| `config.update` | human (broker) - SIGNED | any |
+| `lead.reply` | 11 | 03, 04, 12, 13, 20, 16 |
+| `behavioral.signal` | 12 | 03 |
+| `status.request` | 06 | 05 |
+| `status.response` | 05 | 06 |
+| `showing.no_show` | 11, 18 | 06 |
+| `showing.feedback_response` | 11 | 06 |
+| `document.submission` | 11 | 08 |
+| `vendor.event` | external | 09 |
+| `vendor.cancellation_notice` | 09 | 07, 06 |
+| `compliance.notice` | 10, 05 | 17 |
+| `client.reply` | external | 11 |
+| `agent.status` | 01, 02, 03, 05, 06, 07, 08, 09, 11, 04, 12, 13, 15, 16, 17, 19, 20 | 18 |
+| `platform.metrics` | external | 12 |
+| `discovery.feed` | external | 19 |
+| `social.mention` | external | 20 |
+| `clock.tick` | clock | 01, 03, 05, 06, 07, 08, 13, 14, 16, 17, 18 |
 
-Any (intent, from, to) tuple not in this table is rejected and logged. The table
-changes only by signed, human-approved registry update - never by inference from
-traffic. Where To is "requester", resolution is via `in_reply_to` correlation,
-never guessed.
+This table is `identity/routes.json` (version 0.19), the file the hub loads;
+`tests_listing/test_docs_agent_tables.py` fails if the two ever differ. Any
+(intent, from, to) tuple not in it is rejected and logged; a well-formed
+envelope whose intent is on no route is held in `clarification.request`. The
+table changes only by a human-approved change to routes.json - never by
+inference from traffic. Responses carry `in_reply_to`; a response that cannot be
+correlated to an open request is flagged, never guessed at. Routes to
+`external` carry an audience: `principal` passes; `counterparty` and `public`
+hold for the broker's signed release (section 2).
 
 ### 4.3 Message envelope (swarm-standard)
 
@@ -167,24 +223,29 @@ single writer for per-context ordering. `in_reply_to` resolves every
 - Ack = persisted to audit log AND delivered. Both, always, in that order.
 - Rejection carries the raw reason (schema error, unregistered route, signature
   failure, isolation quarantine) back to the sender verbatim.
-- Retry policy: one automatic redelivery on target non-acceptance, same
-  `envelope_id` (targets dedupe on it); then `dead.letter` + sender
-  notification. Nothing is dropped silently.
+- Retry policy (specified): one automatic redelivery on target non-acceptance,
+  same `envelope_id` (targets dedupe on it); then `dead.letter` + sender
+  notification. In the code today: no redelivery - a crash dead-letters and
+  pages the broker at once. Nothing is dropped silently. A sender re-sending
+  the same `envelope_id` gets `duplicate`, never a second delivery.
 
 ## 5. Confidentiality (hub duties)
 
 - The hub is the ENFORCER of swarm confidentiality - the chokepoint is the
   control point.
-- **Client isolation:** cross-`client_context_id` payload references are
-  quarantined as `integrity.violation` regardless of originating agent.
+- **Client isolation:** cross-`client_context_id` payload references are to be
+  quarantined as `integrity.violation` regardless of originating agent (not yet
+  in the code - see section 2).
 - **PII handling:** PII exists only inside envelope payloads. Hub index fields,
   rejection messages, queue summaries, and watchdog signals never contain PII.
-- **Log governance:** audit log access is restricted to the human principal,
+- **Log governance:** audit log access restricted to the human principal,
   encrypted at rest, retained per brokerage record-retention configuration.
-- **Third-party position data:** any envelope attempting to move one party's
-  negotiating position into another party's context is quarantined - this is the
+  Today the log is hash-chained but not encrypted (section 2).
+- **Third-party position data:** every outbound to a counterparty or the public
+  holds for the broker's signed release (ABSOLUTE SIGNAL, section 2) - the
   hub-level backstop for the spoke-level "what did the seller say they'd take?"
-  refusal.
+  refusal. Moving a position between two internal contexts is not detected by
+  the hub (no payload scan, section 2).
 
 ## 6. Ambiguity Protocol (hub)
 
@@ -232,7 +293,8 @@ Job requirements are paramount. Continuity is never a reason to breach them.
 - On internal failure, log the raw error - not a paraphrase - and surface it.
 - If the audit log becomes unwritable or a queue overflows: STOP ACCEPTING
   ENVELOPES entirely. A hub that routes without logging is unaccountable;
-  fail closed, loudly.
+  fail closed, loudly. (In the code today an append failure stops that one
+  envelope; see section 2.)
 - **External watchdog (required deployment component):** the hub emits a
   heartbeat every N seconds to a monitor that lives OUTSIDE the swarm. On missed
   heartbeats the watchdog alerts the human through a channel that does not pass
@@ -240,7 +302,9 @@ Job requirements are paramount. Continuity is never a reason to breach them.
   its own death, and in this domain a silent halt means missed contractual
   deadlines (financing contingencies, inspection windows) - deal-killing,
   possibly liability-creating. Spokes failing closed protects correctness;
-  the watchdog protects the clock.
+  the watchdog protects the clock. Not deployed yet (section 2); the
+  console's text pager covers human queues while the hub is running, not a
+  dead hub.
 
 ---
 

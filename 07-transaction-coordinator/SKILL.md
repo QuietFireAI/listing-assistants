@@ -8,7 +8,8 @@ description: "Transaction timeline tracking from offer submission through closin
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Deadline & milestone tracking
 **Autonomy tier:** Autonomous tracking and alerting from offer submission through closing; no representation, no signatures, no opinions
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke07TransactionCoordinator` in `dispatcher/listing_spokes_07.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -27,6 +28,17 @@ deadline. Boundary with Document Collection (08): this agent owns the timeline;
 - Request required documents from Document Collection (08); consume its status reports.
 - Report a deadline as satisfied only when the satisfying artifact or confirmation is on file - never from a party's verbal assurance alone (record assurance as `stated_by_party`).
 - Deadline arithmetic (calendar vs. business days, holiday sets, time zones) follows human-supplied config per contract template; a date calculable two ways is a `clarification.request`.
+- Seller disclosure is a document milestone (amended 2026-10-12, J4): its deadline goes to 08 with the document request, and 08 warns ahead of it.
+- File each loaded timeline in the client's drawer (`timeline`) (added 2026-10-12).
+
+How the code does it today (checked 2026-10-12): the broker loads the contract's
+dates with a signed `timeline_init` (dates already calculated); this agent does
+no calendar or business-day arithmetic, and the broker flags a date calculable
+two ways (`deadline_two_ways`). The daily clock alerts on the due date and once
+when a deadline has passed unsatisfied; alerts ahead of a due date (lead time)
+are not yet in the code, except the seller-disclosure warning at 08. Offer
+status updates (`offer_status`) go to the broker, never to the client (owner
+decision 2026-07-17).
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -61,11 +73,14 @@ Dispatcher returns an `ack`.
 | OUT | → 11 / 18 | Deadline alerts and calendar blocks | `deadline.alert` |
 | OUT | → 09 Vendor Coordination | Inspector/appraiser scheduling per milestone | `vendor.request` |
 | OUT | → 16 / 14 / 15 via 00 | Closing executed | `transaction.closed` |
-| OUT | → HITL queue | Missed or at-risk deadline, contract questions | `escalation.legal_line` |
+| OUT | → HITL queue | Wire topic anywhere, missed or at-risk deadline, appraisal or title issue, repair negotiation, earnest money not received, contract questions | `escalation.legal_line` |
 | OUT | → 14 CRM & Pipeline | Milestone log | `interaction.log` |
-| IN | ← 09 Vendor Coordination | Inspection/appraisal deliverable, direct | `deliverable.release` |
+| IN | ← 09 Vendor Coordination | Inspection/appraisal deliverable, direct (routed; today 09 sends these reports to 08, which reports status here) | `deliverable.release` |
 | IN | ← 09 Vendor Coordination | Late vendor cancellation, immediate - not the 7-day holdup timer | `vendor.cancellation_notice` |
 | OUT | → 18 Calendar & Task | Wait-state signal (vendor deliverable pending) | `agent.status` |
+| OUT | → HITL queue | Offer status update, date calculable two ways, extension claimed, possession terms ambiguous | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: due and overdue deadlines, vendor hold-ups | `clock.tick` |
+| IN | ← Broker (signed) | Transaction events: `timeline_init`, `offer_status`, milestone results, `extension_claim`, `closing_date_moved_verbally`, `possession_terms_ambiguous`, `deadline_two_ways` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

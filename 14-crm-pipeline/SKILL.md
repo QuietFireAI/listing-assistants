@@ -8,7 +8,8 @@ description: "System of record. Use for contact database maintenance, interactio
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** System of record
 **Autonomy tier:** Autonomous operation permitted as long as interactions do not cross into negotiating representation
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke14CRMPipeline` in `dispatcher/listing_spokes.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -31,6 +32,13 @@ not message clients.
 - Consent and opt-out flags are authoritative HERE: stored per contact, propagated to 03, 11, and 16 same-day on change, and served on `record.request`; no agent may message contrary to these flags.
 - Property access custody (P19, amended 2026-10-12): keep the broker-signed access grants (party, window end, custody reference - never the code or key) and flag once any window that has ended without the broker closing it.
 - Client drawers (amended 2026-10-12): file a copy of every CRM entry into the client's drawer; a filing that fails is recorded and held for the broker.
+- Broker-signed record updates: `client_dates` (date triggers), `buyer_agreement_on_file`, `requester_identity_verified`, access grants and closings, `release_record_freeze`, `delete_record` (a deletion or retention request goes to the broker on the legal line).
+- End-of-day report to the broker on request (`eod_report`, through the daily clock).
+
+How the code does it today (checked 2026-10-12): consent and opt-out flags are
+stored here and served on every `record.request`; they are not pushed to 03, 11
+or 16 when they change (no route carries that). Pipeline stages and referral
+sources are not yet in the code. Reports go to the broker only.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -59,11 +67,15 @@ Dispatcher returns an `ack`.
 |---|---|---|---|
 | IN | ← all agents | Interaction logs | `interaction.log` |
 | OUT | → 16 After-Close & Referral | Date triggers per supplied list | `date.trigger` |
-| OUT | → human / requesting agent | Pipeline reports | `report.package` |
+| OUT | → Broker (15 is routed, not used yet) | End-of-day report | `report.package` |
 | OUT | → 01 / 11 / 13 / 15 via 00 | Record query responses | `record.response` |
 | IN | ← 01 / 11 / 13 / 15 via 00 | Record queries | `record.request` |
 | IN | ← 07 via 00 | Transaction closed - context to past-client | `transaction.closed` |
 | IN | ← 05 via 00 | Listing status changes | `status.update` |
+| OUT | → HITL queue | Deletion or retention request | `escalation.legal_line` |
+| OUT | → HITL queue | Setting rejected, write to a frozen record, access window ended unclosed | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: date triggers, access custody; EOD report when named | `clock.tick` |
+| IN | ← Broker (signed) | Record updates listed in section 2 | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

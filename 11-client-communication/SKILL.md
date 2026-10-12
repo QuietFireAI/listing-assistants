@@ -8,7 +8,8 @@ description: "Routine client messaging. Use for delivering scheduling and milest
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Client-facing messaging
 **Autonomy tier:** Autonomous for routine transactional updates; instant escalation on advice-seeking
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke11ClientCommunication` in `dispatcher/listing_spokes_11.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -26,7 +27,9 @@ giving advice, and it only ever does the first.
 - Route inbound client replies to the owning agent or escalate.
 - Log every client touch to CRM (14).
 - Sends respect configured quiet hours (TCPA-permissible contact windows) and consent/opt-out flags from 14.
-- Report facts, never characterizations - of statuses and of neighborhoods (route neighborhood questions to 10's sourced packages).
+- Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
+- Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
+- Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -57,12 +60,13 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← 05 / 06 / 07 / 08 / 10 / 16 | Update triggers | `status.update` / `deadline.alert` / `client.message.request` |
+| IN | ← 05 (`status.update`), 07 (`deadline.alert`), 03 / 06 / 08 / 13 / 16 / 20 (`client.message.request`) | Update triggers | `status.update` / `deadline.alert` / `client.message.request` |
 | IN | ← 01 Lead Capture | Opt-out confirmation, once (tuple 15, added 2026-07-17) | `client.message.request` |
 | OUT | → clients via approved channels | Routine updates | `client.message.send` |
-| OUT | → owning agent via 00 | Client replies | routed by content |
 | OUT | → 06 Showing Scheduler | Client-requested showings | `showing.request` |
-| OUT | → HITL queue | Advice-seeking or complaints | `escalation.legal_line` |
+| OUT | → HITL queue | Advice-seeking, wire topic in a client message | `escalation.legal_line` |
+| OUT | → HITL queue | Angry client, negative-tone reply | `escalation.complaint` |
+| OUT | → HITL queue | Conflicting statuses, quiet-hours queue, unresolved template variables; reply with no owning agent (held for continue/cancel) | `clarification.request` / HITL hold |
 | OUT | → 14 CRM & Pipeline | Every touch | `interaction.log` |
 | IN | ← external (client reply channels) | Inbound client reply | `client.reply` |
 | OUT | → 06 Showing Scheduler | Post-showing feedback relayed | `showing.feedback_response` |
@@ -72,6 +76,7 @@ Dispatcher returns an `ack`.
 | OUT | → 14 CRM & Pipeline | Dedupe / context check | `record.request` |
 | IN | ← 14 CRM & Pipeline | Record match / no-match | `record.response` (`in_reply_to`) |
 | OUT | → 18 Calendar & Task | Wait-state signal (advice-response pending) | `agent.status` |
+| IN | ← Broker (signed) | Settings: `resolve_advice_response`, `resolve_complaint_hold` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

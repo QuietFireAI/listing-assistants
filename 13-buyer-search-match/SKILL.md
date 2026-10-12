@@ -8,7 +8,8 @@ description: "Buyer-side search and matching. Use for maintaining client-stated 
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Buyer-side matching (new)
 **Autonomy tier:** Autonomous matching against client-stated criteria only; steering risk = compliance consult
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke13BuyerSearchMatch` in `dispatcher/listing_spokes_13.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -31,6 +32,8 @@ filtering is steering, and steering is a fair housing violation.
 - BUYER AGREEMENT GATE: before emitting any `showing.request`, verify a signed written buyer agreement is on file (query 14 via `record.request`); absent = human escalation. Required before touring, in person or live-virtual (NAR settlement practice change, effective Aug 17, 2024). Set the agreement-on-file flag in the showing.request payload.
 - Present matches with sourced data only; no neighborhood characterizations (10's presentation rule applies here too).
 - Amended 2026-10-11 (owner decision): this agent does not request or relay neighborhood packages. Neighborhood information pushed toward buyers is the classic fair-housing steering risk; the broker can still ask Market Data (10) directly.
+- Up to `max_matches_per_buyer_per_day` (default 5) matches go to a buyer individually each day; the rest join one ranked digest that the daily clock sends through 11. Every match is still logged to 14 individually (owner decision 2026-07-18).
+- Buyer criteria arrive in a signed `buyer_criteria` setting (verbatim, as the client stated them); the broker also records an expired pre-approval (`preapproval_expired`) and whether an unknown standing preference may be delivered (`deliver_unknown_standing_preference`).
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -69,6 +72,10 @@ Dispatcher returns an `ack`.
 | OUT | → 14 CRM & Pipeline | Match and reaction logs | `interaction.log` |
 | IN | ← 11 Client Communication | Buyer reply relayed for handling | `lead.reply` |
 | OUT | → 18 Calendar & Task | Wait-state signal (buyer-agreement verification pending) | `agent.status` |
+| OUT | → HITL queue | Pricing question, protected-class-correlated criterion, showing without a buyer agreement, match on a colleague's listing | `escalation.legal_line` |
+| OUT | → HITL queue | Buyer reply with no owning rule, showing asked with no buyer profile, incomplete listing on a hard criterion, data problem in a saved-search match, area-only match | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: send the ranked match digest | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `buyer_criteria`, `preapproval_expired`, `deliver_unknown_standing_preference` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

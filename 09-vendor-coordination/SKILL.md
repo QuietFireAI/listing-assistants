@@ -8,7 +8,8 @@ description: "Vendor coordination. Use for scheduling photographers, stagers, in
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Third-party scheduling
 **Autonomy tier:** Autonomous scheduling and deliverable collection; contract-term negotiation escalates
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke09VendorCoordination` in `dispatcher/listing_spokes_09.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -20,7 +21,7 @@ and collects deliverables, routing them to their owning agents.
 
 ## 2. Job Components
 
-- Maintain the vendor roster with human-approved additions only.
+- Maintain the vendor roster with human-approved additions only. The roster is read from the broker's ratified `config/vendor_panel.json`; an entry with a missing field or a placeholder is skipped and named.
 - Schedule vendors and confirm appointments; calendar via 18.
 - Collect deliverables and route: photos → 05, inspection/appraisal reports → 08.
 - Report a deliverable as collected only after verifying the artifact is present and opens.
@@ -56,10 +57,13 @@ Dispatcher returns an `ack`.
 | OUT | → vendors via approved channels | Scheduling and confirmations | `vendor.schedule` |
 | OUT | → 05 / 08 | Deliverables | `deliverable.release` |
 | OUT | → 18 Calendar & Task | Appointments | `calendar.event` |
-| OUT | → HITL queue | Term negotiation requests | `escalation.legal_line` |
+| OUT | → HITL queue | Term negotiation, rate change proposed, property access requested, invoice differs from the quote | `escalation.legal_line` |
 | IN | ← external vendor systems | Vendor-side event (cancellation, rate change, deliverable, invoice, no-show, scope change) | `vendor.event` |
 | OUT | → 07 Transaction Coordinator / 06 Showing Scheduler | Late vendor cancellation, immediate (not the 7-day holdup timer - a definitive cancellation needs a direct signal) | `vendor.cancellation_notice` |
 | OUT | → 18 Calendar & Task | Wait-state signal (vendor confirmation pending) | `agent.status` |
+| OUT | → 14 CRM & Pipeline | Late cancellation, no-show, invoice variance | `interaction.log` |
+| OUT | → HITL queue | No approved roster vendor, expired credentials, regulated role, slot problem, no-show on a deadline, scope grew on-site, completion claimed without proof | `clarification.request` |
+| IN | ← Broker (signed) | No settings; a signed setting sent here is held as unrecognized (the roster is a file) | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

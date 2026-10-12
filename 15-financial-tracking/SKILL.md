@@ -8,7 +8,8 @@ description: "Financial tracking. Use for commissions per transaction, marketing
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Financial records
 **Autonomy tier:** Autonomous tracking and reporting; highest PII sensitivity in the swarm; no legal interpretation
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke15FinancialTracking` in `dispatcher/listing_spokes_15.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -25,6 +26,14 @@ data never appears outside this agent's direct reports to the human.
 - Track marketing spend and lead source ROI (spend from platform exports, attribution from CRM referral data - both with provenance).
 - Categorize expenses; flag tax-relevant expenses for the human's accountant - flag, never advise.
 - Generate P&L summaries strictly from recorded figures; estimated or missing figures are labeled as such in the output, never blended in.
+- File each recorded expense in the client's drawer (`financials`) (added 2026-10-12).
+
+How the code does it today (checked 2026-10-12): the broker enters figures and asks
+for reports with signed settings - `add_expense`, `roi_claim`,
+`data_month_received`, `commission_dispute`, `commission_language_question`,
+`generate_pnl`, `pipeline_value_request`, `forecast_request`. A commission is
+recorded from `transaction.closed`. No platform export or accounting system is
+connected.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -54,12 +63,13 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | IN | ← 07 via 00 | Transaction closed - commission kickoff | `transaction.closed` |
-| IN | ← 14 CRM & Pipeline | Requested records: milestones, referral attribution, marketing spend (12 logs to 14; 15 queries 14) | `report.package` (`in_reply_to`) |
+| IN | ← 14 CRM & Pipeline | Requested records: milestones, referral attribution, marketing spend (routed; 14 does not send these yet - 15 asks with `record.request`) | `report.package` (`in_reply_to`) |
 | OUT | → 14 CRM & Pipeline | Record queries | `record.request` |
 | OUT | → human only via 00 | P&L, ROI, commission reports | `report.package` |
-| OUT | → HITL queue | Commission language questions | `escalation.legal_line` |
+| OUT | → HITL queue | Commission language question or dispute, commission figure conflicts, disbursement instruction, trust/escrow request | `escalation.legal_line` |
 | IN | ← 14 CRM & Pipeline | Record query response | `record.response` (`in_reply_to`) |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |
+| IN | ← Broker (signed) | Figures and report requests listed in section 2 | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

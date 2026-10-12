@@ -59,9 +59,11 @@ required changes *exactly* — never "approved with a note" — and
 resubmits. Approved? The asset releases to **05** (MLS entry) and
 **12** (marketing) simultaneously.
 
-Phase 3 is the part most systems fake: 05 doesn't report "sent to
-MLS" — it live-verifies the listing is actually up, then fans out
-`status.update: active` to 11, 12, and 14. That status is 12's Clear
+Phase 3: 05 marks the listing active only when the approved description
+is in and your signed package authorized go-live, then fans out
+`status.update: active` to 11, 12, and 14. No MLS or portal is connected
+yet, so "active" means authorized and recorded here; checking the MLS is
+yours until a connection exists. That status is 12's Clear
 Cooperation gate: only now does the campaign publish. 13 gets the
 listing for buyer matching, and your seller gets the "you're live"
 message. Completion isn't a claim; it's a checklist of artifacts on the
@@ -75,7 +77,7 @@ started; no step touches it.
 Before the decision: if you ask, **10** sends you a comp package —
 data with provenance on every number, no opinion field, structurally.
 After the decision: your signed price envelope hits **05**, which
-executes the change, live-verifies it, and fans out `status.update` so
+executes the change in its record and fans out `status.update` so
 11, 12, and 14 are never quoting different numbers. Any asset that
 references the old price goes back through 04 → 17 → 12. The swarm
 never produces or suggests a price — there is no lane for it.
@@ -94,9 +96,9 @@ next" message through 11. From this moment, P09's engine is running.
 ### P04 — Open House Cycle
 Promotion is compliance-gated like everything client-facing: **04**'s
 open-house materials go through **17** before **12** promotes anything,
-with special-ad-category rules applied to the placement. **06** runs
-RSVP logistics through 11. At the event, attendance and feedback go in
-the books, and — the part that pays for itself — every walk-in and
+with special-ad-category rules applied to the placement. RSVP handling
+is not yet in the code. After the event, attendance and feedback go in
+the books (an `interaction.log` entry to 14), and — the part that pays for itself — every walk-in and
 registrant enters through **01**'s front door: consent recorded on the
 spot, deduped against 14, scored by 02, and a hot one hits your phone
 inside the SLA while they're still in the driveway. The sign-in sheet

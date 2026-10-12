@@ -8,7 +8,8 @@ description: "Lead scoring and triage. Use when a captured lead needs readiness 
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Scoring / triage
 **Autonomy tier:** Autonomous scoring; mandatory human handoff for hot leads and at the Legal Line
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke02LeadQualification` in `dispatcher/listing_spokes_02.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -26,7 +27,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 - Flag hot leads for immediate human handoff (`escalation.hot_lead`).
 - Re-score leads returned by Nurture (03) when behavioral signals change.
 - Apply the human-supplied scoring rubric (delivered via signed `config.update`); the agent applies the rubric, never authors or drifts it - rubric version recorded with every tier assignment.
-- Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes.
+- Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes. Not yet in the code (checked 2026-10-12): the window (`hot_lead_sla_seconds`, default 300) travels with the page, and nothing re-alerts when it passes - the daily clock cannot measure minutes. The broker closes a hot lead with a signed `resolve_hot_lead`.
 - Score through the decision engine (amended 2026-10-12, owner: wire the modules): every score goes through the JEV adapter, whose local engine is this agent's rubric; each decision is recorded. Lead data goes to live JEV only on the broker's signed `decision_engine.allow_external`. A result under the confidence floor holds the lead for the broker's continue (score with the signed rubric) or cancel (archive).
 
 ## 3. HITL Handoff - The Legal Line
@@ -56,8 +57,11 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | IN | ← 01 Lead Capture | New lead | `lead.captured` |
+| IN | ← 16 After-Close & Referral | Referral or past client returning as a new lead | `lead.captured` |
 | IN | ← 03 Lead Nurture | Behavioral score change | `lead.rescored` |
+| IN | ← Broker (signed) | Settings: `rubric` + `version`, `decision_engine`, `resolve_hot_lead` | `config.update` |
 | OUT | → HITL queue | Hot lead | `escalation.hot_lead` |
+| OUT | → HITL queue | Rubric rejected; result under the confidence floor (held for continue/cancel) | `clarification.request` / HITL hold |
 | OUT | → 03 Lead Nurture | Warm / long-cycle lead | `lead.nurture` |
 | OUT | → 14 CRM & Pipeline | Tier assignment and archive events | `interaction.log` |
 | OUT | → 18 Calendar & Task | Wait-state signal (hot-lead escalation open) | `agent.status` |

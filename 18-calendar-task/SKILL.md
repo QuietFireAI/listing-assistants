@@ -8,7 +8,8 @@ description: "Personal assistant to the licensed agent. Use for calendar and to-
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Personal assistant to the licensed agent
 **Autonomy tier:** Autonomous calendar/task management; no access authorization ever
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke18CalendarTask` in `dispatcher/listing_spokes_18.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -25,6 +26,14 @@ summaries; blocks time for prospecting, showings, and admin work.
 - Generate morning briefings and end-of-day summaries - built only from logged envelopes and calendar records; a briefing never contains a status the system cannot source.
 - Block time for prospecting, showings, and administrative work per human-set rules.
 - Deadline blocks originating from 07 are protected: never moved or deleted without explicit human confirmation.
+- Track every agent's open waits (`agent.status`) so the briefing lists what is waiting on whom, and since when.
+
+How the code does it today (checked 2026-10-12): the daily clock produces the
+morning briefing (calendar days, open waits, unresolved decisions, tracked
+deadlines) and checks showings for no-shows; the end-of-day report is Agent 14's.
+A protected block moves only on the broker's signed `move_protected_block`.
+To-do lists, time-blocking rules and recurring-task tracking are not yet in the
+code (nothing in the swarm reports a recurring task as completed).
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -51,11 +60,14 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← 06 / 07 / 09 | Events and deadline blocks | `calendar.event` / `deadline.alert` |
+| IN | ← 06 / 09 (`calendar.event`), 07 (`deadline.alert`) | Events and deadline blocks | `calendar.event` / `deadline.alert` |
 | OUT | → human | Briefings and summaries | `report.package` |
 | OUT | → 14 CRM & Pipeline | Schedule logs | `interaction.log` |
 | IN | ← every agent with a wait state | Wait-state signal, started or cleared | `agent.status` |
 | OUT | → 06 Showing Scheduler | No-show detected by calendar (missed slot, no confirmation) | `showing.no_show` |
+| OUT | → HITL queue | Event with no day, day at capacity, timezone ambiguity, conflicting deadline sources, event conflict, request to move a protected block | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: no-show check, morning briefing | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `move_protected_block` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

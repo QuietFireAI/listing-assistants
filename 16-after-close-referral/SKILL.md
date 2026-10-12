@@ -8,7 +8,8 @@ description: "Post-close relationship and referrals. Use for 30/90/365 check-ins
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Post-close relationship & referral (merged: After-Close Nurture + Referral Agent)
 **Autonomy tier:** Autonomous execution per supplied client list and cadence; new-business requests hand off
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke16AfterCloseReferral` in `dispatcher/listing_spokes_16.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -30,6 +31,14 @@ the date triggers, this agent executes the greetings.
 - Send birthday and holiday greetings on `date.trigger` from CRM (14), per the human-supplied list - no list entry, no greeting.
 - Solicit reviews and testimonials post-close.
 - Check consent/opt-out flags (from 14) before every touch; opt-out halts all touches for that contact.
+
+How the code does it today (checked 2026-10-12): the daily clock sends the 30,
+90 and 365-day check-ins from the close date; greetings and anniversaries come
+from 14's `date.trigger`. The broker drives the rest with signed settings -
+`client_list_entry`, `refi_rate_alert` (with its source), `referral_solicitation_due`,
+`review_request_due`, `opt_out`, `reinstate_contact`, `contact_bounced`,
+`adverse_event`. Maintenance tips and a self-running referral cadence are not
+yet in the code.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -67,6 +76,10 @@ Dispatcher returns an `ack`.
 | IN | ← 17 Compliance | Verdict on content | `content.verdict` |
 | IN | ← 11 Client Communication | Past-client reply relayed for handling | `lead.reply` |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |
+| OUT | → HITL queue | Referral gift or incentive idea, pricing question from a past client | `escalation.legal_line` |
+| OUT | → HITL queue | Greeting for a contact not on the list, refi alert without a source, past-client reply with no owning rule | `clarification.request` |
+| IN | ← Clock (through the hub) | Daily tick: 30/90/365-day check-ins | `clock.tick` |
+| IN | ← Broker (signed) | Settings listed in section 2 | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

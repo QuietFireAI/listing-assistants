@@ -183,9 +183,11 @@ Operator tools, not part of the message path:
 
 ## Current limits
 
-- **External adapters queue until connected.** MLS writes, client sends and
-  ad publishes stay visibly queued until you wire your providers
-  (`docs/TUNING_MANUAL.md`). Text-message pages are off until you run
+- **External adapters queue until connected.** Client sends, vendor bookings
+  and ad publishes stay visibly queued until you wire your providers
+  (`docs/TUNING_MANUAL.md`). No MLS or listing portal is connected: Agent 05
+  keeps its own listing record, and entering and checking the listing on the
+  MLS stays with you. Text-message pages are off until you run
   `python tools/console.py pager` with your Twilio details; a page carries
   the queue name and client context id only.
 - **Signer identities need an identity provider.** `config/authority_signers.json`
@@ -209,7 +211,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 940 passed
+python -m pytest tests_listing/        # expect: 961 passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

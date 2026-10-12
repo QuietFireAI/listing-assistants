@@ -8,7 +8,8 @@ description: "Showing coordination. Use for scheduling buyer showings against se
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Coordination / scheduling
 **Autonomy tier:** Autonomous scheduling; cannot authorize property access
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke06ShowingScheduler` in `dispatcher/listing_spokes_06.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -29,6 +30,13 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Verify requester identity per the human-configured procedure before confirming any access-bearing appointment - vacant-property fraud is a real pattern.
 - Confirm the showing request carries the buyer-agreement-on-file flag (set by 13); flag absent = hold and escalate. Written buyer agreements are required before touring, in person or live-virtual (NAR settlement, effective Aug 17, 2024).
 - Weekly seller report (P18, amended 2026-10-12): on the broker's signed weekday, count each listed property's showings and feedback for the week, hold the report for the broker, and on continue send it to the seller through 11. Numbers only.
+- A protected-deadline claim that would bump a confirmed showing holds for the broker; the bump happens only on the broker's signed `confirm_protected_bump`.
+
+How the code does it today (checked 2026-10-12): conflicts are checked against
+this agent's own confirmed showings with a time buffer, not by asking 18;
+requester identity is read from the `requester_identity_verified` flag set
+upstream; minimum notice comes from `min_notice_hours` (default 24). Open house
+RSVPs and reminders are not yet in the code.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -61,13 +69,16 @@ Dispatcher returns an `ack`.
 | OUT | → 18 Calendar & Task | Calendar events | `calendar.event` |
 | OUT | → 09 Vendor Coordination | Event vendor needs | `vendor.request` |
 | OUT | → 14 CRM & Pipeline | Feedback and RSVP logs | `interaction.log` |
-| OUT | → HITL queue | Access authorization requests | `escalation.legal_line` |
+| OUT | → HITL queue | Access authorization requests; showing requested without a buyer agreement on file | `escalation.legal_line` |
 | OUT | → 05 MLS & Listing Mgmt | Status check before scheduling | `status.request` |
 | IN | ← 05 MLS & Listing Mgmt | Current listing status | `status.response` |
 | IN | ← 11 Client Communication | Post-showing feedback relayed | `showing.feedback_response` |
 | IN | ← 11 Client Communication / 18 Calendar & Task | No-show reported | `showing.no_show` |
 | IN | ← 09 Vendor Coordination | Late vendor cancellation that may affect a scheduled showing (e.g. stager, cleaner) | `vendor.cancellation_notice` |
 | OUT | → 18 Calendar & Task | Wait-state signal (feedback pending) | `agent.status` |
+| OUT | → HITL queue | Calendar conflict, protected-deadline bump held, listing status blocks the showing, vendor cancellation, seller-report setting rejected; weekly seller report held for continue | `clarification.request` / HITL hold |
+| IN | ← Clock (through the hub) | Daily tick: feedback requests, weekly seller report | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `seller_reports` (`weekday`, `listings`), `confirm_protected_bump` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

@@ -87,9 +87,10 @@ contract deadlines, document chases, vendor no-shows, follow-up timers.
 photography from Agent 09, which books from your approved vendor roster
 (the booking holds for your release because it leaves for a vendor). When
 the photos arrive, Agent 04 drafts remarks from the property data only;
-Agent 17 reviews them. On approval, Agent 05 confirms the MLS entry is
-actually live before Agent 12 may market it, and the campaign itself holds
-for your release. Agent 11 keeps the seller informed at each step.
+Agent 17 reviews them. On approval and your signed go-live, Agent 05
+marks the listing active before Agent 12 may market it, and the campaign
+itself holds for your release. No MLS is connected yet: confirming the
+listing on the MLS is yours. Agent 11 keeps the seller informed at each step.
 
 **A buyer lead (P11).** Agent 01 captures the lead with consent on first
 touch, Agent 14 checks for an existing record (same context, and the same

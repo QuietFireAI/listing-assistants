@@ -8,7 +8,8 @@ description: "Marketing distribution. Use for scheduling social posts, newslette
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Content distribution & campaigns
 **Autonomy tier:** Autonomous scheduling/distribution of APPROVED assets; all new copy passes Compliance (17)
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke12MarketingCampaign` in `dispatcher/listing_spokes_12.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -29,6 +30,14 @@ itself goes through Compliance (17) before publication.
 - Never alter an approved asset post-verdict; any edit voids the verdict and re-enters review.
 - CLEAR COOPERATION GATE: publish no public marketing for a listing (social, email blast, public site) until 05 confirms MLS entry via `status.update`, OR the listing carries a documented exempt status (office exclusive / delayed marketing exempt) with the signed seller disclosure on file. Public marketing triggers a one-business-day MLS filing requirement (NAR CCP; exempt categories per Multiple Listing Options for Sellers, effective Mar 2025; local MLS adoption varies and is config).
 - Run all housing ads under platform special-ad-category housing rules; audience targeting outside those rules = compliance flag, not a workaround.
+- Every publication waits for the broker's signed release: the hub holds each `campaign.publish` (audience: public) until the broker releases that one message.
+
+How the code does it today (checked 2026-10-12): the broker starts a campaign
+with a signed `new_campaign` (copy and targeting), sets `exempt_status` and
+`signed_budget`; this agent checks the copy, the targeting and the Clear
+Cooperation gate, sends self-written copy to 17, and publishes. It does not
+write newsletter or ad copy itself, and no social or ad platform is
+connected; publications leave only through the held external route.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -65,6 +74,9 @@ Dispatcher returns an `ack`.
 | IN | ← external ad/social platforms | Platform performance metrics | `platform.metrics` |
 | IN | ← 11 Client Communication | Past reply relayed for handling | `lead.reply` |
 | OUT | → 18 Calendar & Task | Wait-state signal (CCP compliance gate pending) | `agent.status` |
+| OUT | → HITL queue | Demographic targeting | `escalation.legal_line` |
+| OUT | → HITL queue | Asset with unverified specifics, trending-topic tie-in, engagement numbers conflict, platform rejected an ad, client reply about marketing | `clarification.request` |
+| IN | ← Broker (signed) | Settings: `new_campaign`, `exempt_status`, `signed_budget` (a reported `budget_change_verbal` changes nothing until a signed budget arrives) | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

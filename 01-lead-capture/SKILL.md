@@ -8,7 +8,8 @@ description: "Front-of-funnel intake. Use when handling inbound calls, web forms
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Intake / front-of-funnel
 **Autonomy tier:** Autonomous within job components; mandatory escalation at the Legal Line
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke01LeadCapture` in `dispatcher/listing_spokes.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -27,6 +28,9 @@ This agent does not qualify, score, nurture, or advise. It captures.
 - If a required field cannot be captured, record it as `unknown` - never estimate, never fill from a prior lead.
 - Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork.
 - On every inbound with contact info, query CRM via `record.request` before creating a new lead object - dedupe against existing contexts; never merge identities without confirmation.
+- Possible duplicate person (owner decision 2026-10-11): when 14 reports the same phone or email under another context, the whole thread holds for the broker. Continue = a separate person, scored as a new lead; cancel = the thread closes, nothing merged.
+- If 14 has not answered the dedupe request within `record_response_timeout_days` (default 1), the daily clock retries once, then holds the lead with `handoff.failed`. A lead is never scored undeduped.
+- Broker settings (signed `config.update`, added 2026-10-11): `brokerage_scope` replaces the list of listings and addresses this brokerage holds; `dnc_add` adds numbers or emails to the do-not-contact list (nothing here removes one). A malformed setting is rejected whole.
 
 Confidence constraint for this agent: `stated_by_party` or `unknown` only.
 Nothing in a lead object is ever `source_verified` at capture time.
@@ -45,6 +49,13 @@ sense." Escalate with the trigger recorded verbatim in the envelope.
 The Legal Line is not a judgment call. If classification is uncertain, treat it
 as over the line and escalate (see section 6).
 
+Also sent to the broker at once, keeping whatever was already captured: an
+apparent minor (nothing captured beyond the fact of contact), a caller who asks
+for a person, an inquiry about a property outside `brokerage_scope`, a lead on
+the do-not-contact list, and a claimed prior relationship (the broker confirms
+before any history is assumed). Abusive contact goes to the complaint queue
+(`escalation.complaint`). Each case is a tuple in DECISIONS.md.
+
 ## 4. Swarm Position & Handoff Protocol
 
 ### 4.1 Topology
@@ -59,7 +70,9 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | OUT | → 02 Lead Qualification | Lead object complete or contact ended | `lead.captured` |
-| OUT | → HITL queue | Legal Line trigger | `escalation.legal_line` |
+| OUT | → HITL queue | Legal Line trigger; minor, asks for a person, outside scope, do-not-contact, prior relationship | `escalation.legal_line` |
+| OUT | → HITL queue | Abusive contact | `escalation.complaint` |
+| OUT | → HITL queue | Possible duplicate person held; dedupe never answered | `clarification.request` / HITL hold |
 | OUT | → 14 CRM & Pipeline | Every captured interaction | `interaction.log` |
 | OUT | → 14 CRM & Pipeline | Dedupe check on every inbound | `record.request` |
 | IN | ← 14 CRM & Pipeline | Record match / no-match | `record.response` (`in_reply_to`) |
@@ -67,6 +80,8 @@ Dispatcher returns an `ack`.
 | IN | ← external (call/web-form/text channel systems) | Direct inbound contact | `lead.inbound` |
 | OUT | → 11 Client Communication | Opt-out confirmation, once (tuple 15 - added 2026-07-17, this agent had no route to confirm an opt-out at all before) | `client.message.request` |
 | OUT | → 18 Calendar & Task | Wait-state signal (dedupe pending) | `agent.status` |
+| IN | ← Clock (through the hub) | Daily tick: dedupe answer overdue | `clock.tick` |
+| IN | ← Broker (signed) | Settings: brokerage scope, do-not-contact additions | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

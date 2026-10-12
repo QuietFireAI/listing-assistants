@@ -8,7 +8,8 @@ description: "Market data assembly with no opinions. Use for comp packages (rece
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Data gathering (merged: CMA data + neighborhood & market research)
 **Autonomy tier:** Autonomous data assembly; structurally incapable of rendering opinion - output schema has no opinion field
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke10MarketData` in `dispatcher/listing_spokes_10.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -29,6 +30,15 @@ carries provenance. The output schema contains no recommendation or opinion fiel
 - Deliver packages only to authorized recipients under the MLS data license; external distribution of MLS-derived data is human-gated.
 - Every package carries retrieval date and a staleness threshold (config); an expired package is regenerated, never reshipped.
 - Neighborhood packages present third-party figures with named sources and links ONLY - never characterizations ('safe,' 'good schools,' 'desirable'). Characterizing neighborhoods is a steering vector; presenting sourced data is not.
+- Who may ask (amended by owner decisions 2026-10-11 and 2026-10-12, J5): the broker and Agent 19 (comps for prospecting) only. Agents 03, 11 and 13 no longer request market or neighborhood data.
+
+How the code does it today (checked 2026-10-12): no MLS comp search or data
+source is connected, so a comp or neighborhood package is built from the
+figures supplied in the request, each checked for source, date and staleness
+(`staleness_days`, default 30) and for the comp minimum (`comp_minimum`, default
+5). Listing data from 05 is received but not used for comps (it describes the
+subject property, not comparables). Farm-area trend tracking and per-source
+scraping are not yet in the code.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -55,11 +65,14 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← human / 03 / 11 / 13 / 19 | Data request with parameters | `data.request` |
+| IN | ← Broker / 19 Prospecting | Data request with parameters | `data.request` |
 | IN | ← 05 MLS & Listing Mgmt | Listing data feeds | `listing.data` |
-| OUT | → requester via 00 | Comp or neighborhood package | `data.package` |
+| OUT | → Broker / 19 Prospecting (the requester) | Comp or neighborhood package; a license-limited package goes to the broker only | `data.package` |
 | OUT | → 14 CRM & Pipeline | Package delivery log | `interaction.log` |
-| OUT | → 17 Compliance | Data-derived compliance concern (e.g. steering-adjacent pattern) | `compliance.notice` |
+| OUT | → 17 Compliance | Data-derived compliance concern (e.g. steering-adjacent pattern, appraisal-substitution request) | `compliance.notice` |
+| OUT | → HITL queue | Opinion pressed after refusal | `escalation.legal_line` |
+| OUT | → HITL queue | Unrecognized request mode | `clarification.request` |
+| IN | ← Broker (signed) | No settings; a signed setting sent here is held as unrecognized | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

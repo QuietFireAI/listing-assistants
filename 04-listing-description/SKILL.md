@@ -8,7 +8,8 @@ description: "Listing asset production. Use when property data needs MLS descrip
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Content production (listing assets)
 **Autonomy tier:** Autonomous drafting; NOTHING publishes without a Compliance (17) verdict
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke04ListingDescription` in `dispatcher/listing_spokes_04.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -28,6 +29,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 - Attribute measurements and material facts to their source in the copy where MLS rules require (e.g., square footage per county records) - unattributed measurement claims are a misrepresentation vector.
 - Use only photo/media assets with confirmed usage rights (vendor deliverables logged through 09).
 - Model-written remarks only on the broker's signed `drafting.mode: model` (amended 2026-10-12), only with a model on this machine whose active checkpoint passed the broker exam, and only when the draft carries the model's reasoning, fits the MLS limit and adds no number absent from the data. Otherwise draft by rules and tell the broker why. Model remarks go to 17 like every asset; a flagged phrase removes the sentence carrying it.
+- File each approved description in the client's drawer (`artifacts`), with the verdict that approved it (added 2026-10-12).
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -54,13 +56,16 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← 05 MLS & Listing Mgmt / human | Property data package | `listing.data` |
+| IN | ← 05 MLS & Listing Mgmt | Property data package | `listing.data` |
 | OUT | → 17 Compliance | Every drafted asset | `content.review` |
 | IN | ← 17 Compliance | Verdict | `content.verdict` |
 | OUT | → 12 Marketing Campaign | Approved assets for distribution | `asset.release` |
 | OUT | → 05 MLS & Listing Mgmt | Approved MLS description | `asset.release` |
 | IN | ← 11 Client Communication | Prospect reply relayed for handling | `lead.reply` |
 | OUT | → 18 Calendar & Task | Wait-state signal (compliance review pending) | `agent.status` |
+| OUT | → 14 CRM & Pipeline | Drafting notes, asset released, client reply received | `interaction.log` |
+| OUT | → HITL queue | Photos contradict the data sheet, source discrepancy, compliance finding, flagged phrase not found, model drafting not used, client reply about the copy | `clarification.request` |
+| IN | ← Broker (signed) | Settings: `drafting` (`{"mode": "rules"}` or `{"mode": "model"}`) | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

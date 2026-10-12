@@ -8,7 +8,8 @@ description: "Prospecting discovery with zero outreach. Use for monitoring prede
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Opportunity discovery (new)
 **Autonomy tier:** Autonomous monitoring and flagging; ZERO autonomous outreach - every contact is human-approved
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke19Prospecting` in `dispatcher/listing_spokes_19.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -32,6 +33,13 @@ the rest. Outreach is a human decision, every time.
 - Opportunity records carry two decision-support fields: representation status (listed / expired / FSBO / unknown, with source) and DNC-registry status - the human decides outreach; the record makes the legal posture visible first.
 - Expired/FSBO discovery uses only human-configured, MLS-rule-compliant sources (many MLSs restrict use of MLS data to solicit expireds); the source is recorded in provenance.
 - Article 16 distinction, encoded: general geographic marketing is permitted; targeted solicitation of owners identified as exclusively listed is not. Flag any requested use of opportunity data that crosses from general to targeted.
+
+How the code does it today (checked 2026-10-12): this agent works on what an
+external `discovery.feed` delivers; it does not poll sources on a cadence
+itself, and no prospecting source is connected yet. A feed record outside the
+monitored zips is not recorded; an expired or FSBO record from a source the broker
+has not approved is excluded and flagged. A signed `bulk_outreach_instruction` is
+recorded and changes nothing - this agent still only discovers.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -59,7 +67,7 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← human via 00 | Zip code list and cadence config | `config.update` |
+| IN | ← Broker (signed) | Settings: `zip_codes`, `approved_sources`, `dnc_entries`, `known_client_contexts`; `farm_data_request`, `bulk_outreach_instruction` | `config.update` |
 | OUT | → human review queue | Opportunities | `prospect.opportunity` |
 | OUT | → 13 Buyer Search & Match | Buyer-matching opportunities | `prospect.opportunity` |
 | OUT | → 10 Market Data | Market context for opportunity records (requested automatically for every recorded opportunity, amended 2026-10-11; the package reaches the broker on the opportunity record) | `data.request` |
@@ -67,6 +75,8 @@ Dispatcher returns an `ack`.
 | OUT | → 14 CRM & Pipeline | Discovery log | `interaction.log` |
 | IN | ← external prospecting sources | Raw discovery feed | `discovery.feed` |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |
+| OUT | → HITL queue | Expired or FSBO surfaced (gate before any contact), household-level farm data request (refused) | `escalation.legal_line` |
+| OUT | → HITL queue | Expired/FSBO from an unapproved source, opportunity matching an existing client | `clarification.request` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

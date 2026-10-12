@@ -16,9 +16,11 @@ this swarm runs, what do I get, what stops eating my time, and what do
 I still control? The answers below are written against each playbook's
 ratified completion criteria — the conditions the swarm actually
 verifies before calling anything done. Where the criteria themselves
-are the point, they're quoted, because phrases like "live-verified" and
-"zero touches against opt-out flags, verifiable from the CRM's own
-records" aren't marketing language. They're test assertions.
+are the point, they're quoted, because phrases like "zero touches against
+opt-out flags, verifiable from the CRM's own records" aren't marketing
+language. They're test assertions. Where a ratified criterion needs a
+system that is not connected yet (an MLS, the listing portals), this
+document says so at that spot.
 
 One commitment, made once so it never has to be hedged again: this
 document quotes no hours-saved figures for this software, because no
@@ -54,26 +56,30 @@ responses to the industry's own arithmetic.
 
 ## The listing, from signature to sold sign
 
-Success in **P01, new listing onboarding**, is a live, marketed,
-fair-housing-reviewed listing — MLS entry live-verified, syndication
-live-verified, campaign published only after a compliance verdict,
-seller informed, every step acknowledged and logged. The phrase
-"live-verified" is doing real work there: the swarm never treats "we
-sent it to the MLS" as "it's on the MLS." It checks. What comes off
-your plate is the entire go-to-market chain — ordering and chasing the
+Success in **P01, new listing onboarding**, is a marketed,
+fair-housing-reviewed listing — campaign published only after a
+compliance verdict and your release, seller informed, every step
+acknowledged and logged. The ratified criteria also call for the MLS
+entry and syndication to be live-verified: the swarm should never treat
+"we sent it to the MLS" as "it's on the MLS." No MLS or portal is
+connected yet, so today Agent 05 records the go-live you authorized and
+stops there; confirming the listing on the MLS and the portals stays
+with you until a connection exists. What comes off your plate is the
+go-to-market chain inside the swarm — ordering and chasing the
 photographer, moving verified photos into the system, writing listing
-copy that survives a fair-housing screen, entering the listing,
-confirming it actually appears, launching the ads, telling the seller.
+copy that survives a fair-housing screen, launching the ads, telling the
+seller.
 One signed envelope in, a live listing out. What never leaves your
 hands: the list price, which is decided before the playbook starts and
 touched by no step of it, and anything compliance flags, which stops
 and waits for you.
 
 When the price changes — **P02** — you decide the number and the swarm
-makes it true everywhere at once: MLS, portals, refreshed marketing
-that no longer quotes the old figure, seller confirmation. The
-error-prone fan-out after a price decision — the portal that didn't
-take, the ad still showing last month's number — is what disappears.
+makes it true everywhere it reaches at once: the listing record,
+refreshed marketing that no longer quotes the old figure, seller
+confirmation. The error-prone fan-out after a price decision — the ad
+still showing last month's number — is what disappears. Updating the MLS
+and the portals stays with you until they are connected.
 If you want data first, the market agent delivers a comp package with
 a source and retrieval date on every figure and, structurally, no
 opinion field. There is no lane in the system by which the swarm can
@@ -84,7 +90,7 @@ actual activity, financial context on request — each delivered and
 verified on the log, your decision recorded, and no number anywhere
 that you didn't write.
 
-Under contract — **P03** — success is a pending status live-verified,
+Under contract — **P03** — success is a pending status recorded,
 the full deadline map loaded and dated, the initial document chases
 opened, and your client told what happens next. The status change
 itself is artifact-gated: the swarm will not mark a listing pending

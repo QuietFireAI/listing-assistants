@@ -82,8 +82,11 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   (b) delivery to the target is confirmed. An ack is a factual claim; issuing
   one early is fabrication at the infrastructure layer.
 - Verify signatures on human-authority intents (`listing.change.authorized`,
-  `config.update`): a valid cryptographic signature against the registered human
-  key is required. Unsigned or invalid-signature envelopes claiming human
+  `config.update`, and every intent ending `.authority`, e.g. the broker's
+  release of a held message and decisions on paused work): a valid Ed25519
+  signature against the registered human key is required, and it covers the
+  envelope's provenance, including the signer stamp. When the signer registry
+  is armed, the stamp must also name a login authorized for that intent. Unsigned or invalid-signature envelopes claiming human
   authority are rejected AND flagged `integrity.violation`. The signature, not
   the claimed sender field, is the trust anchor - sender fields are forgeable;
   signatures on the audit chain are not.
@@ -94,6 +97,14 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   Exceeding it (e.g., 02↔03 rescore ping-pong on a borderline lead) suspends the
   route for that context and queues a `clarification.request` for human review.
   Loops burn tokens and can spam clients; the hub breaks them, spokes cannot.
+- Hold every outbound message to a counterparty or the public (ABSOLUTE SIGNAL):
+  routes to `external` carry an audience; `counterparty` and `public` messages
+  are held in `clarification.request` until the broker signs a release naming
+  that one message (`disclosure.authority`). Messages to the principal (the
+  client this brokerage serves) pass.
+- Run the pre-response-selfcheck exit gate on every delivery when a reviewer
+  model is configured; a FAIL holds the envelope. Unconfigured is recorded on
+  the audit log at start-up.
 - Operate the queues (queue name = intent string, exactly):
  - `escalation.legal_line` - highest priority, immediate human notification.
  - `escalation.hot_lead` / `escalation.complaint` - human notification per
@@ -102,8 +113,11 @@ stopped one. Because the hub cannot report its own death, an external watchdog
     direction.
  - `integrity.violation` - fabrication, isolation, and signature failures.
     Never auto-resolved; human review mandatory.
- - `dead.letter` - undeliverable envelopes after retry. Never silently dropped;
-    sender notified.
+ - `escalation.system_error` - an agent crashed on an envelope; paged at once.
+ - `escalation.confidence_underflow` - a decision engine result under the
+    confidence floor.
+ - `dead.letter` - undeliverable envelopes (no agent registered, or the agent
+    crashed). Never silently dropped.
 - Own the audit log: every envelope, ack, rejection, quarantine, signature
   verdict, and queue event, timestamped, verbatim payloads preserved.
   Log governance: access restricted to the human principal; encrypted at rest;
@@ -111,6 +125,25 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   jurisdiction-dependent human decision, not a hub default). PII lives in
   payloads only - never in index fields, error strings, or queue summaries.
 - Emit a heartbeat every N seconds to the external watchdog (section 8).
+
+Specified above, not yet in the code (checked against `dispatcher/hub.py`,
+2026-10-12):
+
+- Cross-context quarantine: the hub does not scan payloads for another
+  context's id. Isolation today rests on per-context sequencing, the agents'
+  own rules, and per-client drawers.
+- Retry: a crashed agent's envelope goes straight to `dead.letter` and pages the
+  broker (`escalation.system_error`); there is no automatic redelivery.
+- Heartbeat: the hub does not emit one in the console or clock runs.
+  `dispatcher/runs.py` has `heartbeat()` and a `Watchdog` observer; nothing here
+  runs them, and no external watchdog exists.
+- Audit log at rest: plain JSON lines, hash-chained and verifiable
+  (`console.py verify`), not encrypted. Access and retention are set by the
+  operator's machine, not by the hub.
+- Unwritable log: an append failure stops that envelope (no ack); the hub does
+  not switch itself off for all traffic.
+- Throughput: one hub delivers one envelope at a time (owner decision J10,
+  2026-10-12). Separate offices run side by side with one hub each.
 
 ## Agent 01 - Lead Capture Agent
 
@@ -132,6 +165,9 @@ This agent does not qualify, score, nurture, or advise. It captures.
 - If a required field cannot be captured, record it as `unknown` - never estimate, never fill from a prior lead.
 - Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork.
 - On every inbound with contact info, query CRM via `record.request` before creating a new lead object - dedupe against existing contexts; never merge identities without confirmation.
+- Possible duplicate person (owner decision 2026-10-11): when 14 reports the same phone or email under another context, the whole thread holds for the broker. Continue = a separate person, scored as a new lead; cancel = the thread closes, nothing merged.
+- If 14 has not answered the dedupe request within `record_response_timeout_days` (default 1), the daily clock retries once, then holds the lead with `handoff.failed`. A lead is never scored undeduped.
+- Broker settings (signed `config.update`, added 2026-10-11): `brokerage_scope` replaces the list of listings and addresses this brokerage holds; `dnc_add` adds numbers or emails to the do-not-contact list (nothing here removes one). A malformed setting is rejected whole.
 
 Confidence constraint for this agent: `stated_by_party` or `unknown` only.
 Nothing in a lead object is ever `source_verified` at capture time.
@@ -155,7 +191,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 - Flag hot leads for immediate human handoff (`escalation.hot_lead`).
 - Re-score leads returned by Nurture (03) when behavioral signals change.
 - Apply the human-supplied scoring rubric (delivered via signed `config.update`); the agent applies the rubric, never authors or drifts it - rubric version recorded with every tier assignment.
-- Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes.
+- Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes. Not yet in the code (checked 2026-10-12): the window (`hot_lead_sla_seconds`, default 300) travels with the page, and nothing re-alerts when it passes - the daily clock cannot measure minutes. The broker closes a hot lead with a signed `resolve_hot_lead`.
 - Score through the decision engine (amended 2026-10-12, owner: wire the modules): every score goes through the JEV adapter, whose local engine is this agent's rubric; each decision is recorded. Lead data goes to live JEV only on the broker's signed `decision_engine.allow_external`. A result under the confidence floor holds the lead for the broker's continue (score with the signed rubric) or cancel (archive).
 
 ## Agent 03 - Lead Nurture Agent
@@ -179,7 +215,7 @@ Qualification (02) when readiness changes. It warms; it does not advise.
 - Submit all new or edited sequence content to Compliance (17) before first send.
 - Verify consent status (lead object / CRM record) before ANY send; no consent on file = no send, escalate.
 - Process opt-outs immediately: halt sequences, propagate the flag to CRM (14) same-day; every email carries a functioning unsubscribe (CAN-SPAM).
-- Respect a per-context frequency cap (human config) across drips, market updates, and re-engagement combined - three agents' worth of messages is still one person's phone.
+- Respect a per-context frequency cap (`frequency_cap_per_week`, default 3) and legal contact hours (`legal_contact_hours`, default 8-21) across drips and re-engagement combined - several agents' worth of messages is still one person's phone.
 
 ## Agent 04 - Listing Description Agent
 
@@ -202,6 +238,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 - Attribute measurements and material facts to their source in the copy where MLS rules require (e.g., square footage per county records) - unattributed measurement claims are a misrepresentation vector.
 - Use only photo/media assets with confirmed usage rights (vendor deliverables logged through 09).
 - Model-written remarks only on the broker's signed `drafting.mode: model` (amended 2026-10-12), only with a model on this machine whose active checkpoint passed the broker exam, and only when the draft carries the model's reasoning, fits the MLS limit and adds no number absent from the data. Otherwise draft by rules and tell the broker why. Model remarks go to 17 like every asset; a flagged phrase removes the sentence carrying it.
+- File each approved description in the client's drawer (`artifacts`), with the verdict that approved it (added 2026-10-12).
 
 ## Agent 05 - MLS & Listing Management Agent
 
@@ -225,6 +262,14 @@ never makes pricing decisions.
 - Entered data must match the authorized source package field-for-field; any discrepancy is a `clarification.request`, never a judgment call.
 - Never enter offers of buyer-broker compensation in MLS fields - prohibited on MLSs since Aug 17, 2024 (NAR settlement practice change).
 - Vacant property watch (P20, amended 2026-10-12): a listing the broker marks vacant (signed package or `occupancy` setting) gets a property condition check ordered through 09 every 7 days (or the signed interval) until it is marked occupied or the listing ends; a check counts only with proof.
+- File each authorized listing package in the client's drawer (`artifacts`) (added 2026-10-12).
+
+Not yet in the code (checked 2026-10-12): this agent keeps its own listing
+record; no MLS system, syndication feed or portal is connected, so entering
+data in an MLS, syndicating to Zillow / Realtor.com / Redfin, checking the
+live listing, days-on-market tracking and per-MLS reporting windows do not
+happen. The three tuples that need a portal or MLS answer (portal differs,
+portal stale, MLS rejects an entry) cannot fire until one exists.
 
 ## Agent 06 - Showing Scheduler Agent
 
@@ -248,6 +293,13 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Verify requester identity per the human-configured procedure before confirming any access-bearing appointment - vacant-property fraud is a real pattern.
 - Confirm the showing request carries the buyer-agreement-on-file flag (set by 13); flag absent = hold and escalate. Written buyer agreements are required before touring, in person or live-virtual (NAR settlement, effective Aug 17, 2024).
 - Weekly seller report (P18, amended 2026-10-12): on the broker's signed weekday, count each listed property's showings and feedback for the week, hold the report for the broker, and on continue send it to the seller through 11. Numbers only.
+- A protected-deadline claim that would bump a confirmed showing holds for the broker; the bump happens only on the broker's signed `confirm_protected_bump`.
+
+How the code does it today (checked 2026-10-12): conflicts are checked against
+this agent's own confirmed showings with a time buffer, not by asking 18;
+requester identity is read from the `requester_identity_verified` flag set
+upstream; minimum notice comes from `min_notice_hours` (default 24). Open house
+RSVPs and reminders are not yet in the code.
 
 ## Agent 07 - Transaction Coordinator Agent
 
@@ -269,6 +321,17 @@ deadline. Boundary with Document Collection (08): this agent owns the timeline;
 - Request required documents from Document Collection (08); consume its status reports.
 - Report a deadline as satisfied only when the satisfying artifact or confirmation is on file - never from a party's verbal assurance alone (record assurance as `stated_by_party`).
 - Deadline arithmetic (calendar vs. business days, holiday sets, time zones) follows human-supplied config per contract template; a date calculable two ways is a `clarification.request`.
+- Seller disclosure is a document milestone (amended 2026-10-12, J4): its deadline goes to 08 with the document request, and 08 warns ahead of it.
+- File each loaded timeline in the client's drawer (`timeline`) (added 2026-10-12).
+
+How the code does it today (checked 2026-10-12): the broker loads the contract's
+dates with a signed `timeline_init` (dates already calculated); this agent does
+no calendar or business-day arithmetic, and the broker flags a date calculable
+two ways (`deadline_two_ways`). The daily clock alerts on the due date and once
+when a deadline has passed unsatisfied; alerts ahead of a due date (lead time)
+are not yet in the code, except the seller-disclosure warning at 08. Offer
+status updates (`offer_status`) go to the broker, never to the client (owner
+decision 2026-07-17).
 
 ## Agent 08 - Document Collection Agent
 
@@ -289,6 +352,13 @@ agent owns the documents and never sets deadlines.
 - File a document as received only after verifying the file opens and matches the requested type - a received email is not a received document.
 - Accept sensitive documents only from expected, verified senders for that transaction; sender mismatch = flag, not file.
 - Disclosure deadline (amended 2026-10-12, J4): a pending seller disclosure whose deadline is three days or less away is warned once on the legal line.
+- File each received document in the client's drawer (`documents`) (added 2026-10-12).
+
+How the code does it today (checked 2026-10-12): status goes to 07 on receipt and
+on a problem (missing, incomplete, partial, conflicting versions); the daily clock
+chases each missing document once a day through 11 and, at `document_chase_cap` (default 3),
+escalates once and reports it missing. Whether a file opens is read from the
+submission's `opens_correctly` flag. There is no separate periodic status report.
 
 ## Agent 09 - Vendor Coordination Agent
 
@@ -303,7 +373,7 @@ inspectors, appraisers, contractors, cleaners, handymen. Schedules, confirms,
 and collects deliverables, routing them to their owning agents.
 
 ### Job components
-- Maintain the vendor roster with human-approved additions only.
+- Maintain the vendor roster with human-approved additions only. The roster is read from the broker's ratified `config/vendor_panel.json`; an entry with a missing field or a placeholder is skipped and named.
 - Schedule vendors and confirm appointments; calendar via 18.
 - Collect deliverables and route: photos → 05, inspection/appraisal reports → 08.
 - Report a deliverable as collected only after verifying the artifact is present and opens.
@@ -331,6 +401,15 @@ carries provenance. The output schema contains no recommendation or opinion fiel
 - Deliver packages only to authorized recipients under the MLS data license; external distribution of MLS-derived data is human-gated.
 - Every package carries retrieval date and a staleness threshold (config); an expired package is regenerated, never reshipped.
 - Neighborhood packages present third-party figures with named sources and links ONLY - never characterizations ('safe,' 'good schools,' 'desirable'). Characterizing neighborhoods is a steering vector; presenting sourced data is not.
+- Who may ask (amended by owner decisions 2026-10-11 and 2026-10-12, J5): the broker and Agent 19 (comps for prospecting) only. Agents 03, 11 and 13 no longer request market or neighborhood data.
+
+How the code does it today (checked 2026-10-12): no MLS comp search or data
+source is connected, so a comp or neighborhood package is built from the
+figures supplied in the request, each checked for source, date and staleness
+(`staleness_days`, default 30) and for the comp minimum (`comp_minimum`, default
+5). Listing data from 05 is received but not used for comps (it describes the
+subject property, not comparables). Farm-area trend tracking and per-source
+scraping are not yet in the code.
 
 ## Agent 11 - Client Communication Agent
 
@@ -351,7 +430,9 @@ giving advice, and it only ever does the first.
 - Route inbound client replies to the owning agent or escalate.
 - Log every client touch to CRM (14).
 - Sends respect configured quiet hours (TCPA-permissible contact windows) and consent/opt-out flags from 14.
-- Report facts, never characterizations - of statuses and of neighborhoods (route neighborhood questions to 10's sourced packages).
+- Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
+- Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
+- Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## Agent 12 - Marketing Campaign Agent
 
@@ -375,6 +456,14 @@ itself goes through Compliance (17) before publication.
 - Never alter an approved asset post-verdict; any edit voids the verdict and re-enters review.
 - CLEAR COOPERATION GATE: publish no public marketing for a listing (social, email blast, public site) until 05 confirms MLS entry via `status.update`, OR the listing carries a documented exempt status (office exclusive / delayed marketing exempt) with the signed seller disclosure on file. Public marketing triggers a one-business-day MLS filing requirement (NAR CCP; exempt categories per Multiple Listing Options for Sellers, effective Mar 2025; local MLS adoption varies and is config).
 - Run all housing ads under platform special-ad-category housing rules; audience targeting outside those rules = compliance flag, not a workaround.
+- Every publication waits for the broker's signed release: the hub holds each `campaign.publish` (audience: public) until the broker releases that one message.
+
+How the code does it today (checked 2026-10-12): the broker starts a campaign
+with a signed `new_campaign` (copy and targeting), sets `exempt_status` and
+`signed_budget`; this agent checks the copy, the targeting and the Clear
+Cooperation gate, sends self-written copy to 17, and publishes. It does not
+write newsletter or ad copy itself, and no social or ad platform is
+connected; publications leave only through the held external route.
 
 ## Agent 13 - Buyer Search & Match Agent
 
@@ -400,6 +489,8 @@ filtering is steering, and steering is a fair housing violation.
 - BUYER AGREEMENT GATE: before emitting any `showing.request`, verify a signed written buyer agreement is on file (query 14 via `record.request`); absent = human escalation. Required before touring, in person or live-virtual (NAR settlement practice change, effective Aug 17, 2024). Set the agreement-on-file flag in the showing.request payload.
 - Present matches with sourced data only; no neighborhood characterizations (10's presentation rule applies here too).
 - Amended 2026-10-11 (owner decision): this agent does not request or relay neighborhood packages. Neighborhood information pushed toward buyers is the classic fair-housing steering risk; the broker can still ask Market Data (10) directly.
+- Up to `max_matches_per_buyer_per_day` (default 5) matches go to a buyer individually each day; the rest join one ranked digest that the daily clock sends through 11. Every match is still logged to 14 individually (owner decision 2026-07-18).
+- Buyer criteria arrive in a signed `buyer_criteria` setting (verbatim, as the client stated them); the broker also records an expired pre-approval (`preapproval_expired`) and whether an unknown standing preference may be delivered (`deliver_unknown_standing_preference`).
 
 ## Agent 14 - CRM & Pipeline Agent
 
@@ -425,6 +516,13 @@ not message clients.
 - Consent and opt-out flags are authoritative HERE: stored per contact, propagated to 03, 11, and 16 same-day on change, and served on `record.request`; no agent may message contrary to these flags.
 - Property access custody (P19, amended 2026-10-12): keep the broker-signed access grants (party, window end, custody reference - never the code or key) and flag once any window that has ended without the broker closing it.
 - Client drawers (amended 2026-10-12): file a copy of every CRM entry into the client's drawer; a filing that fails is recorded and held for the broker.
+- Broker-signed record updates: `client_dates` (date triggers), `buyer_agreement_on_file`, `requester_identity_verified`, access grants and closings, `release_record_freeze`, `delete_record` (a deletion or retention request goes to the broker on the legal line).
+- End-of-day report to the broker on request (`eod_report`, through the daily clock).
+
+How the code does it today (checked 2026-10-12): consent and opt-out flags are
+stored here and served on every `record.request`; they are not pushed to 03, 11
+or 16 when they change (no route carries that). Pipeline stages and referral
+sources are not yet in the code. Reports go to the broker only.
 
 ## Agent 15 - Financial Tracking Agent
 
@@ -444,6 +542,14 @@ data never appears outside this agent's direct reports to the human.
 - Track marketing spend and lead source ROI (spend from platform exports, attribution from CRM referral data - both with provenance).
 - Categorize expenses; flag tax-relevant expenses for the human's accountant - flag, never advise.
 - Generate P&L summaries strictly from recorded figures; estimated or missing figures are labeled as such in the output, never blended in.
+- File each recorded expense in the client's drawer (`financials`) (added 2026-10-12).
+
+How the code does it today (checked 2026-10-12): the broker enters figures and asks
+for reports with signed settings - `add_expense`, `roi_claim`,
+`data_month_received`, `commission_dispute`, `commission_language_question`,
+`generate_pnl`, `pipeline_value_request`, `forecast_request`. A commission is
+recorded from `transaction.closed`. No platform export or accounting system is
+connected.
 
 ## Agent 16 - After-Close & Referral Agent
 
@@ -469,6 +575,14 @@ the date triggers, this agent executes the greetings.
 - Solicit reviews and testimonials post-close.
 - Check consent/opt-out flags (from 14) before every touch; opt-out halts all touches for that contact.
 
+How the code does it today (checked 2026-10-12): the daily clock sends the 30,
+90 and 365-day check-ins from the close date; greetings and anniversaries come
+from 14's `date.trigger`. The broker drives the rest with signed settings -
+`client_list_entry`, `refi_rate_alert` (with its source), `referral_solicitation_due`,
+`review_request_due`, `opt_out`, `reinstate_contact`, `contact_bounced`,
+`adverse_event`. Maintenance tips and a self-running referral cadence are not
+yet in the code.
+
 ## Agent 17 - Compliance & Fair Housing Agent
 
 **Type:** Guardrail / validator
@@ -478,7 +592,8 @@ the date triggers, this agent executes the greetings.
 **Predeliberated tuples:** 10 (see 17-compliance-fair-housing/DECISIONS.md)
 
 Guardrail agent. Mandatory pre-publication hop for content from 03, 04,
-12, 13 (criteria language), and 20 (draft responses). Validates; does not create.
+12, 13 (criteria language), 16 (referral and anniversary content) and 20
+(draft responses). Validates; does not create.
 Returns a verdict with specific flags. It never rewrites content - rewriting
 makes the validator an author, and an author cannot be its own guardrail.
 
@@ -490,6 +605,13 @@ makes the validator an author, and an author cannot be its own guardrail.
 - Maintain the prohibited-language ruleset as human-supplied configuration; the agent applies the ruleset, it does not author it.
 - Every verdict records the ruleset version applied; verdicts are reproducible against that version.
 - Operate within a configured turnaround SLA so the guardrail does not become the bottleneck; SLA breach = alert, not silent queue growth.
+
+How the code does it today (checked 2026-10-12): the ruleset arrives as a signed
+`ruleset` + `version`; matching of prohibited phrases is case-insensitive. The
+daily clock checks the turnaround (`sla_days`, default 1) and alerts the broker on a
+breach. A pattern of near-misses from one agent (`near_miss_pattern_threshold`,
+default 3) goes to the broker as a report. Checking that required disclosures are
+present is not yet in the code.
 
 ## Agent 18 - Calendar & Task Management Agent
 
@@ -509,6 +631,14 @@ summaries; blocks time for prospecting, showings, and admin work.
 - Generate morning briefings and end-of-day summaries - built only from logged envelopes and calendar records; a briefing never contains a status the system cannot source.
 - Block time for prospecting, showings, and administrative work per human-set rules.
 - Deadline blocks originating from 07 are protected: never moved or deleted without explicit human confirmation.
+- Track every agent's open waits (`agent.status`) so the briefing lists what is waiting on whom, and since when.
+
+How the code does it today (checked 2026-10-12): the daily clock produces the
+morning briefing (calendar days, open waits, unresolved decisions, tracked
+deadlines) and checks showings for no-shows; the end-of-day report is Agent 14's.
+A protected block moves only on the broker's signed `move_protected_block`.
+To-do lists, time-blocking rules and recurring-task tracking are not yet in the
+code (nothing in the swarm reports a recurring task as completed).
 
 ## Agent 19 - Prospecting Agent
 
@@ -536,6 +666,13 @@ the rest. Outreach is a human decision, every time.
 - Expired/FSBO discovery uses only human-configured, MLS-rule-compliant sources (many MLSs restrict use of MLS data to solicit expireds); the source is recorded in provenance.
 - Article 16 distinction, encoded: general geographic marketing is permitted; targeted solicitation of owners identified as exclusively listed is not. Flag any requested use of opportunity data that crosses from general to targeted.
 
+How the code does it today (checked 2026-10-12): this agent works on what an
+external `discovery.feed` delivers; it does not poll sources on a cadence
+itself, and no prospecting source is connected yet. A feed record outside the
+monitored zips is not recorded; an expired or FSBO record from a source the broker
+has not approved is excluded and flagged. A signed `bulk_outreach_instruction` is
+recorded and changes nothing - this agent still only discovers.
+
 ## Agent 20 - Social Media Monitoring Agent
 
 **Type:** Listening & routing (new)
@@ -557,3 +694,7 @@ is a human act.
 - Optionally draft a suggested response attached to the routed envelope - clearly labeled DRAFT, never published by this agent. Amended 2026-10-11 (owner decision): drafts come only from the broker's signed reply templates (question, praise); Compliance (17) reviews each; a flagged draft is discarded and reported, an approved draft holds for the broker to continue (approve for the broker to post) or cancel.
 - Sentiment classifications carry the classified text verbatim in provenance; the classification is this agent's output, the text is the source.
 - Drafted responses never state or imply pricing, legal, or contractual content, and never confirm any person's client relationship - confirming representation is itself confidential client information.
+
+How the code does it today (checked 2026-10-12): mentions arrive as
+`social.mention` from outside; no social platform is connected yet, and this
+agent never posts.

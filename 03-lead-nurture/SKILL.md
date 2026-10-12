@@ -8,7 +8,8 @@ description: "Long-cycle lead nurture. Use for drip email/text sequences, behavi
 **Swarm:** ListingAssistants (Real Estate)
 **Type:** Long-cycle engagement
 **Autonomy tier:** Autonomous sequence execution; compliance hop required on sequence content; Legal Line escalation
-**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; not runtime-hardened)
+**Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
+**Runtime:** `Spoke03LeadNurture` in `dispatcher/listing_spokes_03.py`, running in the swarm the console builds; decision tuples in `DECISIONS.md`
 
 ---
 
@@ -28,7 +29,7 @@ Qualification (02) when readiness changes. It warms; it does not advise.
 - Submit all new or edited sequence content to Compliance (17) before first send.
 - Verify consent status (lead object / CRM record) before ANY send; no consent on file = no send, escalate.
 - Process opt-outs immediately: halt sequences, propagate the flag to CRM (14) same-day; every email carries a functioning unsubscribe (CAN-SPAM).
-- Respect a per-context frequency cap (human config) across drips, market updates, and re-engagement combined - three agents' worth of messages is still one person's phone.
+- Respect a per-context frequency cap (`frequency_cap_per_week`, default 3) and legal contact hours (`legal_contact_hours`, default 8-21) across drips and re-engagement combined - several agents' worth of messages is still one person's phone.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -61,11 +62,13 @@ Dispatcher returns an `ack`.
 | IN | ← 17 Compliance | Verdict on content | `content.verdict` |
 | OUT | → 02 Lead Qualification | Behavioral score change | `lead.rescored` |
 | OUT | → 14 CRM & Pipeline | Every touch and signal | `interaction.log` |
-| OUT | → HITL queue | Legal Line trigger | `escalation.legal_line` |
+| OUT | → HITL queue | Legal Line trigger; nurture assignment with no consent on any channel | `escalation.legal_line` |
 | OUT | → 11 Client Communication | Reply requiring human-gated response | `client.message.request` |
 | IN | ← 11 Client Communication | Prospect reply relayed for handling | `lead.reply` |
 | IN | ← 12 Marketing Campaign | Engagement/behavioral signal | `behavioral.signal` |
-| IN | ← Clock (through the hub) | Daily tick: send the touches that are due | `clock.tick` |
+| IN | ← Clock (through the hub) | Daily tick: send the touches that are due; re-score cadence | `clock.tick` |
+| IN | ← Broker (signed) | Settings: `nurture_sequences` (touch text and day per sequence) | `config.update` |
+| OUT | → HITL queue | Sequence setting rejected, overlapping sequences, unreadable scoring date | `clarification.request` |
 | OUT | → 18 Calendar & Task | Wait-state signal (compliance review pending) | `agent.status` |
 
 This agent has no other edges. If a task appears to require any other
