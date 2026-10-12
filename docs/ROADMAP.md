@@ -36,7 +36,15 @@ tests.
 MFA. Connecting an identity provider that stamps each signed envelope with
 the login, MFA and session is what arms it.
 
-## 3. Uncalled scheduled checks
+## 3. Playbooks with no trigger in a running swarm
+
+P18 (weekly seller report), P19 (custody audit), P20 (vacant property
+watch) and P21 (lead re-score cadence) are proven by tests that send the
+first message as the agent that would, but no clock check or broker action
+starts them. Each needs an owner decision on its cadence and data, then a
+`dispatcher/clock.py` entry and a scene.
+
+## 4. Uncalled scheduled checks
 
 These have code but nothing calls them: `Agent 08.check_disclosure_deadline`
 (no source of disclosure deadlines exists yet), and
@@ -45,13 +53,13 @@ updates to clients through Agent 10). Each needs an owner decision: put it
 on the daily clock (`dispatcher/clock.py`) with its data source, or remove
 it. (P13's date triggers were wired to the clock on 2026-10-11.)
 
-## 4. Signed actions over MCP
+## 5. Signed actions over MCP
 
 The MCP server signs for a host only in `--demo-signing` mode. A production
 lane where the host forwards an envelope signed with the broker's own key is
 not built.
 
-## 5. Providers and hardware
+## 6. Providers and hardware
 
 - Connect the external adapters (MLS writes, client messaging, ad publishing)
   to your providers; until then they queue visibly.
@@ -62,7 +70,7 @@ not built.
   (`tools/sign_manifest.py`, `tools/verify_update_pack.py`); the transport
   (for example an encrypted USB drive) is an operating procedure.
 
-## 6. Commercial real estate (future archetype)
+## 7. Commercial real estate (future archetype)
 
 The hub, closed-track routing, signed authority and hash-chained audit log
 are sector-agnostic. A commercial identity would need its own agents, routes

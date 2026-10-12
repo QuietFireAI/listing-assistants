@@ -87,10 +87,17 @@ model.
 
 ## The 24 playbooks
 
-Each playbook has one end-to-end test that drives it from its real trigger
-through the hub (`tests_listing/test_playbooks_e2e.py`,
-`tests_listing/test_playbooks_e2e_all.py`). Triggers, agents and human gates
-are in [docs/PLAYBOOKS.md](docs/PLAYBOOKS.md).
+Each playbook has an end-to-end test through the hub
+(`tests_listing/test_playbooks_e2e.py`, `tests_listing/test_playbooks_e2e_all.py`).
+Triggers, agents and human gates are in [docs/PLAYBOOKS.md](docs/PLAYBOOKS.md).
+Four playbooks have no trigger in a running swarm yet: **P18** (weekly seller
+report), **P19** (key and access custody audit), **P20** (vacant property
+watch) and **P21** (lead re-score cadence). Their tests start them by
+sending the first message as the agent that would. Each needs its cadence
+put on the daily clock (an owner decision on the interval and the data);
+see docs/ROADMAP.md. P13 (date triggers) runs from the clock since
+2026-10-11, and P17 (end-of-day books) runs when you ask for it
+(`{"do": "show", "what": "eod"}`).
 
 | | Playbook | | Playbook |
 |---|---|---|---|

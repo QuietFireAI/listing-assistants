@@ -144,6 +144,11 @@ drawer into a tiered pipeline by dinner — every walk-in captured with
 consent recorded on the spot, deduplicated, scored, and a hot one on
 your phone inside the SLA while they're still in the driveway.
 
+> **Not yet running on their own:** P18, P19, P20 and P21 below describe
+> what each playbook delivers once started. Nothing in a running swarm starts
+> them yet; their cadences still need to go on the daily clock
+> (docs/ROADMAP.md, item 3).
+
 ## The lead machine
 
 **P11, speed to lead**, exists because of the MIT arithmetic above,
@@ -203,9 +208,8 @@ And when something goes wrong in public — **P14** — success is
 measured in the speed and completeness of containment. The complaint
 reaches you verbatim, at priority if it's spreading, and in the same
 motion every scheduled touch to that client freezes, so no drip email
-lands mid-dispute. The swarm can attach a labeled draft for your
-review if the venue is public, but the response, the channel, and the
-resolution are yours, and the hold releases only on your word. The
+lands mid-dispute. The swarm drafts nothing for a complaint; the
+response, the channel, and the resolution are yours, and the hold releases only on your word. The
 swarm's success in a complaint is never its own words in public.
 
 ## The four properties underneath all of it

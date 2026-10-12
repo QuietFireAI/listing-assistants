@@ -198,8 +198,10 @@ agreement flag and all.
 A lead arrives — web form, call transcript, portal — and **01**
 captures it with consent state recorded at first contact (that's your
 TCPA posture, on the record, from minute zero). 01 dedupes against
-**14** before anything else: a duplicate never double-counts your
-pipeline. **02** scores it against *your* rubric — every threshold and
+**14** before anything else: the same phone or email already on record
+under another lead holds the new one for you (continue = a separate
+person, cancel = closed); nothing is ever merged or double-counted on
+its own. **02** scores it against *your* rubric — every threshold and
 weight is your signed configuration, versioned, and the version used is
 recorded on every tier decision. A HOT lead does exactly one thing: it
 escalates to *you*, inside the SLA, with the clock attached. The swarm
@@ -212,6 +214,7 @@ escalates to your queue if the answer never comes — held and named,
 never lost.
 
 ### P21 — Lead Rescore Cycle
+*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
 On cadence, **03** refreshes the evidence per lead (market signals from
 10), applies the rubric, and submits promotions/demotions to **02** —
 which owns the tier decision and routes a promotion to HOT straight
@@ -270,6 +273,7 @@ with activity but no log entries is *named as a logging gap*, never
 smoothed over. Tonight's books are tomorrow's P16 input.
 
 ### P18 — Seller Weekly Report
+*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
 The report sellers judge you by, assembled from what actually happened:
 06's showings and feedback, 10's market movement with provenance, 05's
 status summary. The draft is fair-housing screened by 17, then it
@@ -277,6 +281,7 @@ waits for *your* approval before 11 sends it. Next week's is already
 scheduled.
 
 ### P19 — Property Access Custody
+*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
 Who can get into which property, until when — as a ledger. Grants are
 recorded in 14, vendor windows scheduled through 09 with entry/exit
 confirmations, and the one rule that matters most: *the secret itself
@@ -286,6 +291,7 @@ audit flags any grant past its window; an exposure event escalates to
 you same-day with a rotation task.
 
 ### P20 — Vacant Property Watch
+*Not yet started by anything in a running swarm: the cadence is not on the daily clock (docs/ROADMAP.md, item 3). What follows is what the playbook does once started, as its test drives it.*
 Standing vigilance over the riskiest asset class you touch: 18
 schedules the walkthrough cadence, 09 books the vendor, and here's the
 tooth in it — a walkthrough report *without a proof artifact does not
