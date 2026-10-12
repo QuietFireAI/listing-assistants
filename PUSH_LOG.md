@@ -201,3 +201,5 @@ existing.
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the J10 push |
 | 2026-10-12 16:30:31 UTC | listing-assistants | `c9f0d8f3ce` | Agent docs checked against the code: SKILL.md headers, route tables (test keeps all 21 in step with routes.json), not-yet-built components marked; narrative docs drop MLS live-verification and RSVP claims; test count 961 |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs push |
+| 2026-10-12 17:02:23 UTC | listing-assistants | `90b2950434` | Agent docs second pass against the code (all 21 SKILL.md, DECISIONS code-status notes); code fixes where the doc's rule was right (11 opt-out check, 01/02/03/12/13/16 broker notices, 09 stop-work message, 12 stale-asset records); 971 passed |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs second pass |
