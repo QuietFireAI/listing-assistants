@@ -10,6 +10,7 @@ from __future__ import annotations
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
 from .human_holds import hold_for_human, decision_of, register_resumer
+from .drawer_filing import file_record
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -190,6 +191,11 @@ class Spoke14CRMPipeline:
                         f"itself, never silently overwritten",
                 result=f"conflict_flagged={sorted(conflicts)}")
         self.records.setdefault(ctx, []).append(entry)
+        # the client's drawer gets its own copy of every CRM entry (2026-10-12)
+        name = env.payload.get("name") if isinstance(env.payload, dict) else None
+        file_record(self.hub, "14", ctx, "interactions", f"{entry_id}_{env.envelope_id[:8]}",
+                    {**entry, "client_context_id": ctx},
+                    identity={"client_name": name} if isinstance(name, str) else None)
         return entry_id
 
     def _update_consent(self, ctx: str, new_flags: dict):

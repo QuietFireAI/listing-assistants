@@ -113,9 +113,14 @@ class HITLManager:
 
     # ------------------------------------------------------------ helpers
     def _record_in_drawer(self, ws: WaitState, filename: str, agent_id: str) -> Optional[str]:
-        if not (self.drawer_manager and self.drawer_manager.has_drawer(ws.client_context_id)):
+        if not self.drawer_manager:
             return None
         try:
+            if not self.drawer_manager.has_drawer(ws.client_context_id):
+                # a hold can be the first thing on file for a client (2026-10-12:
+                # drawers are wired, so the pause record always has a home)
+                self.drawer_manager.provision_drawer(ws.client_context_id, client_name="",
+                                                     property_address="", role="client")
             return self.drawer_manager.record_agent_artifact(
                 client_id=ws.client_context_id, agent_id=agent_id, category="timeline",
                 filename=filename, content=json.dumps(ws.to_dict(), indent=2),

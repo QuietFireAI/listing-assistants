@@ -38,32 +38,27 @@ def compute_real_stage(files: list[dict], wait_states: list[dict]) -> tuple[str,
         return "ACTION REQUIRED", 0, f"Halted at Agent {agent_id}: {reason}"
 
     filenames = [f.get("filename", "").lower() for f in files]
-    categories = [f.get("category", "").lower() for f in files]
 
-    # Check for closing settlement
-    if any("closing" in fn or "settlement" in fn or "final_net_sheet" in fn for fn in filenames):
-        return "CLOSED", 6, "Escrow complete. Agent 16 managing post-close relationship & annual check-ins."
+    def has(*words):
+        return any(w in fn for fn in filenames for w in words)
 
-    # Check for escrow milestone artifacts
-    if any("escrow" in fn or "inspection" in fn or "contingency" in fn or "appraisal" in fn for fn in filenames):
-        return "IN ESCROW", 5, "Under contract. Agent 07 & 08 tracking escrow milestones and contingency deadlines."
-
-    # Check for active MLS verification
-    if any("active" in fn or "showing" in fn or "tour" in fn for fn in filenames):
-        return "ACTIVE MLS", 4, "Active on market. Agent 06 arbitrating tour bookings and notice buffers."
-
-    # Check for pre-market preparation
-    if any("copy" in fn or "photo" in fn or "media" in fn or "listing_draft" in fn for fn in filenames):
-        return "PRE-MARKET", 3, "Pre-market preparation. Agent 04 & 17 validating compliant remarks & photography."
-
-    # Check for lead qualification
-    if any("rubric" in fn or "qualification" in fn or "preapproval" in fn for fn in filenames):
-        return "QUALIFICATION", 2, "Agent 02 & JEV AI evaluating lender documentation against qualification rubric."
-
+    # Filenames are the ones the agents write (dispatcher/drawer_filing.py,
+    # 2026-10-12) plus the older hand-filed patterns. The stage is read off
+    # which records are on file; it is not a status any agent reports.
+    if has("closing_settlement", "settlement", "final_net_sheet"):
+        return "CLOSED", 6, "Settlement statement on file (Agent 08). Agent 16 runs the post-close check-ins."
+    if has("timeline_", "executed_contract", "escrow", "inspection", "contingency", "appraisal"):
+        return "IN ESCROW", 5, "Under contract: timeline and contract documents on file (Agents 07 and 08 track the deadlines)."
+    if has("description_", "active", "showing", "tour"):
+        return "MARKETING READY", 4, ("Description approved by compliance (17) and released to MLS (05) and "
+                                      "marketing (12); anything public holds for your signed release.")
+    if has("listing_package_", "copy", "photo", "media", "listing_draft"):
+        return "PRE-MARKET", 3, "Signed listing package on file; photography, description and compliance in progress (05, 09, 04, 17)."
+    if has("rubric", "qualification", "preapproval"):
+        return "QUALIFICATION", 2, "Qualification documents on file; Agent 02 scores leads with your signed rubric."
     if files:
-        return "INTAKE", 1, "Intake registered. Agent 01 verifying contact deduplication and consent."
-
-    return "EMPTY VAULT", 1, "Drawer provisioned. Awaiting initial intake documentation."
+        return "INTAKE", 1, "Client on file in the CRM (Agent 14)."
+    return "EMPTY VAULT", 1, "Drawer provisioned; nothing filed yet."
 
 
 # Alias for test and external interface compatibility
@@ -193,11 +188,11 @@ load_all_clients = load_all_drawers
 def render_terminal_dashboard(clients: list[dict]):
     print("\n" + "=" * 90)
     print("  LISTINGASSISTANTS — NON-TECHNICAL CLIENT FUNNEL & DRAWER PORTAL")
-    print("  Official Platform Domain: ListingAssistants.com | Governed 21-Agent Swarm")
+    print("  ListingAssistants.com | dispatcher + 20 agents")
     print("=" * 90)
 
     if not clients:
-        print("\n  [INFO] No client drawers found in 'drawers/'.")
+        print("\n  [INFO] No client drawers found in the drawer folder.")
         print("  When real client leads are ingested or listings onboarded, their private drawers")
         print("  will appear here automatically with complete file and stage tracking.\n")
         print("=" * 90 + "\n")
@@ -225,7 +220,7 @@ def render_terminal_dashboard(clients: list[dict]):
         print(f"  DRAWER VAULT: {c['drawer_path']}")
         print(f"  FUNNEL STAGE: {badge:<18} {bar}")
         print(f"  ACTIVE STEP:  {c['next_step']}")
-        print(f"  SECURED FILES: {c['total_files']} files (SHA-256 fingerprinted, anti-commingling protected)")
+        print(f"  SECURED FILES: {c['total_files']} files (SHA-256 recorded per file; one drawer per client; not encrypted)")
 
         if c['pending_waits']:
             print(f"  ⚠️  PENDING BROKER DECISION CALL:")
@@ -301,7 +296,7 @@ def render_html_dashboard(clients: list[dict], out_path: str = "dashboard.html")
             <div class="info-row">
                 <span class="info-label">Vault Inventory:</span>
                 <div class="info-val">
-                    <div><strong>{c['total_files']} files secured</strong> (SHA-256 fingerprinted, anti-commingling protected)</div>
+                    <div><strong>{c['total_files']} files on file</strong> (SHA-256 recorded per file; one drawer per client; not encrypted)</div>
                     {files_html}
                 </div>
             </div>
@@ -414,7 +409,7 @@ def render_html_dashboard(clients: list[dict], out_path: str = "dashboard.html")
     <div class="container">
         <div class="header">
             <h1>ListingAssistants — Client Funnel & Drawer Portal</h1>
-            <p>Non-Technical Operational Dashboard &bull; Powered by the 21-Agent Governed Swarm &bull; <a href="https://ListingAssistants.com" style="color:#90cdf4;">ListingAssistants.com</a></p>
+            <p>Non-Technical Operational Dashboard &bull; Dispatcher + 20 agents &bull; <a href="https://ListingAssistants.com" style="color:#90cdf4;">ListingAssistants.com</a></p>
         </div>
 
         <div class="metrics-row">
@@ -451,9 +446,12 @@ def main():
     parser.add_argument("--html", action="store_true", help="Generate interactive HTML dashboard")
     parser.add_argument("--out", default="dashboard.html", help="HTML output filename (default: dashboard.html)")
     parser.add_argument("--db", default=None, help="Path to appliance SQLite database")
+    parser.add_argument("--drawers", default=os.path.join(ROOT, "console-state", "drawers"),
+                        help="Client drawer root (default: console-state/drawers, where the "
+                             "console's agents file them)")
     args = parser.parse_args()
 
-    drawers_root = os.path.join(ROOT, "drawers")
+    drawers_root = args.drawers
     db_path = args.db or os.path.join(ROOT, "appliance.db")
     clients = load_all_drawers(drawers_root, db_path if os.path.exists(db_path) else None)
 

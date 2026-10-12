@@ -13,6 +13,7 @@ import re
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .drawer_filing import file_record
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -433,6 +434,8 @@ class Spoke08DocumentCollection:
         # clean file
         existing.append({"doc_type": doc_type, "payload": payload,
                          "content_hash": payload.get("content_hash")})
+        file_record(self.hub, "08", ctx, "documents", f"{doc_type}_{env.envelope_id[:12]}",
+                    {"doc_type": doc_type, "received": payload, "from_agent": env.from_agent})
         had_pending = doc_type in self.pending_requests.get(ctx, {})
         self.pending_requests.get(ctx, {}).pop(doc_type, None)
         if had_pending:

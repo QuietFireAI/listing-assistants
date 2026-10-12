@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .drawer_filing import file_record
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -373,6 +374,8 @@ class Spoke04ListingDescription:
                     thought="compliance approved - releasing to Marketing "
                             "(12) and MLS/Listing Mgmt (05)",
                     result="asset.release issued")
+                file_record(self.hub, "04", ctx, "artifacts", f"description_{env.envelope_id[:12]}",
+                            {"draft": draft, "approved_by_verdict": env.envelope_id})
                 self.hub.send(_env("04", "12", "asset.release", ctx,
                                    {"draft": draft}))
                 self.hub.send(_env("04", "05", "asset.release", ctx,

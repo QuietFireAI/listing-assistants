@@ -36,7 +36,10 @@ def format_size(bytes_len: int) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Inspect client drawers and verify anti-commingling custody.")
     parser.add_argument("client_id", nargs="?", help="Client ID / context ID to inspect")
-    parser.add_argument("--root", default="drawers", help="Root directory for client drawers (default: drawers)")
+    parser.add_argument("--root", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                                       "console-state", "drawers"),
+                        help="Root directory for client drawers (default: console-state/drawers, "
+                             "where the console's agents file them)")
     parser.add_argument("--list", action="store_true", help="List all provisioned client drawers")
     args = parser.parse_args()
 

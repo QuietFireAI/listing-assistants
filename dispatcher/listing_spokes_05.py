@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .drawer_filing import file_record
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -197,6 +198,11 @@ class Spoke05MLSListingManagement:
             if "new_listing" in change:
                 package = change["new_listing"]
                 self.property_data[ctx] = package
+                file_record(self.hub, "05", ctx, "artifacts", f"listing_package_{env.envelope_id[:12]}",
+                            {"new_listing": package, "authorize_go_live": bool(change.get("authorize_go_live")),
+                             "signed_envelope": env.envelope_id},
+                            identity={"property_address": package.get("address"),
+                                      "client_name": package.get("seller_name"), "role": "seller"})
                 if change.get("authorize_go_live"):
                     self.go_live_authorized.add(ctx)
                 self.mls_records[ctx] = {"status": "draft", **{

@@ -163,7 +163,10 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
         {"intent": env.intent, "ctx": env.client_context_id, "payload": env.payload}))
     hub.register("human", human_sink or (lambda env: None))
 
-    hitl = HITLManager(hub=hub)
+    from .client_drawer import ClientDrawerManager
+    drawers = ClientDrawerManager(drawers_root)
+    hub.drawers = drawers   # agents file through dispatcher/drawer_filing.py
+    hitl = HITLManager(hub=hub, drawer_manager=drawers)
     hub.hitl = hitl   # agents reach it through their guarded hub
 
     config_dir = config_dir or os.path.join(ROOT, "config")

@@ -10,6 +10,7 @@ import os
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .drawer_filing import file_record
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -233,6 +234,8 @@ class Spoke07TransactionCoordinator:
                 self.timelines[ctx] = {
                     m: {"deadline": d, "satisfied": False, "artifact": None}
                     for m, d in milestones.items()}
+                file_record(self.hub, "07", ctx, "timeline", f"timeline_{env.envelope_id[:12]}",
+                            {"milestones": milestones, "loaded_by": env.envelope_id})
                 self.hub.send(_env("07", "14", "interaction.log", ctx,
                                    {"kind": "timeline_loaded",
                                     "milestones": list(milestones)}))

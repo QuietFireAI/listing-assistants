@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .drawer_filing import file_record
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -243,6 +244,7 @@ class Spoke15FinancialTracking:
                          "dual_category_tax_conflict": dual_category_conflict}
                 # tuple 7: no receipt -> unverified, never promoted by time
                 self.expenses.setdefault(ctx, []).append(entry)
+                file_record(self.hub, "15", ctx, "financials", f"expense_{env.envelope_id[:12]}", entry)
                 return
 
             if "roi_claim" in payload:
