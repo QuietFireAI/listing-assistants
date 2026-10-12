@@ -28,10 +28,16 @@ on 2026-10-11. For every numeric parameter, see
   hub through `HandoffGuard` (`dispatcher/handoff_guard.py`), which turns a
   rejected or undeliverable handoff into `handoff.failed` plus a
   clarification request.
-- **State.** Agent state lives in the process that holds the swarm. The
-  audit log is durable; live state is not rebuilt from it yet. Plan to run
-  the swarm as one long-running process (the MCP server is one) and to call
-  the daily sweeps inside it.
+- **One builder.** `dispatcher/swarm.py` builds the hub, the 20 agents, the
+  HITL manager and the state store. The console and the daily clock both use
+  it.
+- **State.** At the end of every console session and clock run the swarm's
+  state is saved to a local SQLite file (`console-state/swarm-state.sqlite`
+  by default) and its SHA-256 is appended to the audit log as `state.saved`.
+  At start-up the newest save is restored only if the audit chain verifies
+  and its last `state.saved` names that save and hash; otherwise the start
+  is refused and neither file is touched. Run one process at a time against
+  the same files.
 
 ## 2. Install and verify
 
@@ -39,8 +45,9 @@ on 2026-10-11. For every numeric parameter, see
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 751 passed
+python -m pytest tests_listing/          # expect: @@TESTS@@ passed
 python tools/console.py init             # your signing key, mode 0600, stays on this machine
+python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
 ```
 
@@ -61,20 +68,48 @@ and "NOT RATIFIED" do not count.
 | `cadence_settings.json` | draft | Agent 08 |
 | `transaction_milestones.json` | draft | Agent 07 |
 | `milestone_map.json` | draft | reference content; no code reads it yet |
-| `vendor_panel.json` | draft | `tools/console.py` (vendor roster) |
+| `vendor_panel.json` | unratified template | the swarm builder, for Agent 09's roster |
 | `authority_signers.json` | unratified template | signer registry |
 
-Agents 07 and 08 and the console load their config files only when ratified,
-and append a `config.load` entry to the audit log saying which file they
-loaded or skipped and why. Business rules that change at runtime (the lead rubric,
-the fair-housing ruleset, the vendor roster) arrive as signed
-`config.update` messages, for example through a console session.
+Agents 07 and 08 and the swarm builder load their config files only when
+ratified, and append a `config.load` entry to the audit log saying which
+file they loaded or skipped and why. `vendor_panel.json` lists vendors as
+`vendor_id -> {kind, license_expiry, insurance_expiry, regulated}`; an entry
+with a missing field or a placeholder is skipped and named. Point the
+console at another folder with `--config-dir` (the operator scenes use
+`scenes/config/`).
+
+Business rules that change at runtime arrive as signed `config.update`
+messages, for example through a console session. Each is validated whole;
+a bad one changes nothing and is held for you with the problems named, and
+a setting the agent does not recognize is held too.
+
+| Agent | Payload key | What it sets |
+|---|---|---|
+| 01 | `brokerage_scope` | the listings you hold (replaces the list) |
+| 01 | `dnc_add` | numbers or emails added to do-not-contact (adds only) |
+| 02 | `rubric`, `resolve_hot_lead` | the scoring rubric; closes a hot-lead wait |
+| 03 | `nurture_sequences` | each sequence's touches: `{"touches": [{"day": 0, "text": "..."}]}` |
+| 06 | `confirm_protected_bump` | confirms a held showing bump |
+| 07 | `timeline_init` | a transaction's milestone dates |
+| 08 | `expected_senders` | who should send each sensitive document: `{"closing_settlement_statement": ["title@..."]}` |
+| 11 | `resolve_complaint_hold`, `resolve_advice_response` | releases a complaint hold; closes an advice wait |
+| 13 | `buyer_criteria` | a buyer's stated criteria |
+| 14 | `buyer_agreement_on_file`, `requester_identity_verified` | your record that the agreement is signed / identity checked |
+| 14 | `client_dates` | P13 dates for a client: `{"purchase_anniversary": "07-18"}` (MM-DD every year, YYYY-MM-DD once) |
+| 16 | `client_list_entry` | puts a closed client on the after-close program |
+| 17 | `ruleset` | the fair-housing ruleset |
+| 19 | `zip_codes`, `approved_sources`, `dnc_entries` | prospecting scope |
+| 20 | `monitored_channels`, `reply_templates` | channels watched; your reply templates (question, praise) |
 
 **Signer registry.** `config/authority_signers.json` names which human
-logins may sign which authority intents. Replace the template entries with
-your real identity-provider logins, ratify it, and the hub begins recording
-`signer.verified` with the login on every authority action. Until then it
-records `signer.unarmed` and checks the cryptographic signature only.
+logins may sign which authority intents, bound to an identity provider with
+MFA. Arming it needs an identity provider that stamps each signed envelope
+with the login, MFA and session; none is connected in this build, so leave
+the template unratified. The hub records `signer.unarmed` and checks the
+cryptographic signature only. `console.py onboard` records your login and
+stamps it on your signed console actions; that stamp is information, not
+the identity-provider binding.
 
 ## 4. The daily clock
 
@@ -87,14 +122,16 @@ message; nothing calls an agent directly. The checks per agent are listed
 in `dispatcher/clock.py`. Call it once a day inside the process that holds
 the swarm.
 
-`tools/run_sweeps.py` is the reference caller:
+`tools/run_sweeps.py` is the scheduler's caller. By default it uses the
+console's audit log and saved state, runs every agent's daily checks
+through the hub, saves the state and exits nonzero if a check errored:
 
 ```bash
-python tools/run_sweeps.py --audit-log logs/sweep-audit.jsonl
+python tools/run_sweeps.py                      # cron: 0 7 * * *
+python tools/run_sweeps.py --today 2026-10-21   # replay a day
 ```
 
-Run standalone it builds a fresh, empty swarm, so it shows the wiring and
-exits nonzero if a sweep errors, but it has no live deadlines to act on.
+If the saved state does not match the audit log it runs nothing and exits 2.
 
 ## 5. Client drawers (`dispatcher/client_drawer.py`)
 
@@ -152,7 +189,11 @@ with ApplianceStorage("/srv/listingassistants/appliance.db") as db:   # local di
 - File databases run in WAL mode. Keep `db_path` on a local disk: SQLite
   locking is not reliable over network shares, NAS shares included.
 
-No agent writes to this store yet.
+The swarm writes its state snapshots to this store (`state_snapshots`,
+append-only, schema version 3; a version-2 file is upgraded in place). The
+CRM, consent, ledger and drawer tables are not written by the agents yet;
+Agents 14 and 15 keep those records in their own state, which the snapshot
+saves.
 
 ## 7. Offline updates
 
@@ -220,9 +261,17 @@ print(hitl.resume_operation(decision)["status"])   # decision_recorded_no_handle
 
 Register a handler per agent with `register_resumption_handler(agent_id, fn)`
 to have the decision acted on; without one the decision is recorded and the
-result says so. `python tools/manage_hitl_queue.py --list` lists pending
-waits recorded in drawers; it does not apply decisions. No agent pauses
-through this protocol yet.
+result says so.
+
+In the swarm the manager is `hub.hitl`, and three agents hold through it
+(`dispatcher/human_holds.py`): Agent 01 (the same phone or email under a new
+lead), Agent 11 (a client reply that names no agent, or an agent with no
+reply handler) and Agent 20 (a social reply draft cleared by 17). Each
+takes continue (`APPROVE`, or `APPROVE_WITH_OVERRIDE` with `route_to` for
+Agent 11) or cancel (`REJECT_AND_ABORT`); the console's `decide` action
+builds and signs that envelope. Open holds are part of the saved state.
+`python tools/manage_hitl_queue.py --list` lists waits recorded in drawers,
+and drawers are not wired yet, so use the console's `show waits`.
 
 ## 9. JEV decision adapter (`dispatcher/decision_adapter.py`)
 

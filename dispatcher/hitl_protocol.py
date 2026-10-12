@@ -18,11 +18,12 @@ Lifecycle:
      otherwise the result says so (status 'decision_recorded_no_handler')
      instead of claiming the agent resumed (audit HITL-4).
 
+Wiring (2026-10-11): dispatcher/swarm.py creates one manager as hub.hitl.
+Agents 01, 11 and 20 pause through dispatcher/human_holds.py and register
+resumption handlers. Active waits are saved with the swarm's state
+(dispatcher/state_snapshot.py) and survive a restart.
+
 What this module does NOT do:
-  - Spoke wiring: no listing spoke calls pause_operation or registers a
-    resumption handler today. Callers are operator tooling and tests.
-  - Persistence across restarts: active waits live in this process. The
-    drawer timeline keeps a record (status updated on resolution) for humans.
   - Delivery beyond the configured notifier: ESCALATE_TO_SUPPORT files the
     case in the hub's 'escalation.support' queue (and notifies the human
     channel if one is registered); it does not contact anyone else.

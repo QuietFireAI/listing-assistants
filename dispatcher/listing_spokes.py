@@ -129,6 +129,10 @@ class Spoke14CRMPipeline:
         # Doctrine: instruction < detection < structural impossibility.
         self.frozen: set[str] = set()
         self._entry_seq = 0
+        # P13 client dates, broker-signed per context: event_type -> "MM-DD"
+        # (every year) or "YYYY-MM-DD" (once). Read by the daily clock.
+        self.client_dates: dict[str, dict[str, str]] = {}
+        self._dates_fired: set = set()
         register_spoke(hub, "14", self)
 
     def _new_entry_id(self) -> str:
@@ -202,6 +206,12 @@ class Spoke14CRMPipeline:
             # (most restrictive wins) UNLESS the new event is itself an
             # explicit reconfirmation, which callers signal separately.
 
+    def check_client_dates(self, ctx: str, today: str):
+        """Daily clock check (added 2026-10-11): P13's date triggers for one
+        client, from the broker-signed client_dates. Before this, nothing in
+        production ever called check_date_triggers, so P13 never ran."""
+        return self.check_date_triggers(today, {ctx: self.client_dates.get(ctx, {})})
+
     def check_date_triggers(self, today: str, client_dates: dict[str, dict[str, str]]):
         """Job component: emit date triggers (birthday, holiday, purchase/
         move-in anniversary) to 16, per the human-supplied client list.
@@ -216,7 +226,10 @@ class Spoke14CRMPipeline:
             if not any(v == "yes" for v in consent.values()):
                 continue  # no consent on file, no touch - P13 precondition
             for event_type, date_str in dates.items():
-                if date_str == today:
+                # "MM-DD" recurs every year; "YYYY-MM-DD" fires on that day
+                due = date_str == today or (len(date_str) == 5 and date_str == today[5:])
+                if due and (ctx, event_type, today) not in self._dates_fired:
+                    self._dates_fired.add((ctx, event_type, today))
                     self.hub.send(_env("14", "16", "date.trigger", ctx,
                                        {"event_type": event_type, "date": today}))
                     fired.append((ctx, event_type))
@@ -346,6 +359,25 @@ class Spoke14CRMPipeline:
                         f"{entry_id}; log-derived state wins over any "
                         f"conflicting external import, flagged if conflict",
                 result=f"appended={entry_id}")
+            return
+
+        if env.intent == "config.update" and "client_dates" in env.payload:
+            # P13 dates for this client (broker-signed). Validated whole.
+            import re as _re
+            d = env.payload["client_dates"]
+            ok = isinstance(d, dict) and d and all(
+                isinstance(k, str) and isinstance(v, str)
+                and (_re.fullmatch(r"\d{2}-\d{2}", v) or _re.fullmatch(r"\d{4}-\d{2}-\d{2}", v))
+                for k, v in d.items())
+            if not ok:
+                self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                                   {"reason": "client_dates rejected; nothing changed - "
+                                              "event name -> MM-DD (yearly) or YYYY-MM-DD (once)"}))
+                return
+            self.client_dates[ctx] = dict(d)
+            self.hub.ingest_spoke_trace("14", env.envelope_id,
+                                        thought=f"broker-signed client dates for {ctx!r}: {sorted(d)}",
+                                        result="client dates set")
             return
 
         if env.intent == "config.update" and ("buyer_agreement_on_file" in env.payload

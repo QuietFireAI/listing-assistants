@@ -4,7 +4,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 751 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). The JEV adapter, Hermes seam, SQLite store, update-pack verifier, client drawers and HITL protocol have unit tests; no playbook e2e test exercises them, because no spoke calls them. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, @@TESTS@@ tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). The JEV adapter, Hermes seam, SQLite store, update-pack verifier, client drawers and HITL protocol have unit tests; no playbook e2e test exercises them, because no spoke calls them. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -53,10 +53,10 @@ in this table it's real, wired code.
 | SMS destination | `dispatcher/notifier.py` (`+1-555-555-0100`) | **PLACEHOLDER — declared** | NANP reserved-for-fiction block, cannot reach a real phone. Replace with the operator's number at deployment. |
 | `loop_threshold=20` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | No empirical basis existed to pick a better number; revisit after production traffic. |
 | MANNERS `N=10` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | Same: deliberate, revisit with real data. |
-| `config/authority_signers.json` | both repos | **UNRATIFIED — fails closed** | Genuinely empty template; needs your actual IdP logins. Loader refuses to arm while the `_status` UNRATIFIED line stands. No signing authority exists until you edit, date, and sign off. |
-| `config/vendor_panel.json` | both repos | **UNRATIFIED — fails closed** | Genuinely empty template; needs your actual vendor relationships. Same fail-closed rule. |
-| External adapters (`vendor.schedule`, `client.message.send`, `campaign.publish`) | seam contracts in INTEGRATIONS.md (listing-agents-blueprint) | **SEAM-COMPLETE, NOT WIRED** | Tracked in the adapter table below until connected to real providers. |
-| `approved_by` fields | `config/message_templates.json` (both repos) | **RATIFIED 2026-07-18** (owner blanket sign-off in `_status`) | No code reads this file yet; Agent 11 sends template ids and variables, and wording is the deployment's adapter's job. |
+| `config/authority_signers.json` | this repo | **UNRATIFIED — fails closed** | Template for identity-provider logins with MFA. No identity provider is connected in this build, so leave it unratified; the hub checks the key's signature and records that the login binding is off. |
+| `config/vendor_panel.json` | this repo | **UNRATIFIED — fails closed** | Template in Agent 09's format (`vendors: vendor_id -> {kind, license_expiry, insurance_expiry, regulated}`); needs your actual vendors. Same fail-closed rule. The operator scenes use `scenes/config/vendor_panel.json`, a synthetic roster you ratify by hand. |
+| External adapters (`vendor.schedule`, `client.message.send`, `campaign.publish`) | the `external` destination on the closed track | **NOT WIRED** | Held until your signed release, then queued to `external`; tracked in the adapter table below until connected to real providers. |
+| `approved_by` fields | `config/message_templates.json` | **RATIFIED 2026-07-18** (owner blanket sign-off in `_status`) | No code reads this file yet; Agent 11 sends template ids and variables, and wording is the deployment's adapter's job. |
 
 Ratification path for the config files: review content → edit → change
 `_status` to `RATIFIED` with date + sign-off → load. Fail-closed until
@@ -72,6 +72,7 @@ then is the invariant, not an inconvenience.
 | 02 (Lead Qualification) | `hot_lead_sla_seconds` | `300` (5 min) | Response-time SLA for a HOT-tier lead before an alert fires |
 | 03 (Lead Nurture) | `frequency_cap_per_week` | `3` | Max nurture-sequence touches per client per calendar week |
 | 03 (Lead Nurture) | `legal_contact_hours` | `(8, 21)` | Allowed daily window (24h clock) for sending a scheduled nurture touch - outside it, or on a flagged legal holiday, the touch holds rather than sending |
+| 03 (Lead Nurture) | nurture sequences (signed `config.update` `nurture_sequences`, not a constructor arg) | none | Each sequence's touches (`day`, `text`). No definition = nothing sent. The daily clock sends each due touch once. |
 | 04 (Listing Description) | `mls_char_limit` | `800` | Character budget before length-cut logic engages (adjectives cut before facts, attributions never cut) |
 | 06 (Showing Scheduler) | `feedback_ask_cap` | `2` | Max times a showing-feedback request is sent before giving up |
 | 06 (Showing Scheduler) | `no_show_pattern_threshold` | `2` | No-shows from the same showing agent before flagging a pattern |
@@ -184,15 +185,6 @@ with these dark is a swarm that talks to itself.
   yet). Restating it here because it's the same *category* of "not yet
   a real decision" as the two items above, even though it's a credential,
   not a number.
-- **`listing-agents-blueprint/TESTING_MANUAL.md`** (v2, supersedes
-  TESTING_MANUAL_v1.md): a separate artifact from this file - it's a
-  prompting-based test protocol for adopting this identity's spec on a
-  different runtime (Hermes/OpenRouter/NVIDIA-hosted model), not a
-  tuning reference for the Python dispatcher code. Verified 2026-07-17,
-  still accurate: its Phase 1 static-state claims (227 tuples across 21
-  agents, `verify_swarm.py` clean) check out against the current repo.
-  Mentioned here only so it doesn't get lost/forgotten as a separate
-  "one place" that nobody remembers exists.
 
 ## Config files (separate from code — business content, not tuning knobs)
 
@@ -232,15 +224,9 @@ the file's own `_not_covered_here` field and the class docstring for why.
 
 ## Maintenance note
 
-Found and fixed 2026-07-17: `cadence_settings.json`, `message_templates.json`,
-and `milestone_map.json` had real drafted content here in listing-agents
-that was never propagated back to listing-agents-blueprint (the supposed
-ratified source) - blueprint still had the bare `<example>` placeholder
-template for all three. `vendor_panel.json`/`authority_signers.json` were
-correctly identical in both (genuinely empty in both, as intended). Synced
-all four config files (including the new `transaction_milestones.json`)
-to blueprint. If you edit any `config/*.json` file going forward, it needs
-updating in **both** repos, or the same drift happens again.
+Since 2026-10-11 this repository is the single source for the config files
+(the listing-agents-blueprint copies are no longer maintained). Edit them
+here only.
 
 If you add a new agent or a new threshold, add it to this table in the
 same commit — that's the whole point of keeping this centralized instead
@@ -256,7 +242,7 @@ parameter nobody outside the source code knows exists.
 | Route `audience` field | `identity/routes.json` (external routes) | **RATIFIED** | `principal` passes the gate; `counterparty`/`public` HOLD for human release. Missing/unknown → fail-closed to `counterparty`. |
 | `audience_verified` flag | `identity/routes.json` | **PER-ROUTE** | `false` = provisional classification, surfaced on the hold. All 3 listing external routes are verified `true`. |
 | Disclosure release intent | `disclosure.authority` | **CONSTANT** | Signed authority intent that clears exactly one held message. Reuses the execution-authority stack (Ed25519 sig + signer registry + MFA). No route entry needed (verified directly, re-sends the original). |
-| Canonical signal text | `dispatcher/absolute_signal.py` `SIGNAL_TEXT` | **SINGLE SOURCE** | MANNERS.md Manner 15 and docs/FINANCIAL_CAPABILITY.md defer to this. sha256-checked by tests here and by propagation_check.py in the blueprint. Never hand-edit downstream copies. |
+| Canonical signal text | `dispatcher/absolute_signal.py` `SIGNAL_TEXT` | **SINGLE SOURCE** | MANNERS.md Manner 15 and docs/FINANCIAL_CAPABILITY.md defer to this. sha256-checked by tests here. Never hand-edit downstream copies. |
 
 ---
 

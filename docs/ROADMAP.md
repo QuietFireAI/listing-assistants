@@ -3,35 +3,47 @@
 Released tags: `archetype-v1.0.0`, `v1.1.0`. The audit-fix branch of
 2026-10-11 is not tagged; tagging the release commit is the owner's step.
 
-## 1. Wiring the optional modules
+## Done on 2026-10-11 (moved off this list)
+
+- HITL protocol wired: Agents 01, 11 and 20 hold threads for the broker's
+  signed continue or cancel.
+- State survives a restart: snapshots in the SQLite store, vouched for by
+  the audit chain.
+- Untriggered code resolved by owner decision: Agent 03 sends nurture
+  touches from the daily clock; Agent 19 requests comps for every
+  opportunity; Agent 20 drafts from the broker's templates for approval;
+  Agent 13's neighborhood path and Agent 20's `behavioral.signal` lane were
+  removed. A client reply with no named owner holds for the broker.
+
+## 1. Wiring the remaining optional modules
 
 Each module below is tested on its own and called by no agent yet. Wiring
-one is a ratified change: routes in `identity/routes.json`, tuples in the
-agent's DECISIONS.md (listing-agents-blueprint), then code and tests.
+one is a ratified change in this repository: routes in
+`identity/routes.json`, tuples in the agent's DECISIONS.md, then code and
+tests.
 
-- Client drawers: have agents file their artifacts into the client's drawer.
-- HITL protocol: have agents pause through `HITLManager` and register
-  resumption handlers.
-- SQLite store: have Agents 14 and 15 write interactions, consent and ledger
-  entries to it.
-- JEV adapter and Hermes seam: decide whether any agent uses them, and with
-  which tuples.
+- Client drawers: have agents file their records (documents filed by 08,
+  messages sent by 11, holds and decisions) into the client's drawer; the
+  dashboard and `manage_hitl_queue.py` then show live data.
+- SQLite CRM, consent and ledger tables: have Agents 14 and 15 write to them
+  (their records are saved today inside the state snapshot).
+- JEV adapter: have Agent 02 score through it (local engine by default).
+- Hermes seam and checkpoint manifest: need a locally served model.
 
-## 2. State that survives a restart
+## 2. Identity-provider signer binding
 
-Agent state, the hub's duplicate check and outbound holds live in memory.
-Rebuild them from the audit log at start-up, or persist them, so a restart
-keeps holds and does not re-deliver a retried envelope.
+`config/authority_signers.json` binds signers to an identity provider with
+MFA. Connecting an identity provider that stamps each signed envelope with
+the login, MFA and session is what arms it.
 
-## 3. Routes with no trigger
+## 3. Uncalled scheduled checks
 
-- 20 -behavioral.signal-> 03 has no sender.
-- Agent 03 scheduled nurture touches, Agent 13 neighborhood-data requests,
-  Agent 19 market-context requests and Agent 20 social draft replies have
-  code but nothing that triggers them. Each needs an inbound intent on the
-  closed track.
-- A client reply with no named owner defaults to Agent 13 (open owner
-  decision).
+These have code but nothing calls them: `Agent 08.check_disclosure_deadline`
+(no source of disclosure deadlines exists yet), and
+`Agent 03.request_market_update` / `Agent 11.request_market_update` (market
+updates to clients through Agent 10). Each needs an owner decision: put it
+on the daily clock (`dispatcher/clock.py`) with its data source, or remove
+it. (P13's date triggers were wired to the clock on 2026-10-11.)
 
 ## 4. Signed actions over MCP
 

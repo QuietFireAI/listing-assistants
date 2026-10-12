@@ -302,3 +302,16 @@ def test_swarm_manifest_matches_the_closed_track():
     assert f"- Routes: {len(routes)} entries, {len(intents)} distinct intents" in s
     listed = set(re.findall(r"`([^`]+)`", re.search(r"^- Intents: (.*)$", s, re.M).group(1)))
     assert intents <= listed
+
+
+def test_p13_dates_fire_from_the_clock_yearly_and_once(tmp_path):
+    from dispatcher.sweep_runner import run_daily_sweeps
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("01", "14", "interaction.log", "C-1",
+                     {"kind": "lead.captured", "consent": {"email": "yes"}}))
+    sw.hub.send(_signed(s, "14", "C-1", {"client_dates": {"purchase_anniversary": "07-18"}}))
+    sw.hub.send(_signed(s, "16", "C-1", {"client_list_entry": {"name": "C"}}))
+    for day in ("2026-07-18", "2026-07-18", "2027-07-18", "2027-07-19"):
+        run_daily_sweeps(sw.hub, sw.spokes, today=day)
+    trig = [e["payload"]["date"] for e in _persisted(sw, "date.trigger", "C-1")]
+    assert trig == ["2026-07-18", "2027-07-18"]

@@ -43,7 +43,7 @@ model.
 
 ## How it stays accountable
 
-- **Closed track.** Only the 52 routes in `identity/routes.json` (151
+- **Closed track.** Only the 52 routes in `identity/routes.json` (149
   sender-intent-receiver lanes) are legal, and every message to or from an
   agent travels on one of them, including the daily clock (`clock.tick`). Anything else is rejected and logged;
   a well-formed message on an unknown route is held for a human.
@@ -63,7 +63,16 @@ model.
   pass.
 - **Every handoff is checked.** When the hub rejects or dead-letters a
   message an agent sent, the agent records `handoff.failed` on the audit log
-  and the message goes to the human clarification queue.
+  and the message goes to the human clarification queue. A signed
+  configuration an agent does not recognize is held for you too, never
+  acknowledged in silence.
+- **Held threads wait for you.** When an agent cannot finish on its own (the
+  same person arriving under a new lead, a client reply that names no agent,
+  a social reply draft), the whole thread holds through the HITL protocol
+  until you sign continue or cancel.
+- **State survives a restart.** The swarm's state is saved to a local SQLite
+  file after each session or clock run and restored at start-up only when
+  the hash-chained audit log vouches for that exact save.
 - **Predeliberated decisions.** 227 decision tuples (each agent's
   `DECISIONS.md`) say what an agent does at each known crossing. A situation
   no tuple covers stops and goes to the human.
@@ -143,40 +152,43 @@ strategy, and any client message about wire instructions, to the legal-line
 queue with the client's own words. What each playbook takes off your plate:
 [docs/WHAT_SUCCESS_MEANS.md](docs/WHAT_SUCCESS_MEANS.md).
 
-## Optional modules
+## Wired-in and optional modules
 
-These modules ship with tests and can be used from your own code. The
-twenty agents do not call them yet; wiring each one in is a deliberate
-step for a deployment.
+Wired into the swarm (built by `dispatcher/swarm.py`):
 
-| Module | What it does | Wired to the swarm |
+| Module | What it does |
+|---|---|
+| `dispatcher/hitl_protocol.py`, `dispatcher/human_holds.py` | Holds a thread and resumes it only on your signed `hitl.decision.authority` (continue or cancel), bound to that client |
+| `dispatcher/persistence_sqlite.py`, `dispatcher/state_snapshot.py` | Saves and restores the swarm's state (append-only `state_snapshots` table, JSON, fingerprint on the audit chain) |
+| `dispatcher/handoff_guard.py` | Checks every agent send and every signed configuration an agent receives |
+
+Optional, tested on their own, not called by the agents yet:
+
+| Module | What it does | Status |
 |---|---|---|
-| `dispatcher/client_drawer.py` | One directory per client; safe path segments only; artifacts filed under the acting client's context; SHA-256 per file with `verify_hashes()` | No. Files are stored unencrypted. |
-| `dispatcher/hitl_protocol.py` | Pauses an operation and resumes it only on a signed `hitl.decision.authority` from the broker, bound to that client | No |
+| `dispatcher/client_drawer.py`, `tools/dashboard.py` | One directory per client; safe path segments only; SHA-256 per file with `verify_hashes()`; funnel page from drawer manifests | Not wired. Files are stored unencrypted. |
 | `tools/verify_update_pack.py`, `tools/sign_manifest.py` | Signs and verifies offline update packs: Ed25519 signature, every file hashed, unlisted files and downgrades refused | Operator tools |
-| `dispatcher/persistence_sqlite.py` | Local store: exact decimal money, append-only ledgers, consent history, WAL mode | No. Keep it on a local disk. |
-| `dispatcher/decision_adapter.py` | JEV decision adapter: local rubric engine (same rules as Agent 02), optional injected MCP client, optional live API only with `allow_external=True`; low or missing confidence becomes a hold | No |
-| `dispatcher/hermes_seam.py` | Seam for a locally served Hermes-family model: separates `<think>` reasoning, feeds it to the taint gate, raises an error when no model is configured | No |
-| `dispatcher/model_checkpoint_manager.py`, `tools/restore_point.py` | Manifest of model adapter checkpoints with a keyword-screened regression exam and rollback of the active pointer | No; no weights ship |
+| `dispatcher/decision_adapter.py` | JEV decision adapter: local rubric engine (same rules as Agent 02), optional injected MCP client, optional live API only with `allow_external=True`; low or missing confidence becomes a hold | Not wired |
+| `dispatcher/hermes_seam.py` | Seam for a locally served Hermes-family model: separates `<think>` reasoning, feeds it to the taint gate, raises an error when no model is configured | Not wired; needs a model |
+| `dispatcher/model_checkpoint_manager.py`, `tools/restore_point.py` | Manifest of model adapter checkpoints with a keyword-screened regression exam and rollback of the active pointer | Not wired; no weights ship |
 | `dispatcher/readable_logger.py`, `tools/show_logs.py` | Plain-language event log and end-of-day report; verifies the audit chain when you pass it | Tools only |
-| `tools/dashboard.py` | Client funnel view built from drawer manifests (`--html` writes a page) | Reads drawers |
 
 ## Current limits
 
-- **State lives in one process.** Spoke state, the hub's duplicate check and
-  outbound holds are held in memory. The audit log survives a restart; live
-  state does not rehydrate from it yet. `tools/run_sweeps.py` run standalone
-  builds an empty swarm, so the daily clock belongs inside the long-running
-  process that holds the agents.
 - **External adapters queue until connected.** MLS writes, client sends and
   ad publishes stay visibly queued until you wire your providers
   (`docs/TUNING_MANUAL.md`). The SMS notifier is a real Twilio client with
   placeholder credentials and fails with a 401 until you supply real ones.
-- **Signer identities are yours to ratify.** `config/authority_signers.json`
-  ships as an unratified template and refuses to arm.
+- **Signer identities need an identity provider.** `config/authority_signers.json`
+  binds signers to an identity-provider login with MFA. No identity provider
+  is connected, so the hub verifies the key's signature and records on the
+  audit log that the login binding is off. `console.py onboard` records who
+  you are and stamps your login on your signed console actions.
+- **One process at a time.** Run one console session or one clock run at a
+  time against the same state file; the hub's lock serializes work inside a
+  process, not across processes.
 - **Pin the pillars for production.** They install from branch tips; pin each
   to a commit hash.
-- **One declared route has no sender in code:** 20 → 03 `behavioral.signal`.
 
 ## Install and verify
 
@@ -186,7 +198,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 751 passed
+python -m pytest tests_listing/        # expect: @@TESTS@@ passed
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -200,8 +212,11 @@ installed. Windows setup: [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md).
 ```bash
 python tools/run_demo.py                 # one listing, six acts, on the real hub
 python tools/mcp_roundtrip.py            # live stdio round trip of the MCP server
-python tools/console.py init             # create your signing key, then: session / verify
-python tools/run_sweeps.py --audit-log logs/sweep-audit.jsonl   # the daily clock (see limits)
+python tools/console.py init             # create your signing key
+python tools/console.py onboard          # who you are, asked once
+python tools/console.py session scenes/scene01_signature.jsonl --config-dir scenes/config
+python tools/console.py verify           # walk the audit chain
+python tools/run_sweeps.py               # the daily clock, on the console's log and saved state
 python tools/dashboard.py --html         # client funnel page from drawer manifests
 python tools/show_logs.py --eod          # end-of-day report
 python tools/manage_hitl_queue.py --list # pending human decisions recorded in drawers
@@ -221,7 +236,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 6. [docs/TUNING_MANUAL.md](docs/TUNING_MANUAL.md) - every number you can turn
 7. [docs/AGENT_USER_MANUAL.md](docs/AGENT_USER_MANUAL.md) - a broker's day with the system
 8. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, optional modules
-9. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - a filmable operator test script
+9. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - ten filmable operator scenes (`scenes/`), each checked by the suite
 10. [docs/FINANCIAL_CAPABILITY.md](docs/FINANCIAL_CAPABILITY.md) - the financial locks and the security reviewer's risk list
 
 ## Layout
@@ -235,16 +250,19 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
   SKILL.md and DECISIONS.md.
 - `config/` - business content the code cannot guess (templates, cadences,
   milestones, vendor panel, authority signers). Drafts until you ratify them.
+- `scenes/` - the ten operator scenes and their synthetic vendor roster.
 - `tests_listing/` - the full suite. Run it from a fresh clone before
   trusting any "done" claim, including this README's.
 
 ## Provenance
 
-The ratified source for every agent's SKILL.md and DECISIONS.md, and for the
-routes, is
-[listing-agents-blueprint](https://github.com/QuietFireAI/listing-agents-blueprint).
-This repository is the working build against that blueprint; edits to one
-belong in the other.
+This repository is the single source for ListingAssistants (owner decision
+2026-10-11): every agent's SKILL.md and DECISIONS.md, the closed track, the
+configuration templates, and the generated docs (`tools/gen_job_descriptions.py`
+rebuilds docs/JOB_DESCRIPTIONS.md; a test fails when it drifts). The
+dispatcher core in `dispatcher/` is vendored from
+[dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents) and
+must stay byte-identical (`tools/sync_core.py --check`, run in CI).
 
 ## License
 

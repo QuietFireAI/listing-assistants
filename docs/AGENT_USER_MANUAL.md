@@ -72,6 +72,7 @@ credentials before it can send).
 | `clarification.request` | anything an agent cannot finish on its own: a missing fact, an unknown route, a held outbound message, a failed handoff |
 | `integrity.violation` | an unsigned or tampered authority message; never auto-resolved |
 | `dead.letter` | a message no agent could take; the hub raises a system-error escalation when an agent crashed |
+| `decision_required` (HITL hold) | a whole thread an agent cannot finish on its own: the same person under a new lead, a client reply that names no agent, a social reply draft cleared by compliance. Nothing moves until you sign continue or cancel |
 
 ## 4. A day with the system
 
@@ -90,11 +91,18 @@ actually live before Agent 12 may market it, and the campaign itself holds
 for your release. Agent 11 keeps the seller informed at each step.
 
 **A buyer lead (P11).** Agent 01 captures the lead with consent on first
-touch, Agent 14 checks for an existing record, and Agent 02 scores it with
-your rubric. A pre-approval document outranks a different stated budget;
+touch, Agent 14 checks for an existing record (same context, and the same
+phone or email under any other lead), and Agent 02 scores it with your
+rubric. The same person arriving under a new lead holds for you: continue
+scores it as a separate person, cancel closes it; nothing is ever merged
+for you. A pre-approval document outranks a different stated budget;
 an expired or unverified letter does not count. A HOT lead goes to your hot
 lead queue. A score sitting exactly on a tier boundary takes the lower tier
-and is flagged for you.
+and is flagged for you. A WARM lead starts the nurture sequence you wrote
+(signed configuration to Agent 03: each touch's text and day). Agent 17
+reviews the exact touches first; the daily clock then sends each one once,
+on its day, inside the weekly cap and contact hours. A sequence you have
+not written sends nothing.
 
 **Under contract (P09).** Agent 07 tracks every contract deadline and
 counts a milestone done only when its artifact is on file. Agent 08 chases
@@ -121,39 +129,60 @@ sources attached; any amount that does not reconcile to $0.00 comes to you.
 - **A handoff that fails.** If the hub rejects or cannot deliver a message
   one agent sent another, the sending agent records `handoff.failed` and the
   message lands in your clarification queue.
+- **A client reply nobody owns.** A reply that names no agent, or one with no
+  rule for replies, holds for you. Continue names the agent to deliver it to;
+  cancel closes the thread with the reply kept on the record.
+- **A configuration typo.** A signed setting an agent does not recognize is
+  held for you with the keys you sent; nothing changes.
+- **Social media.** Agent 20 drafts a reply only from your own signed
+  templates (question, praise). Agent 17 reviews it; a flagged draft is
+  discarded and reported, an approved one holds for you. The swarm never
+  posts.
 
 ## 6. Signing and releasing
 
 Your signing key is created once with `python tools/console.py init` and
-stays on your machine. Signed actions today:
+stays on your machine; `python tools/console.py onboard` records your name
+and login once, and your signed console actions carry that login. Signed
+actions, all through a console session script
+(`python tools/console.py session <file>`; the actions are listed in the
+script's help text):
 
 - **Listing authorization and configuration** (rubric, ruleset, vendor
-  roster, templates): through a console session script
-  (`python tools/console.py session <file>`; format in the script's help
-  text) or the MCP server's `identity.authority` tool.
-- **Releasing a held outbound message:** a signed `disclosure.authority`
-  naming that message, applied with `Hub.release_disclosure` by the process
-  that holds the swarm. The console does not have a release command yet.
+  roster, nurture sequences, reply templates, your listings, the
+  do-not-contact list, a client's buyer agreement, expected document
+  senders): `authorize` and `config`.
+- **Releasing a held outbound message:** `{"do": "release", "ctx": "...", "intent": "..."}`
+  signs one `disclosure.authority` per matching held message.
+- **Deciding a held thread:** `{"do": "decide", "ctx": "...", "decision": "continue"}`
+  or `"cancel"` signs one `hitl.decision.authority`.
 - **Checking the record:** `python tools/console.py verify` walks the audit
   chain and reports the first broken line, if any.
 
-## 7. Optional modules
+The identity-provider binding in `config/authority_signers.json` (which
+login, with MFA, may sign which intent) is not armed: no identity provider
+is connected. The hub verifies your key's signature and records on the
+audit log that the login binding is off.
 
-The repository includes modules that are tested on their own and are not
-yet wired into the agents: per-client drawers (`dispatcher/client_drawer.py`),
-signed pause-and-resume for human decisions (`dispatcher/hitl_protocol.py`),
-a local SQLite store, an offline update-pack verifier, an optional JEV
-decision adapter, an optional seam for a local Hermes-family model, and a
-model checkpoint manifest. The README lists what each one does. Until a
-deployment wires one in, your day runs exactly as described above.
+## 7. Restarts and the daily clock
+
+The swarm saves its state at the end of every console session and clock
+run, and restores it at the next start only when the audit log vouches for
+that exact save. If the saved state and the log disagree, nothing starts
+and nothing is changed: you decide what happens to the file.
+`python tools/run_sweeps.py` (run by your scheduler once a day) works on the
+same log and state as your console. The optional modules not yet wired in
+(client drawers, the JEV adapter, the Hermes seam, the checkpoint manifest)
+are listed in the README.
 
 ## 8. Good habits
 
-1. Read the morning briefing first; it shows what is waiting on whom.
+1. Read the morning briefing first; it shows what is waiting on whom, and
+   `show waits` lists every thread holding for your decision.
 2. Keep your vendor roster's license and insurance dates current; Agent 09
    books only vendors whose credentials are on file and current.
-3. Ratify your configuration files (rubric, templates, cadences, signers).
-   Drafts are not loaded.
+3. Ratify your configuration files (vendor roster, templates, cadences,
+   milestones). Drafts are not loaded.
 4. Treat a hold as information. It names what stopped and why.
 5. Run `python tools/console.py verify` when you want proof the record is
    intact.
