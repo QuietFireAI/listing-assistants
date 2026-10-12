@@ -110,7 +110,9 @@ the two locks. Each one is a code path with a test.
 - **Ledger figures are carried, not typed.** Agent 15 reports the figures it
   receives with their source attached. The SQLite store
   (`dispatcher/persistence_sqlite.py`) keeps money as exact decimals and its
-  ledger tables are append-only. That store is not yet wired to Agent 15.
+  ledger tables are append-only. Agent 15 does not write that store; it
+  keeps its entries in its saved state and files each expense entry in the
+  client's drawer (`financials/`, SHA-256 on the audit chain).
 - **Human decisions on paused work are signed.** A paused operation resumes
   only on a signed `hitl.decision.authority` envelope verified by the hub
   (`dispatcher/hitl_protocol.py`), bound to the paused client context.

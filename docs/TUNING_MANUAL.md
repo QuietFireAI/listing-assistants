@@ -246,10 +246,13 @@ parameter nobody outside the source code knows exists.
 
 ---
 
-## Parameters of the optional modules (revised 2026-10-11)
+## Parameters of the wired modules (revised 2026-10-12)
 
-These modules are not called by any spoke. Their parameters matter only
-when your own code uses them.
+Since 2026-10-12 the swarm builder wires these modules: Agent 02 scores
+through the JEV adapter, six agents file into client drawers, Agent 04 can
+draft with an examined model, and every audit entry is also written to the
+plain-language log. Runtime settings arrive as signed `config.update`
+messages; the rest are process options.
 
 ### Lead rubric (`dispatcher/lead_rubric.py`, used by Agent 02 and the JEV fallback)
 
@@ -271,8 +274,8 @@ by the JEV fallback. There are no built-in defaults.
 
 | Parameter | Default | Effect |
 |---|---|---|
-| `confidence_threshold` | `0.45` | results below it (or with no readable confidence) are holds |
-| `allow_external` | `False` | live HTTPS calls happen only when this is `True` and a key is set |
+| `decision_engine.confidence_floor` (signed, to 02) | `0.45` | results below it (or with no readable confidence) hold the lead for your continue/cancel |
+| `decision_engine.allow_external` (signed, to 02) | `false` | live HTTPS calls happen only when this is `true` and a key is set |
 | `JEV_API_KEY` | unset | key for the live service |
 | `JEV_ENDPOINT_URL` | `https://api.typesafe.ai/v1/decisions` | must be `https://` |
 | `JEV_FORCE_PYTHON` | `0` | `1` forces the local engine |
@@ -282,11 +285,26 @@ by the JEV fallback. There are no built-in defaults.
 
 | Parameter | Default | Effect |
 |---|---|---|
-| `storage_root` | (required) | directory holding one subdirectory per client |
+| `drawers_root` (swarm builder) | `drawers` next to the audit log (`console-state/drawers`) | directory holding one subdirectory per client |
 
 Client ids and file names must be single safe path segments; categories are
 a fixed set. A cross-client filing raises `ComminglingBreachError`. Files are
 stored unencrypted; `verify_hashes()` checks stored SHA-256 values on demand.
+
+### Model drafting (`dispatcher/model_drafting.py`, Agent 04)
+
+| Parameter | Default | Effect |
+|---|---|---|
+| `drafting.mode` (signed, to 04) | `rules` | `model` turns on model-written remarks when a model is configured and the active checkpoint passed the exam on it |
+| `--model-url`, `--model-name` (console) | unset | the locally served model; other hosts refused without `--allow-remote-model` |
+| `checkpoints_dir` (swarm builder) | `checkpoints` next to the audit log | the manifest Agent 04's gate reads |
+| `mls_char_limit` (Agent 04) | `800` | model remarks longer than this are not used |
+
+### Readable log (`dispatcher/readable_audit.py`)
+
+| Parameter | Default | Effect |
+|---|---|---|
+| `readable_dir` (swarm builder) | `readable` next to the audit log | where `stream.log` and `daily/eod_ledger_<date>.md` are written |
 
 ### HITL protocol (`dispatcher/hitl_protocol.py`)
 
@@ -298,4 +316,6 @@ lists unresolved waits whenever a briefing is generated.
 
 `dispatcher/model_checkpoint_manager.py` and `dispatcher/persistence_sqlite.py`
 have no tuning parameters beyond their file locations (`checkpoints_dir`,
-`db_path`). Keep `db_path` on a local disk.
+`db_path`). Keep `db_path` on a local disk. Rolling the checkpoint pointer
+back to the baseline turns model drafting off, because the baseline was
+never examined.

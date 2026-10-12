@@ -27,6 +27,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 - Re-score leads returned by Nurture (03) when behavioral signals change.
 - Apply the human-supplied scoring rubric (delivered via signed `config.update`); the agent applies the rubric, never authors or drifts it - rubric version recorded with every tier assignment.
 - Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes.
+- Score through the decision engine (amended 2026-10-12, owner: wire the modules): every score goes through the JEV adapter, whose local engine is this agent's rubric; each decision is recorded. Lead data goes to live JEV only on the broker's signed `decision_engine.allow_external`. A result under the confidence floor holds the lead for the broker's continue (score with the signed rubric) or cancel (archive).
 
 ## 3. HITL Handoff - The Legal Line
 

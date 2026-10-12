@@ -37,6 +37,12 @@ finding: capture it, do not work around it.
 - `{"do": "send", ...}` injects a message as if from the named sender. Use
   `external` (the outside world) or `human` where the closed track has a
   route; the hub applies every check either way.
+- **Everything is also written in plain language** to
+  `console-state/readable/stream.log` (`python tools/show_logs.py` shows the
+  last 25 lines), and each client's records are filed in that client's
+  drawer under `console-state/drawers/` (`python tools/inspect_client_drawer.py --list`).
+  Good B-roll between scenes: the stream scrolling, and one drawer's files
+  with their hashes re-checked.
 
 ## Scene 0 - One-time setup
 
@@ -174,7 +180,18 @@ touch goes out.
 Expected: the briefing lists every wait left open across Scenes 1-9
 (for example 02's hot lead from Scene 3 and 08's missing inspection report
 from Scene 7), because the state carried between sessions. The end-of-day
-report's `logging_gaps` is `[]`. Then the anchor.
+report's `logging_gaps` is `[]`, and its `readable_ledger` names the ledger
+file with `"chain_ok": true`. Then the anchor.
+
+Off the console, three checks of what the scenes left behind:
+
+```
+python tools/show_logs.py --eod                  # the day's ledger, built from the chain
+python tools/inspect_client_drawer.py S7         # Scene 7's client: package, timeline,
+                                                 # contract, settlement statement, CRM entries;
+                                                 # ends "[OK] ... match their recorded SHA-256"
+python tools/dashboard.py --html                 # S7 shows CLOSED, S4/S5 MARKETING READY
+```
 
 Close the recording with:
 
@@ -187,6 +204,24 @@ python tools/console.py verify
 and run `python tools/console.py verify --audit-log <copy>` ON camera:
 expected `"ok": false` with `break_at` naming that line, and exit code 1.
 That is the closing shot: the record defends itself.
+
+## Optional Scene 11 - model-written remarks (needs a local model)
+
+Not part of the ten scenes and not run by the suite against a real model
+(the suite uses a stand-in model over real HTTP). Run it only if a model is
+served on this machine, for example by Ollama at `http://localhost:11434/v1`.
+
+1. `python tools/restore_point.py --exam my-model-1 --model-url http://localhost:11434/v1 --model-name <model>`.
+   Expected: four graded answers and `[PASSED]` or `[FAILED]`. Only a pass
+   activates the checkpoint. A model that fails stays off; that is the
+   correct outcome, not a bug.
+2. A session with `--model-url ... --model-name <model>`: its first line shows
+   `"model_drafting": {"ok": true, "checkpoint": "my-model-1"}`. Sign
+   `{"do": "config", "to": "04", "ctx": "setup", "payload": {"drafting": {"mode": "model"}}}`,
+   then run Scene 4 or 5's listing. Expected: the `content.review` to 17
+   carries `remarks` and `"remarks_source": "model:my-model-1"`; if the model
+   added a number or skipped its reasoning, the draft says
+   `"remarks_source": "rules"` and you are told why.
 
 ## Resolving what is left open
 

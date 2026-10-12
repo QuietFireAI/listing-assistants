@@ -156,6 +156,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 - Re-score leads returned by Nurture (03) when behavioral signals change.
 - Apply the human-supplied scoring rubric (delivered via signed `config.update`); the agent applies the rubric, never authors or drifts it - rubric version recorded with every tier assignment.
 - Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes.
+- Score through the decision engine (amended 2026-10-12, owner: wire the modules): every score goes through the JEV adapter, whose local engine is this agent's rubric; each decision is recorded. Lead data goes to live JEV only on the broker's signed `decision_engine.allow_external`. A result under the confidence floor holds the lead for the broker's continue (score with the signed rubric) or cancel (archive).
 
 ## Agent 03 - Lead Nurture Agent
 
@@ -199,6 +200,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 - Submit every asset to Compliance (17) and release only on an `approved` verdict.
 - Attribute measurements and material facts to their source in the copy where MLS rules require (e.g., square footage per county records) - unattributed measurement claims are a misrepresentation vector.
 - Use only photo/media assets with confirmed usage rights (vendor deliverables logged through 09).
+- Model-written remarks only on the broker's signed `drafting.mode: model` (amended 2026-10-12), only with a model on this machine whose active checkpoint passed the broker exam, and only when the draft carries the model's reasoning, fits the MLS limit and adds no number absent from the data. Otherwise draft by rules and tell the broker why. Model remarks go to 17 like every asset; a flagged phrase removes the sentence carrying it.
 
 ## Agent 05 - MLS & Listing Management Agent
 

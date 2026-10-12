@@ -2,16 +2,19 @@
 
 `dispatcher/decision_adapter.py` connects ListingAssistants to the external
 JEV decision service (TypeSafe AI) when you choose to use it, and otherwise
-scores locally with the same rules Agent 02 uses. No agent calls the adapter
-today: Agent 02 scores leads with `dispatcher/lead_rubric.py` directly, and
-Agent 06 arbitrates showings with its own rules. The adapter is ready for a
-deployment that wants a second, external opinion.
+scores locally with the same rules Agent 02 uses. Since 2026-10-12 Agent 02
+scores every lead through it (each decision on the audit chain as
+`decision.lead`); with no JEV connection the local engine is 02's own rubric,
+so tiers are unchanged. Live JEV is used only when `JEV_API_KEY` is set and
+the broker signs `{"decision_engine": {"allow_external": true}}` to Agent 02.
+A result under the confidence floor holds the lead for the broker. Agent 06
+arbitrates showings with its own rules and does not call the adapter.
 
 ## Modes
 
 ```mermaid
 flowchart TD
-    Call["your code: adapter.evaluate_lead(...)"] --> Live{"JEV_API_KEY set AND allow_external=True AND not force_python?"}
+    Call["Agent 02 scores a lead: adapter.evaluate_lead(...)"] --> Live{"JEV_API_KEY set AND broker signed allow_external AND not force_python?"}
     Live -->|yes| HTTPS["Live HTTPS call (https only)<br/>coprocessor_status LIVE_JEV_API"]
     HTTPS -->|error / timeout| Local
     Live -->|no| MCP{"mcp_client injected?"}
@@ -21,7 +24,7 @@ flowchart TD
     Tool --> Floor
     Local --> Floor
     Floor -->|yes| OK["status ok, tier"]
-    Floor -->|no| Hold["status held_confidence_underflow<br/>tier HELD_FOR_CALIBRATION or UNKNOWN<br/>broker_notice + operator_notice"]
+    Floor -->|no| Hold["status held_confidence_underflow<br/>tier HELD_FOR_CALIBRATION or UNKNOWN<br/>Agent 02 holds the lead for the broker's continue/cancel"]
 ```
 
 - **Local engine.** `JevPythonDecisionEngine` calls `score_lead` from
@@ -59,8 +62,8 @@ print(res["status"], res["tier"], res["score"], res["confidence"])   # ok HOT 10
 
 | Setting | Default | Effect |
 |---|---|---|
-| `confidence_threshold` | 0.45 | below it, or unreadable, is a hold |
-| `allow_external` | False | live HTTPS only when True and a key is set |
+| `decision_engine.confidence_floor` (signed to Agent 02) | 0.45 | below it, or unreadable, is a hold |
+| `decision_engine.allow_external` (signed to Agent 02) | false | live HTTPS only when true and a key is set |
 | `JEV_API_KEY` | unset | live-service key (also read from `config/integrations.json`) |
 | `JEV_ENDPOINT_URL` | `https://api.typesafe.ai/v1/decisions` | must be https |
 | `JEV_FORCE_PYTHON` | 0 | 1 forces the local engine |
@@ -72,6 +75,7 @@ The vendored core hub (`dispatcher/hub.py`, kept identical to
 dispatcher-agents) writes `jev.armed_live` at boot whenever `JEV_API_KEY` is
 set and `jev.unarmed_fallback` otherwise. That line reflects only the
 environment variable. Whether any decision actually went to the live
-service is in each adapter result's `coprocessor_status`, and with no agent
-calling the adapter, none does. Aligning the boot line is a change for the
-dispatcher-agents core.
+service is in each `decision.lead` entry's `coprocessor_status`; the swarm
+builder also writes a `decision.engine` entry at start-up with the adapter's
+real mode. Aligning the hub's boot line is a change for the dispatcher-agents
+core.

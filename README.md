@@ -159,26 +159,27 @@ strategy, and any client message about wire instructions, to the legal-line
 queue with the client's own words. What each playbook takes off your plate:
 [docs/WHAT_SUCCESS_MEANS.md](docs/WHAT_SUCCESS_MEANS.md).
 
-## Wired-in and optional modules
+## Modules wired into the swarm
 
-Wired into the swarm (built by `dispatcher/swarm.py`):
+Everything below is built by `dispatcher/swarm.py`, so the console, the daily
+clock and the MCP server run the same wiring.
 
-| Module | What it does |
+| Module | What it does in the running swarm |
 |---|---|
 | `dispatcher/hitl_protocol.py`, `dispatcher/human_holds.py` | Holds a thread and resumes it only on your signed `hitl.decision.authority` (continue or cancel), bound to that client |
 | `dispatcher/persistence_sqlite.py`, `dispatcher/state_snapshot.py` | Saves and restores the swarm's state (append-only `state_snapshots` table, JSON, fingerprint on the audit chain) |
 | `dispatcher/handoff_guard.py` | Checks every agent send and every signed configuration an agent receives |
+| `dispatcher/readable_audit.py`, `dispatcher/readable_logger.py`, `tools/show_logs.py` | Every audit-chain entry is also written in plain language to `console-state/readable/stream.log` and to the client's drawer; `show eod` writes the end-of-day ledger from the chain and verifies it |
+| `dispatcher/client_drawer.py`, `dispatcher/drawer_filing.py`, `tools/inspect_client_drawer.py`, `tools/dashboard.py` | One drawer per client under `console-state/drawers/`. Agents 04, 05, 07, 08, 14 and 15 file the client's listing package, approved description, timeline, documents, CRM entries and expenses there; every filing is on the chain with its SHA-256; HITL holds are recorded there. Files are **not encrypted** |
+| `dispatcher/decision_adapter.py` | Agent 02 scores every lead through the JEV adapter. Its local engine is 02's own rubric, so tiers are unchanged; live JEV runs only when a key is set **and** you sign `{"decision_engine": {"allow_external": true}}` to 02. A result under the confidence floor holds the lead for your continue/cancel |
+| `dispatcher/model_drafting.py`, `dispatcher/hermes_seam.py`, `dispatcher/model_checkpoint_manager.py`, `tools/restore_point.py` | Optional model-written listing remarks for Agent 04. Off by default. Used only when you sign `{"drafting": {"mode": "model"}}` to 04, the console runs with `--model-url` and `--model-name` (a model on this machine), and the active checkpoint passed the broker exam on that model (`restore_point.py --exam`). Model remarks are checked for reasoning, length and added numbers, and go through Agent 17 like every draft |
 
-Optional, tested on their own, not called by the agents yet:
+Operator tools, not part of the message path:
 
-| Module | What it does | Status |
-|---|---|---|
-| `dispatcher/client_drawer.py`, `tools/dashboard.py` | One directory per client; safe path segments only; SHA-256 per file with `verify_hashes()`; funnel page from drawer manifests | Not wired. Files are stored unencrypted. |
-| `tools/verify_update_pack.py`, `tools/sign_manifest.py` | Signs and verifies offline update packs: Ed25519 signature, every file hashed, unlisted files and downgrades refused | Operator tools |
-| `dispatcher/decision_adapter.py` | JEV decision adapter: local rubric engine (same rules as Agent 02), optional injected MCP client, optional live API only with `allow_external=True`; low or missing confidence becomes a hold | Not wired |
-| `dispatcher/hermes_seam.py` | Seam for a locally served Hermes-family model: separates `<think>` reasoning, feeds it to the taint gate, raises an error when no model is configured | Not wired; needs a model |
-| `dispatcher/model_checkpoint_manager.py`, `tools/restore_point.py` | Manifest of model adapter checkpoints with a keyword-screened regression exam and rollback of the active pointer | Not wired; no weights ship |
-| `dispatcher/readable_logger.py`, `tools/show_logs.py` | Plain-language event log and end-of-day report; verifies the audit chain when you pass it | Tools only |
+| Module | What it does |
+|---|---|
+| `tools/verify_update_pack.py`, `tools/sign_manifest.py` | Signs and verifies offline update packs: Ed25519 signature, every file hashed, unlisted files and downgrades refused |
+| `dispatcher/provider_gateway.py` | Records which external providers you intend to connect (masked); makes no network calls |
 
 ## Current limits
 
@@ -242,7 +243,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 5. [docs/PLAYBOOKS.md](docs/PLAYBOOKS.md) - all 24 playbooks: triggers, agents, gates
 6. [docs/TUNING_MANUAL.md](docs/TUNING_MANUAL.md) - every number you can turn
 7. [docs/AGENT_USER_MANUAL.md](docs/AGENT_USER_MANUAL.md) - a broker's day with the system
-8. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, optional modules
+8. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, drawers, the decision engine and model drafting
 9. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - ten filmable operator scenes (`scenes/`), each checked by the suite
 10. [docs/FINANCIAL_CAPABILITY.md](docs/FINANCIAL_CAPABILITY.md) - the financial locks and the security reviewer's risk list
 
@@ -251,7 +252,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 - `dispatcher/` - vendored dispatcher-agents core (the 15 files listed in
   `tools/sync_core.py`, kept identical by `--check` in CI), the 20
   `listing_spokes*.py` agents, `handoff_guard.py`, `lead_rubric.py`,
-  `config_status.py`, and the optional modules above.
+  `config_status.py`, and the modules above.
 - `identity/routes.json` - the closed track.
 - `00-dispatcher/` ... `20-social-media-monitoring/` - each agent's ratified
   SKILL.md and DECISIONS.md.

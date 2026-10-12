@@ -93,8 +93,10 @@ The page lists each client drawer under `drawers\` with its stage in the funnel
 
 ## 4. Add your own test listing
 
-Client files live in a per-client drawer under `drawers\<client_id>\`. Create one
-and file a document in it:
+The agents file each client's records in a per-client drawer under
+`console-state\drawers\<client_id>\` as they work (listing package, approved
+description, timeline, documents, CRM entries, expenses, holds). You can also
+create one by hand and file a document in it:
 
 ```powershell
 python -c "from dispatcher.client_drawer import ClientDrawerManager; d = ClientDrawerManager('drawers').provision_drawer('listing_oak_terrace_101', 'Oak Terrace Seller', '101 Oak Terrace'); d.store_file('00', 'documents', 'property_disclosure.txt', open(r'C:\path\to\property_disclosure.txt','rb').read()); print(d.verify_hashes())"
@@ -115,23 +117,30 @@ drawers\listing_oak_terrace_101\
 Check a drawer's files against their recorded hashes:
 ```powershell
 python tools/inspect_client_drawer.py --root drawers listing_oak_terrace_101
+python tools/inspect_client_drawer.py --list      # the drawers the agents filed (console-state\drawers)
 ```
 
 Files are stored unencrypted; use an encrypted volume (e.g. BitLocker) for the
-drawers folder if you need encryption at rest. The agents do not read or write
-drawers yet; see the README's "Optional modules".
+drawers folder if you need encryption at rest.
 
 ---
 
 ## 5. A local model (optional)
 
 ListingAssistants runs deterministically with no model: every agent is a rule
-engine. `dispatcher/hermes_seam.py` is an optional seam for a locally served
-Hermes-family model. It takes any OpenAI-style client, so a model served by
-Ollama can be used through Ollama's OpenAI-compatible endpoint
-(`http://localhost:11434/v1`) with the `openai` package (`pip install openai`,
-not in requirements.txt). No agent calls the seam; using it means calling it
-from your own code (see docs/OPERATOR_TUNING_GUIDE.md, section 10).
+engine. Agent 04 can optionally have a model on this machine write the listing
+remarks. With Ollama serving a model at `http://localhost:11434/v1` (no extra
+Python package needed):
+
+```powershell
+python tools/restore_point.py --exam my-model-1 --model-url http://localhost:11434/v1 --model-name <model>
+python tools/console.py session <your file> --model-url http://localhost:11434/v1 --model-name <model>
+```
+
+The first line asks the model the four broker exam questions and turns the
+model on only if every answer passes. In the session, sign
+`{"drafting": {"mode": "model"}}` to Agent 04. Details and what the checks
+cover: docs/OPERATOR_TUNING_GUIDE.md, section 10.
 
 ---
 
@@ -144,5 +153,5 @@ from your own code (see docs/OPERATOR_TUNING_GUIDE.md, section 10).
 | Any time | Decisions waiting on you | a session line `{"do": "show", "what": "waits"}` |
 | Any time | Client funnel page | `python tools/dashboard.py --html` |
 | Any time | Recent plain-language events | `python tools/show_logs.py --tail 50` |
-| End of day | End-of-day report | `python tools/show_logs.py --eod --audit-log console-state\console-audit.jsonl` |
+| End of day | End-of-day report, built from the audit chain | `python tools/show_logs.py --eod` |
 | Any time | Verify the audit chain | `python tools/console.py verify` |

@@ -129,16 +129,17 @@ socket; the governed hub is the licensed cartridge.**
 
 ## Optional JEV decision adapter
 
-`dispatcher/decision_adapter.py` is a separate, optional adapter for the
-external JEV decision service. No spoke calls it, and nothing in this MCP
-server starts or mounts a JEV service. It can be used three ways:
+`dispatcher/decision_adapter.py` is the adapter Agent 02 scores every lead
+through (wired 2026-10-12; the MCP server builds the same swarm). Nothing in
+this MCP server starts or mounts a JEV service. It runs three ways:
 
 - **Local (default):** `JevPythonDecisionEngine` scores leads in-process
   with the same rules as Agent 02 (`dispatcher/lead_rubric.py`).
 - **Injected MCP client:** pass `mcp_client=` an object with
   `call_tool("jev_evaluate_decision", args)`; you supply and run the server.
-- **Live HTTPS:** requires `JEV_API_KEY` **and** `allow_external=True`.
-  Lead data leaves the machine in this mode, so it is off unless you opt in.
+- **Live HTTPS:** requires `JEV_API_KEY` **and** the broker's signed
+  `{"decision_engine": {"allow_external": true}}` to Agent 02. Lead data
+  leaves the machine in this mode, so it is off unless you opt in.
 
 In every mode a result below the confidence floor (default 0.45), or with
 no readable confidence, is returned as a hold for human review.

@@ -9,7 +9,9 @@
 * **Tamper-evident audit logging:** every message is recorded in an append-only, SHA-256 hash-chained audit log before delivery; `verify_chain()` names the first altered line.
 * **Outbound holds:** messages to a counterparty or the public hold for the broker's signed release.
 * **No money movement:** the build contains no payment, transfer or wire capability. Client messages that mention wire instructions or routing numbers go to the broker's legal-line queue.
-* **Client drawers (optional module):** `dispatcher/client_drawer.py` refuses unsafe paths and cross-client filing (`ComminglingBreachError`). No agent uses drawers yet, and files are stored unencrypted.
+* **Client drawers:** `dispatcher/client_drawer.py` refuses unsafe paths and cross-client filing (`ComminglingBreachError`). Agents 04, 05, 07, 08, 14 and 15 file each client's records there through `dispatcher/drawer_filing.py`; every filing and every refusal is on the audit chain. Files are stored unencrypted.
+* **Model drafting (off by default):** Agent 04 uses a model only on the broker's signed switch, with a model on this machine (other hosts refused unless explicitly allowed), and only while the active checkpoint passed the broker exam on that model. Model remarks go through Agent 17 like every draft.
+* **Lead data off the machine:** only to live JEV, only with a key set **and** the broker's signed `decision_engine.allow_external`.
 
 Known limits are listed in the README ("Current limits") and in `docs/FINANCIAL_CAPABILITY.md` ("Where the real risk is").
 

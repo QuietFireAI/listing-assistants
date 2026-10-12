@@ -15,20 +15,21 @@ Released tags: `archetype-v1.0.0`, `v1.1.0`. The audit-fix branch of
   Agent 13's neighborhood path and Agent 20's `behavioral.signal` lane were
   removed. A client reply with no named owner holds for the broker.
 
-## 1. Wiring the remaining optional modules
+## 1. Modules (wired 2026-10-12) and what is left
 
-Each module below is tested on its own and called by no agent yet. Wiring
-one is a ratified change in this repository: routes in
-`identity/routes.json`, tuples in the agent's DECISIONS.md, then code and
-tests.
+Wired: client drawers (Agents 04, 05, 07, 08, 14, 15 and the HITL holds),
+the plain-language log and end-of-day ledger from the chain, the JEV adapter
+in Agent 02, and model drafting for Agent 04 behind the broker exam. Left:
 
-- Client drawers: have agents file their records (documents filed by 08,
-  messages sent by 11, holds and decisions) into the client's drawer; the
-  dashboard and `manage_hitl_queue.py` then show live data.
-- SQLite CRM, consent and ledger tables: have Agents 14 and 15 write to them
-  (their records are saved today inside the state snapshot).
-- JEV adapter: have Agent 02 score through it (local engine by default).
-- Hermes seam and checkpoint manifest: need a locally served model.
+- SQLite CRM, consent and ledger tables: Agents 14 and 15 keep these
+  records in their state (saved in the snapshot) and file copies in the
+  drawers; they do not write the SQLite tables.
+- Agent 11's outbound client messages are not filed in the drawer (they are
+  on the audit chain and logged to Agent 14, whose entries are filed).
+- Model drafting is for listing remarks only (Agent 04); no other agent
+  calls a model. The Hermes learning loop is not run on live drafts.
+- Agent 06 does not use the JEV adapter's showing resolver.
+- Drawer files are not encrypted.
 
 ## 2. Identity-provider signer binding
 

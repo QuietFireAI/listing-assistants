@@ -89,6 +89,14 @@ def describe(kind: str, rec: dict) -> Optional[tuple[str, str, Optional[str], Op
     if kind.startswith("drafting."):
         return ("DECISION", f"{kind}: {rec.get('reason') or rec.get('mode') or ''}".strip(),
                 ctx, rec.get("agent"))
+    if kind in ("handoff.failed", "dead.letter", "agentopenmind.tainted", "sweep.error"):
+        return ("ALERT", f"{kind}: {rec.get('reason') or rec.get('intent') or rec.get('error') or ''}".strip(),
+                ctx, rec.get("agent") or rec.get("from_agent"))
+    if kind == "loop.suspended":
+        return ("HOLD", f"Hub suspended a repeating exchange: {rec.get('reason', '')}".strip(), ctx, None)
+    if kind == "sweep.completed":
+        return ("CLOCK", f"Daily clock ran for {rec.get('today')}: {rec.get('sweeps_run')} agents, "
+                         f"{rec.get('errors')} errors", None, None)
     if kind.endswith(".unarmed") or kind.startswith("jev."):
         return ("SYSTEM", f"Off: {rec.get('reason')}", None, None)
     return ("OTHER", kind, ctx, None)

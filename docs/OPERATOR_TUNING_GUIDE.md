@@ -89,6 +89,8 @@ a setting the agent does not recognize is held too.
 | 01 | `brokerage_scope` | the listings you hold (replaces the list) |
 | 01 | `dnc_add` | numbers or emails added to do-not-contact (adds only) |
 | 02 | `rubric`, `resolve_hot_lead` | the scoring rubric; closes a hot-lead wait |
+| 02 | `decision_engine` | `{"allow_external": true\|false, "confidence_floor": 0..1}`: lets lead data go to live JEV (needs `JEV_API_KEY` too); the floor under which a lead holds for you |
+| 04 | `drafting` | `{"mode": "rules"}` (default) or `{"mode": "model"}`: model-written remarks, used only when section 10's conditions hold |
 | 03 | `nurture_sequences` | each sequence's touches: `{"touches": [{"day": 0, "text": "..."}]}` |
 | 06 | `confirm_protected_bump` | confirms a held showing bump |
 | 07 | `timeline_init` | a transaction's milestone dates |
@@ -155,8 +157,33 @@ print(drawer.verify_hashes())
 ```
 
 Files are stored unencrypted. Put the drawer root on an encrypted volume if
-you need encryption at rest. No agent writes to drawers yet; the HITL
-protocol and the tools do.
+you need encryption at rest.
+
+**In the running swarm** (`dispatcher/drawer_filing.py`) the console's
+drawers live in `console-state/drawers/`, one per client context, provisioned
+the first time anything is filed for that client:
+
+| Agent | Category | What it files |
+|---|---|---|
+| 05 | `artifacts/` | the signed listing package; also fills the drawer's address and seller name when the package has them |
+| 04 | `artifacts/` | the description as released after Agent 17 approved it |
+| 07 | `timeline/` | the transaction timeline as loaded |
+| 08 | `documents/` | every document filed clean, as received |
+| 14 | `interactions/` | every CRM entry, one file each |
+| 15 | `financials/` | every expense entry |
+| HITL | `timeline/` | each hold (`<wait_id>_pause.json`) and its resolution |
+
+Every filing is on the audit chain as `drawer.filed` with the file's
+SHA-256. A refusal (an id that is not a safe path segment, a disk error) is
+recorded as `drawer.refused` and held for you. A later name or address that
+differs from the one on file is not written; it is recorded as
+`drawer.identity_conflict` and held for you.
+
+```bash
+python tools/inspect_client_drawer.py --list          # every drawer
+python tools/inspect_client_drawer.py S7              # one drawer, hashes re-checked
+python tools/dashboard.py --html                      # funnel page read from the drawers
+```
 
 ## 6. Local SQLite store (`dispatcher/persistence_sqlite.py`)
 
@@ -191,9 +218,9 @@ with ApplianceStorage("/srv/listingassistants/appliance.db") as db:   # local di
 
 The swarm writes its state snapshots to this store (`state_snapshots`,
 append-only, schema version 3; a version-2 file is upgraded in place). The
-CRM, consent, ledger and drawer tables are not written by the agents yet;
-Agents 14 and 15 keep those records in their own state, which the snapshot
-saves.
+CRM, consent, ledger and drawer tables are not written by the agents: Agents
+14 and 15 keep those records in their own state, which the snapshot saves,
+and file a copy of each into the client's drawer (section 5).
 
 ## 7. Offline updates
 
@@ -270,8 +297,10 @@ reply handler) and Agent 20 (a social reply draft cleared by 17). Each
 takes continue (`APPROVE`, or `APPROVE_WITH_OVERRIDE` with `route_to` for
 Agent 11) or cancel (`REJECT_AND_ABORT`); the console's `decide` action
 builds and signs that envelope. Open holds are part of the saved state.
-`python tools/manage_hitl_queue.py --list` lists waits recorded in drawers,
-and drawers are not wired yet, so use the console's `show waits`.
+Agent 02 also holds through it when a lead's score confidence is under the
+floor (section 9). Every hold is recorded in the client's drawer;
+`python tools/manage_hitl_queue.py --list` lists the open ones, and the
+console's `show waits` lists them from the live swarm.
 
 ## 9. JEV decision adapter (`dispatcher/decision_adapter.py`)
 
@@ -297,8 +326,18 @@ print(res["status"], res["tier"], res["score"], res["confidence"])
   failed call falls back to the local engine.
 
 Every mode returns a hold (`status: held_confidence_underflow`) when the
-confidence is below the floor (0.45 by default) or missing. No agent calls
-the adapter yet; Agent 02 scores with `lead_rubric.py` directly.
+confidence is below the floor (0.45 by default) or missing.
+
+**In the running swarm** Agent 02 scores every lead through this adapter
+(`hub.decision_adapter`), and each decision is on the audit chain as
+`decision.lead` with the engine, tier, score and confidence. With no JEV
+connection that engine is the local one, so tiers are what 02 always
+produced. To send lead data to live JEV, set `JEV_API_KEY` **and** sign
+`{"decision_engine": {"allow_external": true}}` to Agent 02; a key alone
+sends nothing. A lead whose result falls under the floor holds for you:
+continue scores it with your signed rubric and acts on that tier, cancel
+archives it with nothing sent. Agent 06 does not use the adapter's showing
+resolver; its own rules decide showings.
 
 ## 10. Hermes seam (`dispatcher/hermes_seam.py`)
 
@@ -328,44 +367,73 @@ print(seam.ingestor.export_reference_records("/srv/listingassistants/reference.j
 - The learning loop refuses to collect anything when the open-mind or
   agent-open-mind pillar is not installed.
 
-No agent calls the seam yet.
+**In the running swarm** Agent 04 can have a locally served model write the
+listing remarks (`dispatcher/model_drafting.py`). It does so only when all
+three hold:
+
+1. you signed `{"drafting": {"mode": "model"}}` to Agent 04;
+2. the console runs with the model, e.g.
+   `python tools/console.py session <file> --model-url http://localhost:11434/v1 --model-name <model>`
+   (a host other than this machine is refused unless you pass
+   `--allow-remote-model`, because the prompt carries listing data);
+3. the active checkpoint passed the broker exam on that same model
+   (section 11).
+
+A model draft is used only if the model produced its `<think>` reasoning
+(sent to the taint gate), the remarks fit the MLS limit, and every number in
+them, in digits or words, appears in the listing facts. It does not prove
+every word is supported by the data, so the remarks travel with the facts,
+go through Agent 17 like every draft, and are labeled `remarks_source:
+model:<checkpoint>`. If 17 flags a phrase, 04 removes the sentence that
+carries it. When any condition fails, 04 drafts by rules, records
+`drafting.model_unavailable` with the reason, and tells you. The learning
+loop is not run on live drafts.
 
 ## 11. Model checkpoint manifest
 
 ```bash
+python tools/restore_point.py --exam hermes-2026-10-12 --model-url http://localhost:11434/v1 --model-name <model>
 python tools/restore_point.py --list
 python tools/restore_point.py --snapshot          # record today's restore point
-python tools/restore_point.py --restore baseline  # move the active pointer back
+python tools/restore_point.py --restore baseline  # move the active pointer back (turns model drafting off)
 ```
 
-The manifest (`checkpoints/checkpoint_manifest.json`) records adapter
-checkpoints and which one is active. It copies and loads no weights, and no
-weights ship with this repository. `register_checkpoint()` requires the
-adapter file to exist and runs the four-question broker exam through a
-responder function that queries the candidate model; with no responder the
-exam is "not run" and the checkpoint cannot be activated without
-`force=True`, which is recorded. The exam is a keyword screen whose
-responses are stored for a human to read.
+The console's manifest is `console-state/checkpoints/checkpoint_manifest.json`
+(the one under `checkpoints/` in the repository is the shipped reference).
+It records checkpoints and which one is active; it copies and loads no
+weights, and no weights ship with this repository. `--exam` asks the served
+model the four broker questions (fair housing, wire instructions, price
+guarantees, buyer agreements), grades each answer with a keyword screen,
+stores every answer for you to read, and activates the checkpoint only if
+all four pass. The shipped baseline was never examined, so model drafting
+stays off until you run the exam. Agent 04 reads the active entry before
+every model draft.
 
 ## 12. Logs and reports
 
 ```bash
-python tools/show_logs.py --tail 50
-python tools/show_logs.py --eod --audit-log console-state/console-audit.jsonl
+python tools/show_logs.py --tail 50               # plain-language stream
+python tools/show_logs.py --client S7             # one client
+python tools/show_logs.py --eod                   # today's end-of-day ledger
 ```
 
-`console-state/console-audit.jsonl` is written by the first
-`tools/console.py session`; before that, pass any audit log you have. The
-end-of-day report verifies the audit chain you pass it and counts its
-integrity-violation and reject entries; lines it cannot compute say "not
-computed".
+Every entry the swarm writes to the hash-chained audit log
+(`console-state/console-audit.jsonl`) is also written in plain language to
+`console-state/readable/stream.log`, and to `audit/activity.log` in the
+client's drawer. The chain is the record; the readable log leaves out
+bookkeeping entries (acknowledgements, hub reflections), and a failure to
+write it never touches the chain (the console reports `readable_log_errors`
+at the end of each session). The end-of-day ledger is built from the chain
+for the date, so it covers every session that day; it verifies the chain
+and counts integrity-violation and reject entries; lines it cannot compute
+say "not computed". The console's `show eod` writes the same ledger.
 
 ## 13. External providers (`dispatcher/provider_gateway.py`)
 
 A registry of provider settings read from `config/integrations.json`
 (template: `config/integrations_template.json`), with secret masking for
-display. It makes no network calls and no agent reads it yet; it records
-which providers you intend to connect.
+display. It makes no network calls and no agent reads it; it records which
+providers you intend to connect.
 
 ## 14. Health checks
 

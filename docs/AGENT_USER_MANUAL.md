@@ -3,8 +3,8 @@
 This manual is for the licensed broker or agent the swarm works for. It
 covers what the agents do for you each day, where your decisions come in,
 and how to read what the system tells you. Every behavior described here has
-a test in `tests_listing/`; where a feature is not wired yet, this manual
-says so.
+a test in `tests_listing/`; where something is not connected yet (your
+outside providers, an identity provider), this manual says so.
 
 > **Fiduciary notice.** Price, terms, and every movement of money stay with the
 > licensed broker and the client. ListingAssistants coordinates the work around
@@ -171,9 +171,29 @@ run, and restores it at the next start only when the audit log vouches for
 that exact save. If the saved state and the log disagree, nothing starts
 and nothing is changed: you decide what happens to the file.
 `python tools/run_sweeps.py` (run by your scheduler once a day) works on the
-same log and state as your console. The optional modules not yet wired in
-(client drawers, the JEV adapter, the Hermes seam, the checkpoint manifest)
-are listed in the README.
+same log and state as your console.
+
+## 7a. Client files, plain-language log, scoring engine, model drafting
+
+- **Client drawers.** Each client has a drawer in `console-state/drawers/`
+  holding their listing package, approved description, transaction
+  timeline, documents, CRM entries, expenses and any holds. Every file's
+  fingerprint is on the audit log. `python tools/inspect_client_drawer.py <client>`
+  shows one and re-checks the fingerprints; `python tools/dashboard.py --html`
+  shows where each client stands. Files are not encrypted; keep the folder
+  on an encrypted disk.
+- **Plain-language log.** `python tools/show_logs.py` shows what happened in
+  plain words; `--eod` writes the day's ledger and checks the audit chain.
+- **Lead scores.** Agent 02 scores every lead through the JEV decision
+  engine. Without a JEV connection that engine is your signed rubric, so
+  nothing changes. Lead data goes to live JEV only if you sign
+  `{"decision_engine": {"allow_external": true}}` to Agent 02 and a JEV key is
+  set. A score the engine is not confident about waits for you.
+- **Model-written remarks.** Off unless you turn it on (signed
+  `{"drafting": {"mode": "model"}}` to Agent 04), run a model on this machine,
+  and that model passes the four-question broker exam
+  (`python tools/restore_point.py --exam ...`). Every draft, model or not,
+  goes through Agent 17 before anything is released.
 
 ## 8. Good habits
 

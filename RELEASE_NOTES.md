@@ -30,8 +30,8 @@ end-to-end test.
   `config/authority_signers.json` is an unratified template again.
 - **MCP server.** It signs authority actions for a host only in
   `--demo-signing` mode. Leftover medical-billing code removed.
-- **Optional modules, corrected** (the HITL protocol and the SQLite store
-  are now wired, see below; the rest are still not called by any agent):
+- **Modules, corrected and wired** (all wired by 2026-10-12, see "Modules
+  wired" below):
   client drawers (safe paths, client-bound filing, hash verification),
   signed HITL decisions, offline update packs (public-key verification,
   unlisted files and downgrades refused, `tools/sign_manifest.py`), SQLite
@@ -58,6 +58,21 @@ end-to-end test.
 - **Held threads.** The same person under a new lead, a client reply that
   names no agent, and an approved social reply draft hold until the broker
   signs continue or cancel (HITL protocol, now wired).
+- **Modules wired (2026-10-12).** Client drawers: Agents 04, 05, 07, 08, 14
+  and 15 file each client's records, every filing on the audit chain with
+  its SHA-256; the dashboard and inspector read them. Plain-language log:
+  every chain entry also written in plain words, and the end-of-day ledger
+  built from the chain. JEV adapter: Agent 02 scores every lead through it
+  (local engine = 02's rubric; live JEV only on the broker's signed opt-in);
+  a low-confidence result holds the lead. Model drafting: Agent 04 can use a
+  model on this machine for listing remarks, only on the broker's signed
+  switch and only while the active checkpoint passed the broker exam on
+  that model (`restore_point.py --exam`).
+- **Also fixed while wiring.** A capitalized prohibited phrase was flagged
+  by 17 but never found by 04, so the draft bounced twenty times until the
+  hub suspended the loop; a signed setting re-sent with the same values
+  paged the broker as "unrecognized"; the README's P01 diagram did not
+  render on GitHub.
 - **Owner decisions applied.** Lead Nurture sends broker-written sequences
   from the clock after 17 clears them; Agent 13's neighborhood path removed
   (fair-housing steering risk); Agent 19 gets comps for every opportunity;
@@ -79,8 +94,11 @@ end-to-end test.
 
 - P18, P19, P20 and P21 have no trigger in a running swarm (docs/ROADMAP.md).
 - No identity provider is connected, so the signer login binding is off.
-- Client drawers, the JEV adapter, the Hermes seam and the checkpoint
-  manifest are not called by the agents.
+- Drawer files are not encrypted. The SQLite CRM, consent and ledger
+  tables are not written by Agents 14 and 15 (their records live in the
+  saved state and the drawers).
+- Model drafting covers Agent 04's listing remarks only and has been tested
+  against a stand-in model over HTTP, not against a real served model.
 
 ## Corrections to the archetype-v1.0.0 / v1.1.0 notes
 

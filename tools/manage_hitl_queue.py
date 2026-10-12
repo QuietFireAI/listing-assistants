@@ -50,7 +50,8 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="List pending HITL wait-states recorded in client drawers.")
     parser.add_argument("--list", action="store_true", help="List pending human decisions (default)")
     parser.add_argument("--client", help="Filter by client context ID")
-    parser.add_argument("--root", default=os.path.join(ROOT, "drawers"), help="Drawer root directory")
+    parser.add_argument("--root", default=os.path.join(ROOT, "console-state", "drawers"),
+                        help="Drawer root directory (default: console-state/drawers, where the console's agents file them)")
     parser.add_argument("--decide", help=argparse.SUPPRESS)
     parser.add_argument("--decision", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)

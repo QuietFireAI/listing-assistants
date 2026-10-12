@@ -38,6 +38,8 @@ _OTHER_CATEGORY_TEXT = {
     "CONFIG": "Configuration loaded, refused or not recognized",
     "STATE": "Swarm state saved or restored",
     "SYSTEM": "Features declared off at start-up",
+    "CLOCK": "Daily clock runs",
+    "OTHER": "Other chain entries (see the audit log)",
 }
 
 
@@ -166,11 +168,11 @@ class HumanReadableLogger:
             "## 1. Daily Activity Breakdown",
             "| Event Category | Operations Count | Description |",
             "|---|---|---|",
-            f"| **DISPATCH** | {by_cat.get('DISPATCH', 0)} | Closed-track spoke envelopes routed through Hub |",
-            f"| **DECISION** | {by_cat.get('DECISION', 0)} | Decisions recorded via log_decision |",
-            f"| **VAULT** | {by_cat.get('VAULT', 0)} | Client drawer file actions recorded via log_vault_action |",
-            f"| **API_CALL** | {by_cat.get('API_CALL', 0)} | External call attempts recorded via log_api_attempt |",
-            f"| **ALERT** | {by_cat.get('ALERT', 0)} | Alerts recorded via log_alert |",
+            f"| **DISPATCH** | {by_cat.get('DISPATCH', 0)} | Messages the hub delivered on the closed track |",
+            f"| **DECISION** | {by_cat.get('DECISION', 0)} | Agent decisions, scores and your signed decisions |",
+            f"| **VAULT** | {by_cat.get('VAULT', 0)} | Client drawer filings and refusals |",
+            f"| **API_CALL** | {by_cat.get('API_CALL', 0)} | External call attempts |",
+            f"| **ALERT** | {by_cat.get('ALERT', 0)} | Refusals, integrity violations, failed handoffs and pages |",
         ] + [f"| **{c}** | {n} | {_OTHER_CATEGORY_TEXT.get(c, 'Other events')} |"
              for c, n in sorted(by_cat.items())
              if c not in ("DISPATCH", "DECISION", "VAULT", "API_CALL", "ALERT")] + [

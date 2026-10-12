@@ -27,6 +27,7 @@ never rewrites them. All output passes through Compliance (17) before use.
 - Submit every asset to Compliance (17) and release only on an `approved` verdict.
 - Attribute measurements and material facts to their source in the copy where MLS rules require (e.g., square footage per county records) - unattributed measurement claims are a misrepresentation vector.
 - Use only photo/media assets with confirmed usage rights (vendor deliverables logged through 09).
+- Model-written remarks only on the broker's signed `drafting.mode: model` (amended 2026-10-12), only with a model on this machine whose active checkpoint passed the broker exam, and only when the draft carries the model's reasoning, fits the MLS limit and adds no number absent from the data. Otherwise draft by rules and tell the broker why. Model remarks go to 17 like every asset; a flagged phrase removes the sentence carrying it.
 
 ## 3. HITL Handoff - The Legal Line
 

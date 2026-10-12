@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Owner decisions: Agent 03 sequences on the clock, Agent 13 neighborhood path removed, Agent 19 comps, Agent 20 template drafts held for approval, Agent 20 off `behavioral.signal`, P13 on the clock.
 - Unrecognized signed settings and uncovered client replies held instead of dropped; once-only escalations.
 - Repository is the single source; JOB_DESCRIPTIONS generated here; TelsonBase references removed; `SESSION_HANDOFF_6.md` removed.
+- Modules wired (2026-10-12): client drawers (04, 05, 07, 08, 14, 15 file; HITL holds recorded), plain-language log and chain-built EOD ledger, JEV adapter in Agent 02 (signed `decision_engine` opt-in for live calls; low-confidence holds), model drafting for Agent 04 behind a signed switch and an examined checkpoint (`restore_point.py --exam` against a served model; console `--model-url`/`--model-name`).
+- Fixed: case-insensitive removal of flagged phrases in 04 (a capitalized phrase looped 20 times); a re-sent signed setting already in effect no longer pages as unrecognized; README P01 diagram renders on GitHub.
 
 ### Corrections to the 1.0.0 entry below
 Several 1.0.0 items did not match the code at the time: "MCP tool contract (`tools/call_jev_decision`)" (no such tool), "Dual-key" verifier (single key, and the CLI could not take one), "Immediate real-time alert dispatch via SMS, webhook, or push" for HITL (an optional callback only), "Standardized all 21 agent skills" (no agent SKILL.md changed), the WAL claim (no PRAGMA), and "561 / 561" (the suite at the `archetype-v1.0.0` tag runs 577 tests, all passing; checked 2026-10-11). The entry is kept as written for history.

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """show_logs.py - Human-Readable Log Stream & Daily EOD Ledger Viewer.
 
+Reads what the console's swarm writes (2026-10-12): the plain-language
+stream at console-state/readable/stream.log, and the hash-chained audit log
+console-state/console-audit.jsonl, from which the end-of-day ledger is built
+and verified.
+
 Usage:
-  python tools/show_logs.py                  # Shows recent 25 real-time operational events
-  python tools/show_logs.py --tail 50        # Shows last 50 events
-  python tools/show_logs.py --client <id>    # Shows events for a specific client
-  python tools/show_logs.py --eod            # Compiles and displays the End-of-Day Ledger
-  python tools/show_logs.py --eod --audit-log console-state/console-audit.jsonl   # + chain verification
+  python tools/show_logs.py                  # last 25 plain-language events
+  python tools/show_logs.py --tail 50        # last 50
+  python tools/show_logs.py --client <id>    # one client's events
+  python tools/show_logs.py --eod            # today's end-of-day ledger, from the chain, chain verified
+  python tools/show_logs.py --eod --date 2026-10-12 --audit-log <other audit log>
 """
 from __future__ import annotations
 
@@ -18,7 +23,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from dispatcher.readable_logger import HumanReadableLogger, get_readable_logger
+from dispatcher.readable_logger import HumanReadableLogger
+
+STATE_DIR = os.path.join(ROOT, "console-state")
 
 
 def main():
@@ -27,21 +34,25 @@ def main():
     parser.add_argument("--client", help="Filter logs by client context ID")
     parser.add_argument("--eod", action="store_true", help="Compile and display today's End-of-Day operations ledger")
     parser.add_argument("--date", help="Specific date for EOD report (YYYY-MM-DD)")
-    parser.add_argument("--audit-log", help="AuditLog .jsonl to verify in the EOD integrity section "
-                                            "(e.g. console-state/console-audit.jsonl)")
+    parser.add_argument("--audit-log", help="audit log to build the EOD ledger from "
+                                            "(default: console-state/console-audit.jsonl)")
+    parser.add_argument("--log-dir", default=os.path.join(STATE_DIR, "readable"),
+                        help="plain-language log folder (default: console-state/readable)")
     args = parser.parse_args()
 
-    logger = get_readable_logger()
+    logger = HumanReadableLogger(log_root=args.log_dir, drawers_root=None)
 
     if args.eod:
-        audit = None
-        if args.audit_log:
-            from dispatcher.core import AuditLog
-            if not os.path.exists(args.audit_log):
-                print(f"[ERROR] audit log not found: {args.audit_log}", file=sys.stderr)
+        from dispatcher.core import AuditLog
+        from dispatcher.readable_audit import write_eod
+        path = args.audit_log or os.path.join(STATE_DIR, "console-audit.jsonl")
+        if not os.path.exists(path):
+            if args.audit_log:
+                print(f"[ERROR] audit log not found: {path}", file=sys.stderr)
                 return 1
-            audit = AuditLog(args.audit_log)
-        report = logger.generate_eod_report(date_str=args.date, audit_log=audit)
+            print(f"\n[INFO] No console audit log yet ({path}); run a console session first.\n")
+            return 0
+        report = write_eod(AuditLog(path), logger, args.date)
         print("\n" + "=" * 80)
         print(f"  END-OF-DAY (EOD) OPERATIONS DOSSIER: {report['date']}")
         print("=" * 80)
