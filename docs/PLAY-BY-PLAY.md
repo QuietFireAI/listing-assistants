@@ -226,8 +226,8 @@ left in an unknown state, ever.
 
 ### P13 — Referral & Anniversary Cycle
 **14** owns the dates; on each trigger it fires `date.trigger` to
-**16**, which composes the touch — consent-checked against 14's own
-records before anything sends. Responses come back through capture and
+**16**, which composes the touch. Agent 11, which sends it, checks 14's
+records first and sends nothing to a client opted out on every channel. Responses come back through capture and
 get tiered like any lead. The criterion that matters most is negative:
 zero touches against opt-out flags, and you can verify that from the
 CRM's records, not from a promise.

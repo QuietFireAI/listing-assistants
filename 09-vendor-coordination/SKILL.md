@@ -27,6 +27,18 @@ and collects deliverables, routing them to their owning agents.
 - Report a deliverable as collected only after verifying the artifact is present and opens.
 - Schedule only roster vendors whose human-verified credentials (license, insurance) are current in the roster record; expired or missing = flag before scheduling.
 
+How the code does it today (checked 2026-10-12): a scheduling message to a
+vendor (`vendor.schedule`) goes to an external audience the hub classes as a
+counterparty, so it is held until the broker signs its release. The calendar
+entry for 18 carries the day the request was made, not the appointment day
+(vendor requests carry no appointment date). A deliverable counts as collected
+when the vendor's event says a proof artifact is present
+(`proof_artifact_present`); this agent does not open the file. After a late
+cancellation, 07 and 06 are told at once and a regulated role goes to the
+broker; no replacement vendor is proposed. Scope growing on-site sends the
+vendor a stop-work message (held for the broker's release) and tells the
+broker.
+
 ## 3. HITL Handoff - The Legal Line
 
 Route IMMEDIATELY to a licensed human agent (via Dispatcher escalation queue,
@@ -38,7 +50,9 @@ priority: `legal_line`) if the task requires or a party requests:
 Behavior at the line: do not answer, do not approximate, do not "give a general
 sense." Escalate with the trigger recorded verbatim in the envelope.
 The Legal Line is not a judgment call. If classification is uncertain, treat it
-as over the line and escalate (see section 6).
+as over the line and escalate (see section 6). In the code the vendor system
+names the event (`event_kind`: `rate_change`, `access_code_request`,
+`invoice`, ...); this agent does not read the vendor's words.
 
 ## 4. Swarm Position & Handoff Protocol
 
@@ -71,12 +85,12 @@ the Dispatcher.
 
 ### 4.3 Message envelope (swarm-standard)
 
-Every outbound message uses this envelope. All fields required.
+Every outbound message uses this envelope.
 
 ```json
 {
   "envelope_id": "uuid",
-  "from_agent": "09-vendor-coordination",
+  "from_agent": "09",
   "to_agent": "final-target-agent-id",
   "intent": "dotted.intent.string",
   "in_reply_to": "uuid-of-request-envelope-or-null",
@@ -97,28 +111,44 @@ Every outbound message uses this envelope. All fields required.
 If a datum was not verified at its source or stated by a party, it is `unknown`.
 Agent-specific constraints on this vocabulary appear in section 2 notes.
 
+What the hub checks on every envelope (`validate_schema` in
+`dispatcher/core.py`): `from_agent`, `to_agent`, `intent` and
+`client_context_id` present, `provenance.source` present, `confidence` one of
+the three values, and `sequence` null. In the code `from_agent` is the
+two-digit agent id (`"09"`); `confidence` defaults to `unknown`,
+`escalation_flag` to false and `in_reply_to` to null.
+
 `to_agent` is the FINAL target. The hub is transport: it validates the
 (from, to, intent) tuple against the routing table and rejects mismatches.
-`in_reply_to` carries the requesting `envelope_id` on every response
-(doc.status, data.package, content.verdict, record responses) - a response
-that cannot be correlated to an open request is flagged, never guessed at.
+`in_reply_to` names the envelope a message answers where the sending agent
+sets it: `content.verdict` (17), `doc.status` (08), `content.review` from
+04 (naming the listing data it drafted from) and some
+`client.message.request` sends (03, 08).
+Agent 20 matches verdicts to its drafts by it. `data.package`,
+`record.response` and `status.response` go back to the requester by agent and
+`client_context_id`, without `in_reply_to`, and the hub does not check that a
+response answers an open request.
 `sequence` is assigned by the hub per `client_context_id` at persistence;
 senders submit it as null.
 
 ### 4.4 Handoff rules
 
 - A handoff is complete only when the Dispatcher acks the envelope. No ack = the
-  handoff did not happen; retry once, then raise `handoff.failed` to the Dispatcher
-  log and hold state.
+  handoff did not happen. A rejected or dead-lettered send is recorded as
+  `handoff.failed` on the audit log and held for the broker in
+  `clarification.request` at once (`dispatcher/handoff_guard.py`). It is not
+  retried: in one process the same envelope fails the same way again.
 - Never report a handoff as done without the ack.
-- Never rebuild state from memory of prior sessions. Request the current state
-  object from its owning agent (via Dispatcher) and update only what changed.
-- `envelope_id` is the idempotency key. A duplicate `envelope_id` (hub retry) is
-  processed once and re-acked - never processed twice. Duplicate client-facing
-  sends (double texts, double posts) are a real-world failure, not a technicality.
-- Envelopes within one `client_context_id` are processed in hub-assigned
-  `sequence` order. A sequence gap is held and flagged to the Dispatcher after
-  timeout - never skipped silently, never reordered by guess.
+- State is never rebuilt from memory of prior sessions. After a restart it
+  comes from the saved state the audit chain vouches for; another agent's
+  state is asked for through the Dispatcher.
+- `envelope_id` is the idempotency key. The hub delivers an envelope id once; a
+  repeat send gets `duplicate` and is not delivered again. Duplicate
+  client-facing sends (double texts, double posts) are a real-world failure,
+  not a technicality.
+- Envelopes within one `client_context_id` are delivered in hub-assigned
+  `sequence` order: the hub stamps the sequence and delivers in the same step,
+  one envelope at a time.
 
 ## 5. Confidentiality
 
@@ -156,11 +186,14 @@ When the route itself is uncertain:
 1. REDUCE TO STOP, carefully: complete any atomic action already in flight;
    take no new client-facing or state-changing action. Never slam-stop
    mid-artifact; never drop held state.
-2. Send `clarification.request` to the Dispatcher with: the exact ambiguous
-   input (verbatim), the interpretations considered, and what is blocked.
-3. HOLD ON ROUTE: position and state intact, telemetry live - keep receiving,
-   keep logging, keep acking receipt. If a party is waiting, tell them a team
-   member will follow up. Paused is not off.
+2. Send `clarification.request` to the Dispatcher with the reason and, where
+   the agent has it, the exact input verbatim.
+3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
+   Paused is not off. A "someone will follow up" message goes to a waiting
+   party only where an agent's section 2 says so (Agent 11's advice and
+   complaint acknowledgements, Agent 20's reply when a question in a mention
+   may involve an existing client);
+   otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement
    authority never self-restores.
 
@@ -169,9 +202,14 @@ not a service.
 
 Ambiguity examples for this agent:
 
-- Vendor proposes a rate or scope change mid-engagement.
-- Deliverable received does not match the order.
-- Two agents request the same vendor for conflicting slots.
+- Vendor proposes a rate change (Legal Line) or the scope grows on-site
+  (stop-work message held, broker told) mid-engagement.
+- Two agents request the same vendor slot with equal deadline priority: the
+  broker decides.
+- A deliverable is reported partial: released marked partial, never as
+  collected.
+
+Whether a deliverable matches the order is not checked beyond its kind.
 
 ## 7. Anti-Fabrication (Hard Rule)
 
@@ -197,7 +235,8 @@ Job requirements are paramount. Continuity is never a reason to breach them.
 - On failure (system error, unreachable Dispatcher, malformed input), log the raw
   error - not a paraphrase - and surface it. A softened failure report is a false
   report.
-- This agent does not retry silently more than once. Second failure = escalate.
+- This agent does not retry silently. A failed handoff goes to the broker at
+  once (section 4.4).
 - If the Dispatcher is unreachable, this agent fails closed: hold all outbound
   actions and state, take no autonomous client-facing action until the hub returns.
 

@@ -296,7 +296,16 @@ class Spoke13BuyerSearchMatch:
             if verdict == "approved":
                 self.buyer_criteria.setdefault(ctx, []).extend(
                     [{**c, "source": STATED_BY_PARTY} for c in pending])
-            # flagged -> criteria simply never gets added to filtering set
+            elif pending:
+                # flagged -> the criteria never join the filtering set, and
+                # the broker who signed them is told (2026-10-12 doc review:
+                # they were dropped silently)
+                self.hub.send(_env("13", "queue", "clarification.request", ctx,
+                                   {"reason": "Compliance (17) did not approve these buyer "
+                                              "criteria - they are not used for matching",
+                                    "criteria": pending,
+                                    "verdict": verdict,
+                                    "findings": payload.get("findings", [])}))
             return
 
         if env.intent in ("listing.data", "prospect.opportunity"):

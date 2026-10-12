@@ -121,6 +121,10 @@ class Spoke11ClientCommunication:
         self.complaint_hold: set[str] = set()
         # client replies held for the broker (owner decision #6)
         self.held_replies: dict[str, dict] = {}
+        # consent as 14 last reported it, per context (opt-out check before
+        # every client send - 2026-10-12 doc review: none existed)
+        self.consent_seen: dict[str, dict] = {}
+        self._consent_check_open: str | None = None
         register_spoke(hub, "11", self)
         register_resumer(hub, "11", self._resume)
 
@@ -234,6 +238,31 @@ class Spoke11ClientCommunication:
                                          "human notified instead"}))
             return False
 
+        # opt-out check against 14, the system of record for consent
+        # (2026-10-12 doc review: 01 and this SKILL.md said 11 respects
+        # 14's consent flags; nothing checked them, so a client who opted
+        # out on every channel kept getting status updates). An opt-out on
+        # every channel blocks the send; the one opt-out confirmation
+        # (01's tuple 15) still goes. A context with no consent on record is
+        # not blocked here - whether that should block is the owner's call.
+        if template != "opt_out_confirmed":
+            self.consent_seen.pop(ctx, None)
+            self._consent_check_open = ctx
+            try:
+                self.hub.send(_env("11", "14", "record.request", ctx,
+                                   {"purpose": "consent_check"}))
+            finally:
+                self._consent_check_open = None
+            consent = self.consent_seen.pop(ctx, None) or {}
+            if consent and all(v == "no" for v in consent.values()):
+                self.hub.ingest_spoke_trace(
+                    "11", env.envelope_id if env else "internal",
+                    thought=f"14 records an opt-out on every channel for {ctx!r} - "
+                            f"{template!r} is not sent",
+                    result="blocked: opted_out")
+                self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                   {"kind": "send_blocked_opted_out", "template": template}))
+                return False
         self.hub.send(_env("11", "external", "client.message.send", ctx,
                            {"template": template, "variables": variables}))
         self.hub.send(_env("11", "14", "interaction.log", ctx,
@@ -483,9 +512,13 @@ class Spoke11ClientCommunication:
             return
 
         if env.intent == "record.response":
+            if getattr(self, "_consent_check_open", None) == ctx:
+                # the answer to the consent check before a client send
+                self.consent_seen[ctx] = dict(payload.get("consent") or {})
+                return
             pending = self.pending_showing_requests.pop(ctx, None)
             if pending is None:
-                return  # a consent-check lookup unrelated to a showing request
+                return
             buyer_agreement = payload.get("buyer_agreement_on_file", False)
             identity_verified = payload.get("requester_identity_verified", False)
             if not buyer_agreement:

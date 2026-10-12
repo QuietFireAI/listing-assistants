@@ -282,6 +282,13 @@ class Spoke12MarketingCampaign:
                     thought=f"compliance flagged: {findings} - nothing "
                             f"publishes, fair-housing verdict pending",
                     result="held: flagged")
+                # the broker started this campaign, so the broker is told
+                # (2026-10-12 doc review: the hold was silent)
+                self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                   {"reason": "Compliance (17) flagged the campaign copy - "
+                                              "nothing publishes; send corrected copy as a "
+                                              "new signed new_campaign",
+                                    "findings": findings}))
                 return
             self.hub.send(_env("12", "queue", "clarification.request", ctx,
                                {"reason": f"unrecognized verdict "
@@ -325,24 +332,41 @@ class Spoke12MarketingCampaign:
             # stale asset down at all. Whoever detects the staleness
             # signals which one applies via retract_requested; defaults to
             # correct (the safer, non-destructive option) when absent.
-            self.hub.send(_env("12", "14", "interaction.log", ctx,
-                               {"kind": "stale_asset_corrected"
-                                       if not payload.get("retract_requested")
-                                       else "stale_asset_retracted",
-                                "delta": payload.get("delta")}))
+            # 2026-10-12 doc review: this used to log "stale_asset_corrected"
+            # before anything was corrected and say "pulled from the platform"
+            # while the retraction sat in the hub's hold. The log now names
+            # what happened, and the broker is told either way.
             published = self.published.get(ctx)
             if payload.get("retract_requested"):
                 if published:
                     published["retracted"] = True
-                self.hub.send(_env("12", "external", "campaign.publish", ctx,
-                                   {"action": "retract"}))
+                res = self.hub.send(_env("12", "external", "campaign.publish", ctx,
+                                         {"action": "retract"}))
+                state = (res or {}).get("status") if isinstance(res, dict) else None
+                kind = "stale_asset_retraction_held" if state == "held" else "stale_asset_retracted"
+                self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                   {"kind": kind, "delta": payload.get("delta")}))
+                self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                   {"reason": "published asset is stale - a retraction is "
+                                              + ("held for your signed release" if state == "held"
+                                                 else f"sent ({state})"),
+                                    "delta": payload.get("delta")}))
                 self.hub.ingest_spoke_trace(
                     "12", env.envelope_id,
-                    thought="stale asset retracted rather than corrected - "
-                            "pulled from the platform, delta logged",
-                    result="retracted")
-            elif published:
-                published["verdict_locked"] = False
+                    thought=f"stale asset: retraction sent to the platform route, hub "
+                            f"answered {state!r}; delta logged",
+                    result=kind)
+            else:
+                if published:
+                    published["verdict_locked"] = False
+                self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                   {"kind": "stale_asset_reopened_for_correction",
+                                    "delta": payload.get("delta")}))
+                self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                   {"reason": "published asset is stale - reopened for "
+                                              "correction; corrected copy goes back through "
+                                              "17 and your release",
+                                    "delta": payload.get("delta")}))
                 self.hub.ingest_spoke_trace(
                     "12", env.envelope_id,
                     thought="stale asset reopened for correction - "

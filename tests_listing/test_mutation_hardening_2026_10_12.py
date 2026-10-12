@@ -925,3 +925,117 @@ def test_clock_a_once_per_tick_check_does_not_stop_the_checks_after_it(tmp_path)
     sw.spokes["14"].client_dates["CD"] = []
     out = send_tick(sw.hub, "14", "2026-10-12", checks=["eod_report", "date_triggers"])
     assert [r["sweep"] for r in out["results"]] == ["eod_report", "date_triggers"]
+
+
+# ------------------------------------------------ 11 opt-out check (doc review 2026-10-12)
+def test_11_does_not_message_a_client_who_opted_out_on_every_channel(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("05", "14", "interaction.log", "OPT",
+                     {"kind": "lead.captured", "consent": {"call": "no", "text": "no", "email": "no"}}))
+    sw.hub.send(_env("06", "11", "client.message.request", "OPT",
+                     {"template": "showing_confirmation", "variables": {}}))
+    assert not [e for e in _persisted(sw, "client.message.send", "OPT")]
+    assert {"kind": "send_blocked_opted_out", "template": "showing_confirmation"} in _logs(sw, "OPT")
+    # one channel still open: the message goes
+    sw.hub.send(_env("05", "14", "interaction.log", "OPT2",
+                     {"kind": "lead.captured", "consent": {"call": "no", "text": "yes", "email": "no"}}))
+    sw.hub.send(_env("06", "11", "client.message.request", "OPT2",
+                     {"template": "showing_confirmation", "variables": {}}))
+    assert len(_persisted(sw, "client.message.send", "OPT2")) == 1
+    # nothing on record: not blocked here (owner's call whether it should be)
+    sw.hub.send(_env("06", "11", "client.message.request", "NOREC",
+                     {"template": "showing_confirmation", "variables": {}}))
+    assert len(_persisted(sw, "client.message.send", "NOREC")) == 1
+
+
+def test_11_still_sends_the_one_opt_out_confirmation(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("05", "14", "interaction.log", "OPT3",
+                     {"kind": "x", "consent": {"call": "no", "text": "no", "email": "no"}}))
+    sw.hub.send(_env("01", "11", "client.message.request", "OPT3", {"template": "opt_out_confirmed"}))
+    [m] = _persisted(sw, "client.message.send", "OPT3")
+    assert m["payload"]["template"] == "opt_out_confirmed"
+
+
+def test_01_tells_the_broker_when_recording_consent_is_refused(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("20", "01", "lead.signal", "RC",
+                     {"channel": "call", "name": "W", "recording_consent": "no", "today": "2026-10-12"}))
+    assert {"reason": "caller refused consent to recording - contact captured only, no nurture "
+                      "entry, no messaging"} in _clar(sw, "RC")
+
+
+def test_02_a_boundary_score_takes_the_lower_tier_and_tells_the_broker(tmp_path):
+    sw, s = _swarm(tmp_path)
+    rub = dict(RUBRIC["rubric"])
+    sw.hub.send(_signed(s, "02", "setup", {"rubric": rub, "version": RUBRIC["version"]}))
+    from dispatcher.lead_rubric import score_lead
+    # find a lead that lands exactly on hot_threshold with this rubric
+    lead = {"budget": 10 ** 9, "timeline_days": 0, "financing_progress": "preapproved"}
+    full = score_lead(lead, rub)[1]
+    assert full is not None
+    rub2 = {**rub, "hot_threshold": full}
+    sw.hub.send(_signed(s, "02", "setup", {"rubric": rub2, "version": "b2"}))
+    sw.hub.send(_env("01", "02", "lead.captured", "BND", {**lead, "today": "2026-10-12"}))
+    assert {"reason": "score on a tier boundary - the lower tier was assigned",
+            "score": full, "tier": "WARM"} in _clar(sw, "BND")
+
+
+def test_03_a_flagged_sequence_is_paused_and_the_broker_is_told(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.spokes["03"].active_sequences["FL"] = {"sequence_id": "s1", "paused": False,
+                                              "compliance_status": "pending", "touches": []}
+    sw.hub.send(_env("17", "03", "content.verdict", "FL",
+                     {"verdict": "flagged", "findings": [{"phrase": "x"}]}))
+    assert sw.spokes["03"].active_sequences["FL"]["paused"] is True
+    assert {"reason": "Compliance (17) flagged the nurture sequence - paused, nothing sent; send a "
+                      "corrected nurture_sequences setting",
+            "sequence_id": "s1", "findings": [{"phrase": "x"}]} in _clar(sw, "FL")
+
+
+def test_09_scope_growth_sends_a_held_stop_work_message_and_says_so(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("external", "09", "vendor.event", "SC",
+                     {"event_kind": "scope_change", "vendor_id": "v-1", "kind": "staging"}))
+    held = [q for q in sw.hub.queues["clarification.request"]
+            if q.get("intent") == "vendor.schedule" and q["client_context_id"] == "SC"]
+    assert len(held) == 1 and held[0]["payload"]["template"] == "stop_work_order"
+    assert {"reason": "work scope grew on-site - a stop-work message to the vendor is held for "
+                      "your signed release; scope changes are human-approved only",
+            "vendor_id": "v-1"} in _clar(sw, "SC")
+
+
+def test_12_flagged_campaign_copy_is_held_and_the_broker_is_told(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("17", "12", "content.verdict", "MC", {"verdict": "flagged", "findings": [{"phrase": "p"}]}))
+    assert {"reason": "Compliance (17) flagged the campaign copy - nothing publishes; send "
+                      "corrected copy as a new signed new_campaign",
+            "findings": [{"phrase": "p"}]} in _clar(sw, "MC")
+    assert not _persisted(sw, "campaign.publish", "MC")
+
+
+def test_13_criteria_17_flags_are_not_used_and_the_broker_is_told(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sp = sw.spokes["13"]
+    sp.criteria_pending_review["BC"] = [{"field": "area", "value": "x", "fair_housing_sensitive": True}]
+    sw.hub.send(_env("17", "13", "content.verdict", "BC", {"verdict": "flagged", "findings": [{"phrase": "x"}]}))
+    assert "BC" not in sp.buyer_criteria
+    assert {"reason": "Compliance (17) did not approve these buyer criteria - they are not used for matching",
+            "criteria": [{"field": "area", "value": "x", "fair_housing_sensitive": True}],
+            "verdict": "flagged", "findings": [{"phrase": "x"}]} in _clar(sw, "BC")
+
+
+def test_16_a_reviewed_referral_reward_mention_goes_to_the_broker(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("17", "16", "content.verdict", "RR", {"verdict": "approved", "findings": []}))
+    assert {"reason": "Compliance (17) reviewed a past client's message mentioning a referral "
+                      "reward: approved. The reply to the client is yours; nothing was sent.",
+            "verdict": "approved", "findings": []} in _clar(sw, "RR")
+
+
+def test_16_sends_the_clients_own_words_to_17(tmp_path):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_env("11", "16", "lead.reply", "RW",
+                     {"message": "Do I get a gift card for referring?", "mentions_referral_reward": True}))
+    [r] = _persisted(sw, "content.review", "RW")
+    assert r["payload"]["draft"] == "Do I get a gift card for referring?"

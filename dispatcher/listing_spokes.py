@@ -401,6 +401,7 @@ class Spoke14CRMPipeline:
                 result=f"returned={len(entries_out)}")
             self.hub.send(_env("14", env.from_agent, "record.response", ctx,
                                {"entries": entries_out, "absent": not entries_out,
+                                "consent": dict(self.consent.get(ctx, {})),
                                 "buyer_agreement_on_file": self.buyer_agreement.get(ctx, False),
                                 "requester_identity_verified": self.identity_verified.get(ctx, False)},
                                confidence=SOURCE_VERIFIED))
@@ -716,6 +717,12 @@ class Spoke01LeadCapture:
                             "entry per this tuple specifically (distinct "
                             "from the general messaging-consent tuple)",
                     result="recording_consent_refused: contact-only capture")
+                # "human informed" half of the tuple (2026-10-12 doc review:
+                # the trace was the only record, nobody was told)
+                self.hub.send(_env("01", "queue", "clarification.request", ctx,
+                                   {"reason": "caller refused consent to recording - "
+                                              "contact captured only, no nurture entry, "
+                                              "no messaging"}))
 
             # --- Multiple near-simultaneous inbounds for the same context:
             # merge by channel priority (call > text > web_form), drop

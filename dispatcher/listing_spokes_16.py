@@ -249,6 +249,13 @@ class Spoke16AfterCloseReferral:
                 thought=f"compliance verdict on referral-reward mention: "
                         f"{verdict!r} - {'cleared' if verdict == 'approved' else 'not cleared, held'}",
                 result=f"verdict: {verdict}")
+            # nothing here answers the client, so the broker gets the verdict
+            # (2026-10-12 doc review: the thread stopped at the trace)
+            self.hub.send(_env("16", "queue", "clarification.request", ctx,
+                               {"reason": f"Compliance (17) reviewed a past client's message mentioning "
+                                          f"a referral reward: {verdict}. The reply to the "
+                                          f"client is yours; nothing was sent.",
+                                "verdict": verdict, "findings": payload.get("findings", [])}))
             return
 
         if env.intent == "lead.reply":
@@ -260,9 +267,12 @@ class Spoke16AfterCloseReferral:
                 # explicit caller-supplied signal is more reliable than my
                 # own keyword guess, and the two lists can genuinely
                 # overlap (e.g. "reward for referring" matches both).
+                # the client's own words are what 17 reviews (2026-10-12 doc
+                # review: with no draft, 17 checked this agent's reason text)
                 self.hub.send(_env("16", "17", "content.review", ctx,
                                    {"reason": "referral reward mention - "
-                                             "inducement rules vary by state"}))
+                                             "inducement rules vary by state",
+                                    "draft": payload.get("message", "")}))
                 self.hub.send(_env("16", "18", "agent.status", ctx,
                                    {"waiting_on": "referral_reward_review",
                                     "since": payload.get("today")}))

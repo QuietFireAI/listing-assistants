@@ -390,6 +390,12 @@ class Spoke02LeadQualification:
             self.hub.send(_env("02", "queue", "clarification.request",
                                ctx, {"reason": "tier oscillating a third "
                                                "time", "history": self.tier_history[ctx]}))
+        # tuple 1 says "assign the lower tier + flag for human"; until the
+        # 2026-10-12 doc review the flag was only a note in the tier record
+        if any("sits exactly on a tier boundary" in n for n in notes):
+            self.hub.send(_env("02", "queue", "clarification.request", ctx,
+                               {"reason": "score on a tier boundary - the lower tier was "
+                                          "assigned", "score": score, "tier": tier}))
 
         if tier == "HOT":
             self.open_escalations.add(ctx)

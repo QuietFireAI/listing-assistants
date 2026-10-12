@@ -241,7 +241,9 @@ def test_stale_asset_correction_unlocks_verdict_for_reentry(tmp_path):
                                       "delta": "price changed"}))
     assert spoke.published["m-015"]["verdict_locked"] is False
     logs = persisted(hub, "interaction.log")
-    assert any(l["payload"].get("kind") == "stale_asset_corrected" for l in logs)
+    assert any(l["payload"].get("kind") == "stale_asset_reopened_for_correction" for l in logs)
+    assert any(str(q["payload"].get("reason", "")).startswith("published asset is stale - reopened")
+               for q in hub.queues["clarification.request"])
 
 
 # ------------------------------------------- THE FIX: retract (tuple 9)
@@ -265,7 +267,8 @@ def test_stale_asset_retraction_actually_pulls_it_down(tmp_path):
     publishes = persisted(hub, "campaign.publish")
     assert any(p["payload"].get("action") == "retract" for p in publishes)
     logs = persisted(hub, "interaction.log")
-    assert any(l["payload"].get("kind") == "stale_asset_retracted" for l in logs)
+    # the retraction waited in the hub's hold for the release (2026-10-12)
+    assert any(l["payload"].get("kind") == "stale_asset_retraction_held" for l in logs)
 
 
 def test_REGRESSION_approved_campaign_publishes_once_gate_clears_later(tmp_path):

@@ -25,4 +25,8 @@ constrains everything.
 - (published asset found factually stale, correct or retract within the same day; log the delta)
 - (budget change requested verbally, current signed budget stands until config.update)
 
+Code status (checked 2026-10-12): the "farm rules apply" half of the
+geography tuple has no code - no farm-area boundary is configured to check a
+targeted geography against. The demographic-refusal half is in the code.
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

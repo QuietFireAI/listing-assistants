@@ -272,6 +272,10 @@ def test_recording_consent_refused_is_contact_only_no_nurture(tmp_path):
     assert captured["budget"] is None
     assert captured["no_nurture_entry"] is True
     assert captured["consent"] == {"call": "no", "text": "no", "email": "no"}
+    # tuple 7 says "human informed" (2026-10-12: only a trace recorded it)
+    assert ("caller refused consent to recording - contact captured only, no nurture "
+            "entry, no messaging") in [q["payload"]["reason"] for q in hub.queues["clarification.request"]
+                                       if q["client_context_id"] == "lead-022"]
 
 
 # -------------------------- THE FIX: tuple 10, prior relationship confirm

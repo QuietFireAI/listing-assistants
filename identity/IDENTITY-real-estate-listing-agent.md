@@ -56,6 +56,9 @@ intent: `disclosure.authority` (releasing a held outbound message) and
   confirmation or a documented exempt status with signed seller disclosure.
 - Written buyer agreements before touring (showing requests carry the
   agreement-on-file flag).
-- Consent/opt-out flags (authoritative in 14) gate every outbound touch.
+- Consent/opt-out flags (authoritative in 14) gate every outbound touch. In the
+  code (2026-10-12) Agent 11 asks 14 before every client send and sends nothing
+  to a client opted out on every channel; client messages carry no channel, so a
+  single-channel opt-out does not block them.
 
 ## Status: v0.1 ratified 2026-07-10 (owner sign-off) - runtime-tested via the dispatcher-agents suite; no licensed legal review yet.

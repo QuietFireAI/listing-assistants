@@ -76,8 +76,8 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   Malformed = rejected with the raw validation error returned to sender.
 - Assign `sequence` per `client_context_id` at persistence - the hub is the
   single writer for ordering; targets process in this order.
-- Route valid envelopes per the routing table; deliver and collect the target's
-  acceptance. Redelivery uses the same `envelope_id`; targets dedupe on it.
+- Route valid envelopes per the routing table and deliver them. The hub
+  dedupes on `envelope_id`: an id is delivered once.
 - Issue acks ONLY after (a) the envelope is persisted to the audit log and
   (b) delivery to the target is confirmed. An ack is a factual claim; issuing
   one early is fabrication at the infrastructure layer.
@@ -105,10 +105,12 @@ stopped one. Because the hub cannot report its own death, an external watchdog
 - Run the pre-response-selfcheck exit gate on every delivery when a reviewer
   model is configured; a FAIL holds the envelope. Unconfigured is recorded on
   the audit log at start-up.
-- Operate the queues (queue name = intent string, exactly):
- - `escalation.legal_line` - highest priority, immediate human notification.
- - `escalation.hot_lead` / `escalation.complaint` - human notification per
-    configured urgency.
+- Operate the queues (queue name = intent string, exactly). Every landing in
+  any queue notifies the human at once through the human notifier (the
+  console prints it, and pages by text when the pager is on); queues are not
+  ranked against each other in the code:
+ - `escalation.legal_line` - Legal Line escalations.
+ - `escalation.hot_lead` / `escalation.complaint` - hot leads and complaints.
  - `clarification.request` - ambiguity and loop-suspension holds awaiting
     direction.
  - `integrity.violation` - fabrication, isolation, and signature failures.
@@ -159,11 +161,14 @@ object and hands it to the Dispatcher for routing to Lead Qualification (02).
 This agent does not qualify, score, nurture, or advise. It captures.
 
 ### Job components
-- Answer all inbound calls, web form submissions, and text messages.
+- Take every inbound contact the hub delivers: `lead.inbound` from the
+  brokerage's channel systems (calls, web forms, texts) and `lead.signal` from
+  Agent 20. No phone, web-form or text connector ships in this build; a
+  connected system (or the console) sends the envelope.
 - Capture, at minimum: prospect name and contact info; property interest (address, listing ID, or criteria); timeline to transact; budget range; pre-approval status (yes / no / unknown - never inferred).
 - Emit a structured lead object to the Dispatcher (`lead.captured`).
-- If a required field cannot be captured, record it as `unknown` - never estimate, never fill from a prior lead.
-- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork.
+- If a field cannot be captured, it stays empty (null; pre-approval is `unknown`) - never estimated, never filled from a prior lead. A low-confidence call transcript empties name, timeline, budget and pre-approval.
+- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork. In the code (checked 2026-10-12): 03 sends nothing without a "yes" on some channel; 11 refuses a client 14 records as opted out on every channel but does not require an opt-in; 16 follows the opt-out flag on its own client list. Whether a client with no consent on record may get messages from 11 is open for the owner.
 - On every inbound with contact info, query CRM via `record.request` before creating a new lead object - dedupe against existing contexts; never merge identities without confirmation.
 - Possible duplicate person (owner decision 2026-10-11): when 14 reports the same phone or email under another context, the whole thread holds for the broker. Continue = a separate person, scored as a new lead; cancel = the thread closes, nothing merged.
 - If 14 has not answered the dedupe request within `record_response_timeout_days` (default 1), the daily clock retries once, then holds the lead with `handoff.failed`. A lead is never scored undeduped.
@@ -207,15 +212,16 @@ sequences, re-scores nurtured leads on a cadence, watches behavioral signals, an
 Qualification (02) when readiness changes. It warms; it does not advise.
 
 ### Job components
-- Execute drip email and text sequences on schedule. Amended 2026-10-11 (owner decision): the broker writes each sequence (touch text and day) in a signed configuration; the exact touches go to Compliance (17) when a sequence starts, and the daily clock sends each touch once on its day, inside the frequency cap and contact hours. A sequence with no broker-written definition sends nothing.
+- Execute drip email and text sequences on schedule. Amended 2026-10-11 (owner decision): the broker writes each sequence (touch text and day) in a signed configuration; the exact touches go to Compliance (17) when a sequence starts, and the daily clock sends each touch once on its day, inside the frequency cap and contact hours. A sequence with no broker-written definition sends nothing. A clock run outside contact hours holds the due touch until a run inside them (the console's `sweep` without a time counts as 23:59). Each touch goes to Agent 11 as `client.message.request`, which sends it.
 - Market updates: removed 2026-10-12 (owner decision J5, "staying away from anything financial or legal"). This agent neither requests nor sends market data.
 - Re-score cadence (P21, amended 2026-10-12): every 7 days, ask 02 to re-score each WARM lead in nurture with its stated timeline counted down by the days elapsed and every other input as scored; a lead that does not come back WARM leaves the pool; an opted-out lead or a paused sequence is not re-scored.
-- Trigger re-engagement when behavioral signals indicate readiness (email opens, listing revisits).
+- Behavioral signals from Marketing (12): a signal at or over the spike threshold pauses the sequence and asks 02 to re-score the lead. This agent never reaches out on a signal itself.
 - Hand the lead back to Qualification (02) with `lead.rescored` when the score changes.
 - Submit all new or edited sequence content to Compliance (17) before first send.
-- Verify consent status (lead object / CRM record) before ANY send; no consent on file = no send, escalate.
-- Process opt-outs immediately: halt sequences, propagate the flag to CRM (14) same-day; every email carries a functioning unsubscribe (CAN-SPAM).
-- Respect a per-context frequency cap (`frequency_cap_per_week`, default 3) and legal contact hours (`legal_contact_hours`, default 8-21) across drips and re-engagement combined - several agents' worth of messages is still one person's phone.
+- Verify consent before ANY send: a nurture assignment with no channel marked "yes" sends nothing and goes to the broker (`escalation.legal_line`).
+- Process opt-outs immediately: a reply of exactly "stop", "unsubscribe", "opt out" or "optout" halts the sequence, records the opt-out on every channel in CRM (14) and sends one confirmation through 11. "Stop sending so many" or "too many" lowers the weekly cap by one and confirms. Unsubscribe links (CAN-SPAM) are not added by this agent: there is no email sender in this build.
+- Respect a per-context frequency cap (`frequency_cap_per_week`, default 3) and legal contact hours (`legal_contact_hours`, default 8-21). The cap counts this agent's touches only; messages other agents send the same person are not counted against it. No holiday calendar exists, so legal holidays are not skipped.
+- A sequence Compliance (17) flags is paused, nothing is sent, and the broker is told (`clarification.request`).
 
 ## Agent 04 - Listing Description Agent
 
@@ -231,12 +237,12 @@ agent PRODUCES listing-specific assets; 12 schedules and distributes them and
 never rewrites them. All output passes through Compliance (17) before use.
 
 ### Job components
-- Generate MLS descriptions, social captions, flyer copy, and virtual tour scripts from property data (beds, baths, square footage, features, photos).
+- Generate MLS descriptions, social captions, flyer copy, and virtual tour scripts from property data (beds, baths, square footage, features, photos). In the code one draft is built per listing: a list of facts from the data (beds, baths, square footage with its source, roof and HVAC only with a source, listed features), plus model remarks when model drafting is on. Separate caption, flyer and tour-script versions are not built; Marketing (12) distributes the one draft.
 - Adhere strictly to MLS compliance language; avoid fair housing violations and discriminatory descriptors at draft time - 17 is a check, not a substitute for care.
 - Describe only features present in the supplied property data. A feature not in the data does not exist.
 - Submit every asset to Compliance (17) and release only on an `approved` verdict.
 - Attribute measurements and material facts to their source in the copy where MLS rules require (e.g., square footage per county records) - unattributed measurement claims are a misrepresentation vector.
-- Use only photo/media assets with confirmed usage rights (vendor deliverables logged through 09).
+- Use only photo/media assets with confirmed usage rights (vendor deliverables logged through 09). In the code the draft carries no media; media without `rights_confirmed_via_09` are noted in this agent's reasoning trace.
 - Model-written remarks only on the broker's signed `drafting.mode: model` (amended 2026-10-12), only with a model on this machine whose active checkpoint passed the broker exam, and only when the draft carries the model's reasoning, fits the MLS limit and adds no number absent from the data. Otherwise draft by rules and tell the broker why. Model remarks go to 17 like every asset; a flagged phrase removes the sentence carrying it.
 - File each approved description in the client's drawer (`artifacts`), with the verdict that approved it (added 2026-10-12).
 
@@ -295,11 +301,17 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Weekly seller report (P18, amended 2026-10-12): on the broker's signed weekday, count each listed property's showings and feedback for the week, hold the report for the broker, and on continue send it to the seller through 11. Numbers only.
 - A protected-deadline claim that would bump a confirmed showing holds for the broker; the bump happens only on the broker's signed `confirm_protected_bump`.
 
-How the code does it today (checked 2026-10-12): conflicts are checked against
-this agent's own confirmed showings with a time buffer, not by asking 18;
-requester identity is read from the `requester_identity_verified` flag set
-upstream; minimum notice comes from `min_notice_hours` (default 24). Open house
-RSVPs and reminders are not yet in the code.
+How the code does it today (checked 2026-10-12): there is no seller
+availability data; a request is checked against minimum notice, the listing's
+status (asked of 05) and the showings already confirmed for that listing or
+that buyer, with a time buffer (default 30 minutes), not by asking 18.
+Requester identity is read from the `requester_identity_verified` flag set
+upstream; minimum notice comes from `min_notice_hours` (default 24). A conflict
+goes to the broker as `clarification.request`; no alternative time is
+computed or offered to the requester. A request inside the notice window sends
+the client a `next_legal_slot_offer` message carrying the required notice
+hours, not a computed slot. Open house RSVPs and reminders are not yet in the
+code.
 
 ## Agent 07 - Transaction Coordinator Agent
 
@@ -379,6 +391,18 @@ and collects deliverables, routing them to their owning agents.
 - Report a deliverable as collected only after verifying the artifact is present and opens.
 - Schedule only roster vendors whose human-verified credentials (license, insurance) are current in the roster record; expired or missing = flag before scheduling.
 
+How the code does it today (checked 2026-10-12): a scheduling message to a
+vendor (`vendor.schedule`) goes to an external audience the hub classes as a
+counterparty, so it is held until the broker signs its release. The calendar
+entry for 18 carries the day the request was made, not the appointment day
+(vendor requests carry no appointment date). A deliverable counts as collected
+when the vendor's event says a proof artifact is present
+(`proof_artifact_present`); this agent does not open the file. After a late
+cancellation, 07 and 06 are told at once and a regulated role goes to the
+broker; no replacement vendor is proposed. Scope growing on-site sends the
+vendor a stop-work message (held for the broker's release) and tells the
+broker.
+
 ## Agent 10 - Market Data Agent
 
 **Type:** Data gathering (merged: CMA data + neighborhood & market research)
@@ -409,7 +433,9 @@ figures supplied in the request, each checked for source, date and staleness
 (`staleness_days`, default 30) and for the comp minimum (`comp_minimum`, default
 5). Listing data from 05 is received but not used for comps (it describes the
 subject property, not comparables). Farm-area trend tracking and per-source
-scraping are not yet in the code.
+scraping are not yet in the code. Supplied neighborhood figures are not
+scanned for characterizations ("safe", "good schools"); a characterization in
+the supplied data would pass through.
 
 ## Agent 11 - Client Communication Agent
 
@@ -429,7 +455,7 @@ giving advice, and it only ever does the first.
 - Send only facts received via envelope from the owning agent - never elaborate a status into an interpretation ("appraisal came in" never becomes "came in strong").
 - Route inbound client replies to the owning agent or escalate.
 - Log every client touch to CRM (14).
-- Sends respect configured quiet hours (TCPA-permissible contact windows) and consent/opt-out flags from 14.
+- Sends respect configured quiet hours (TCPA-permissible contact windows) and opt-outs recorded at 14: before every send this agent asks 14 for the client's consent, and an opt-out on every channel blocks the send and logs it (the one opt-out confirmation still goes; added 2026-10-12, before which nothing was checked). A client with no consent on record is not blocked here.
 - Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
 - Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
@@ -463,7 +489,12 @@ with a signed `new_campaign` (copy and targeting), sets `exempt_status` and
 `signed_budget`; this agent checks the copy, the targeting and the Clear
 Cooperation gate, sends self-written copy to 17, and publishes. It does not
 write newsletter or ad copy itself, and no social or ad platform is
-connected; publications leave only through the held external route.
+connected; publications leave only through the held external route. Copy 17
+flags is held and the broker is told. A stale published asset is either
+reopened for correction or retracted (the retraction is held for the broker's
+release like any publication); the broker is told either way. "Farm rules"
+for geography targeting are not in the code: there is no farm-area boundary
+setting to check against; demographic targeting is refused.
 
 ## Agent 13 - Buyer Search & Match Agent
 
@@ -483,9 +514,9 @@ filtering is steering, and steering is a fair housing violation.
 ### Job components
 - Maintain buyer criteria profiles from client-stated criteria only, recorded verbatim with `stated_by_party` confidence.
 - Match new listings (feeds from 05, opportunities from 19) against profiles.
-- Deliver matches via Client Communication (11); track client reactions and update match weighting only from explicit client feedback.
+- Deliver matches via Client Communication (11); track client reactions and update the profile only from explicit client feedback (in the code an explicit feedback field is added to the profile as a stated criterion; matches are not weighted).
 - Generate showing requests to Showing Scheduler (06) on client interest.
-- Submit any criteria language with fair-housing sensitivity (e.g., neighborhood composition phrasing) to Compliance (17) before use in filtering.
+- Submit any criteria language with fair-housing sensitivity (e.g., neighborhood composition phrasing) to Compliance (17) before use in filtering. In the code a criterion is sent to 17 when the broker's setting marks it `fair_housing_sensitive`; criteria 17 does not approve are not used, and the broker is told.
 - BUYER AGREEMENT GATE: before emitting any `showing.request`, verify a signed written buyer agreement is on file (query 14 via `record.request`); absent = human escalation. Required before touring, in person or live-virtual (NAR settlement practice change, effective Aug 17, 2024). Set the agreement-on-file flag in the showing.request payload.
 - Present matches with sourced data only; no neighborhood characterizations (10's presentation rule applies here too).
 - Amended 2026-10-11 (owner decision): this agent does not request or relay neighborhood packages. Neighborhood information pushed toward buyers is the classic fair-housing steering risk; the broker can still ask Market Data (10) directly.
@@ -521,8 +552,12 @@ not message clients.
 
 How the code does it today (checked 2026-10-12): consent and opt-out flags are
 stored here and served on every `record.request`; they are not pushed to 03, 11
-or 16 when they change (no route carries that). Pipeline stages and referral
-sources are not yet in the code. Reports go to the broker only.
+or 16 when they change (no route carries that). Agent 11 asks for them before
+every client send and does not send to a client opted out on every channel;
+03 uses the consent in the lead it was given; 16 uses the opt-out flag on its
+own client list. Pipeline stages and referral sources are not yet in the code.
+Reports go to the broker only. Conflicting facts are flagged on the new entry
+(`conflicts_with_prior`) in the record; the broker is not paged for them.
 
 ## Agent 15 - Financial Tracking Agent
 
@@ -573,7 +608,7 @@ the date triggers, this agent executes the greetings.
 - Solicit referrals on a periodic cadence per the supplied client list.
 - Send birthday and holiday greetings on `date.trigger` from CRM (14), per the human-supplied list - no list entry, no greeting.
 - Solicit reviews and testimonials post-close.
-- Check consent/opt-out flags (from 14) before every touch; opt-out halts all touches for that contact.
+- Check consent/opt-out flags before every touch; opt-out halts all touches for that contact. In the code this agent checks the `opt_out` flag on its own client list (set by the broker's signed setting); every touch goes through Agent 11, which also refuses to message a client 14 records as opted out on every channel.
 
 How the code does it today (checked 2026-10-12): the daily clock sends the 30,
 90 and 365-day check-ins from the close date; greetings and anniversaries come
@@ -581,7 +616,10 @@ from 14's `date.trigger`. The broker drives the rest with signed settings -
 `client_list_entry`, `refi_rate_alert` (with its source), `referral_solicitation_due`,
 `review_request_due`, `opt_out`, `reinstate_contact`, `contact_bounced`,
 `adverse_event`. Maintenance tips and a self-running referral cadence are not
-yet in the code.
+yet in the code. Touch content is a template sent through 11; it does not go
+to Compliance (17) before sending. The one item that goes to 17 is a past
+client's message mentioning a referral reward (the client's own words); the
+verdict goes to the broker, who answers the client.
 
 ## Agent 17 - Compliance & Fair Housing Agent
 
@@ -592,8 +630,8 @@ yet in the code.
 **Predeliberated tuples:** 10 (see 17-compliance-fair-housing/DECISIONS.md)
 
 Guardrail agent. Mandatory pre-publication hop for content from 03, 04,
-12, 13 (criteria language), 16 (referral and anniversary content) and 20
-(draft responses). Validates; does not create.
+12, 13 (criteria language), 16 (a past client's message mentioning a referral
+reward) and 20 (draft responses). Validates; does not create.
 Returns a verdict with specific flags. It never rewrites content - rewriting
 makes the validator an author, and an author cannot be its own guardrail.
 
@@ -611,7 +649,12 @@ How the code does it today (checked 2026-10-12): the ruleset arrives as a signed
 daily clock checks the turnaround (`sla_days`, default 1) and alerts the broker on a
 breach. A pattern of near-misses from one agent (`near_miss_pattern_threshold`,
 default 3) goes to the broker as a report. Checking that required disclosures are
-present is not yet in the code.
+present is not yet in the code. "Uncovered construction" and "state rule
+uncertain" are flags the submitter sets on the review (`uncovered_construction`,
+`state_rule_uncertain`); this agent does not detect either from the text.
+Advertising without brokerage identification is caught from the submitter's
+`content_type` and `brokerage_id_present` fields. A `compliance.notice` from
+05 or 10 is logged to 14; nothing else happens with it.
 
 ## Agent 18 - Calendar & Task Management Agent
 
@@ -671,7 +714,11 @@ external `discovery.feed` delivers; it does not poll sources on a cadence
 itself, and no prospecting source is connected yet. A feed record outside the
 monitored zips is not recorded; an expired or FSBO record from a source the broker
 has not approved is excluded and flagged. A signed `bulk_outreach_instruction` is
-recorded and changes nothing - this agent still only discovers.
+recorded and changes nothing - this agent still only discovers. The "human +
+compliance gate" on an expired or FSBO record is the broker's Legal Line
+queue; Compliance (17) is not asked. When two sources disagree on a
+property's status, the later feed record replaces the earlier one; the
+disagreement is not flagged.
 
 ## Agent 20 - Social Media Monitoring Agent
 
@@ -697,4 +744,8 @@ is a human act.
 
 How the code does it today (checked 2026-10-12): mentions arrive as
 `social.mention` from outside; no social platform is connected yet, and this
-agent never posts.
+agent never posts. The sentiment arrives with the mention (`sentiment`:
+question, complaint, lead_signal, praise, noise or mixed) from whatever
+system delivers it; this agent does not classify the text itself (mixed is
+treated as a complaint). A question that may involve an existing client sends
+that person a "team will follow up" message through 11.

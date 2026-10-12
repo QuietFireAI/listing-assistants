@@ -26,4 +26,8 @@ constrains everything.
 - (request smells like appraisal substitution, data package with the not-an-appraisal note; 17 informed)
 - (historic data requested beyond retention, absent is the answer; never reconstruct from model memory)
 
+Code status (checked 2026-10-12): no data source is scraped in this build, so
+the scrape-source tuple cannot fire; packages are built from the figures in
+the request (SKILL.md section 2).
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

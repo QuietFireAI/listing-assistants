@@ -26,7 +26,7 @@ giving advice, and it only ever does the first.
 - Send only facts received via envelope from the owning agent - never elaborate a status into an interpretation ("appraisal came in" never becomes "came in strong").
 - Route inbound client replies to the owning agent or escalate.
 - Log every client touch to CRM (14).
-- Sends respect configured quiet hours (TCPA-permissible contact windows) and consent/opt-out flags from 14.
+- Sends respect configured quiet hours (TCPA-permissible contact windows) and opt-outs recorded at 14: before every send this agent asks 14 for the client's consent, and an opt-out on every channel blocks the send and logs it (the one opt-out confirmation still goes; added 2026-10-12, before which nothing was checked). A client with no consent on record is not blocked here.
 - Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
 - Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
@@ -45,7 +45,13 @@ priority: `legal_line`) if the task requires or a party requests:
 Behavior at the line: do not answer, do not approximate, do not "give a general
 sense." Escalate with the trigger recorded verbatim in the envelope.
 The Legal Line is not a judgment call. If classification is uncertain, treat it
-as over the line and escalate (see section 6).
+as over the line and escalate (see section 6). In the code both checks are
+phrase lists on the client's reply: wire (`_WIRE_WORDS`: "wire instructions",
+"wiring details", "wire transfer", "updated wire", "routing number"; checked
+first, over every text field) and advice (`_ADVICE_WORDS`: "what would you
+do", "should i offer", "what's it worth", "negotiate", "legal opinion",
+"pricing strategy"). An advice hit also sends the client a hand-off
+acknowledgement (`advice_ack_handoff`).
 
 ## 4. Swarm Position & Handoff Protocol
 
@@ -73,7 +79,7 @@ Dispatcher returns an `ack`.
 | OUT | → 06 Showing Scheduler | No-show reported | `showing.no_show` |
 | OUT | → 08 Document Collection | Party-submitted document, party-level identity | `document.submission` |
 | OUT | → 03 / 04 / 12 / 13 / 16 / 20 | Reply routed to owning agent by content | `lead.reply` |
-| OUT | → 14 CRM & Pipeline | Dedupe / context check | `record.request` |
+| OUT | → 14 CRM & Pipeline | Consent check before every client send; facts for a client-requested showing | `record.request` |
 | IN | ← 14 CRM & Pipeline | Record match / no-match | `record.response` (`in_reply_to`) |
 | OUT | → 18 Calendar & Task | Wait-state signal (advice-response pending) | `agent.status` |
 | IN | ← Broker (signed) | Settings: `resolve_advice_response`, `resolve_complaint_hold` | `config.update` |
@@ -84,12 +90,12 @@ the Dispatcher.
 
 ### 4.3 Message envelope (swarm-standard)
 
-Every outbound message uses this envelope. All fields required.
+Every outbound message uses this envelope.
 
 ```json
 {
   "envelope_id": "uuid",
-  "from_agent": "11-client-communication",
+  "from_agent": "11",
   "to_agent": "final-target-agent-id",
   "intent": "dotted.intent.string",
   "in_reply_to": "uuid-of-request-envelope-or-null",
@@ -110,28 +116,44 @@ Every outbound message uses this envelope. All fields required.
 If a datum was not verified at its source or stated by a party, it is `unknown`.
 Agent-specific constraints on this vocabulary appear in section 2 notes.
 
+What the hub checks on every envelope (`validate_schema` in
+`dispatcher/core.py`): `from_agent`, `to_agent`, `intent` and
+`client_context_id` present, `provenance.source` present, `confidence` one of
+the three values, and `sequence` null. In the code `from_agent` is the
+two-digit agent id (`"11"`); `confidence` defaults to `unknown`,
+`escalation_flag` to false and `in_reply_to` to null.
+
 `to_agent` is the FINAL target. The hub is transport: it validates the
 (from, to, intent) tuple against the routing table and rejects mismatches.
-`in_reply_to` carries the requesting `envelope_id` on every response
-(doc.status, data.package, content.verdict, record responses) - a response
-that cannot be correlated to an open request is flagged, never guessed at.
+`in_reply_to` names the envelope a message answers where the sending agent
+sets it: `content.verdict` (17), `doc.status` (08), `content.review` from
+04 (naming the listing data it drafted from) and some
+`client.message.request` sends (03, 08).
+Agent 20 matches verdicts to its drafts by it. `data.package`,
+`record.response` and `status.response` go back to the requester by agent and
+`client_context_id`, without `in_reply_to`, and the hub does not check that a
+response answers an open request.
 `sequence` is assigned by the hub per `client_context_id` at persistence;
 senders submit it as null.
 
 ### 4.4 Handoff rules
 
 - A handoff is complete only when the Dispatcher acks the envelope. No ack = the
-  handoff did not happen; retry once, then raise `handoff.failed` to the Dispatcher
-  log and hold state.
+  handoff did not happen. A rejected or dead-lettered send is recorded as
+  `handoff.failed` on the audit log and held for the broker in
+  `clarification.request` at once (`dispatcher/handoff_guard.py`). It is not
+  retried: in one process the same envelope fails the same way again.
 - Never report a handoff as done without the ack.
-- Never rebuild state from memory of prior sessions. Request the current state
-  object from its owning agent (via Dispatcher) and update only what changed.
-- `envelope_id` is the idempotency key. A duplicate `envelope_id` (hub retry) is
-  processed once and re-acked - never processed twice. Duplicate client-facing
-  sends (double texts, double posts) are a real-world failure, not a technicality.
-- Envelopes within one `client_context_id` are processed in hub-assigned
-  `sequence` order. A sequence gap is held and flagged to the Dispatcher after
-  timeout - never skipped silently, never reordered by guess.
+- State is never rebuilt from memory of prior sessions. After a restart it
+  comes from the saved state the audit chain vouches for; another agent's
+  state is asked for through the Dispatcher.
+- `envelope_id` is the idempotency key. The hub delivers an envelope id once; a
+  repeat send gets `duplicate` and is not delivered again. Duplicate
+  client-facing sends (double texts, double posts) are a real-world failure,
+  not a technicality.
+- Envelopes within one `client_context_id` are delivered in hub-assigned
+  `sequence` order: the hub stamps the sequence and delivers in the same step,
+  one envelope at a time.
 
 ## 5. Confidentiality
 
@@ -169,11 +191,14 @@ When the route itself is uncertain:
 1. REDUCE TO STOP, carefully: complete any atomic action already in flight;
    take no new client-facing or state-changing action. Never slam-stop
    mid-artifact; never drop held state.
-2. Send `clarification.request` to the Dispatcher with: the exact ambiguous
-   input (verbatim), the interpretations considered, and what is blocked.
-3. HOLD ON ROUTE: position and state intact, telemetry live - keep receiving,
-   keep logging, keep acking receipt. If a party is waiting, tell them a team
-   member will follow up. Paused is not off.
+2. Send `clarification.request` to the Dispatcher with the reason and, where
+   the agent has it, the exact input verbatim.
+3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
+   Paused is not off. A "someone will follow up" message goes to a waiting
+   party only where an agent's section 2 says so (Agent 11's advice and
+   complaint acknowledgements, Agent 20's reply when a question in a mention
+   may involve an existing client);
+   otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement
    authority never self-restores.
 
@@ -182,7 +207,9 @@ not a service.
 
 Ambiguity examples for this agent:
 
-- Client reply mixes a routine question with an advice question - split, answer neither until routed.
+- Client reply mixes a routine question with an advice question: the advice
+  phrase sends the whole reply to the Legal Line (with the hand-off
+  acknowledgement); the routine part is not split out or routed separately.
 - Update trigger arrives for a client context with an active complaint escalation.
 - Two agents send conflicting statuses for the same milestone.
 
@@ -210,7 +237,8 @@ Job requirements are paramount. Continuity is never a reason to breach them.
 - On failure (system error, unreachable Dispatcher, malformed input), log the raw
   error - not a paraphrase - and surface it. A softened failure report is a false
   report.
-- This agent does not retry silently more than once. Second failure = escalate.
+- This agent does not retry silently. A failed handoff goes to the broker at
+  once (section 4.4).
 - If the Dispatcher is unreachable, this agent fails closed: hold all outbound
   actions and state, take no autonomous client-facing action until the hub returns.
 

@@ -126,6 +126,8 @@ sources attached; any amount that does not reconcile to $0.00 comes to you.
   wait for the next window and notify you instead, unless the alert class is
   marked exempt in configuration.
 - **Opt-outs.** "Stop" stops every channel at once, and Agent 14 records it.
+  Agent 11 checks 14 before every client message and sends nothing to a client
+  opted out on every channel.
   When consent flags disagree, the most restrictive one wins, and a channel
   that was opted out stays out until you confirm the client's new opt-in.
 - **A handoff that fails.** If the hub rejects or cannot deliver a message

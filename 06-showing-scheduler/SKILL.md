@@ -32,11 +32,17 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Weekly seller report (P18, amended 2026-10-12): on the broker's signed weekday, count each listed property's showings and feedback for the week, hold the report for the broker, and on continue send it to the seller through 11. Numbers only.
 - A protected-deadline claim that would bump a confirmed showing holds for the broker; the bump happens only on the broker's signed `confirm_protected_bump`.
 
-How the code does it today (checked 2026-10-12): conflicts are checked against
-this agent's own confirmed showings with a time buffer, not by asking 18;
-requester identity is read from the `requester_identity_verified` flag set
-upstream; minimum notice comes from `min_notice_hours` (default 24). Open house
-RSVPs and reminders are not yet in the code.
+How the code does it today (checked 2026-10-12): there is no seller
+availability data; a request is checked against minimum notice, the listing's
+status (asked of 05) and the showings already confirmed for that listing or
+that buyer, with a time buffer (default 30 minutes), not by asking 18.
+Requester identity is read from the `requester_identity_verified` flag set
+upstream; minimum notice comes from `min_notice_hours` (default 24). A conflict
+goes to the broker as `clarification.request`; no alternative time is
+computed or offered to the requester. A request inside the notice window sends
+the client a `next_legal_slot_offer` message carrying the required notice
+hours, not a computed slot. Open house RSVPs and reminders are not yet in the
+code.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -49,7 +55,10 @@ priority: `legal_line`) if the task requires or a party requests:
 Behavior at the line: do not answer, do not approximate, do not "give a general
 sense." Escalate with the trigger recorded verbatim in the envelope.
 The Legal Line is not a judgment call. If classification is uncertain, treat it
-as over the line and escalate (see section 6).
+as over the line and escalate (see section 6). In the code the access check is
+a phrase list on the request (`_ACCESS_REQUEST_WORDS`: "let them in", "access
+code", "lockbox combo", "gate code", "just let", "combo for the"); a showing
+request with no buyer agreement on file also goes to the Legal Line.
 
 ## 4. Swarm Position & Handoff Protocol
 
@@ -86,12 +95,12 @@ the Dispatcher.
 
 ### 4.3 Message envelope (swarm-standard)
 
-Every outbound message uses this envelope. All fields required.
+Every outbound message uses this envelope.
 
 ```json
 {
   "envelope_id": "uuid",
-  "from_agent": "06-showing-scheduler",
+  "from_agent": "06",
   "to_agent": "final-target-agent-id",
   "intent": "dotted.intent.string",
   "in_reply_to": "uuid-of-request-envelope-or-null",
@@ -112,28 +121,44 @@ Every outbound message uses this envelope. All fields required.
 If a datum was not verified at its source or stated by a party, it is `unknown`.
 Agent-specific constraints on this vocabulary appear in section 2 notes.
 
+What the hub checks on every envelope (`validate_schema` in
+`dispatcher/core.py`): `from_agent`, `to_agent`, `intent` and
+`client_context_id` present, `provenance.source` present, `confidence` one of
+the three values, and `sequence` null. In the code `from_agent` is the
+two-digit agent id (`"06"`); `confidence` defaults to `unknown`,
+`escalation_flag` to false and `in_reply_to` to null.
+
 `to_agent` is the FINAL target. The hub is transport: it validates the
 (from, to, intent) tuple against the routing table and rejects mismatches.
-`in_reply_to` carries the requesting `envelope_id` on every response
-(doc.status, data.package, content.verdict, record responses) - a response
-that cannot be correlated to an open request is flagged, never guessed at.
+`in_reply_to` names the envelope a message answers where the sending agent
+sets it: `content.verdict` (17), `doc.status` (08), `content.review` from
+04 (naming the listing data it drafted from) and some
+`client.message.request` sends (03, 08).
+Agent 20 matches verdicts to its drafts by it. `data.package`,
+`record.response` and `status.response` go back to the requester by agent and
+`client_context_id`, without `in_reply_to`, and the hub does not check that a
+response answers an open request.
 `sequence` is assigned by the hub per `client_context_id` at persistence;
 senders submit it as null.
 
 ### 4.4 Handoff rules
 
 - A handoff is complete only when the Dispatcher acks the envelope. No ack = the
-  handoff did not happen; retry once, then raise `handoff.failed` to the Dispatcher
-  log and hold state.
+  handoff did not happen. A rejected or dead-lettered send is recorded as
+  `handoff.failed` on the audit log and held for the broker in
+  `clarification.request` at once (`dispatcher/handoff_guard.py`). It is not
+  retried: in one process the same envelope fails the same way again.
 - Never report a handoff as done without the ack.
-- Never rebuild state from memory of prior sessions. Request the current state
-  object from its owning agent (via Dispatcher) and update only what changed.
-- `envelope_id` is the idempotency key. A duplicate `envelope_id` (hub retry) is
-  processed once and re-acked - never processed twice. Duplicate client-facing
-  sends (double texts, double posts) are a real-world failure, not a technicality.
-- Envelopes within one `client_context_id` are processed in hub-assigned
-  `sequence` order. A sequence gap is held and flagged to the Dispatcher after
-  timeout - never skipped silently, never reordered by guess.
+- State is never rebuilt from memory of prior sessions. After a restart it
+  comes from the saved state the audit chain vouches for; another agent's
+  state is asked for through the Dispatcher.
+- `envelope_id` is the idempotency key. The hub delivers an envelope id once; a
+  repeat send gets `duplicate` and is not delivered again. Duplicate
+  client-facing sends (double texts, double posts) are a real-world failure,
+  not a technicality.
+- Envelopes within one `client_context_id` are delivered in hub-assigned
+  `sequence` order: the hub stamps the sequence and delivers in the same step,
+  one envelope at a time.
 
 ## 5. Confidentiality
 
@@ -171,11 +196,14 @@ When the route itself is uncertain:
 1. REDUCE TO STOP, carefully: complete any atomic action already in flight;
    take no new client-facing or state-changing action. Never slam-stop
    mid-artifact; never drop held state.
-2. Send `clarification.request` to the Dispatcher with: the exact ambiguous
-   input (verbatim), the interpretations considered, and what is blocked.
-3. HOLD ON ROUTE: position and state intact, telemetry live - keep receiving,
-   keep logging, keep acking receipt. If a party is waiting, tell them a team
-   member will follow up. Paused is not off.
+2. Send `clarification.request` to the Dispatcher with the reason and, where
+   the agent has it, the exact input verbatim.
+3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
+   Paused is not off. A "someone will follow up" message goes to a waiting
+   party only where an agent's section 2 says so (Agent 11's advice and
+   complaint acknowledgements, Agent 20's reply when a question in a mention
+   may involve an existing client);
+   otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement
    authority never self-restores.
 
@@ -184,9 +212,14 @@ not a service.
 
 Ambiguity examples for this agent:
 
-- Seller availability and buyer request cannot be reconciled within the buyer's window.
-- A party claims a showing was confirmed but no confirmation envelope exists.
-- RSVP identity appears to duplicate an existing client context.
+- A requested time conflicts with a confirmed showing of the same listing (or
+  the same buyer) inside the buffer: held for the broker to sequence.
+- A protected-deadline claim would bump a confirmed showing: held; only the
+  broker's signed `confirm_protected_bump` moves it.
+- The listing's status from 05 does not allow a showing: held.
+
+A party's claim that a showing was confirmed is not checked against anything;
+open-house RSVPs are not handled.
 
 ## 7. Anti-Fabrication (Hard Rule)
 
@@ -212,7 +245,8 @@ Job requirements are paramount. Continuity is never a reason to breach them.
 - On failure (system error, unreachable Dispatcher, malformed input), log the raw
   error - not a paraphrase - and surface it. A softened failure report is a false
   report.
-- This agent does not retry silently more than once. Second failure = escalate.
+- This agent does not retry silently. A failed handoff goes to the broker at
+  once (section 4.4).
 - If the Dispatcher is unreachable, this agent fails closed: hold all outbound
   actions and state, take no autonomous client-facing action until the hub returns.
 

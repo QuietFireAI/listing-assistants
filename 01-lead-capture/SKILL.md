@@ -22,11 +22,14 @@ This agent does not qualify, score, nurture, or advise. It captures.
 
 ## 2. Job Components
 
-- Answer all inbound calls, web form submissions, and text messages.
+- Take every inbound contact the hub delivers: `lead.inbound` from the
+  brokerage's channel systems (calls, web forms, texts) and `lead.signal` from
+  Agent 20. No phone, web-form or text connector ships in this build; a
+  connected system (or the console) sends the envelope.
 - Capture, at minimum: prospect name and contact info; property interest (address, listing ID, or criteria); timeline to transact; budget range; pre-approval status (yes / no / unknown - never inferred).
 - Emit a structured lead object to the Dispatcher (`lead.captured`).
-- If a required field cannot be captured, record it as `unknown` - never estimate, never fill from a prior lead.
-- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork.
+- If a field cannot be captured, it stays empty (null; pre-approval is `unknown`) - never estimated, never filled from a prior lead. A low-confidence call transcript empties name, timeline, budget and pre-approval.
+- Capture communication consent at first contact: express opt-in status for text, call, and email, recorded verbatim in the lead object - downstream agents (03, 11, 16) may not message without it. TCPA/CAN-SPAM exposure is liability, not paperwork. In the code (checked 2026-10-12): 03 sends nothing without a "yes" on some channel; 11 refuses a client 14 records as opted out on every channel but does not require an opt-in; 16 follows the opt-out flag on its own client list. Whether a client with no consent on record may get messages from 11 is open for the owner.
 - On every inbound with contact info, query CRM via `record.request` before creating a new lead object - dedupe against existing contexts; never merge identities without confirmation.
 - Possible duplicate person (owner decision 2026-10-11): when 14 reports the same phone or email under another context, the whole thread holds for the broker. Continue = a separate person, scored as a new lead; cancel = the thread closes, nothing merged.
 - If 14 has not answered the dedupe request within `record_response_timeout_days` (default 1), the daily clock retries once, then holds the lead with `handoff.failed`. A lead is never scored undeduped.
@@ -46,15 +49,21 @@ priority: `legal_line`) if the task requires or a party requests:
 
 Behavior at the line: do not answer, do not approximate, do not "give a general
 sense." Escalate with the trigger recorded verbatim in the envelope.
-The Legal Line is not a judgment call. If classification is uncertain, treat it
-as over the line and escalate (see section 6).
+The Legal Line is not a judgment call. In the code the check is a phrase list
+(`_LEGAL_LINE_WORDS` in `dispatcher/listing_spokes.py`: "what should i offer",
+"should i list at", "negotiate", "contract language", "legal opinion", "is
+this legal", "represent me in", "counter their offer"); a message that uses
+none of those phrases is captured as a lead, not escalated.
 
 Also sent to the broker at once, keeping whatever was already captured: an
 apparent minor (nothing captured beyond the fact of contact), a caller who asks
-for a person, an inquiry about a property outside `brokerage_scope`, a lead on
-the do-not-contact list, and a claimed prior relationship (the broker confirms
-before any history is assumed). Abusive contact goes to the complaint queue
-(`escalation.complaint`). Each case is a tuple in DECISIONS.md.
+for a person (phrase list `_DEMANDS_HUMAN_WORDS`), an inquiry about a property
+outside `brokerage_scope`, a lead on the do-not-contact list, and a claimed
+prior relationship (the broker confirms before any history is assumed).
+Abusive contact goes to the complaint queue (`escalation.complaint`). "Apparent
+minor" and "abusive" are flags the channel system sets on the inbound
+(`apparent_minor`, `abusive`); this agent does not judge either from the
+words. Each case is a tuple in DECISIONS.md.
 
 ## 4. Swarm Position & Handoff Protocol
 
@@ -92,12 +101,12 @@ rebuild the lead object from session memory.
 
 ### 4.3 Message envelope (swarm-standard)
 
-Every outbound message uses this envelope. All fields required.
+Every outbound message uses this envelope.
 
 ```json
 {
   "envelope_id": "uuid",
-  "from_agent": "01-lead-capture",
+  "from_agent": "01",
   "to_agent": "final-target-agent-id",
   "intent": "dotted.intent.string",
   "in_reply_to": "uuid-of-request-envelope-or-null",
@@ -118,28 +127,44 @@ Every outbound message uses this envelope. All fields required.
 If a datum was not verified at its source or stated by a party, it is `unknown`.
 Agent-specific constraints on this vocabulary appear in section 2 notes.
 
+What the hub checks on every envelope (`validate_schema` in
+`dispatcher/core.py`): `from_agent`, `to_agent`, `intent` and
+`client_context_id` present, `provenance.source` present, `confidence` one of
+the three values, and `sequence` null. In the code `from_agent` is the
+two-digit agent id (`"01"`); `confidence` defaults to `unknown`,
+`escalation_flag` to false and `in_reply_to` to null.
+
 `to_agent` is the FINAL target. The hub is transport: it validates the
 (from, to, intent) tuple against the routing table and rejects mismatches.
-`in_reply_to` carries the requesting `envelope_id` on every response
-(doc.status, data.package, content.verdict, record responses) - a response
-that cannot be correlated to an open request is flagged, never guessed at.
+`in_reply_to` names the envelope a message answers where the sending agent
+sets it: `content.verdict` (17), `doc.status` (08), `content.review` from
+04 (naming the listing data it drafted from) and some
+`client.message.request` sends (03, 08).
+Agent 20 matches verdicts to its drafts by it. `data.package`,
+`record.response` and `status.response` go back to the requester by agent and
+`client_context_id`, without `in_reply_to`, and the hub does not check that a
+response answers an open request.
 `sequence` is assigned by the hub per `client_context_id` at persistence;
 senders submit it as null.
 
 ### 4.4 Handoff rules
 
 - A handoff is complete only when the Dispatcher acks the envelope. No ack = the
-  handoff did not happen; retry once, then raise `handoff.failed` to the Dispatcher
-  log and hold state.
+  handoff did not happen. A rejected or dead-lettered send is recorded as
+  `handoff.failed` on the audit log and held for the broker in
+  `clarification.request` at once (`dispatcher/handoff_guard.py`). It is not
+  retried: in one process the same envelope fails the same way again.
 - Never report a handoff as done without the ack.
-- Never rebuild state from memory of prior sessions. Request the current state
-  object from its owning agent (via Dispatcher) and update only what changed.
-- `envelope_id` is the idempotency key. A duplicate `envelope_id` (hub retry) is
-  processed once and re-acked - never processed twice. Duplicate client-facing
-  sends (double texts, double posts) are a real-world failure, not a technicality.
-- Envelopes within one `client_context_id` are processed in hub-assigned
-  `sequence` order. A sequence gap is held and flagged to the Dispatcher after
-  timeout - never skipped silently, never reordered by guess.
+- State is never rebuilt from memory of prior sessions. After a restart it
+  comes from the saved state the audit chain vouches for; another agent's
+  state is asked for through the Dispatcher.
+- `envelope_id` is the idempotency key. The hub delivers an envelope id once; a
+  repeat send gets `duplicate` and is not delivered again. Duplicate
+  client-facing sends (double texts, double posts) are a real-world failure,
+  not a technicality.
+- Envelopes within one `client_context_id` are delivered in hub-assigned
+  `sequence` order: the hub stamps the sequence and delivers in the same step,
+  one envelope at a time.
 
 ## 5. Confidentiality
 
@@ -177,11 +202,14 @@ When the route itself is uncertain:
 1. REDUCE TO STOP, carefully: complete any atomic action already in flight;
    take no new client-facing or state-changing action. Never slam-stop
    mid-artifact; never drop held state.
-2. Send `clarification.request` to the Dispatcher with: the exact ambiguous
-   input (verbatim), the interpretations considered, and what is blocked.
-3. HOLD ON ROUTE: position and state intact, telemetry live - keep receiving,
-   keep logging, keep acking receipt. If a party is waiting, tell them a team
-   member will follow up. Paused is not off.
+2. Send `clarification.request` to the Dispatcher with the reason and, where
+   the agent has it, the exact input verbatim.
+3. HOLD ON ROUTE: position and state intact - keep receiving, keep logging.
+   Paused is not off. A "someone will follow up" message goes to a waiting
+   party only where an agent's section 2 says so (Agent 11's advice and
+   complaint acknowledgements, Agent 20's reply when a question in a mention
+   may involve an existing client);
+   otherwise the broker follows up from the queue.
 4. RESUME only on explicit direction from the Dispatcher or human. Movement
    authority never self-restores.
 
@@ -190,9 +218,15 @@ not a service.
 
 Ambiguity examples for this agent:
 
-- Prospect intent unclear (buying vs. selling vs. vendor call).
-- Question sits near but possibly not over the Legal Line.
-- Caller appears to match an existing client context but identity is unconfirmed.
+- Caller appears to match an existing client context but identity is
+  unconfirmed (same phone or email under another context): held for the
+  broker's continue or cancel.
+- A CRM answer arrives for a context with no capture in progress: held as
+  `clarification.request`.
+- A broker setting is malformed: rejected whole, held.
+
+Not detected by the code: whether the caller is buying, selling or a vendor,
+and a question near but not on the phrase list - both are captured as a lead.
 
 ## 7. Anti-Fabrication (Hard Rule)
 
@@ -218,7 +252,8 @@ Job requirements are paramount. Continuity is never a reason to breach them.
 - On failure (system error, unreachable Dispatcher, malformed input), log the raw
   error - not a paraphrase - and surface it. A softened failure report is a false
   report.
-- This agent does not retry silently more than once. Second failure = escalate.
+- This agent does not retry silently. A failed handoff goes to the broker at
+  once (section 4.4).
 - If the Dispatcher is unreachable, this agent fails closed: hold all outbound
   actions and state, take no autonomous client-facing action until the hub returns.
 

@@ -34,8 +34,8 @@ stopped one. Because the hub cannot report its own death, an external watchdog
   Malformed = rejected with the raw validation error returned to sender.
 - Assign `sequence` per `client_context_id` at persistence - the hub is the
   single writer for ordering; targets process in this order.
-- Route valid envelopes per the routing table; deliver and collect the target's
-  acceptance. Redelivery uses the same `envelope_id`; targets dedupe on it.
+- Route valid envelopes per the routing table and deliver them. The hub
+  dedupes on `envelope_id`: an id is delivered once.
 - Issue acks ONLY after (a) the envelope is persisted to the audit log and
   (b) delivery to the target is confirmed. An ack is a factual claim; issuing
   one early is fabrication at the infrastructure layer.
@@ -63,10 +63,12 @@ stopped one. Because the hub cannot report its own death, an external watchdog
 - Run the pre-response-selfcheck exit gate on every delivery when a reviewer
   model is configured; a FAIL holds the envelope. Unconfigured is recorded on
   the audit log at start-up.
-- Operate the queues (queue name = intent string, exactly):
- - `escalation.legal_line` - highest priority, immediate human notification.
- - `escalation.hot_lead` / `escalation.complaint` - human notification per
-    configured urgency.
+- Operate the queues (queue name = intent string, exactly). Every landing in
+  any queue notifies the human at once through the human notifier (the
+  console prints it, and pages by text when the pager is on); queues are not
+  ranked against each other in the code:
+ - `escalation.legal_line` - Legal Line escalations.
+ - `escalation.hot_lead` / `escalation.complaint` - hot leads and complaints.
  - `clarification.request` - ambiguity and loop-suspension holds awaiting
     direction.
  - `integrity.violation` - fabrication, isolation, and signature failures.
@@ -183,14 +185,16 @@ This table is `identity/routes.json` (version 0.19), the file the hub loads;
 (intent, from, to) tuple not in it is rejected and logged; a well-formed
 envelope whose intent is on no route is held in `clarification.request`. The
 table changes only by a human-approved change to routes.json - never by
-inference from traffic. Responses carry `in_reply_to`; a response that cannot be
-correlated to an open request is flagged, never guessed at. Routes to
+inference from traffic. Routes to
 `external` carry an audience: `principal` passes; `counterparty` and `public`
 hold for the broker's signed release (section 2).
 
 ### 4.3 Message envelope (swarm-standard)
 
-Every message uses this envelope. All fields required.
+Every message uses this envelope. The hub checks `from_agent`, `to_agent`,
+`intent` and `client_context_id` present, `provenance.source` present,
+`confidence` one of the three values, and `sequence` null (`validate_schema`
+in `dispatcher/core.py`); the other fields have defaults.
 
 ```json
 {
@@ -215,8 +219,11 @@ Every message uses this envelope. All fields required.
 `confidence` has exactly three legal values swarm-wide. `inferred` does not
 exist. `to_agent` is the final target; this agent validates the tuple against
 the routing table. `sequence` is assigned HERE at persistence - the hub is the
-single writer for per-context ordering. `in_reply_to` resolves every
-"requester" route; a response without a correlatable open request is flagged.
+single writer for per-context ordering. `in_reply_to` is carried as the sender
+sets it (17's verdicts, 08's document status, 04's reviews); the hub
+does not check that a response answers an open request, and the requester
+routes (`data.package`, `record.response`, `status.response`) go back by agent
+and `client_context_id`.
 
 ### 4.4 Ack semantics (hub-side)
 
@@ -257,10 +264,10 @@ phase; the hub never issues open-ended authority, because runaway prevention
 is the grantor's job before it is the train's.
 
 1. STOP that route. Do not route on the "most likely" interpretation.
-2. Hold the envelope LIVE in `clarification.request` - verbatim envelope,
-   candidate resolutions, what is blocked. Held means acked-received, logged,
-   telemetry intact; held never means dropped.
-3. Notify the human per configured urgency. Unaffected routes continue.
+2. Hold the envelope LIVE in `clarification.request` - the verbatim envelope.
+   Held means received and logged (the sender gets `held`, not `ack`);
+   held never means dropped.
+3. Notify the human at once. Unaffected routes continue.
 4. Resume only on explicit human direction (signed where the resolution
    changes configuration). Movement authority never self-restores.
 

@@ -327,9 +327,21 @@ class Spoke09VendorCoordination:
             return
 
         if env.intent == "vendor.event" and payload.get("event_kind") == "scope_change":
-            # tuple 11: stop-work message per template, human-approved only
+            # tuple 11: stop-work message per template, human-approved only.
+            # Until the 2026-10-12 doc review the broker was told "stop work
+            # order issued" while nothing was sent. The message now goes to
+            # the vendor's channel; the hub holds it (counterparty audience)
+            # until the broker signs its release.
+            vendor_id = payload.get("vendor_id")
+            res = self.hub.send(_env("09", "external", "vendor.schedule", ctx,
+                                     {"vendor_id": vendor_id, "template": "stop_work_order",
+                                      "kind": payload.get("kind")}))
             self.hub.send(_env("09", "queue", "clarification.request", ctx,
-                               {"reason": "work scope grew on-site - stop "
-                                         "work order issued, scope changes "
-                                         "are human-approved only"}))
+                               {"reason": "work scope grew on-site - a stop-work message to "
+                                          "the vendor is "
+                                          + ("held for your signed release"
+                                             if isinstance(res, dict) and res.get("status") == "held"
+                                             else f"not sent ({(res or {}).get('status')})")
+                                          + "; scope changes are human-approved only",
+                                "vendor_id": vendor_id}))
             return

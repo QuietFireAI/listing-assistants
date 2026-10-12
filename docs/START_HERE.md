@@ -27,7 +27,7 @@ minutes:
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (961 passed)
+python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (971 passed)
 ```
 
 That last command isn't a formality — it executes every playbook,

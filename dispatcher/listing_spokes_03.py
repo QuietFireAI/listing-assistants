@@ -561,6 +561,14 @@ class Spoke03LeadNurture:
                             f"{findings} - sequence stays paused, never "
                             f"sends flagged content",
                     result="sequence held: flagged")
+                # the broker wrote the sequence, so the broker is told
+                # (2026-10-12 doc review: the pause was silent)
+                self.hub.send(_env("03", "queue", "clarification.request", ctx,
+                                   {"reason": "Compliance (17) flagged the nurture sequence - "
+                                              "paused, nothing sent; send a corrected "
+                                              "nurture_sequences setting",
+                                    "sequence_id": seq.get("sequence_id") if seq else None,
+                                    "findings": findings}))
                 return
             self.hub.ingest_spoke_trace(
                 "03", env.envelope_id,

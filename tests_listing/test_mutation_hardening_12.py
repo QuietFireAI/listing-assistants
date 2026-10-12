@@ -137,8 +137,12 @@ def test_12_flagged_verdict_does_not_publish_approved_does(tmp_path):
     # agent.status to 18 dead-letters and HandoffGuard (audit TU-2) files a
     # handoff.failed clarification. Only a NON-handoff clarification would
     # mean the verdict fell through.
-    assert not [c for c in persisted(s.hub, "clarification.request")
-                if not c["payload"]["reason"].startswith("handoff.failed")], \
+    # since 2026-10-12 the flagged branch tells the broker; anything else
+    # (the unrecognized-verdict text) would mean it fell through
+    assert [c["payload"]["reason"] for c in persisted(s.hub, "clarification.request")
+            if not c["payload"]["reason"].startswith("handoff.failed")] == [
+        "Compliance (17) flagged the campaign copy - nothing publishes; send corrected "
+        "copy as a new signed new_campaign"], \
         "flagged must not fall through to unrecognized-verdict clarification"
 
     s2 = spoke(str(tmp_path) + "_b")
