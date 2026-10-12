@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -133,7 +133,7 @@ class Spoke07TransactionCoordinator:
         # unnoticed until the deadline itself lapses - a 7-day hold-up
         # timer to HITL, independent of and faster than deadline expiry.
         self.vendor_requests_pending: dict[str, dict[str, str]] = {}
-        hub.register("07", self.handle)
+        register_spoke(hub, "07", self)
 
     def kind_to_milestone(self, vendor_kind: str) -> str | None:
         """Reverse lookup, genuinely derived from transaction_milestone_config
@@ -249,7 +249,10 @@ class Spoke07TransactionCoordinator:
                     kind = self.transaction_milestone_config.get(m, {}).get("vendor_kind")
                     if kind:
                         self.hub.send(_env("07", "09", "vendor.request", ctx,
-                                           {"kind": kind, "milestone": m}))
+                                           {"kind": kind, "milestone": m,
+                                            # lets 09 check credentials
+                                            # (fixed 2026-10-11: never sent)
+                                            "today": sent_date}))
                         if sent_date:
                             self.vendor_requests_pending.setdefault(ctx, {})[m] = sent_date
                             self.hub.send(_env("07", "18", "agent.status", ctx,
@@ -423,6 +426,16 @@ class Spoke07TransactionCoordinator:
                 self.hub.send(_env("07", "14", "interaction.log", ctx,
                                    {"kind": "milestone_satisfied",
                                     "milestone": milestone}))
+                return
+            # nothing to change on the timeline - say so on the record
+            # (silent-handler sweep 2026-10-11: this branch left no trace)
+            self.hub.ingest_spoke_trace(
+                "07", env.envelope_id,
+                thought=f"doc.status {payload.get('status')!r} for "
+                        f"{payload.get('doc_type')!r} (milestone {milestone!r}) - "
+                        f"{'not on this timeline' if entry is None else 'no artifact on file'}; "
+                        f"timeline unchanged",
+                result="no timeline change")
             return
 
         if env.intent == "deliverable.release":

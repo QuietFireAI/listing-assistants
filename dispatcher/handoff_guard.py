@@ -92,3 +92,42 @@ def guard(hub: Any, agent_id: str) -> Any:
     if isinstance(hub, HandoffGuard):
         hub = hub.unwrapped
     return HandoffGuard(hub, agent_id)
+
+
+def _snapshot(spoke: Any) -> bytes:
+    import pickle
+    return pickle.dumps({k: v for k, v in vars(spoke).items() if k != "hub"})
+
+
+def register(hub: Any, agent_id: str, spoke: Any) -> None:
+    """Registers spoke.handle with the hub. A signed config.update that the
+    agent does not act on (no audit entry, no change to its state) is no
+    longer acknowledged in silence: it is recorded as config.unrecognized and
+    held for the broker with the keys that were sent. Added 2026-10-11: every
+    one of the 20 agents acked a config with a misspelled or unknown setting
+    and changed nothing, with no sign anywhere that it had been ignored."""
+    handler = spoke.handle
+
+    def handle(env):
+        if env.intent != "config.update":
+            return handler(env)
+        before_tip = hub.audit._prev
+        before_state = _snapshot(spoke)
+        result = handler(env)
+        if hub.audit._prev == before_tip and _snapshot(spoke) == before_state:
+            keys = sorted((env.payload or {}).keys())
+            hub.audit.append("config.unrecognized", {
+                "agent": agent_id, "envelope_id": env.envelope_id,
+                "client_context_id": env.client_context_id, "keys": keys})
+            hub.send(Envelope(
+                from_agent=agent_id, to_agent="queue", intent="clarification.request",
+                client_context_id=env.client_context_id,
+                payload={"reason": f"config.update to Agent {agent_id} matched no "
+                                   f"setting this agent has; nothing changed",
+                         "keys": keys},
+                provenance={"source": f"spoke-{agent_id}", "captured_at": "runtime",
+                            "verbatim_available": True}))
+        return result
+
+    handle.__wrapped__ = handler
+    hub.register(agent_id, handle)

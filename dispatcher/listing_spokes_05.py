@@ -9,7 +9,7 @@ ever sees it, per hub.send()'s pipeline order).
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -83,7 +83,7 @@ class Spoke05MLSListingManagement:
         # a closing/settlement artifact on file first
         self.required_artifacts = required_artifacts or {
             "sold": "closing_artifact", "pending": "signed_contract_artifact"}
-        hub.register("05", self.handle)
+        register_spoke(hub, "05", self)
 
     def _conflicting_authorization(self, ctx: str, field: str, value,
                                     authorizing_identity: str) -> dict | None:
@@ -210,7 +210,10 @@ class Spoke05MLSListingManagement:
                             "syndication work starts",
                     result="draft entered, vendor.request issued")
                 self.hub.send(_env("05", "09", "vendor.request", ctx,
-                                   {"kind": "photography"}))
+                                   {"kind": "photography",
+                                    # the date lets 09 check credentials
+                                    # (fixed 2026-10-11: never sent)
+                                    "today": env.payload.get("today")}))
                 self.hub.send(_env("05", "18", "agent.status", ctx,
                                    {"waiting_on": "photography_deliverable",
                                     "since": env.payload.get("today")}))

@@ -8,7 +8,7 @@ the number, only a labeled projection.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -64,7 +64,7 @@ class Spoke15FinancialTracking:
         self.expenses: dict[str, list[dict]] = {}
         self.roi_claims: dict[str, list[dict]] = {}  # attribution_key -> claims
         self.data_months_present: set[str] = set()
-        hub.register("15", self.handle)
+        register_spoke(hub, "15", self)
 
     def _trust_escrow_hit(self, text: str) -> str | None:
         low = text.lower()

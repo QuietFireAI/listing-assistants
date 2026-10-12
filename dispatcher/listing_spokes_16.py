@@ -8,7 +8,7 @@ human/counsel decision, never this agent's call.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -66,7 +66,7 @@ class Spoke16AfterCloseReferral:
         self.stale_contacts: set[str] = set()  # tuple 9
         self.closed_transactions: dict[str, dict] = {}
         self.checkins_sent: dict[str, set[int]] = {}  # ctx -> {30, 90, 365} sent
-        hub.register("16", self.handle)
+        register_spoke(hub, "16", self)
 
     def _touch_blocked(self, ctx: str) -> str | None:
         """Single shared gate every touch path runs through - returns a
@@ -297,4 +297,19 @@ class Spoke16AfterCloseReferral:
                                    {"kind": "new_business_signal_routed",
                                     "new_context": new_ctx}))
                 return
+            # Fixed 2026-10-11 (silent-handler sweep): a past client's reply
+            # matching no rule above used to vanish. Logged and held for the
+            # broker with the client's words.
+            self.hub.ingest_spoke_trace(
+                "16", env.envelope_id,
+                thought="past-client reply matches no 16 rule - logging and "
+                        "holding for a human with the client's words",
+                result="held: unhandled_reply")
+            self.hub.send(_env("16", "14", "interaction.log", ctx,
+                               {"kind": "reply_received", "agent": "16",
+                                "verbatim": payload.get("message")}))
+            self.hub.send(_env("16", "queue", "clarification.request", ctx,
+                               {"reason": "past-client reply needs a human: no "
+                                          "Agent 16 rule covers it",
+                                "verbatim": payload.get("message")}))
             return

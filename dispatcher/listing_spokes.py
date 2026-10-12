@@ -8,7 +8,7 @@ escalation entirely. This file replaces that scope with the real spec.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -127,7 +127,7 @@ class Spoke14CRMPipeline:
         # Doctrine: instruction < detection < structural impossibility.
         self.frozen: set[str] = set()
         self._entry_seq = 0
-        hub.register("14", self.handle)
+        register_spoke(hub, "14", self)
 
     def _new_entry_id(self) -> str:
         self._entry_seq += 1
@@ -441,7 +441,7 @@ class Spoke01LeadCapture:
         # this at all; a non-answering 14 left pending[ctx] stuck forever
         # with no timeout, no retry, no signal.
         self.retry_count: dict[str, int] = {}
-        hub.register("01", self.handle)
+        register_spoke(hub, "01", self)
 
     def _legal_line_hit(self, payload: dict) -> str | None:
         note = str(payload.get("message", "")) + " " + str(payload.get("request", ""))

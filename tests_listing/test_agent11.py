@@ -411,8 +411,12 @@ def test_lead_reply_to_handled_owner_is_delivered(tmp_path, owner):
     lr = [e for e in hub.audit.read() if e["kind"] == "envelope.persisted" and e.get("intent") == "lead.reply"]
     acks = {e["envelope_id"] for e in hub.audit.read() if e["kind"] == "ack"}
     assert len(lr) == 1 and lr[0]["envelope_id"] in acks
+    # 11 delivered it and did not hold it. (Since 2026-10-11 the receiving
+    # agent itself holds a reply no rule of its own covers - 13 and 16 do
+    # for this message - so only 11's own holds are checked here.)
     assert not [q for q in hub.queues["clarification.request"]
-                if q["payload"].get("verbatim") == "Thanks, Saturday works"]
+                if q["payload"].get("verbatim") == "Thanks, Saturday works"
+                and q.get("from_agent") == "11"]
 
 
 def test_lead_reply_not_acked_is_held_with_the_clients_words(tmp_path):

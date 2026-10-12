@@ -8,7 +8,7 @@ not just after.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -105,7 +105,7 @@ class Spoke18CalendarTask:
         # silence counts as a calendar-detected no-show. TUNING_MANUAL entry
         # added in the same commit, per standing KPI.
         self.no_show_grace_minutes = no_show_grace_minutes
-        hub.register("18", self.handle)
+        register_spoke(hub, "18", self)
 
     def _wait_key(self, agent: str, ctx: str, waiting_on: str) -> str:
         return f"{agent}:{ctx}:{waiting_on}"
@@ -155,6 +155,16 @@ class Spoke18CalendarTask:
 
         if env.intent == "calendar.event":
             day = payload.get("day")
+            if not day:
+                # fixed 2026-10-11 (scene run): an event with no day was
+                # filed under None, and the next briefing could not be
+                # written to the audit log (mixed None/str keys crash the
+                # chain's canonical JSON) - the whole briefing was lost
+                self.hub.send(_env("18", "queue", "clarification.request", ctx,
+                                   {"reason": "calendar event has no day - not "
+                                              "scheduled; name the day",
+                                    "event": payload.get("event")}))
+                return
             if payload.get("recurring_task_id"):
                 self.recurring_task_last_seen[payload["recurring_task_id"]] = str(day)
             # Doctrine is unconditional: "deadline blocks originating from
@@ -277,6 +287,16 @@ class Spoke18CalendarTask:
                 return
             if event_id in self.protected_blocks:
                 del self.protected_blocks[event_id]
+                self.hub.ingest_spoke_trace(
+                    "18", env.envelope_id,
+                    thought=f"human-confirmed move of protected block {event_id!r} - removed",
+                    result="protected block moved")
+                return
+            self.hub.ingest_spoke_trace(
+                "18", env.envelope_id,
+                thought=f"move requested for {event_id!r}, which is not a protected "
+                        f"block on record - nothing moved",
+                result="no such protected block")
             return
 
     def check_showing_no_show(self, ctx: str, now_iso: str):

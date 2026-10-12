@@ -7,7 +7,7 @@ Compliance (17) 'approved' verdict.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -72,7 +72,7 @@ class Spoke04ListingDescription:
             # config absent (e.g. bare-core install): documented default,
             # identical to the ratified file's content
             self.cut_priority = list(self._DEFAULT_CUT_PRIORITY)
-        hub.register("04", self.handle)
+        register_spoke(hub, "04", self)
 
     def _build_facts(self, data: dict) -> tuple[list[dict], list[str]]:
         """Returns (facts, human_notes). Each fact: {text, attribution,

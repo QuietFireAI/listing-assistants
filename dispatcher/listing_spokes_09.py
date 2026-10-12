@@ -7,7 +7,7 @@ settlement service providers) is human/counsel territory, absolute.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -64,7 +64,7 @@ class Spoke09VendorCoordination:
         self.roster = roster or {}
         self.scheduled: dict[str, dict[str, dict]] = {}  # ctx -> milestone -> {vendor_id, time}
         self.slot_holds: dict[str, str] = {}  # (property, time) key -> ctx holding it
-        hub.register("09", self.handle)
+        register_spoke(hub, "09", self)
 
     def _credentials_current(self, vendor_id: str, today: str) -> bool:
         v = self.roster.get(vendor_id)
@@ -86,6 +86,17 @@ class Spoke09VendorCoordination:
             vendor_id = payload.get("vendor_id")
             kind = payload.get("kind")
             today = payload.get("today")
+            # Fail closed (fixed 2026-10-11, scene run): 05 and 07 sent
+            # vendor.request with no date, and every credential check below
+            # is skipped when there is no date - so in real traffic an
+            # expired license or lapsed insurance was never caught. No date
+            # = credentials cannot be checked = nothing is booked.
+            if not today:
+                self.hub.send(_env("09", "queue", "clarification.request", ctx,
+                                   {"reason": f"vendor.request for {kind!r} has no "
+                                              f"date - credentials cannot be "
+                                              f"checked, nothing scheduled"}))
+                return
 
             # Real fail-open, found 2026-07-17 by reading (invisible to the
             # .get-default sweeps): a vendor.request with NO vendor_id

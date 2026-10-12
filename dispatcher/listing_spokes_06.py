@@ -6,7 +6,7 @@ are an absolute Legal Line, not a judgment call.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -76,7 +76,7 @@ class Spoke06ShowingScheduler:
         self.pending_bumps: dict[str, dict] = {}  # ctx -> held protected-bump request
         # per-state or per-property minimum notice hours for occupied homes
         self.min_notice_hours = min_notice_hours or {"default": 24}
-        hub.register("06", self.handle)
+        register_spoke(hub, "06", self)
 
     def _access_request_hit(self, text: str) -> str | None:
         low = text.lower()

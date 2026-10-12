@@ -10,7 +10,7 @@ scoring (it can still capture/hold leads; it just cannot tier them).
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -93,7 +93,7 @@ class Spoke02LeadQualification:
         # deployment overrides this via the same signed config.update path
         # once cadence_settings.json is ratified.
         self.hot_lead_sla_seconds = hot_lead_sla_seconds
-        hub.register("02", self.handle)
+        register_spoke(hub, "02", self)
 
     def _score(self, payload: dict) -> tuple[str, int | None, list[str]]:
         """Returns (tier, score_or_None, notes). Tier is UNKNOWN if the

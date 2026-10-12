@@ -8,7 +8,7 @@ outreach, the record makes the legal posture visible first.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -53,7 +53,7 @@ class Spoke19Prospecting:
         self.dnc_list: set[str] = set()
         self.known_client_contexts: set[str] = set()  # for tuple 3 matching
         self.opportunities: dict[str, dict] = {}  # listing_id -> record
-        hub.register("19", self.handle)
+        register_spoke(hub, "19", self)
 
     def request_market_context(self, listing_id: str):
         """Job component: market context for opportunity records via 10.
@@ -124,7 +124,14 @@ class Spoke19Prospecting:
             status = payload.get("status")  # "new" / "expired" / "fsbo"
 
             if zip_code not in self.zip_codes:
-                return  # outside monitored zips, not this agent's concern
+                # outside monitored zips, not this agent's concern - recorded,
+                # never silent (silent-handler sweep 2026-10-11)
+                self.hub.ingest_spoke_trace(
+                    "19", env.envelope_id,
+                    thought=f"discovery {listing_id!r} in zip {zip_code!r} is outside "
+                            f"the monitored zips {sorted(self.zip_codes)} - not recorded",
+                    result="ignored: outside monitored zips")
+                return
 
             # tuple 2: source's rule-compliance unclear -> exclude + flag
             if status in ("expired", "fsbo") and source not in self.approved_sources:

@@ -9,7 +9,7 @@ tests (a synthetic empty trace injected directly), not in this agent.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -93,7 +93,7 @@ class Spoke03LeadNurture:
         self.frequency_cap_per_week = frequency_cap_per_week
         self.legal_contact_hours = legal_contact_hours
         self.touch_log: dict[str, list] = {}  # ctx -> list of touch timestamps/weeks
-        hub.register("03", self.handle)
+        register_spoke(hub, "03", self)
 
     def _in_legal_contact_hours(self, hour: int) -> bool:
         start, end = self.legal_contact_hours

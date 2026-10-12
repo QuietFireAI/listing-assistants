@@ -12,7 +12,7 @@ import os
 import re
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -119,7 +119,7 @@ class Spoke08DocumentCollection:
         # per-context, per-doc-type set of senders this transaction expects -
         # empty/unset means unverifiable, so tuple 4 fires conservatively
         self.expected_senders = expected_senders or {}
-        hub.register("08", self.handle)
+        register_spoke(hub, "08", self)
 
     def _wire_check(self, payload: dict, ctx: str) -> bool:
         text = " ".join(_flatten_strings(payload)).lower()

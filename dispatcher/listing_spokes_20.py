@@ -7,7 +7,7 @@ human via 17's review; publication is a human act, always.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -45,7 +45,7 @@ class Spoke20SocialMediaMonitoring:
         self.hub = guard(hub, "20")   # handoff rule (audit TU-2)
         self.monitored_channels: set[str] = set()
         self.pending_drafts: dict[str, dict] = {}  # envelope_id-keyed via in_reply_to
-        hub.register("20", self.handle)
+        register_spoke(hub, "20", self)
 
     # NOT implemented, found during review 2026-07-16: SKILL.md documents
     # 'OUT -> 03 Lead Nurture | Engagement/behavioral signal |
@@ -91,7 +91,14 @@ class Spoke20SocialMediaMonitoring:
         if env.intent == "social.mention":
             channel = payload.get("channel")
             if channel not in self.monitored_channels:
-                return  # not a monitored channel, not this agent's concern
+                # not a monitored channel - recorded, never silent
+                # (silent-handler sweep 2026-10-11)
+                self.hub.ingest_spoke_trace(
+                    "20", env.envelope_id,
+                    thought=f"mention on {channel!r}, which is not a monitored "
+                            f"channel {sorted(self.monitored_channels)} - not acted on",
+                    result="ignored: unmonitored channel")
+                return
 
             text = payload.get("text", "")
             sentiment = payload.get("sentiment")  # question/complaint/lead_signal/praise/noise/mixed

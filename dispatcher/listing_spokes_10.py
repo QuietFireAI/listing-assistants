@@ -7,7 +7,7 @@ remember, a shape the data literally cannot carry.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -96,7 +96,7 @@ class Spoke10MarketData:
         self.staleness_days = staleness_days
         self.retention_days = retention_days
         self.pressed_for_opinion: dict[str, int] = {}  # ctx -> count
-        hub.register("10", self.handle)
+        register_spoke(hub, "10", self)
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id

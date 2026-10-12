@@ -9,7 +9,7 @@ showing.request.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -84,7 +84,7 @@ class Spoke13BuyerSearchMatch:
         self.pending_showing: dict[str, dict] = {}  # ctx -> held request awaiting 14
         self.preapproval_expired: dict[str, bool] = {}
         self.criteria_pending_review: dict[str, list] = {}  # sensitive language awaiting 17
-        hub.register("13", self.handle)
+        register_spoke(hub, "13", self)
 
     def _protected_class_hit(self, text: str) -> str | None:
         low = text.lower().replace("_", " ")
@@ -379,6 +379,22 @@ class Spoke13BuyerSearchMatch:
                                    {"waiting_on": "buyer_agreement_verification",
                                     "since": payload.get("today")}))
                 return
+            # No rule above covers this reply. Fixed 2026-10-11 (silent-
+            # handler sweep): it used to fall through and vanish. Owner rule:
+            # every client message goes through the dispatcher or a human -
+            # logged to 14 and held for the broker with the client's words.
+            self.hub.ingest_spoke_trace(
+                "13", env.envelope_id,
+                thought="buyer reply matches no 13 rule - logging and holding "
+                        "for a human with the client's words, never dropping it",
+                result="held: unhandled_reply")
+            self.hub.send(_env("13", "14", "interaction.log", ctx,
+                               {"kind": "reply_received", "agent": "13",
+                                "verbatim": payload.get("message")}))
+            self.hub.send(_env("13", "queue", "clarification.request", ctx,
+                               {"reason": "buyer reply needs a human: no Agent 13 "
+                                          "rule covers it",
+                                "verbatim": payload.get("message")}))
             return
 
         if env.intent == "record.response":

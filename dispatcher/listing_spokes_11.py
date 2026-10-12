@@ -9,7 +9,7 @@ showing.no_show, showing.feedback_response all originate here).
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -27,6 +27,14 @@ _WIRE_WORDS = ("wire instructions", "wiring details", "wire transfer",
 # to clarification.request with the client's words (audit OPS-1).
 LEAD_REPLY_HANDLERS = frozenset({"03", "04", "12", "13", "16", "20"})
 
+
+# the fields Agent 08 reads from a document.submission
+_DOCUMENT_FIELDS = ("doc_type", "submitting_party", "opens_correctly", "open_error",
+                    "content_hash", "artifact_ref", "today", "partial", "signed",
+                    "signature_expected", "version_conflict_key", "wrong_context",
+                    "sale_price", "commission_amount", "appraised_value",
+                    "contract_price", "repair_requests_present", "exception_found",
+                    "exception_text", "receipt_confirmed")
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
@@ -110,7 +118,7 @@ class Spoke11ClientCommunication:
         # open. Was missing entirely - neither tuple 2 (angry) nor tuple 10
         # (negative tone) implemented this half of the playbook.
         self.complaint_hold: set[str] = set()
-        hub.register("11", self.handle)
+        register_spoke(hub, "11", self)
 
     def _in_quiet_hours(self, hour: int) -> bool:
         start, end = self.quiet_hours
@@ -407,11 +415,15 @@ class Spoke11ClientCommunication:
 
             # document submission -> route to 08
             if payload.get("document_attached"):
+                # Forward every document field Agent 08 reads, verbatim and
+                # only when present. Fixed 2026-10-11 (real-traffic check):
+                # only four fields were forwarded, so a settlement statement's
+                # sale price, signature status and date never reached 08 - and
+                # the commission was computed from nothing. The tests had sent
+                # document.submission to 08 directly with every field filled.
                 self.hub.send(_env("11", "08", "document.submission", ctx,
-                                   {"doc_type": payload.get("doc_type"),
-                                    "submitting_party": payload.get("submitting_party"),
-                                    "opens_correctly": payload.get("opens_correctly"),
-                                    "content_hash": payload.get("content_hash")}))
+                                   {k: payload[k] for k in _DOCUMENT_FIELDS
+                                    if k in payload}))
                 return
 
             # routine reply -> route to owning agent (by content, per the

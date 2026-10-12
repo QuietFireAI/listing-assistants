@@ -63,7 +63,8 @@ def test_off_roster_vendor_refused_never_scheduled(tmp_path):
     hub = make_hub(str(tmp_path))
     spoke = Spoke09VendorCoordination(hub, roster=ROSTER)
     hub.on_turn_start()
-    hub.send(vendor_req("v-002", {"vendor_id": "unknown-vendor", "kind": "inspector"}))
+    hub.send(vendor_req("v-002", {"vendor_id": "unknown-vendor", "kind": "inspector",
+                                       "today": "2026-07-10"}))
     assert "v-002" not in spoke.scheduled
     clar = persisted(hub, "clarification.request")
     assert any("not on the approved roster" in c["payload"]["reason"] for c in clar)
@@ -326,11 +327,27 @@ def test_vendor_request_without_id_and_empty_roster_fails_closed(tmp_path):
     hub = make_hub(str(tmp_path))
     spoke = Spoke09VendorCoordination(hub)  # empty roster
     hub.on_turn_start()
-    hub.send(vendor_req("p1", {"kind": "photography"}))
+    hub.send(vendor_req("p1", {"kind": "photography", "today": "2026-07-10"}))
     assert "photography" not in spoke.scheduled.get("p1", {})
     reasons = [r.get("payload", {}).get("reason", r.get("reason", ""))
                for r in hub.queues["clarification.request"]]
     assert any("no approved roster vendor" in r for r in reasons)
+
+
+def test_vendor_request_without_date_books_nothing(tmp_path):
+    """Scene run 2026-10-11: 05 and 07 sent vendor.request with no date, and
+    every credential check is skipped without one - an expired vendor could
+    be booked. No date now books nothing, even with a current roster vendor."""
+    hub = make_hub(str(tmp_path))
+    spoke = Spoke09VendorCoordination(hub, roster={
+        "v-exp": {"kind": "photography", "license_expiry": "2020-01-01",
+                  "insurance_expiry": "2020-01-01", "regulated": False}})
+    hub.on_turn_start()
+    hub.send(vendor_req("p2", {"kind": "photography"}))
+    assert "photography" not in spoke.scheduled.get("p2", {})
+    reasons = [r.get("payload", {}).get("reason", "")
+               for r in hub.queues["clarification.request"]]
+    assert any("has no date - credentials cannot be checked" in r for r in reasons)
 
 
 def test_vendor_request_without_id_selects_from_approved_roster(tmp_path):

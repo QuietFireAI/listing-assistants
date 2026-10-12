@@ -9,7 +9,7 @@ never authors it.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -63,7 +63,7 @@ class Spoke17ComplianceFairHousing:
         self.near_miss_counts: dict[str, int] = {}  # submitting_agent -> count
         self.pending_reviews: dict[str, dict] = {}  # ctx -> {submitted_at, agent}
         self.sla_days = sla_days
-        hub.register("17", self.handle)
+        register_spoke(hub, "17", self)
 
     def _find_prohibited(self, text: str) -> list[dict]:
         """Applies the human-supplied ruleset only - never invents a

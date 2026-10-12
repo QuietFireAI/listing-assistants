@@ -10,7 +10,7 @@ marketing action regardless of content source.
 from __future__ import annotations
 
 from .core import Envelope
-from .handoff_guard import guard
+from .handoff_guard import guard, register as register_spoke
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -68,7 +68,7 @@ class Spoke12MarketingCampaign:
         self.approved_awaiting_ccp: dict[str, dict] = {}  # ctx -> approved content, gate not yet clear
         self.signed_budgets: dict[str, float] = {}  # ctx -> current signed budget
         self.engagement_sources: dict[str, dict[str, dict]] = {}  # ctx -> source -> metrics
-        hub.register("12", self.handle)
+        register_spoke(hub, "12", self)
 
     def _ccp_gate_clear(self, ctx: str) -> bool:
         if self.mls_confirmed.get(ctx):
