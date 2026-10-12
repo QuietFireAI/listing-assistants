@@ -205,3 +205,6 @@ existing.
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs second pass |
 | 2026-10-12 17:14:19 UTC | listing-assistants | `a4f27be006` | Agent docs, third pass: DECISIONS code-status notes (00, 03, 06, 07, 11, 18); 11 doc corrections; 09 roster alternatives; 18 proposed order; test count 974 |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the agent-docs third pass |
+| 2026-10-12 17:45:05 UTC | dispatcher-agents | `97b5fe6109` | Hub: a failed audit write no longer marks the envelope as seen (retry was answered duplicate, never delivered); test; EVIDENCE row; counts 132+5 / 137 |
+| 2026-10-12 17:45:45 UTC | listing-assistants | `46bc2296ce` | Core synced (hub persist fix); 00 SKILL.md, JOB_DESCRIPTIONS, changelog |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the persist-fix push |
