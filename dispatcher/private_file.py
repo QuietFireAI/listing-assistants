@@ -8,9 +8,11 @@ Windows has no POSIX mode bits - chmod there only toggles read-only.
 write_private() creates the file private from the first byte:
   - Linux / macOS: os.open(..., 0o600), so the file is never briefly
     readable by others (a later chmod leaves a window).
-  - Windows: the file's inherited permissions are removed and only the
-    current user is granted access (icacls /inheritance:r /grant:r), then
-    the permission list is read back and checked.
+  - Windows: the file's inherited permissions are removed, Everyone /
+    Users / Authenticated Users are stripped, the current user is granted
+    access by security id, and the permission list is read back (as SDDL)
+    and checked: only you, SYSTEM, Administrators and OWNER RIGHTS may
+    remain - the same reach root has over a 0600 file on Linux.
 Fail-closed: if the file cannot be made private, it is deleted and an
 error is raised - a readable secret is never left behind.
 
@@ -29,31 +31,58 @@ class NotPrivateError(OSError):
     pass
 
 
-def _whoami() -> str:
-    out = subprocess.run(["whoami"], capture_output=True, text=True, check=True)
-    return out.stdout.strip()
+# Who may be on a private file's permission list on Windows, by security
+# id: you, the operating system (SYSTEM) and the machine's administrators -
+# the same reach root has over a 0600 file on Linux - and OWNER RIGHTS.
+# Anyone else - Everyone, Users, Authenticated Users, another person - makes
+# the file not private. Ids, not names: names are translated on non-English
+# Windows ("Administratoren").
+_SDDL_ALIASES = {"SY": "S-1-5-18", "BA": "S-1-5-32-544", "OW": "S-1-3-4",
+                 "WD": "S-1-1-0", "BU": "S-1-5-32-545", "AU": "S-1-5-11",
+                 "CO": "S-1-3-0", "IU": "S-1-5-4", "NU": "S-1-5-2"}
+_ALLOWED_OTHERS = {"S-1-5-18", "S-1-5-32-544", "S-1-3-4"}
+_STRIP = ("*S-1-1-0", "*S-1-5-32-545", "*S-1-5-11")     # Everyone, Users, Authenticated Users
 
 
-def _acl_entries(path: str) -> list[str]:
-    """The principals on the file's permission list, from `icacls <path>`.
-    icacls prints `<path> PRINCIPAL:(perms)` on the first line, one
-    principal per following line, then a blank line and a summary."""
-    out = subprocess.run(["icacls", path], capture_output=True, text=True, check=True).stdout
-    principals = []
-    for i, line in enumerate(out.splitlines()):
-        line = line.strip()
-        if not line:
-            break
-        if i == 0:
-            line = line[len(path):].strip() if line.lower().startswith(path.lower()) else line
-        if ":" in line:
-            principals.append(line.rsplit(":(", 1)[0].strip())
-    return principals
+def _my_sid() -> str:
+    out = subprocess.run(["whoami", "/user", "/fo", "csv", "/nh"],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    return out.rsplit(",", 1)[-1].strip().strip('"')
+
+
+def _sddl(path: str) -> str:
+    """The file's security descriptor as SDDL text, from `icacls /save`."""
+    import tempfile
+    fd, tmp = tempfile.mkstemp(suffix=".acl")
+    os.close(fd)
+    try:
+        subprocess.run(["icacls", path, "/save", tmp, "/q"],
+                       capture_output=True, text=True, check=True)
+        raw = open(tmp, "rb").read()
+    finally:
+        os.remove(tmp)
+    text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-16-le")
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    return lines[-1].strip() if lines else ""
+
+
+def _allow_trustees(sddl: str) -> list[str]:
+    """The security ids granted access (allow entries) in the DACL."""
+    import re
+    dacl = sddl.split("D:", 1)[1] if "D:" in sddl else ""
+    dacl = re.split(r"S:(?=[A-Z(])", dacl)[0]          # stop at the audit list, if any
+    out = []
+    for kind, trustee in re.findall(r"\(([A-Z]+);[^;]*;[^;]*;[^;]*;[^;]*;([^)]+)\)", dacl):
+        if kind in ("A", "OA"):
+            out.append(_SDDL_ALIASES.get(trustee, trustee))
+    return out
 
 
 def _lock_down_windows(path: str) -> None:
-    me = _whoami()
-    subprocess.run(["icacls", path, "/inheritance:r", "/grant:r", f"{me}:F"],
+    me = _my_sid()
+    subprocess.run(["icacls", path, "/inheritance:r", "/remove:g", *_STRIP],
+                   capture_output=True, text=True, check=True)
+    subprocess.run(["icacls", path, "/grant:r", f"*{me}:F"],
                    capture_output=True, text=True, check=True)
     ok, why = is_private(path)
     if not ok:
@@ -61,17 +90,20 @@ def _lock_down_windows(path: str) -> None:
 
 
 def is_private(path: str) -> tuple[bool, str]:
-    """(True, how) when only the owner can read the file; (False, why) when
-    anyone else can."""
+    """(True, how) when no ordinary account but yours can open the file;
+    (False, why) otherwise."""
     if WINDOWS:
-        me = _whoami().lower()
-        principals = [p.lower() for p in _acl_entries(path)]
-        others = [p for p in principals if p != me]
-        if not principals:
-            return False, f"no permission entries read for {path}"
+        me = _my_sid()
+        sddl = _sddl(path)
+        trustees = _allow_trustees(sddl)
+        if me.endswith("-500"):
+            trustees = [me if t == "LA" else t for t in trustees]   # the built-in Administrator
+        if me not in trustees:
+            return False, f"{path}: your account is not on its permission list ({sddl})"
+        others = sorted({t for t in trustees if t != me and t not in _ALLOWED_OTHERS})
         if others:
-            return False, f"{path} is readable by {others} as well as {me}"
-        return True, f"only {me} has access (Windows permission list)"
+            return False, f"{path} is readable by {others} as well as you ({sddl})"
+        return True, "only your account (plus SYSTEM and Administrators) on the Windows permission list"
     mode = os.stat(path).st_mode & 0o777
     if mode & 0o077:
         return False, f"{path} has mode {oct(mode)}; others can read it"
