@@ -196,3 +196,6 @@ existing.
 | 2026-10-12 14:55:52 UTC | listing-assistants | `5bdb546353` | Console onboard/pager with no terminal: plain error instead of a traceback |
 | 2026-10-12 15:09:01 UTC | listing-assistants | `7491e3d043` | Mutation record (logic 60.9% -> 95.1%, string 38.6% -> 82.7%); clock test; test count 939 (fresh copy) |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the J-items push |
+| 2026-10-12 16:14:03 UTC | dispatcher-agents | `f7a5347ab0` | J10: signatures cover provenance; HMAC tier removed; JEV boot line jev.key_present; text-command parser removed; core.py no longer names TelsonBase; hub lock contract documented and tested; docs synced; identity path listing-assistants (52 routes) |
+| 2026-10-12 16:16:29 UTC | listing-assistants | `082fa195d4` | J10: core f7a5347 synced; readable log, tests, README, SECURITY, FINANCIAL_CAPABILITY, JEV doc, release notes, changelog; test count 940 |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the J10 push |
