@@ -38,6 +38,7 @@ jobs:
           grep -q "1 failed" out.txt
           grep -q "test_all_six_pillars_fire_on_listing_traffic" out.txt
   windows-desk:
+    timeout-minutes: 15
     # The Broker Desk on Windows, run for real (added 2026-10-12): the
     # desk lock's pid check takes a different branch there (OpenProcess /
     # GetExitCodeProcess - os.kill(pid, 0) would END the process), and a
@@ -50,13 +51,17 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/test_desk.py -q
   windows-full-suite:
-    # Informational: the whole suite on Windows. Not a gate yet - QUICKSTART
+    # Informational: the whole suite on Windows (~13 min there: every audit
+    # write is fsynced, and Windows flushes slowly). Not a gate yet - QUICKSTART
     # says Linux and macOS; this job is how we find out what Windows needs.
     runs-on: windows-latest
+    timeout-minutes: 30
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install -r requirements.txt
-      - run: python -m pytest tests_listing/ -q -p no:cacheprovider
+      # -v names each test as it runs; faulthandler dumps every thread's
+      # stack if one test runs past 120 s, so a hang names itself
+      - run: python -m pytest tests_listing/ -v -p no:cacheprovider -o faulthandler_timeout=120
