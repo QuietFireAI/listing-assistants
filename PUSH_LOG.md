@@ -208,3 +208,5 @@ existing.
 | 2026-10-12 17:45:05 UTC | dispatcher-agents | `97b5fe6109` | Hub: a failed audit write no longer marks the envelope as seen (retry was answered duplicate, never delivered); test; EVIDENCE row; counts 132+5 / 137 |
 | 2026-10-12 17:45:45 UTC | listing-assistants | `46bc2296ce` | Core synced (hub persist fix); 00 SKILL.md, JOB_DESCRIPTIONS, changelog |
 | (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log rows for the persist-fix push |
+| 2026-10-12 18:18:38 UTC | listing-assistants | `f516d2e583` | Owner decisions: consent required for every client message (11), signed consent_record at 14, angry client straight to the broker with no reply; 8 DECISIONS tuples with sign-off, 1 retired; scenes record consent; docs; test count 984 |
+| (this commit) | listing-assistants | (this commit; read its hash with `git log -1`) | Push log row for the consent push |
