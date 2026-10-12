@@ -36,7 +36,8 @@ python tools/desk.py --showcase --fresh
 Open http://127.0.0.1:8765.
 
 **Expect:** the badge reads **SHOWCASE · synthetic data**; a yellow bar at the
-top reads "Scene 1 · The signature matters"; **Next** is blue.
+top reads "SCENE 1 · THE SIGNATURE MATTERS" (the bar's top line is always in
+capitals); **Next** is blue.
 
 Press **Next** repeatedly (or tick **play on its own**). Five times the bar
 turns red and reads "Your move: ...", the matching card in **Needs you** is
@@ -50,8 +51,8 @@ outlined in red, and **Next** is greyed out until you answer:
 | 4 | 5 | press Send on the held vendor booking for S5 | **Send** twice | S5: Booked green |
 | 5 | 6 | press Send on the held vendor booking for S6 | **Send** twice | S6: Booked green |
 
-**Expect at the end:** the bar reads "Showcase complete - All ten scenes
-played"; the proof strip reads **✓ Intact**, **4 of 4**, **3** held, **16**
+**Expect at the end:** the bar reads "SHOWCASE COMPLETE" over "All ten scenes
+played. Check the record to finish."; the proof strip reads **✓ Intact**, **4 of 4**, **3** held, **16**
 client messages; Needs you counts **14**.
 
 ![The showcase at its first marketing hold](images/desk-manual/02-your-move.png)
@@ -132,8 +133,8 @@ The scenes' vendor roster is a draft. Ratify it for this test: open
 python tools/desk.py --config-dir scenes/config --script scenes/scene04_new_listing.jsonl
 ```
 
-**Expect:** still **LIVE · your records**; the bar reads "Test script ·
-scene04_new_listing.jsonl", step 0 of 11; **Vendor roster: loaded**.
+**Expect:** still **LIVE · your records**; the bar reads "TEST SCRIPT ·
+SCENE04_NEW_LISTING.JSONL", step 0 of 11; **Vendor roster: loaded**.
 
 Press **Next** until the bar turns red.
 **Expect:** "Your move: press Send on the held vendor booking for S4", step
@@ -153,7 +154,8 @@ not twice.
 Now press **Send** twice, then **Next** until the bar turns red again
 ("press Send on the held marketing for S4"), and **Send** twice.
 
-**Expect at the end:** "Test script complete - All 11 lines played"; S4's
+**Expect at the end:** the bar reads "TEST SCRIPT COMPLETE" over "All 11 lines
+played. Check the record to finish."; S4's
 track green from Signed to Marketed; **2 of 2**; **✓ Intact**. The listing
 was signed with *your* key: your login is at the top left.
 
