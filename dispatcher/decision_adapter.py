@@ -1,9 +1,16 @@
 """decision_adapter - JEV (TypeSafe AI) decision-coprocessor adapter with a local fallback.
 
-STATUS (stated plainly, 2026-10-11 audit):
-  - No spoke calls this adapter. Lead tiers are produced by Agent 02 from
-    dispatcher/lead_rubric.py; showing slots by Agent 06's own rules. The
-    adapter is an integration seam, exercised by its own tests.
+STATUS (updated 2026-10-12, wired):
+  - Agent 02 scores every lead through evaluate_lead() (build_swarm puts one
+    adapter on the hub as hub.decision_adapter; each decision is recorded on
+    the audit chain as decision.lead). Its local engine IS Agent 02's rubric
+    (dispatcher/lead_rubric.py), so with no JEV connection tiers are exactly
+    what 02 always produced. Live JEV is used only when a key is configured
+    AND the broker signs {"decision_engine": {"allow_external": true}} to 02.
+    A result under the confidence floor holds the lead for the broker
+    (continue = 02's rubric decides; cancel = archived).
+  - Agent 06 does NOT use resolve_showing_conflict(); its own rules (cross-
+    buyer conflicts, hot-tier gate, broker-confirmed bumps) decide showings.
   - The live request schema below (decision_type / payload / model
     "jev-1.13.0") has NOT been validated against TypeSafe's published API;
     the tests mock the HTTP and MCP calls.

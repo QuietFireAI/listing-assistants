@@ -191,3 +191,95 @@ def test_drawer_files_survive_and_are_not_rewritten_across_processes(tmp_path):
     sw2.hub.send(_signed(s2, "07", "D5", {"timeline_init": {"appraisal": "2026-10-25"}}))
     after = {k: v["sha256"] for k, v in _drawer(sw2, "D5").get_manifest()["file_index"].items()}
     assert all(after[k] == v for k, v in first.items()) and len(after) > len(first)
+
+
+# ------------------------------------------------------------ JEV adapter in 02
+def _swarm_with(tmp_path, **kw):
+    from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
+    from dispatcher.swarm import build_swarm
+    s = Ed25519Signer()
+    return build_swarm(str(tmp_path / "j.jsonl"),
+                       verifier=Ed25519Verifier(s.public_key_bytes()).verifier(), **kw), s
+
+
+def test_every_score_goes_through_the_adapter_and_is_on_the_chain(tmp_path):
+    from dispatcher.lead_rubric import score_lead
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "02", "setup", RUBRIC))
+    lead = _lead("J1")
+    sw.hub.send(lead)
+    [d] = [e for e in sw.hub.audit.read() if e["kind"] == "decision.lead" and e["client_context_id"] == "J1"]
+    assert d["engine"] == "python_fallback" and d["coprocessor_status"] == "FALLBACK_LOCAL_RULES"
+    tier, score, _n, _c = score_lead(lead.payload, sw.spokes["02"].rubric)
+    assert (d["tier"], d["score"]) == (tier, score) == ("HOT", 100)
+    assert sw.hub.queues["escalation.hot_lead"][0]["client_context_id"] == "J1"
+
+
+class _LowConfidenceMCP:
+    def __init__(self):
+        self.calls = 0
+
+    def call_tool(self, name, args):
+        self.calls += 1
+        return {"tier": "HOT", "score": 99, "confidence": 0.2, "notes": ["remote engine"]}
+
+
+def test_low_confidence_holds_the_lead_and_continue_scores_with_the_rubric(tmp_path):
+    from dispatcher.decision_adapter import JevDecisionAdapter
+    mcp = _LowConfidenceMCP()
+    sw, s = _swarm_with(tmp_path, decision_adapter=JevDecisionAdapter(mcp_client=mcp))
+    sw.hub.send(_signed(s, "02", "setup", RUBRIC))
+    sw.hub.send(_lead("J2"))
+    assert mcp.calls == 1
+    assert not sw.hub.queues["escalation.hot_lead"]          # nothing acted on an uncertain tier
+    [w] = sw.hitl.get_pending_waits("J2")
+    assert w["agent_id"] == "02"
+    auth = _env("human", "02", "hitl.decision.authority", "J2", {"wait_id": w["wait_id"], "decision": "APPROVE"})
+    s.sign(auth)
+    r = sw.hitl.resume_operation(auth)
+    assert r["handler_result"] == "continued: tier HOT from the local rubric"
+    assert [h["client_context_id"] for h in sw.hub.queues["escalation.hot_lead"]] == ["J2"]
+
+
+def test_low_confidence_cancel_archives_and_sends_nothing(tmp_path):
+    from dispatcher.decision_adapter import JevDecisionAdapter
+    sw, s = _swarm_with(tmp_path, decision_adapter=JevDecisionAdapter(mcp_client=_LowConfidenceMCP()))
+    sw.hub.send(_signed(s, "02", "setup", RUBRIC))
+    sw.hub.send(_lead("J3"))
+    [w] = sw.hitl.get_pending_waits("J3")
+    auth = _env("human", "02", "hitl.decision.authority", "J3",
+                {"wait_id": w["wait_id"], "decision": "REJECT_AND_ABORT"})
+    s.sign(auth)
+    assert sw.hitl.resume_operation(auth)["handler_result"] == "cancelled: archived, nothing sent"
+    assert not sw.hub.queues["escalation.hot_lead"] and not _persisted(sw, "lead.nurture", "J3")
+
+
+def test_lead_data_leaves_only_after_the_brokers_signed_opt_in(tmp_path, monkeypatch):
+    from dispatcher.decision_adapter import JevDecisionAdapter
+    calls = []
+    adapter = JevDecisionAdapter(api_key="test-key")
+    monkeypatch.setattr(adapter, "_call_http_decision",
+                        lambda kind, ctx, body: calls.append(ctx) or
+                        {"tier": "WARM", "score": 61, "confidence": 0.9, "notes": []})
+    sw, s = _swarm_with(tmp_path, decision_adapter=adapter)
+    sw.hub.send(_signed(s, "02", "setup", RUBRIC))
+    sw.hub.send(_lead("J4"))
+    assert calls == []                                       # key alone sends nothing
+    sw.hub.send(_signed(s, "02", "setup", {"decision_engine": {"allow_external": True}}))
+    sw.hub.send(_lead("J5", phone="555-7777"))
+    assert calls == ["J5"]
+    eng = [e for e in sw.hub.audit.read() if e["kind"] == "decision.engine" and e.get("agent") == "02"]
+    assert eng and eng[-1]["engine"] == "LIVE_JEV_API" and eng[-1]["allow_external"] is True
+    # an unsigned attempt to turn it off or on never reaches 02
+    r = sw.hub.send(_env("human", "02", "config.update", "x", {"decision_engine": {"allow_external": False}}))
+    assert r["status"] == "reject" and sw.spokes["02"].jev_allow_external is True
+
+
+@pytest.mark.parametrize("bad", [{}, {"allow_external": "yes"}, {"confidence_floor": 2},
+                                 {"confidence_floor": True}, {"mode": "live"}])
+def test_bad_decision_engine_settings_are_rejected_whole(tmp_path, bad):
+    sw, s = _swarm(tmp_path)
+    sw.hub.send(_signed(s, "02", "c", {"decision_engine": bad}))
+    assert sw.spokes["02"].jev_allow_external is False and sw.spokes["02"].jev_confidence_floor == 0.45
+    assert any(q["payload"].get("reason") == "decision_engine setting rejected"
+               for q in sw.hub.queues["clarification.request"])

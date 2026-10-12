@@ -381,6 +381,11 @@ def test_fallback_engine_matches_agent02_on_agent01_schema():
     from dispatcher.listing_spokes_02 import Spoke02LeadQualification
 
     class _NullHub:
+        class audit:   # 02 records each decision on the audit log (wired 2026-10-12)
+            @staticmethod
+            def append(*a):
+                pass
+
         def register(self, *a):
             pass
     agent02 = Spoke02LeadQualification(_NullHub())

@@ -27,8 +27,9 @@ What this module enforces (and what it does not):
   - Tamper detection on stored files. Each file's SHA-256 is recorded in the
     manifest at write time; verify_hashes() recomputes and reports
     mismatches on demand. Nothing watches the files continuously.
-  - Wiring: no spoke writes to drawers. Today the callers are the HITL
-    protocol and the operator tools.
+  - Wiring (2026-10-12): agents 04, 05, 07, 08, 14 and 15 file records
+    through dispatcher/drawer_filing.py, and the HITL protocol records holds;
+    see that module for what is filed where.
 """
 from __future__ import annotations
 

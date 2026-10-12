@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -93,19 +94,108 @@ class Spoke02LeadQualification:
         # deployment overrides this via the same signed config.update path
         # once cadence_settings.json is ratified.
         self.hot_lead_sla_seconds = hot_lead_sla_seconds
+        # Scoring engine (wired 2026-10-12): every score goes through the JEV
+        # decision adapter. Default = its local engine, which IS this agent's
+        # rubric (dispatcher/lead_rubric.py), so tiers are unchanged. Lead
+        # data leaves the machine only after the broker signs
+        # {"decision_engine": {"allow_external": true}} AND a JEV key is set.
+        self.jev_allow_external = False
+        self.jev_confidence_floor = 0.45
+        self.held_for_calibration: dict[str, dict] = {}   # ctx -> lead payload
         register_spoke(hub, "02", self)
+        register_resumer(hub, "02", self._resume)
 
-    def _score(self, payload: dict) -> tuple[str, int | None, list[str]]:
+    def _adapter(self):
+        a = getattr(self.hub, "decision_adapter", None)
+        if a is None:
+            from .decision_adapter import JevDecisionAdapter
+            a = JevDecisionAdapter()
+        a.allow_external = self.jev_allow_external
+        return a
+
+    def _score(self, payload: dict, ctx: str = "") -> tuple[str, int | None, list[str]]:
         """Returns (tier, score_or_None, notes). Tier is UNKNOWN if the
         rubric is absent OR all scoring inputs are unknown - these are
-        different reasons but the same tier, per tuple #12. The scoring
-        itself lives in dispatcher/lead_rubric.py (extracted unchanged
-        2026-10-11 so the JEV fallback engine can no longer diverge)."""
+        different reasons but the same tier, per tuple #12. Scoring goes
+        through the JEV decision adapter (2026-10-12); its local engine is
+        dispatcher/lead_rubric.py, this agent's rubric. A result below the
+        confidence floor comes back as tier HELD_FOR_CALIBRATION."""
         if self.rubric is None:
             return "UNKNOWN", None, ["no rubric active - scoring halted"]
+        adapter = self._adapter()
+        res = adapter.evaluate_lead(ctx, payload, self.rubric,
+                                    confidence_threshold=self.jev_confidence_floor)
+        self.hub.audit.append("decision.lead", {
+            "agent": "02", "client_context_id": ctx, "engine": res.get("engine"),
+            "coprocessor_status": res.get("coprocessor_status"),
+            "is_fallback": res.get("is_fallback"), "status": res.get("status"),
+            "tier": res.get("tier"), "score": res.get("score"),
+            "confidence": res.get("confidence"), "floor": self.jev_confidence_floor,
+            "fallback_reason": res.get("fallback_reason")})
+        tier = res.get("tier")
+        if tier not in ("HOT", "WARM", "COLD", "UNKNOWN", "HELD_FOR_CALIBRATION"):
+            tier = "HELD_FOR_CALIBRATION"   # an engine answer this agent cannot act on holds
+        return tier, res.get("score"), list(res.get("notes") or [])
+
+    def _configure_engine(self, env: Envelope, de) -> None:
+        """Signed {"decision_engine": {"allow_external": bool,
+        "confidence_floor": 0..1}}. Rejected whole when anything is off."""
+        problems = []
+        if not isinstance(de, dict) or not de:
+            problems.append("decision_engine must be a non-empty object")
+        else:
+            unknown = sorted(set(de) - {"allow_external", "confidence_floor"})
+            if unknown:
+                problems.append(f"unknown keys {unknown}")
+            if "allow_external" in de and not isinstance(de["allow_external"], bool):
+                problems.append("allow_external must be true or false")
+            f = de.get("confidence_floor", 0.5)
+            if isinstance(f, bool) or not isinstance(f, (int, float)) or not 0 <= f <= 1:
+                problems.append("confidence_floor must be a number from 0 to 1")
+        if problems:
+            self.hub.ingest_spoke_trace("02", env.envelope_id,
+                                        thought=f"decision_engine setting rejected whole: {problems}",
+                                        result="rejected: decision_engine")
+            self.hub.send(_env("02", "queue", "clarification.request", env.client_context_id,
+                               {"reason": "decision_engine setting rejected", "problems": problems}))
+            return
+        if "allow_external" in de:
+            self.jev_allow_external = de["allow_external"]
+        if "confidence_floor" in de:
+            self.jev_confidence_floor = float(de["confidence_floor"])
+        status = self._adapter().get_coprocessor_status()
+        self.hub.audit.append("decision.engine", {
+            "agent": "02", "allow_external": self.jev_allow_external,
+            "confidence_floor": self.jev_confidence_floor, "engine": status.get("mode"),
+            "tier": None, "confidence": None, "reason": status.get("reason")})
+        self.hub.ingest_spoke_trace("02", env.envelope_id,
+                                    thought=f"decision engine set by the broker's signature: "
+                                            f"allow_external={self.jev_allow_external}, "
+                                            f"floor={self.jev_confidence_floor}; mode now "
+                                            f"{status.get('mode')}",
+                                    result=f"decision_engine: {status.get('mode')}")
+
+    def _resume(self, ws, decision_payload: dict):
+        """The broker's signed decision on a lead held for calibration:
+        continue = score it with this agent's own rubric and act on that
+        tier; cancel = archive it, nothing sent."""
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        held = self.held_for_calibration.get(ctx)
+        if held is None or d == "other":
+            return "nothing held for this context" if held is None else "decision not continue/cancel"
+        self.held_for_calibration.pop(ctx)
+        if d == "cancel":
+            self.hub.send(_env("02", "14", "interaction.log", ctx,
+                               {"tier": "HELD_FOR_CALIBRATION", "archived": True,
+                                "reason": "broker cancelled after a calibration hold"}))
+            return "cancelled: archived, nothing sent"
         from .lead_rubric import score_lead
-        tier, score, notes, _conflicts = score_lead(payload, self.rubric)
-        return tier, score, notes
+        tier, score, notes, _c = score_lead(held["payload"], self.rubric)
+        notes = list(notes) + ["scored with the local rubric on the broker's signed continue"]
+        self._apply_tier(ctx, held["payload"], tier, score, notes, held["envelope_id"],
+                         held["rescored"])
+        return f"continued: tier {tier} from the local rubric"
 
     def _record_tier(self, ctx: str, tier: str):
         hist = self.tier_history.setdefault(ctx, [])
@@ -189,6 +279,9 @@ class Spoke02LeadQualification:
                         thought=f"signed rubric v{version} adopted; scoring "
                                 f"unhalted",
                         result=f"rubric active: v{version}")
+            de = env.payload.get("decision_engine")
+            if de is not None:
+                self._configure_engine(env, de)
             resolved_ctx = env.payload.get("resolve_hot_lead")
             if resolved_ctx:
                 # Real gap found during the agent.status retrofit: nothing
@@ -250,68 +343,90 @@ class Spoke02LeadQualification:
                                    ctx, {"reason": "agent-to-agent inquiry"}))
                 return
 
-            tier, score, notes = self._score(payload)
-
-            # supplied rubric vs tuple conflict check would fire here if a
-            # rubric's computed tier ever tried to override a hard tuple
-            # result above (demands_human, agent_shopping) - those return
-            # early precisely so the tuple always wins structurally, never
-            # by a runtime comparison that could silently pick either side.
-
-            self._record_tier(ctx, tier)
-            oscillating = self._oscillating_third_time(ctx)
-
-            self.hub.ingest_spoke_trace(
-                "02", env.envelope_id,
-                thought=f"scored: tier={tier} score={score} "
-                        f"rubric_version={self.rubric_version}; notes={notes}",
-                result=f"tier={tier}")
-
-            if oscillating:
-                self.hub.send(_env("02", "queue", "clarification.request",
-                                   ctx, {"reason": "tier oscillating a third "
-                                                   "time", "history": self.tier_history[ctx]}))
-
-            if tier == "HOT":
-                self.open_escalations.add(ctx)
-                self.hub.send(_env("02", "18", "agent.status", ctx,
-                                   {"waiting_on": "hot_lead_human_response",
-                                    "since": payload.get("today")}))
-                self.hub.escalate("escalation.hot_lead",
-                                  {"client_context_id": ctx, "score": score,
-                                   "sla_s": self.hot_lead_sla_seconds})
-            elif tier == "WARM":
-                # tuple 10 (Agent 03's DECISIONS.md): "two sequences would
-                # target one context... newest SIGNED instruction wins" -
-                # a rescore-triggered nurture assignment is exactly that: a
-                # deliberate, later re-evaluation superseding whatever was
-                # running, not an ambiguous simultaneous eligibility
-                # conflict (Agent 03's tuple 4, a different scenario -
-                # confirmed distinct 2026-07-16). This is the actual
-                # distinguishing signal Agent 03 needs and never had.
-                self.hub.send(_env("02", "03", "lead.nurture", ctx,
-                                   {"tier": tier, "score": score,
-                                    "consent": payload.get("consent"),
-                                    "today": payload.get("today"),
-                                    "reassignment": env.intent == "lead.rescored"}))
-            elif tier == "COLD":
-                pass  # archived via the interaction.log below, never deleted
-            elif tier == "UNKNOWN":
-                # tuples 2 & 12: no rubric active / all rubric inputs
-                # unknown -> halt scoring; CLARIFICATION. Previously this
-                # only produced a silent interaction.log entry - the tier
-                # label was correct, but nothing ever told a human that
-                # scoring is halted for this lead. Fixed: a real
-                # clarification.request, same as every other hold state
-                # this agent produces.
-                self.hub.send(_env("02", "queue", "clarification.request",
-                                   ctx, {"reason": "scoring halted: " + (
-                                       "no rubric active" if self.rubric is None
-                                       else "all rubric inputs unknown")}))
-
-            self.hub.send(_env("02", "14", "interaction.log", ctx,
-                               {"tier": tier, "score": score,
-                                "rubric_version": self.rubric_version,
-                                "notes": notes,
-                                "archived": tier == "COLD"}))
+            tier, score, notes = self._score(payload, ctx)
+            if tier == "HELD_FOR_CALIBRATION":
+                self.held_for_calibration[ctx] = {"payload": dict(payload),
+                                                  "envelope_id": env.envelope_id,
+                                                  "rescored": env.intent == "lead.rescored"}
+                self.hub.ingest_spoke_trace(
+                    "02", env.envelope_id,
+                    thought=f"decision engine confidence below the floor "
+                            f"{self.jev_confidence_floor} - holding the lead for the "
+                            f"broker, not acting on an uncertain tier; notes={notes}",
+                    result="held: calibration")
+                hold_for_human(self.hub, "02", ctx, "lead.captured",
+                               f"lead score confidence below {self.jev_confidence_floor}. "
+                               f"Continue = score with your signed rubric and act on it; "
+                               f"cancel = archive the lead, nothing sent.",
+                               {"notes": notes, "score": score})
+                return
+            self._apply_tier(ctx, payload, tier, score, notes, env.envelope_id,
+                             env.intent == "lead.rescored")
             return
+
+    def _apply_tier(self, ctx: str, payload: dict, tier: str, score, notes: list,
+                    envelope_id: str, rescored: bool):
+
+        # supplied rubric vs tuple conflict check would fire here if a
+        # rubric's computed tier ever tried to override a hard tuple
+        # result above (demands_human, agent_shopping) - those return
+        # early precisely so the tuple always wins structurally, never
+        # by a runtime comparison that could silently pick either side.
+
+        self._record_tier(ctx, tier)
+        oscillating = self._oscillating_third_time(ctx)
+
+        self.hub.ingest_spoke_trace(
+            "02", envelope_id,
+            thought=f"scored: tier={tier} score={score} "
+                    f"rubric_version={self.rubric_version}; notes={notes}",
+            result=f"tier={tier}")
+
+        if oscillating:
+            self.hub.send(_env("02", "queue", "clarification.request",
+                               ctx, {"reason": "tier oscillating a third "
+                                               "time", "history": self.tier_history[ctx]}))
+
+        if tier == "HOT":
+            self.open_escalations.add(ctx)
+            self.hub.send(_env("02", "18", "agent.status", ctx,
+                               {"waiting_on": "hot_lead_human_response",
+                                "since": payload.get("today")}))
+            self.hub.escalate("escalation.hot_lead",
+                              {"client_context_id": ctx, "score": score,
+                               "sla_s": self.hot_lead_sla_seconds})
+        elif tier == "WARM":
+            # tuple 10 (Agent 03's DECISIONS.md): "two sequences would
+            # target one context... newest SIGNED instruction wins" -
+            # a rescore-triggered nurture assignment is exactly that: a
+            # deliberate, later re-evaluation superseding whatever was
+            # running, not an ambiguous simultaneous eligibility
+            # conflict (Agent 03's tuple 4, a different scenario -
+            # confirmed distinct 2026-07-16). This is the actual
+            # distinguishing signal Agent 03 needs and never had.
+            self.hub.send(_env("02", "03", "lead.nurture", ctx,
+                               {"tier": tier, "score": score,
+                                "consent": payload.get("consent"),
+                                "today": payload.get("today"),
+                                "reassignment": rescored}))
+        elif tier == "COLD":
+            pass  # archived via the interaction.log below, never deleted
+        elif tier == "UNKNOWN":
+            # tuples 2 & 12: no rubric active / all rubric inputs
+            # unknown -> halt scoring; CLARIFICATION. Previously this
+            # only produced a silent interaction.log entry - the tier
+            # label was correct, but nothing ever told a human that
+            # scoring is halted for this lead. Fixed: a real
+            # clarification.request, same as every other hold state
+            # this agent produces.
+            self.hub.send(_env("02", "queue", "clarification.request",
+                               ctx, {"reason": "scoring halted: " + (
+                                   "no rubric active" if self.rubric is None
+                                   else "all rubric inputs unknown")}))
+
+        self.hub.send(_env("02", "14", "interaction.log", ctx,
+                           {"tier": tier, "score": score,
+                            "rubric_version": self.rubric_version,
+                            "notes": notes,
+                            "archived": tier == "COLD"}))
+        return

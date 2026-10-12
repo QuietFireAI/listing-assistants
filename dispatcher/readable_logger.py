@@ -6,9 +6,10 @@
   3. EOD report: counts the events logged in this process for a date and
      writes logs/daily/eod_ledger_<date>.md.
 
-What gets logged is whatever code calls these methods. Today the callers are
-the Hermes learning loop, the checkpoint manager and the tools; the hub and
-the 20 spokes write to the hash-chained AuditLog, not to this logger.
+What gets logged: since 2026-10-12 every entry the hub and the agents write
+to the hash-chained AuditLog is also described here (dispatcher/
+readable_audit.py, wired by build_swarm); the Hermes learning loop, the
+checkpoint manager and the tools call it directly as before.
 
 Fixed 2026-10-11 (audit LOG-1, D-4):
   - The EOD "integrity" section printed fixed text ("hash chaining active",

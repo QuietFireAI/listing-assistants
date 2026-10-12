@@ -111,7 +111,8 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 human_notifier: Optional[Callable[[str, dict], None]] = None,
                 human_sink: Optional[Callable] = None,
                 readable_dir: Optional[str] = None,
-                drawers_root: Optional[str] = None) -> Swarm:
+                drawers_root: Optional[str] = None,
+                decision_adapter: Any = None) -> Swarm:
     from .core import Routes, AuditLog
     from .hub import Hub
     from .hitl_protocol import HITLManager
@@ -166,6 +167,14 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     from .client_drawer import ClientDrawerManager
     drawers = ClientDrawerManager(drawers_root)
     hub.drawers = drawers   # agents file through dispatcher/drawer_filing.py
+    # Agent 02 scores every lead through this adapter (wired 2026-10-12).
+    # Default: local engine = 02's rubric; off-box only on a signed opt-in.
+    from .decision_adapter import JevDecisionAdapter
+    hub.decision_adapter = decision_adapter or JevDecisionAdapter()
+    st = hub.decision_adapter.get_coprocessor_status()
+    hub.audit.append("decision.engine", {"agent": "swarm", "engine": st.get("mode"),
+                                         "tier": None, "confidence": None,
+                                         "reason": st.get("reason")})
     hitl = HITLManager(hub=hub, drawer_manager=drawers)
     hub.hitl = hitl   # agents reach it through their guarded hub
 
