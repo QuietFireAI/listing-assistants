@@ -14,6 +14,7 @@ spoke state does not).
 
 Commands:
   python tools/console.py init                         # keygen + fresh log
+  python tools/console.py onboard                      # who you are (asked once, after init)
   python tools/console.py session <script.jsonl>       # run a scripted session
   python tools/console.py verify                       # chain + anchor check
 
@@ -182,6 +183,48 @@ def decide(sw, signer, a):
         return {"error": str(e)}
 
 
+OPERATOR_PATH = os.path.join(STATE_DIR, "operator.json")
+
+
+def cmd_onboard(args):
+    """Asks once, after init, who the operator is, and records it next to
+    the key. Signed console actions then carry that login in their
+    provenance. Credentials for anything else are asked for when a feature
+    first needs them; nothing in the console needs one today."""
+    import hashlib
+    if not os.path.exists(KEY_PATH):
+        _p({"error": "run `python tools/console.py init` first - there is no key to bind"})
+        return 1
+    name = args.name or input("Your name (broker of record): ").strip()
+    login = args.login or input("Your login (email you sign as): ").strip()
+    if not name or not login or "@" not in login:
+        _p({"error": "a name and an email-style login are both required; nothing saved"})
+        return 1
+    from dispatcher.signatures import Ed25519Signer
+    pub = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read()).public_key_bytes()
+    rec = {"name": name, "login": login,
+           "key_fingerprint": hashlib.sha256(pub).hexdigest()[:16],
+           "onboarded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+    with open(OPERATOR_PATH, "w", encoding="utf-8") as f:
+        json.dump(rec, f, indent=1)
+    _p({"onboarded": rec,
+        "not_armed": {"signer_registry": "config/authority_signers.json binds signers to an "
+                                         "identity provider with MFA; no identity provider is "
+                                         "connected, so the hub checks your key's signature and "
+                                         "records that the login binding is off",
+                      "sms_pager": "the Twilio notifier asks for your account credentials "
+                                   "when you turn it on; the console prints pages on screen"}})
+    return 0
+
+
+def _operator():
+    try:
+        with open(OPERATOR_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
 def cmd_session(args):
     from dispatcher.state_snapshot import StateIntegrityError
     try:
@@ -193,6 +236,10 @@ def cmd_session(args):
                       "yourself after checking it, or run with --no-state"})
         return 2
     hub, spokes, external = sw.hub, sw.spokes, sw.external
+    operator = _operator()
+    if operator is None:
+        _p({"note": "not onboarded - run `python tools/console.py onboard` to record who "
+                    "signs; signed actions still carry your key's signature"})
     from dispatcher.sweep_runner import run_daily_sweeps
     errors = 0
     for lineno, line in enumerate(open(args.script), 1):
@@ -211,6 +258,8 @@ def cmd_session(args):
                 else "listing.change.authorized"
             env = make_env("human", a["to"], intent, a.get("ctx", "console"),
                            a.get("payload", {}))
+            if operator:
+                env.provenance["operator"] = operator["login"]
             signer.sign(env)
             r = hub.send(env)
         elif do == "send":
@@ -280,6 +329,9 @@ def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
+    o = sub.add_parser("onboard")
+    o.add_argument("--name", default=None)
+    o.add_argument("--login", default=None)
     s = sub.add_parser("session")
     s.add_argument("script")
     s.add_argument("--audit-log", default=None)
@@ -295,7 +347,7 @@ def main():
     v.add_argument("--anchor", default=None,
                    help="a previously printed anchor JSON to verify against")
     args = ap.parse_args()
-    return {"init": cmd_init, "session": cmd_session,
+    return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
             "verify": cmd_verify}[args.cmd](args)
 
 
