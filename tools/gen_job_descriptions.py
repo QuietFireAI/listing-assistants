@@ -55,7 +55,7 @@ def entry(folder, routes):
 
 
 def build():
-    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json")))["routes"]
+    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
     folders = sorted(d for d in os.listdir(ROOT) if re.match(r"^\d\d-", d)
                      and os.path.isfile(os.path.join(ROOT, d, "SKILL.md")))
     current = open(DOC, encoding="utf-8").read()

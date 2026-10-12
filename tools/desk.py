@@ -86,7 +86,7 @@ def agent_names():
     for d in sorted(os.listdir(ROOT)):
         if d[:2].isdigit() and d[2:3] == "-" and os.path.isfile(os.path.join(ROOT, d, "SKILL.md")):
             m = re.search(r"^# Agent \d\d - (.+?)(?: Agent)?\s*$",
-                          open(os.path.join(ROOT, d, "SKILL.md")).read(), re.M)
+                          open(os.path.join(ROOT, d, "SKILL.md"), encoding="utf-8").read(), re.M)
             out[d[:2]] = m.group(1) if m else d[3:]
     return out
 
@@ -158,7 +158,7 @@ class ReadModel:
         sw = self.d.sw
         hub = sw.hub
         log = hub.audit.read()
-        routes = json.load(open(os.path.join(ROOT, "identity", "routes.json")))["routes"]
+        routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
         audience = {r["intent"]: r.get("audience") for r in routes
                     if "external" in r["receivers"]}
         acked = {e.get("item") for e in log if e.get("kind") == "desk.acknowledged"}
@@ -469,13 +469,13 @@ class Showcase:
     def __init__(self, desk):
         self.d = desk
         self.lines = []
-        manual = open(os.path.join(ROOT, "docs", "OPERATOR_TESTING_MANUAL.md")).read()
+        manual = open(os.path.join(ROOT, "docs", "OPERATOR_TESTING_MANUAL.md"), encoding="utf-8").read()
         import re
         titles = {int(m.group(1)): m.group(2) for m in
                   re.finditer(r"^## Scene (\d+) - (.+?) \(`scene\d+_[a-z_]+\.jsonl`\)$", manual, re.M)}
         for f in sorted(x for x in os.listdir(os.path.join(ROOT, "scenes")) if x.endswith(".jsonl")):
             n = int(f[5:7])
-            for line in open(os.path.join(ROOT, "scenes", f)):
+            for line in open(os.path.join(ROOT, "scenes", f), encoding="utf-8"):
                 line = line.strip()
                 if line and not line.startswith("#"):
                     self.lines.append({"scene": n, "title": titles.get(n, f), "a": json.loads(line)})
@@ -593,14 +593,14 @@ class Desk:
                 f.write(Ed25519Signer().private_key_bytes())
             json.dump({"name": "Showcase Broker", "login": "showcase@example.test",
                        "note": "showcase desk - synthetic data, not your records"},
-                      open(os.path.join(state_dir, "operator.json"), "w"), indent=1)
+                      open(os.path.join(state_dir, "operator.json"), "w", encoding="utf-8"), indent=1)
         if showcase:
             config_dir = os.path.join(state_dir, "config")
             os.makedirs(config_dir, exist_ok=True)
-            roster = json.load(open(os.path.join(ROOT, "scenes", "config", "vendor_panel.json")))
+            roster = json.load(open(os.path.join(ROOT, "scenes", "config", "vendor_panel.json"), encoding="utf-8"))
             roster["_status"] = (f"RATIFIED {datetime.date.today().isoformat()} showcase copy of "
                                  f"scenes/config/vendor_panel.json - synthetic vendors")
-            json.dump(roster, open(os.path.join(config_dir, "vendor_panel.json"), "w"), indent=1)
+            json.dump(roster, open(os.path.join(config_dir, "vendor_panel.json"), "w", encoding="utf-8"), indent=1)
         if not os.path.exists(key):
             raise SystemExit(f"no key in {state_dir}: run `python tools/console.py init` and "
                              f"`python tools/console.py onboard` first")
@@ -611,7 +611,7 @@ class Desk:
         other = console.desk_running(state_dir)
         if other:
             raise SystemExit(f"a desk is already running on {state_dir} (pid {other})")
-        with open(self.lockfile, "w") as f:
+        with open(self.lockfile, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
         self.operator = console._operator()
         self.sw, self.signer = console.build(

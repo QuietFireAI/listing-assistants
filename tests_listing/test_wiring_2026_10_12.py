@@ -483,7 +483,7 @@ def test_restore_point_exam_over_http_then_console_drafts_with_the_model(tmp_pat
             {"do": "config", "to": "17", "ctx": "setup", "payload": RULESET},
             {"do": "config", "to": "04", "ctx": "setup", "payload": {"drafting": {"mode": "model"}}},
             {"do": "send", "from": "05", "to": "04", "intent": "listing.data", "ctx": "MH", "payload": LISTING},
-        ]) + "\n")
+        ]) + "\n", encoding="utf-8")
         p = subprocess.run([sys.executable, os.path.join(root, "tools", "console.py"), "session", str(script),
                             "--audit-log", str(tmp_path / "state" / "a.jsonl"), "--no-state",
                             "--model-url", url, "--model-name", "hermes-test"],
@@ -491,7 +491,7 @@ def test_restore_point_exam_over_http_then_console_drafts_with_the_model(tmp_pat
         lines = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
         assert lines[0]["model_drafting"] == {"ok": True, "checkpoint": "ck-http"}, p.stdout[:500]
         assert lines[-1]["errors"] == 0 and lines[-1]["chain"]["ok"]
-        used = [json.loads(l) for l in open(tmp_path / "state" / "a.jsonl")
+        used = [json.loads(l) for l in open(tmp_path / "state" / "a.jsonl", encoding="utf-8")
                 if '"drafting.model_used"' in l]
         assert used and used[0]["checkpoint"] == "ck-http"
     finally:
@@ -706,7 +706,7 @@ def test_pager_pages_with_queue_and_context_only_and_records_each_page(tmp_path)
         _console(tmp_path, "init")
         _console(tmp_path, "onboard", "--name", "Test Broker", "--login", "tb@example.com")
         tok = tmp_path / "tok"
-        tok.write_text("secret-token\n")
+        tok.write_text("secret-token\n", encoding="utf-8")
         rc, out, p = _console(tmp_path, "pager", "--account-sid", "AC123", "--auth-token-file", str(tok),
                               "--from-number", "+15550000001", "--to-number", "+15550000002",
                               "--api-base", base)
@@ -721,7 +721,7 @@ def test_pager_pages_with_queue_and_context_only_and_records_each_page(tmp_path)
                                                                 "phone": "555-0177", "demands_human": True,
                                                                 "message": "my budget is 900k call me",
                                                                 "today": "2026-10-12",
-                                                                "consent": {"call": "yes"}}}) + "\n")
+                                                                "consent": {"call": "yes"}}}) + "\n", encoding="utf-8")
         rc, out, p = _console(tmp_path, "session", str(script), "--no-state")
         assert out[0]["sms_pager"] == "on" and out[-1]["errors"] == 0
         pages = [s for s in seen if "test page" not in s["body"]["Body"]]
@@ -731,7 +731,7 @@ def test_pager_pages_with_queue_and_context_only_and_records_each_page(tmp_path)
             assert s["body"]["To"] == "+15550000002" and s["body"]["From"] == "+15550000001"
             assert "Pat Private" not in s["body"]["Body"] and "900k" not in s["body"]["Body"]
             assert s["body"]["Body"].startswith("ListingAssistants: ")
-        audit = [json.loads(l) for l in open(tmp_path / "state" / "console-audit.jsonl")]
+        audit = [json.loads(l) for l in open(tmp_path / "state" / "console-audit.jsonl", encoding="utf-8")]
         sent = [e for e in audit if e["kind"] == "pager.sent"]
         assert len(sent) == len(pages) and all("secret-token" not in json.dumps(e) for e in audit)
         rc, out, _ = _console(tmp_path, "pager", "--off")

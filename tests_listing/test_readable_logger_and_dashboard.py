@@ -93,9 +93,9 @@ def test_eod_integrity_is_computed_or_labeled_not_computed(tmp_path):
     rep = logger.generate_eod_report(audit_log=audit)
     assert "verified, 2 entries" in rep["markdown"] and rep["integrity"]["integrity_violations"] == 1
 
-    lines = open(audit.path).read().splitlines()
+    lines = open(audit.path, encoding="utf-8").read().splitlines()
     lines[0] = lines[0].replace('"a": 1', '"a": 9')
-    open(audit.path, "w").write("\n".join(lines) + "\n")
+    open(audit.path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
     assert "BROKEN at line 1" in logger.generate_eod_report(audit_log=AuditLog(audit.path))["markdown"]
 
 

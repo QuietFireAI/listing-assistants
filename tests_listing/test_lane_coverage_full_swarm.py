@@ -186,6 +186,6 @@ NO_EMITTER = [("20", "behavioral.signal", "03")]
 @pytest.mark.parametrize("frm,intent,to", NO_EMITTER)
 def test_lanes_without_an_emitter_stay_documented(frm, intent, to):
     path = os.path.join(ROOT, "dispatcher", f"listing_spokes_{frm}.py")
-    src = open(path).read()
+    src = open(path, encoding="utf-8").read()
     pattern = re.compile(r'_env\("%s",\s*"%s",\s*"%s"' % (frm, to, re.escape(intent)))
     assert not pattern.search(src), f"{frm} now emits {intent}->{to}: add a full-swarm test and update NO_EMITTER"

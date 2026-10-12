@@ -35,7 +35,7 @@ def keygen(prefix: str) -> tuple[str, str]:
     fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w") as f:
         f.write(signer.private_key_bytes().hex())
-    with open(pub_path, "w") as f:
+    with open(pub_path, "w", encoding="utf-8") as f:
         f.write(signer.public_key_bytes().hex())
     return key_path, pub_path
 
@@ -52,7 +52,7 @@ def build_and_sign(pack_dir: str, private_key_hex: str, version: str) -> dict:
     with open(os.path.join(pack_dir, "manifest.json"), "wb") as f:
         f.write(manifest_raw)
     signer = Ed25519Signer(bytes.fromhex(private_key_hex.strip()))
-    with open(os.path.join(pack_dir, "signature.sig"), "w") as f:
+    with open(os.path.join(pack_dir, "signature.sig"), "w", encoding="utf-8") as f:
         f.write(signer.sign_bytes(manifest_raw))
     return {"version": version, "files": len(files)}
 
@@ -70,7 +70,7 @@ def main(argv=None) -> int:
         return 0
     if not (a.pack_dir and a.private_key and a.version):
         p.error("PACK_DIR, --private-key and --version are required (or use --keygen)")
-    with open(a.private_key) as f:
+    with open(a.private_key, encoding="utf-8") as f:
         info = build_and_sign(a.pack_dir, f.read(), a.version)
     print(f"[OK] signed {info['files']} files at version {info['version']}")
     return 0

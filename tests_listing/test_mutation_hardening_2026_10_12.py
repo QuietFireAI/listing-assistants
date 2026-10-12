@@ -447,7 +447,7 @@ def test_pager_config_round_trip_is_private_and_validated(tmp_path):
     save_config(p, _cfg(extra="dropped"))
     assert oct(os.stat(p).st_mode & 0o777) == "0o600"
     assert load_config(p) == _cfg()
-    open(p, "w").write(json.dumps({"account_sid": "AC"}))
+    open(p, "w", encoding="utf-8").write(json.dumps({"account_sid": "AC"}))
     with pytest.raises(ValueError):
         load_config(p)
     assert validate(_cfg()) == []
@@ -894,7 +894,7 @@ def test_pager_custom_base_trailing_slash_existing_dir_and_named_config_error(tm
     save_config(p, _cfg())
     save_config(p, _cfg(to_number="+15550000003"))                   # directory already there
     assert load_config(p)["to_number"] == "+15550000003"
-    open(p, "w").write(json.dumps({"account_sid": "AC"}))
+    open(p, "w", encoding="utf-8").write(json.dumps({"account_sid": "AC"}))
     with pytest.raises(ValueError, match=r"pager\.json is not usable: \['auth_token is required'"):
         load_config(p)
 

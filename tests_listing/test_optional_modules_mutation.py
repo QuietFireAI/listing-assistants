@@ -86,17 +86,17 @@ def test_activate_and_rollback_bookkeeping(tmp_path):
     assert b["parent_id"] == "a"
     m.activate_checkpoint("a")
     m.activate_checkpoint("b")
-    man = json.load(open(m.manifest_path))
+    man = json.load(open(m.manifest_path, encoding="utf-8"))
     assert man["checkpoints"]["a"]["status"] == "ARCHIVED" and man["checkpoints"]["b"]["status"] == "ACTIVE"
     last = man["history"][-1]
     assert last["action"] == "ACTIVATE" and last["previous_id"] == "a" and last["forced"] is False
     r = m.rollback("a", reason="drift")
-    man = json.load(open(m.manifest_path))
+    man = json.load(open(m.manifest_path, encoding="utf-8"))
     assert man["checkpoints"]["b"]["status"] == "QUARANTINED_ROLLED_BACK"
     assert man["checkpoints"]["a"]["status"] == "ACTIVE" and man["active_checkpoint_id"] == "a"
     assert man["history"][-1] == {**man["history"][-1], "action": "ROLLBACK", "from_id": "b", "to_id": "a", "reason": "drift"}
     m.rollback()
-    man = json.load(open(m.manifest_path))
+    man = json.load(open(m.manifest_path, encoding="utf-8"))
     assert man["checkpoints"]["baseline_v1.0.0"]["status"] == "GOLDEN_BASELINE"
     msgs = [e[1] for e in log.events]
     assert any("Registered model checkpoint 'a' -> [CANDIDATE] score: 100.0%" in x for x in msgs)
@@ -135,7 +135,7 @@ def test_reference_export_contents(tmp_path):
     ing.ingest_document("signs", "Yard signs Saturdays only.", category="office")
     out = tmp_path / "ref.jsonl"
     ing.export_reference_records(str(out))
-    rows = [json.loads(l) for l in open(out)]
+    rows = [json.loads(l) for l in open(out, encoding="utf-8")]
     assert rows[-1] == {"topic": "signs", "directive": "Yard signs Saturdays only.", "category": "office"}
     assert rows[0]["topic"] == "nar_settlement_2024" and rows[0]["category"] == "core_directive"
     assert rows[0]["directive"].startswith("Written buyer representation agreement")

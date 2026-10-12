@@ -27,7 +27,7 @@ def hub_with(tmp_path, arm=False):
             "_status": "RATIFIED (test fixture only)",
             "entries": [{"intent": DECISION_INTENT, "signer_login": "broker@example.test",
                          "idp": "test-idp", "mfa_required": True, "effective": "2026-01-01",
-                         "revoked": None}]}))
+                         "revoked": None}]}), encoding="utf-8")
         hub.arm_signer_registry(str(root))
     return hub, signer
 

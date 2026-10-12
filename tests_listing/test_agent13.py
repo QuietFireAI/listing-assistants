@@ -270,7 +270,7 @@ def test_13_has_no_neighborhood_data_path(tmp_path):
     import json as _json
     assert not hasattr(Spoke13BuyerSearchMatch, "request_neighborhood_data")
     routes = _json.load(open(os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), "identity", "routes.json")))["routes"]
+        os.path.abspath(__file__))), "identity", "routes.json"), encoding="utf-8"))["routes"]
     by = {r["intent"]: r for r in routes}
     assert "13" not in by["data.request"]["senders"]
     assert "13" not in by["data.package"]["receivers"]

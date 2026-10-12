@@ -108,21 +108,21 @@ def test_exam_catches_bad_habits_including_paraphrase(tmp_path):
     with pytest.raises(PermissionError, match="exam failed"):
         mgr.activate_checkpoint("corrupted_lora_v2")
     mgr.activate_checkpoint("corrupted_lora_v2", force=True)
-    with open(mgr.manifest_path) as f:
+    with open(mgr.manifest_path, encoding="utf-8") as f:
         assert json.load(f)["history"][-1]["forced"] is True
 
 
 def test_corrupt_manifest_raises_instead_of_being_replaced(tmp_path):
     ck = tmp_path / "ck"
     mgr = ModelCheckpointManager(checkpoints_dir=str(ck))
-    (ck / "checkpoint_manifest.json").write_text("{not json")
+    (ck / "checkpoint_manifest.json").write_text("{not json", encoding="utf-8")
     with pytest.raises(json.JSONDecodeError):
         mgr.create_daily_restore_point(date_str="2026-10-11")
-    assert (ck / "checkpoint_manifest.json").read_text() == "{not json"
+    assert (ck / "checkpoint_manifest.json").read_text(encoding="utf-8") == "{not json"
 
 
 def test_repo_manifest_claims_no_exam_results():
-    with open(os.path.join(ROOT, "checkpoints", "checkpoint_manifest.json")) as f:
+    with open(os.path.join(ROOT, "checkpoints", "checkpoint_manifest.json"), encoding="utf-8") as f:
         m = json.load(f)
     for ck in m["checkpoints"].values():
         assert ck["exam_passed"] is None and ck["exam_score"] is None, ck["checkpoint_id"]

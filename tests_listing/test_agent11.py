@@ -357,7 +357,7 @@ def test_no_market_package_reaches_a_client_owner_decision_j5():
     longer lets 11 request or receive market data."""
     import json
     assert not hasattr(Spoke11ClientCommunication, "request_market_update")
-    routes = json.load(open(os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json")))
+    routes = json.load(open(os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json"), encoding="utf-8"))
     by = {r["intent"]: r for r in routes["routes"]}
     assert "11" not in by["data.request"]["senders"] and "11" not in by["data.package"]["receivers"]
 

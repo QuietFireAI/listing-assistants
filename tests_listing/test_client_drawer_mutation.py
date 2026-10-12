@@ -66,7 +66,7 @@ def test_verify_hashes_counts_every_file_and_names_missing_ones(tmp_path):
         d.store_file("04", "artifacts", name, name)
     assert d.verify_hashes() == {"ok": True, "checked": 3, "mismatched": [], "missing": []}
     os.remove(os.path.join(d.drawer_path, "artifacts", "a.md"))
-    (open(os.path.join(d.drawer_path, "artifacts", "c.md"), "w")).write("tampered")
+    (open(os.path.join(d.drawer_path, "artifacts", "c.md"), "w", encoding="utf-8")).write("tampered")
     v = d.verify_hashes()
     assert v == {"ok": False, "checked": 2, "mismatched": ["artifacts/c.md"], "missing": ["artifacts/a.md"]}
 

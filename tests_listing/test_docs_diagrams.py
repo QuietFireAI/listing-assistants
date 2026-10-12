@@ -16,7 +16,7 @@ import gen_diagrams  # noqa: E402
 
 def test_every_intent_has_plain_words():
     import json
-    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json")))["routes"]
+    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
     for r in routes:
         assert gen_diagrams.phrase(r["intent"])
 
@@ -24,7 +24,7 @@ def test_every_intent_has_plain_words():
 def test_diagrams_are_current():
     files = gen_diagrams.build()
     stale = [os.path.relpath(p, ROOT) for p, body in files.items()
-             if not os.path.exists(p) or open(p).read() != body]
+             if not os.path.exists(p) or open(p, encoding="utf-8").read() != body]
     assert stale == [], f"run python tools/gen_diagrams.py: {stale}"
 
 

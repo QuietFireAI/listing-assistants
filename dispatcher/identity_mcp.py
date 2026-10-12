@@ -74,7 +74,7 @@ def _boot_conformance():
         routes = Routes(ROUTES_PATH)
     except Exception as e:  # noqa: BLE001
         raise ConformanceError(f"closed track failed to load: {e}")
-    n_routes = len(json.load(open(ROUTES_PATH))["routes"])
+    n_routes = len(json.load(open(ROUTES_PATH, encoding="utf-8"))["routes"])
     if n_routes == 0:
         problems.append("closed track has zero routes")
 
@@ -91,7 +91,7 @@ def _boot_conformance():
     # Probe THIS identity's own first authority lane (a route requiring a
     # signature), so the gate is tested for the right reason on any
     # identity - never a hardcoded intent that might be an illegal route.
-    all_routes = json.load(open(ROUTES_PATH))["routes"]
+    all_routes = json.load(open(ROUTES_PATH, encoding="utf-8"))["routes"]
     auth = next((r for r in all_routes
                  if "authorized" in r["intent"] or "authority" in r["intent"]),
                 None)
@@ -156,10 +156,10 @@ class GovernedIdentity:
 
     # --- front-door operations -------------------------------------------
     def describe(self):
-        routes = json.load(open(ROUTES_PATH))
+        routes = json.load(open(ROUTES_PATH, encoding="utf-8"))
         priority = {}
         if os.path.exists(PRIORITY_PATH):
-            priority = json.load(open(PRIORITY_PATH)).get("classes", {})
+            priority = json.load(open(PRIORITY_PATH, encoding="utf-8")).get("classes", {})
         return {
             "identity": IDENTITY_NAME,
             "vertical": routes.get("vertical", "unstated"),

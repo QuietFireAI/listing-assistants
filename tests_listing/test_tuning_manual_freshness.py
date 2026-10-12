@@ -53,7 +53,7 @@ PER_MESSAGE_DEFAULTS = [
 
 
 def _init_default(path, param):
-    tree = ast.parse(open(os.path.join(ROOT, path)).read())
+    tree = ast.parse(open(os.path.join(ROOT, path), encoding="utf-8").read())
     found = None
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "__init__":
@@ -77,7 +77,7 @@ def test_every_documented_constructor_default_matches_code():
 def test_every_documented_per_message_default_matches_code():
     stale = []
     for path, pat, doc in PER_MESSAGE_DEFAULTS:
-        m = re.search(pat, open(os.path.join(ROOT, path)).read())
+        m = re.search(pat, open(os.path.join(ROOT, path), encoding="utf-8").read())
         actual = m.group(1) if m else None
         if actual != doc:
             stale.append(f"{path} {pat}: manual={doc} code={actual}")
@@ -85,7 +85,7 @@ def test_every_documented_per_message_default_matches_code():
 
 
 def test_manual_documents_every_tunable_and_carries_no_line_numbers():
-    manual = open(os.path.join(ROOT, "docs", "TUNING_MANUAL.md")).read()
+    manual = open(os.path.join(ROOT, "docs", "TUNING_MANUAL.md"), encoding="utf-8").read()
     missing = [p for _, p, _ in CONSTRUCTOR_TUNABLES if f"`{p}`" not in manual]
     assert not missing, f"tunables absent from the manual: {missing}"
     rotted = re.findall(r"listing_spokes_?\d*\.py:\d+", manual)

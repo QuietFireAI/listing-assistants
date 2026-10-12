@@ -120,7 +120,7 @@ def desk_running(state_dir):
     ignored (its pid is gone)."""
     path = os.path.join(state_dir, "desk.lock")
     try:
-        pid = int(open(path).read().strip())
+        pid = int(open(path, encoding="utf-8").read().strip())
     except (OSError, ValueError):
         return None
     if pid == os.getpid():
@@ -290,7 +290,7 @@ def cmd_pager(args):
         return 1
     import getpass
     cfg = {"account_sid": args.account_sid or input("Twilio account SID: ").strip(),
-           "auth_token": (open(args.auth_token_file).read().strip() if args.auth_token_file
+           "auth_token": (open(args.auth_token_file, encoding="utf-8").read().strip() if args.auth_token_file
                           else getpass.getpass("Twilio auth token (not shown): ").strip()),
            "from_number": args.from_number or input("Twilio number to send from (+1...): ").strip(),
            "to_number": args.to_number or input("Your mobile number (+1...): ").strip()}
@@ -469,7 +469,7 @@ def cmd_session(args):
         _p({"note": "not onboarded - run `python tools/console.py onboard` to record who "
                     "signs; signed actions still carry your key's signature"})
     errors = 0
-    for lineno, line in enumerate(open(args.script), 1):
+    for lineno, line in enumerate(open(args.script, encoding="utf-8"), 1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue

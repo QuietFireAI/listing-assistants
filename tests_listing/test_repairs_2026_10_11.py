@@ -296,7 +296,7 @@ def test_job_descriptions_match_their_sources():
 def test_swarm_manifest_matches_the_closed_track():
     import re
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    routes = json.load(open(os.path.join(root, "identity", "routes.json")))["routes"]
+    routes = json.load(open(os.path.join(root, "identity", "routes.json"), encoding="utf-8"))["routes"]
     intents = {r["intent"] for r in routes}
     s = open(os.path.join(root, "SWARM.md"), encoding="utf-8").read()
     assert f"- Routes: {len(routes)} entries, {len(intents)} distinct intents" in s

@@ -178,7 +178,7 @@ def test_no_market_update_path_owner_decision_j5():
     The route lanes 03 -data.request-> 10 and 10 -data.package-> 03 are gone."""
     import json
     assert not hasattr(Spoke03LeadNurture, "request_market_update")
-    routes = json.load(open(os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json")))
+    routes = json.load(open(os.path.join(os.path.dirname(__file__), "..", "identity", "routes.json"), encoding="utf-8"))
     by = {r["intent"]: r for r in routes["routes"]}
     assert "03" not in by["data.request"]["senders"] and "03" not in by["data.package"]["receivers"]
 

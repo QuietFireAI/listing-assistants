@@ -28,9 +28,9 @@ def run(tmp_path_factory):
     d = tmp_path_factory.mktemp("scenes")
     cfg = d / "cfg"
     cfg.mkdir()
-    roster = json.load(open(os.path.join(ROOT, "scenes", "config", "vendor_panel.json")))
+    roster = json.load(open(os.path.join(ROOT, "scenes", "config", "vendor_panel.json"), encoding="utf-8"))
     roster["_status"] = "RATIFIED 2026-10-12 scene test"
-    (cfg / "vendor_panel.json").write_text(json.dumps(roster))
+    (cfg / "vendor_panel.json").write_text(json.dumps(roster), encoding="utf-8")
     audit, state = d / "audit.jsonl", d / "state.sqlite"
     out = {}
     for f in SCENES:
@@ -40,7 +40,7 @@ def run(tmp_path_factory):
                            capture_output=True, text=True, cwd=ROOT)
         lines = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
         out[f[:7]] = {"rc": p.returncode, "lines": lines, "stderr": p.stderr}
-    entries = [json.loads(l) for l in open(audit)]
+    entries = [json.loads(l) for l in open(audit, encoding="utf-8")]
     return {"out": out, "audit": entries, "audit_path": str(audit), "dir": d}
 
 
@@ -171,11 +171,11 @@ def test_scene10_briefing_spans_every_session_and_the_record_defends_itself(run,
     eod = results(run, "scene10")[2]
     assert eod["tier_snapshot"]["S3-hot"] == "HOT" and eod["logging_gaps"] == []
     # tamper with one line, verify names it
-    lines = open(run["audit_path"]).read().splitlines()
+    lines = open(run["audit_path"], encoding="utf-8").read().splitlines()
     i = next(n for n, l in enumerate(lines) if '"Pat Hot"' in l)
     lines[i] = lines[i].replace("Pat Hot", "Pat Cold")
     bad = tmp_path / "tampered.jsonl"
-    bad.write_text("\n".join(lines) + "\n")
+    bad.write_text("\n".join(lines) + "\n", encoding="utf-8")
     p = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "console.py"), "verify",
                         "--audit-log", str(bad)], capture_output=True, text=True)
     v = json.loads(p.stdout)

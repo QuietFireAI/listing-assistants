@@ -25,7 +25,7 @@ def test_is_ratified_rule(status, expected):
 
 
 def test_repo_configs_ratification_state_is_what_the_files_say():
-    got = {f: is_ratified(json.load(open(os.path.join(ROOT, "config", f))).get("_status"))
+    got = {f: is_ratified(json.load(open(os.path.join(ROOT, "config", f), encoding="utf-8")).get("_status"))
            for f in sorted(os.listdir(os.path.join(ROOT, "config")))}
     assert got == {
         "authority_signers.json": False, "cadence_settings.json": False,
@@ -36,7 +36,7 @@ def test_repo_configs_ratification_state_is_what_the_files_say():
 
 def test_bad_json_is_reported_not_swallowed(tmp_path):
     p = tmp_path / "x.json"
-    p.write_text("{not json")
+    p.write_text("{not json", encoding="utf-8")
     data, verdict = load_ratified_config(str(p))
     assert data is None and verdict.startswith("invalid:")
 
@@ -62,7 +62,7 @@ def test_spoke_10_has_no_untupled_subject_mode():
     """The Gemini-added data.request mode='subject' returned before tuple 3's
     opinion gate and had no decision tuple; it was removed (nothing sent it)."""
     import dispatcher.listing_spokes_10 as m
-    assert '== "subject"' not in open(m.__file__).read()
+    assert '== "subject"' not in open(m.__file__, encoding="utf-8").read()
 
 
 def test_console_does_not_load_a_draft_vendor_roster(tmp_path):
@@ -83,8 +83,8 @@ def test_console_does_not_load_a_draft_vendor_roster(tmp_path):
 def test_a_ratified_file_is_loaded(tmp_path):
     from dispatcher.config_status import load_ratified_config
     f = tmp_path / "c.json"
-    f.write_text(json.dumps({"_status": "RATIFIED 2026-10-11 J. Broker", "x": 1}))
+    f.write_text(json.dumps({"_status": "RATIFIED 2026-10-11 J. Broker", "x": 1}), encoding="utf-8")
     data, verdict = load_ratified_config(str(f))
     assert verdict == "loaded" and data["x"] == 1
-    f.write_text(json.dumps({"_note": "RATIFIED 2026-10-11", "x": 1}))     # status key missing
+    f.write_text(json.dumps({"_note": "RATIFIED 2026-10-11", "x": 1}), encoding="utf-8")     # status key missing
     assert load_ratified_config(str(f)) == (None, "unratified")

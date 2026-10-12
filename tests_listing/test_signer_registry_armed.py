@@ -30,7 +30,7 @@ FIXTURE_SIGNERS = {
 def fixture_identity_root(tmpdir):
     root = os.path.join(tmpdir, "identity_root")
     os.makedirs(os.path.join(root, "config"), exist_ok=True)
-    with open(os.path.join(root, "config", "authority_signers.json"), "w") as f:
+    with open(os.path.join(root, "config", "authority_signers.json"), "w", encoding="utf-8") as f:
         json.dump(FIXTURE_SIGNERS, f)
     return root
 

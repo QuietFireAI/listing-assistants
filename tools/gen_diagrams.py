@@ -148,7 +148,7 @@ def agent_dirs():
     out = {}
     for d in sorted(glob.glob(os.path.join(ROOT, "[0-2][0-9]-*"))):
         aid = os.path.basename(d)[:2]
-        head = open(os.path.join(d, "SKILL.md")).read()
+        head = open(os.path.join(d, "SKILL.md"), encoding="utf-8").read()
         m = re.search(r"^# Agent \d\d - (.+?)(?: Agent)?\s*$", head, re.M)
         name = m.group(1) if m else os.path.basename(d)[3:].replace("-", " ").title()
         desc = re.search(r'^description:\s*"?(.+?)"?\s*$', head, re.M)
@@ -411,12 +411,12 @@ def agent_readme(aid, agents, routes, appears, headings) -> str:
 
 # --------------------------------------------------------------- main
 def build():
-    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json")))["routes"]
+    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
     for r in routes:
         phrase(r["intent"])                      # every intent has words
     agents = agent_dirs()
 
-    text = open(PLAY_BY_PLAY).read()
+    text = open(PLAY_BY_PLAY, encoding="utf-8").read()
     headings = {}
     for m in re.finditer(r"^### (P\d\d) (.+)$", text, re.M):
         headings[m.group(1)] = f"{m.group(1)} {m.group(2)}"
@@ -459,7 +459,7 @@ def build():
     for name, (rel, anchor, mermaid, caption) in BLOCKS.items():
         by_file.setdefault(os.path.join(ROOT, rel), []).append((name, anchor, mermaid, caption))
     for path, blocks_here in by_file.items():
-        body = files.get(path) or open(path).read()
+        body = files.get(path) or open(path, encoding="utf-8").read()
         body = re.sub(r"\n<!-- diagram:([a-z0-9-]+) - drawn[^\n]*-->\n.*?<!-- /diagram:\1 -->\n",
                       "", body, flags=re.S)
         for name, anchor, mermaid, caption in blocks_here:
@@ -479,14 +479,14 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     files = build()
     stale = [p for p, body in files.items()
-             if not os.path.exists(p) or open(p).read() != body]
+             if not os.path.exists(p) or open(p, encoding="utf-8").read() != body]
     if args.check:
         for p in stale:
             print(f"stale diagram: {os.path.relpath(p, ROOT)}")
         print(f"gen_diagrams --check: {len(files)} files, {len(stale)} stale")
         return 1 if stale else 0
     for p in stale:
-        open(p, "w").write(files[p])
+        open(p, "w", encoding="utf-8").write(files[p])
         print(f"wrote {os.path.relpath(p, ROOT)}")
     print(f"gen_diagrams: {len(files)} files, {len(stale)} written")
     return 0

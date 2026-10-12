@@ -51,7 +51,7 @@ def test_on_demand_eod_report_runs_only_when_named(tmp_path):
 
 def test_sweep_runner_and_console_call_no_agent_methods_directly():
     for rel in ("dispatcher/sweep_runner.py", "tools/console.py", "tools/run_sweeps.py"):
-        src = open(os.path.join(ROOT, rel)).read()
+        src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         assert not re.search(r"spokes\[\"\d\d\"\]\.\w+\(", src), rel
         assert not re.search(r"\bs\d\d\.\w+\(", src), rel
 

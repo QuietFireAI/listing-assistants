@@ -39,6 +39,6 @@ def test_demo_mode_is_explicit_and_works():
 
 
 def test_mount_docs_do_not_enable_demo_signing():
-    text = open(os.path.join(ROOT, "docs", "MOUNTING.md")).read()
+    text = open(os.path.join(ROOT, "docs", "MOUNTING.md"), encoding="utf-8").read()
     arg_lines = [l for l in text.splitlines() if "args" in l]
     assert arg_lines and not [l for l in arg_lines if "--demo-signing" in l]

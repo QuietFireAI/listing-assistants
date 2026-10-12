@@ -130,7 +130,7 @@ def test_drawer_verify_hashes_detects_tamper(tmp_path):
     d = mgr.provision_drawer("c1", "Alice", "1 Oak")
     p = d.store_file("08", "documents", "addendum.txt", "credit $2,500")
     assert d.verify_hashes() == {"ok": True, "checked": 1, "mismatched": [], "missing": []}
-    with open(p, "w") as f:
+    with open(p, "w", encoding="utf-8") as f:
         f.write("credit $25,000")
     v = d.verify_hashes()
     assert v["ok"] is False and v["mismatched"] == ["documents/addendum.txt"]

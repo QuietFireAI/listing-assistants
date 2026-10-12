@@ -74,7 +74,7 @@ class Spoke04ListingDescription:
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "config", "description_cut_priority.json")
         if os.path.exists(path):
-            self.cut_priority = json.load(open(path))["cut_priority"]
+            self.cut_priority = json.load(open(path, encoding="utf-8"))["cut_priority"]
         else:
             # config absent (e.g. bare-core install): documented default,
             # identical to the ratified file's content

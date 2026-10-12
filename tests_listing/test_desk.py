@@ -249,7 +249,7 @@ def test_http_page_state_lock_and_access_code(tmp_path):
         # the lock: a console session and the daily clock refuse this folder
         env = {**os.environ, "LISTINGASSISTANTS_STATE_DIR": state}
         script = tmp_path / "s.jsonl"
-        script.write_text('{"do": "show", "what": "held"}\n')
+        script.write_text('{"do": "show", "what": "held"}\n', encoding="utf-8")
         out = subprocess.run([sys.executable, "tools/console.py", "session", str(script)],
                              cwd=ROOT, env=env, capture_output=True, text=True)
         assert out.returncode == 2 and "Broker Desk is running" in out.stdout
@@ -289,12 +289,12 @@ def test_lock_left_by_a_dead_desk_is_ignored_and_a_live_one_holds(tmp_path):
     lock = os.path.join(state, "desk.lock")
     gone = subprocess.Popen([sys.executable, "-c", "pass"])
     gone.wait(timeout=30)
-    with open(lock, "w") as f:
+    with open(lock, "w", encoding="utf-8") as f:
         f.write(str(gone.pid))
     assert console.desk_running(state) is None            # a crashed desk does not lock you out
     alive = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
     try:
-        with open(lock, "w") as f:
+        with open(lock, "w", encoding="utf-8") as f:
             f.write(str(alive.pid))
         assert console.desk_running(state) == alive.pid
         assert alive.poll() is None                       # asking did not end it

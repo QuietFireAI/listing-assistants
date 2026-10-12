@@ -10,7 +10,7 @@ import re
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROUTES = json.load(open(os.path.join(ROOT, "identity", "routes.json")))["routes"]
+ROUTES = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
 WILDCARD = {"clarification.request", "integrity.violation"}   # any -> queue
 
 
