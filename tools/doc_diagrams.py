@@ -48,31 +48,37 @@ flowchart TD
 # The six areas as the README and the broker's manual list them. Drawn
 # narrow on purpose (2026-10-13, owner: "can it be easier to read?"): one
 # row of twenty agents made GitHub shrink the picture until no word was
-# readable. Each group is one card listing its agents; the six cards sit in
-# two rows of three (the ~~~ links are invisible and only set the rows); one
+# readable. Each team is one card: its number, what it does for the broker,
+# and each agent with a few words of its job (from JOB_DESCRIPTIONS.md).
+# Teams 1 to 5 run in the order a deal moves; team 6 watches them all
+# (owner, same day: the box "doesnt make sense - please elaborate"). The
+# cards sit in two columns of three rows (the ~~~ links are invisible and
+# only set the columns); wrappingWidth keeps each agent on one line; the
+# outside world sits beside the broker so the picture stays narrow; the box
+# is blue, not the default yellow, because yellow marks the broker. One
 # two-way arrow joins the hub to the team: no agent talks to another
-# directly, every message goes through the hub.
+# directly, every hand-off goes through the hub.
 TEAM = f"""```mermaid
+%%{{init: {{"flowchart": {{"wrappingWidth": 420}}}}}}%%
 flowchart TB
     B(["You - the broker<br/>sign, decide, release"])
     H{{{{"00 Dispatcher hub<br/>carries and logs every message"}}}}
     X[/"Outside world<br/>clients, vendors, platforms"/]
     B -- "signed listings, settings,<br/>releases, decisions" --> H
     H -- "questions, holds,<br/>alerts, reports" --> B
-    H <-- "in: inquiries, replies, deliveries<br/>out to your client: with consent on record<br/>out to vendors and the public: held for your release" --> X
-    subgraph TEAMBOX["Your twenty agents - each one talks only through the hub"]
+    X <-- "in: inquiries, replies, deliveries<br/>out to your client: with consent on record<br/>out to vendors and the public: held for your release" --> H
+    subgraph TEAMBOX["<b>Your twenty agents, in six teams.</b> Teams 1 to 5 follow a deal in order, team 6 watches them all."]
         direction TB
-        LEADS["<b>Leads</b><br/>01 Lead Capture<br/>02 Lead Qualification<br/>03 Lead Nurture<br/>19 Prospecting"]
-        LISTING["<b>Listing</b><br/>04 Listing Description<br/>05 MLS and Listing<br/>10 Market Data<br/>12 Marketing Campaign"]
-        BUYERS["<b>Buyers and showings</b><br/>06 Showing Scheduler<br/>13 Buyer Search and Match"]
-        DEAL["<b>Transaction</b><br/>07 Transaction Coordinator<br/>08 Document Collection<br/>09 Vendor Coordination"]
-        RECORDS["<b>Clients and records</b><br/>11 Client Communication<br/>14 CRM and Pipeline<br/>15 Financial Tracking<br/>16 After-Close and Referral"]
-        OVERSIGHT["<b>Oversight</b><br/>17 Compliance and Fair Housing<br/>18 Calendar and Tasks<br/>20 Social Media Monitoring"]
-        LEADS ~~~ DEAL
-        LISTING ~~~ RECORDS
-        BUYERS ~~~ OVERSIGHT
+        LEADS["<b>1 Leads</b> - find and sort new people<br/>01 Lead Capture: takes every call, form and text<br/>02 Lead Qualification: scores it, hot leads go to you<br/>03 Lead Nurture: follows up, only with consent<br/>19 Prospecting: flags expireds and FSBOs, no outreach"]
+        LISTING["<b>2 Listing</b> - put the home on the market<br/>04 Listing Description: MLS text, captions, flyers<br/>05 MLS and Listing: MLS entry, status, syndication<br/>10 Market Data: comps and area facts, no opinions<br/>12 Marketing Campaign: posts, newsletters, ads"]
+        BUYERS["<b>3 Buyers and showings</b> - match and book visits<br/>13 Buyer Search and Match: new listings to buyers<br/>06 Showing Scheduler: books, reminds, gets feedback"]
+        DEAL["<b>4 Transaction</b> - offer to closing<br/>07 Transaction Coordinator: every deadline<br/>08 Document Collection: requests and files papers<br/>09 Vendor Coordination: photographer, inspector, stager"]
+        RECORDS["<b>5 Clients and records</b> - keep everyone informed<br/>11 Client Communication: updates, advice questions to you<br/>14 CRM and Pipeline: every contact and stage<br/>15 Financial Tracking: tracks money, never moves it<br/>16 After-Close and Referral: check-ins, reviews, referrals"]
+        OVERSIGHT["<b>6 Oversight</b> - watches the whole team<br/>17 Compliance and Fair Housing: checks the wording<br/>18 Calendar and Tasks: your day, briefing, end of day<br/>20 Social Media Monitoring: listens, never posts replies"]
+        LEADS ~~~ BUYERS ~~~ RECORDS
+        LISTING ~~~ DEAL ~~~ OVERSIGHT
     end
-    H <--> TEAMBOX
+    H <-- "every hand-off" --> TEAMBOX
     classDef grp fill:#ffffff,stroke:#8c959f,color:#1f2328,text-align:left
     {YOU}
     {HUBC}
@@ -81,6 +87,7 @@ flowchart TB
     class H hub
     class X out
     class LEADS,LISTING,BUYERS,DEAL,RECORDS,OVERSIGHT grp
+    style TEAMBOX fill:#eef4fb,stroke:#1f6feb,color:#1f2328
 ```"""
 
 TEAM_CAPTION = ("*No agent talks to another directly: every arrow goes through the "
