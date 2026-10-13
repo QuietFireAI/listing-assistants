@@ -17,7 +17,7 @@ For testing the desk step by step, see
 5. [Listings](#5-listings)
 6. [Leads](#6-leads)
 7. [Your team](#7-your-team)
-8. [The proof strip and the connection chips](#8-the-proof-strip-and-the-connection-chips)
+8. [Proof and connections](#8-proof-and-connections)
 9. [What just happened](#9-what-just-happened)
 10. [The two header buttons](#10-the-two-header-buttons)
 11. [Open it on a tablet](#11-open-it-on-a-tablet)
@@ -71,13 +71,13 @@ same records at once. Use the desk's own **Run today's checks** button instead.
 |---|---|---|
 | 1 | **Mode badge and header buttons** | LIVE (your records) or SHOWCASE (synthetic demo data); **Run today's checks** and **Check the record** ([section 10](#10-the-two-header-buttons)) |
 | 2 | **Script bar** | Shown only while a test script or the showcase plays ([section 12](#12-test-scripts-and-the-showcase)) |
-| 3 | **Proof strip** | Is the record intact, did everything that left go out on your signature, how much is waiting ([section 8](#8-the-proof-strip-and-the-connection-chips)) |
-| 4 | **Connection chips** | What is and is not connected to the outside world |
-| 5 | **Today's work** | One line of today's numbers; open it for the full count of what was done, protected and decided ([section 3](#3-the-days-work)) |
-| 6 | **Needs you** | Everything waiting for your answer, in sections: held messages first, then paused threads, then items to handle ([section 4](#4-needs-you-what-to-answer)) |
-| 7 | **Listings** | One card per listing with its progress track ([section 5](#5-listings)) |
-| 8 | **Leads** (below Listings) | Each lead, with a five-minute call clock on a hot one ([section 6](#6-leads)) |
-| 9 | **Your team** (lower on the page) | One line saying how many agents are working, waiting or idle; open it for each agent ([section 7](#7-your-team)) |
+| 3 | **The recap** | The state of things in one glance; each part opens its detail ([below](#the-recap)) |
+| 4 | **Needs you** | Everything waiting for your answer, in sections: held messages first, then paused threads, then items to handle ([section 4](#4-needs-you-what-to-answer)) |
+| 5 | **Listings** | One row per listing with its progress track ([section 5](#5-listings)) |
+| 6 | **Leads** (below Listings) | Each lead, with a five-minute call clock on a hot one ([section 6](#6-leads)) |
+| 7 | **Today's work** (lower on the page) | One line of today's numbers; open it for the full count of what was done, protected and decided ([section 3](#3-the-days-work)) |
+| 8 | **Proof and connections** (lower) | The record's check, the signature count, and what is connected to the outside ([section 8](#8-proof-and-connections)) |
+| 9 | **Your team** (lower) | One line saying how many agents are working, waiting or idle; open it for each agent ([section 7](#7-your-team)) |
 | 10 | **What just happened** (bottom) | The latest line; open it for the last 25 ([section 9](#9-what-just-happened)) |
 
 **Anything with a ▸ opens and closes** when you tap its title: the sections
@@ -86,7 +86,24 @@ work and each of its lines, Your team, and What just happened. The desk
 remembers what you opened or closed, on this computer and this browser,
 through every refresh and the next time you open it.
 
-A narrow screen (a tablet held upright) stacks the same parts in one column.
+A narrow screen (a tablet held upright, a phone) stacks the same parts in one
+column; on a phone the header scrolls away instead of staying at the top.
+
+### The recap
+
+The box at the top says, in one glance, where things stand. Tap any part of
+it to open its detail.
+
+| Part | Example | Tap it to |
+|---|---|---|
+| How much waits for you | **14 waiting for you** · 3 to send or not · 11 to handle · **2 hot leads to call** (in red) | jump to Needs you |
+| The record | **✓ Record intact** (green), or **✗ Record broken** (red) | open Proof and connections |
+| Your signature | **4 of 4 sent on your signature**: messages to vendors or the public, and how many went out on your signed release (green when they match) | open Proof and connections |
+| Today | **Today: 16 client messages · 3 leads · 3 bookings** | open Today's work |
+| Connections | **1 of 6 connected** | open Proof and connections |
+
+With nothing waiting it reads **Nothing is waiting for you** and "All
+quiet."
 
 ## 3. The day's work
 
@@ -144,9 +161,10 @@ script or the showcase, the section holding that card opens by itself.
 
 Some messages would leave your business: a booking sent to a vendor, an ad
 sent to the public. Every one of them stops here first, with exactly what
-would go out and to whom. The card shows it in one line; tap **What would go
-out** for every field. The full content also opens by itself the moment you
-tap Send, so you always see it before your second tap signs.
+would go out and to whom. The card shows it in one line; tap that line (it
+ends "· what would go out") and it gives way to every field. The full content
+also opens by itself the moment you tap Send, so you always see it before
+your second tap signs.
 
 ![A held message: what would go out, and the Send and Don't send buttons](images/desk-manual/03-held-card.png)
 
@@ -180,7 +198,7 @@ flowchart LR
 ```
 
 Messages to your own client are not held here; they go out once your client
-has given consent (recorded by Agent 14), and the proof strip counts them.
+has given consent (recorded by Agent 14), and Proof and connections counts them.
 
 ### 4b. A paused thread (yellow edge, "Paused - your decision")
 
@@ -220,9 +238,12 @@ handling itself is yours.
 
 ## 5. Listings
 
-One card per listing you have signed, newest activity first.
+One row per listing you have signed, newest activity first: its name, beds
+and price, where it stands ("Now: Marketing out"), and its progress track
+across the row. The step names are printed once, above the rows, lined up
+with every track.
 
-![A listing's progress track](images/desk-manual/10-listing-card.png)
+![A listing's row and its progress track](images/desk-manual/10-listing-card.png)
 
 The track reads left to right:
 
@@ -278,9 +299,15 @@ Each tile is one agent, with a colored top edge:
 | IDLE | grey | Nothing yet |
 | PROBLEM | red | A handoff it made was refused; the tile says why. It clears the next time the agent's work goes through. |
 
-## 8. The proof strip and the connection chips
+## 8. Proof and connections
 
-![The proof strip and the connection chips](images/desk-manual/08-proof.png)
+This section is folded under one line, for example "✓ record intact · 4 of 4
+sent on your signature · 3 held · 16 client messages · 1 of 6 connected". The
+recap's record, signature and connections buttons open it. It opens by itself
+if the record ever fails its check, or if a message to a vendor or the public
+went out without your signed release (unless you have closed it yourself).
+
+![Proof and connections opened: the four tiles and the connection chips](images/desk-manual/08-proof.png)
 
 | Tile | Meaning |
 |---|---|
@@ -380,6 +407,9 @@ what the client video is recorded on
 - **Done and Called cannot be undone from the page.** They only record that
   you handled something; nothing in the swarm changes.
 - **Tablet access is plain HTTP** on your network.
+- **On the narrowest phones** (320 pixels wide, such as the first iPhone SE)
+  the step names "Marketed" and "Contract" above the listing tracks are
+  slightly clipped; from 360 pixels up they fit.
 - **The day's work counts; it does not estimate.** Emails and texts are
   counted together as client messages, and there is no time-saved figure
   (section 3).
@@ -394,7 +424,7 @@ what the client video is recorded on
 | A console session says "the Broker Desk is running" | By design: one program on your records at a time | Stop the desk, or do it from the desk |
 | "Not done: that message is no longer held" | It was already answered (perhaps from another screen) | Nothing; the page refreshes |
 | **Vendor roster: unratified** | Your vendor list is a draft | Ratify `config/vendor_panel.json` (section 1) |
-| **✗ Broken** on the proof strip | The audit record does not check | Stop the desk; do not act; keep the folder as it is and contact support |
+| **✗ Record broken** in the recap | The audit record does not check | Stop the desk; do not act; keep the folder as it is and contact support |
 | An agent tile shows PROBLEM | One of its handoffs was refused | Read the tile; it often points at a missing setting or vendor |
 | `Address already in use` (Windows: "Only one usage of each socket address") | Another program uses port 8765 | `python tools/desk.py --port 8770`, then open http://127.0.0.1:8770 |
 

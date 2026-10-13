@@ -366,8 +366,12 @@ what is waiting on them. It runs on the broker's own computer and opens in
 any browser; with `--lan`, a tablet on the office network can open it with a
 printed access code.
 
-![The Broker Desk during the showcase: the marketing for listing S4 is held, and the presenter's next move is to press Send](docs/images/desk-your-move.png)
+![The Broker Desk during the showcase: the recap at the top, the marketing for listing S4 held, and the presenter's next move is to press Send](docs/images/desk-manual/02-your-move.png)
 
+- **The recap** at the top: how much waits for you (and any hot lead to
+  call), whether the record is intact, how many messages went out on your
+  signature, today's headline numbers, and how many outside connections are
+  live. Each part opens its detail.
 - **Needs you:** each held message with exactly what would go out and who it
   goes to, with a **Send** button (tap twice: it signs one release with your
   key) and a **Don't send** (signs a decline, with your reason if you type
@@ -375,15 +379,17 @@ printed access code.
   **Cancel**; your queues (legal
   line, upset clients, questions, refused unsigned messages) with the
   client's own words and a **Done** that records who handled it.
-- **Listings:** a progress track per listing (signed, booked, photos, copy
-  approved, live, marketed, under contract, closed) read from the record.
+- **Listings:** one row per listing with its progress track (signed, booked,
+  photos, copy approved, live, marketed, under contract, closed) read from the
+  record.
 - **Leads:** a hot lead shows its five-minute call clock.
 - **Your team:** the twenty agents - working, waiting, waiting for you, idle,
   or a problem.
-- **Proof:** the record's chain check, how many messages to vendors or the
-  public went out and how many carried your signed release, and which
-  outside connections exist (today: no MLS, no email or SMS to clients - a
-  released client message is recorded, not delivered to a phone).
+- **Proof and connections:** the record's chain check, how many messages to
+  vendors or the public went out and how many carried your signed release,
+  and which outside connections exist (today: no MLS, no email or SMS to
+  clients - a released client message is recorded, not delivered to a
+  phone). Folded to one line; it opens itself if the record ever fails.
 - **Today's work:** what the swarm did for you that day, counted from the
   audit record - leads captured, client messages, vendor bookings, documents
   requested, compliance problems caught, decisions you signed and more. Each

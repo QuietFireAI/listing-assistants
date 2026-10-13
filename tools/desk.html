@@ -22,14 +22,16 @@
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0d1117; --panel:#161b22; --ink:#e6edf3; --muted:#9198a1; --line:#30363d;
-  --you-bg:#3b2e00; --you-ink:#f2cc60; --ok-bg:#0f2e1a; --bad-bg:#3d1214; --shadow:none;
+  --you-bg:#3b2e00; --you-ink:#f2cc60; --ok:#3fb950; --ok-bg:#0f2e1a; --bad:#f85149; --bad-bg:#3d1214;
+  --blue:#2f81f7; --shadow:none;
 }}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--font);font-feature-settings:"tnum" 0}
 .num,.tile .big,.timer,.count,.tcount{font-variant-numeric:tabular-nums}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
   padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-header h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em}
+header h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.brand{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
 .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700}
 .badge.show{background:var(--you);color:#1f2328}
 .badge.live{background:var(--ok-bg);color:var(--ok)}
@@ -49,6 +51,20 @@ select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);b
 .showcase .next{font-size:20px;font-weight:700;margin:4px 0 10px}
 .showcase.yourmove{border-color:var(--bad);animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(207,34,46,.0)}50%{box-shadow:0 0 0 6px rgba(207,34,46,.18)}}
+/* the recap: the state of things in one glance; each part opens its detail */
+.recap{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:18px;box-shadow:var(--shadow)}
+.rleft{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 300px}
+.rleft:focus-visible,.pill:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:8px}
+.rhead{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.rhead.calm{color:var(--ok)}
+.rsub{font-size:15px;color:var(--muted)}
+.rsub b{color:var(--bad);font-weight:700}
+.rpills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font:inherit;font-size:14px;font-weight:600;min-height:36px;padding:6px 12px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.pill.good{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+.pill.bad{border-color:var(--bad);color:var(--bad);background:var(--bad-bg)}
 .proof{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:12px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
 .tile .big{font-size:28px;font-weight:800;letter-spacing:-.01em}
@@ -83,6 +99,11 @@ details.group.alarm>summary{border-left:6px solid var(--bad)}
 details.section>summary{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;margin:6px 0 10px;flex-wrap:wrap}
 details.section>summary .sline{font-size:14px;font-weight:500;color:var(--muted)}
 details.more>summary{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--blue);margin:6px 0 2px;min-height:32px}
+/* a held message: its one-line summary, replaced by the full detail when opened */
+details.more .pv{color:var(--ink)}
+details.more .pvhint{color:var(--blue);font-weight:600}
+details.more[open] .pv,details.more[open] .pvhint{display:none}
+details.more:not([open]) .ow{display:none}
 
 .card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
 .card.held,.card.wait{border-left-color:var(--you)}
@@ -90,7 +111,6 @@ details.more>summary{display:inline-flex;align-items:center;gap:4px;font-size:14
 .card.highlight{outline:3px solid var(--bad);outline-offset:2px}
 .card h3{margin:0 0 2px;font-size:17px;font-weight:700}
 .meta{color:var(--muted);font-size:14px;margin-bottom:6px}
-.preview{font-size:14px;font-weight:600}
 .said{border-left:3px solid var(--line);padding:6px 10px;margin:8px 0;font-style:italic}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;font-size:14px;margin:8px 0;
   background:var(--bg);border-radius:8px;padding:8px 10px;overflow:auto}
@@ -99,6 +119,33 @@ details.more>summary{display:inline-flex;align-items:center;gap:4px;font-size:14
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
 .empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:12px;text-align:center}
 .lhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+/* compact listings: name and where it stands on one line, the track under it
+   at full width; the step names once, above the rows, lined up with the tracks */
+.lgrid{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:baseline}
+.lgrid .track{grid-column:1/-1;margin:2px 0 0}
+.lhdr{padding:0 15px 4px 20px}          /* = a card's left edge (6) + padding (14), right border (1) + padding (14) */
+.lhdr .steplabels{margin:0}
+.card.lrow{padding:10px 14px;margin-bottom:8px}
+.lname b{font-size:16px;margin-right:8px}
+.lname span{font-size:13px;color:var(--muted)}
+.lname{grid-column:1;grid-row:1}
+.lnow{grid-column:2;grid-row:1;font-size:14px;text-align:right}
+.lrow details.more>summary{margin:4px 0 0;min-height:28px}
+/* phones: the header scrolls away; the step names shrink to fit, and the
+   name row's padding always equals a card's edge + padding so they line up */
+@media (max-width:600px){
+  header{position:static}
+  .lhdr .steplabels{font-size:9px;gap:2px;letter-spacing:-.02em}
+  .lhdr .steplabels span{text-overflow:clip}
+  .lrow .track{gap:2px}
+  .lhdr{padding:0 11px 4px 16px}
+  .card.lrow{padding:10px}
+}
+@media (max-width:380px){
+  .lhdr .steplabels{font-size:8.4px;letter-spacing:-.03em}
+  .lhdr{padding:0 7px 4px 12px}
+  .card.lrow{padding:10px 6px}
+}
 .track{display:flex;gap:4px;margin:10px 0 4px}
 .step{flex:1;height:10px;border-radius:5px;background:var(--line)}
 .step.done{background:var(--ok)} .step.you{background:var(--you)}
@@ -147,7 +194,7 @@ section{margin-bottom:22px}
 /* "Print the day": only the day's work, every row opened */
 @media print{
   body{background:#fff;color:#000}
-  header .bar,#showcase,#top,.cols,#team-sec,#feed-sec,.foot,.toast,.daybar button,.daybar select{display:none !important}
+  header .bar,#showcase,#recap,.cols,#proof-sec,#team-sec,#feed-sec,.foot,.toast,.daybar button,.daybar select{display:none !important}
   #day-sec{display:block !important}
   .noprint{display:none !important}
   .printonly{display:inline !important;font-weight:700}
@@ -158,6 +205,7 @@ section{margin-bottom:22px}
 <body>
 <header>
   <div>
+    <div class="brand">ListingAssistants</div>
     <h1>Broker Desk</h1>
     <div class="note" id="who">loading…</div>
   </div>
@@ -178,10 +226,26 @@ section{margin-bottom:22px}
     </div>
   </div>
 
-  <section id="top">
-    <div class="proof" id="proof"></div>
-    <div class="chips" id="chips"></div>
+  <section id="recap" class="recap" aria-label="Recap">
+    <button class="rleft" id="recap-left" type="button">
+      <span class="rhead" id="recap-head"></span>
+      <span class="rsub" id="recap-sub"></span>
+    </button>
+    <div class="rpills" id="recap-pills"></div>
   </section>
+
+  <div class="cols">
+    <section>
+      <h2 id="needs-h">Needs you <span class="count" id="needs-count">0</span></h2>
+      <div id="needs"></div>
+    </section>
+    <section>
+      <h2>Listings</h2>
+      <div id="listings"></div>
+      <h2>Leads</h2>
+      <div id="leads"></div>
+    </section>
+  </div>
 
   <section>
     <details class="section" id="day-sec" data-key="sec:day">
@@ -198,18 +262,13 @@ section{margin-bottom:22px}
     </details>
   </section>
 
-  <div class="cols">
-    <section>
-      <h2>Needs you <span class="count" id="needs-count">0</span></h2>
-      <div id="needs"></div>
-    </section>
-    <section>
-      <h2>Listings</h2>
-      <div id="listings"></div>
-      <h2>Leads</h2>
-      <div id="leads"></div>
-    </section>
-  </div>
+  <section>
+    <details class="section" id="proof-sec" data-key="sec:proof">
+      <summary><span class="chev">▸</span>Proof and connections <span class="sline" id="proof-line"></span></summary>
+      <div class="proof" id="proof"></div>
+      <div class="chips" id="chips"></div>
+    </details>
+  </section>
 
   <section>
     <details class="section" id="team-sec" data-key="sec:team">
@@ -352,9 +411,10 @@ function needsCard(i, inGroup) {
     // the full content opens by itself when it is your move or you tap Send,
     // so a release is never signed without seeing what goes out
     const force = hl || armed === "send:" + i.id || armed === "decline:" + i.id;
-    c.append(el("div", {class: "preview"}, preview(i.content)),
-      details("more", "card:" + i.id, false, "What would go out",
-              [kv(i.content), el("div", {class: "why"}, i.why)], force));
+    c.append(details("more", "card:" + i.id, false,
+      [el("span", {class: "pv"}, preview(i.content)), el("span", {class: "pvhint"}, " · what would go out"),
+       el("span", {class: "ow"}, "What would go out")],
+      [kv(i.content), el("div", {class: "why"}, i.why)], force));
     c.append(el("div", {class: "actions"}, sendButton(i), declineControls(i),
       el("span", {class: "note"}, "Not ready? Leave it - it stays held until you answer.")));
   } else if (i.type === "wait") {
@@ -408,16 +468,22 @@ function needsGroups(needs) {
   const order = g => g.key === "held" ? 0 : g.key === "wait" ? 1 : 2;
   return groups.sort((a, b) => order(a) - order(b));
 }
+const STEP_NAMES = ["Signed", "Booked", "Photos", "Copy OK", "Live", "Marketed", "Contract", "Closed"];
+function listingsHeader() {
+  return el("div", {class: "lhdr"},
+    el("div", {class: "steplabels"}, (S.listings[0] ? S.listings[0].steps.map(s => s.label) : STEP_NAMES)
+      .map(n => el("span", {}, n))));
+}
 function listingCard(l) {
-  const c = el("div", {class: "card"});
+  const c = el("div", {class: "card lrow"});
   const facts = Object.entries(l.facts || {}).map(([k, v]) =>
     k === "price" ? "$" + Number(v).toLocaleString() : `${v} ${k}`).join(" · ");
-  c.append(el("div", {class: "lhead"},
-    el("div", {}, el("h3", {}, `Listing ${l.ctx}`), el("div", {class: "meta"}, facts || " ")),
-    el("div", {}, "Now: ", el("span", {class: "now"}, l.now))));
-  const track = el("div", {class: "track"}), labels = el("div", {class: "steplabels"});
-  for (const s of l.steps) { track.append(el("div", {class: "step " + s.state, title: s.label})); labels.append(el("span", {}, s.label)); }
-  c.append(track, labels);
+  const track = el("div", {class: "track"});
+  for (const s of l.steps) track.append(el("div", {class: "step " + s.state, title: `${s.label}: ${s.state === "done" ? "done" : s.state === "you" ? "waiting for you" : "not yet"}`}));
+  c.append(el("div", {class: "lgrid"},
+    el("div", {class: "lname"}, el("b", {}, `Listing ${l.ctx}`), el("span", {}, facts || " ")),
+    track,
+    el("div", {class: "lnow"}, "Now: ", el("span", {class: "now"}, l.now))));
   const notes = [...l.waiting_on_you.map(w => el("div", {class: "flag you"}, "Waiting for you to send " + w)),
                  ...l.flags.map(f => el("div", {class: "flag"}, f))];
   if (notes.length) {
@@ -474,6 +540,43 @@ function renderDay() {
       return d;
     }))));
 }
+// open a folded section and bring it into view (the recap's parts do this)
+function reveal(id) {
+  const d = document.getElementById(id);
+  if (d.tagName === "DETAILS") { d.open = true; OPEN[d.dataset.key] = true; saveOpen(); }
+  d.scrollIntoView({behavior: "smooth", block: "start"});
+}
+function pill(text, cls, target) {
+  const b = el("button", {class: "pill " + cls, type: "button"}, text);
+  b.onclick = () => reveal(target);
+  return b;
+}
+function renderRecap() {
+  const needs = S.needs_you, p = S.proof, D = S.day;
+  const n = t => needs.filter(i => i.type === t).length;
+  const held = n("held"), waits = n("wait"), queue = n("queue");
+  const hot = S.leads.filter(l => l.hot_open).length;
+  const head = document.getElementById("recap-head");
+  head.textContent = needs.length ? `${needs.length} waiting for you` : "Nothing is waiting for you";
+  head.className = "rhead" + (needs.length ? "" : " calm");
+  const parts = [held && `${held} to send or not`, waits && `${waits} to decide`, queue && `${queue} to handle`]
+    .filter(Boolean);
+  const sub = document.getElementById("recap-sub");
+  sub.replaceChildren(parts.join(" · "),
+    ...(hot ? [parts.length ? " · " : "", el("b", {}, hot === 1 ? "1 hot lead to call" : `${hot} hot leads to call`)] : []));
+  if (!parts.length && !hot) sub.textContent = "All quiet.";
+  const all = Object.fromEntries(D.groups.flatMap(g => g.rows.map(r => [r.key, r.count])));
+  const isToday = D.day === new Date().toLocaleDateString("en-CA");
+  const dayBits = [["client_messages", "client messages"], ["leads", "leads"], ["vendor", "bookings"]]
+    .filter(([k]) => all[k]).map(([k, w]) => `${all[k]} ${w}`);
+  const on = p.connections.filter(c => /^(on|loaded)$/.test(c.state)).length;
+  document.getElementById("recap-pills").replaceChildren(
+    pill(p.chain_ok ? "✓ Record intact" : "✗ Record broken", p.chain_ok ? "good" : "bad", "proof-sec"),
+    pill(`${p.gated_out_signed} of ${p.gated_out} sent on your signature`,
+         p.gated_out === p.gated_out_signed ? "good" : "bad", "proof-sec"),
+    pill((isToday ? "Today: " : D.day + ": ") + (dayBits.length ? dayBits.join(" · ") : "nothing yet"), "", "day-sec"),
+    pill(`${on} of ${p.connections.length} connected`, "", "proof-sec"));
+}
 function render() {
   if (!S) return;
   document.getElementById("who").textContent =
@@ -518,6 +621,13 @@ function render() {
        c.name + ": ", el("b", {}, c.state))));
 
   renderDay();
+  renderRecap();
+  const onC = p.connections.filter(c => /^(on|loaded)$/.test(c.state)).length;
+  document.getElementById("proof-line").textContent = "· " + [p.chain_ok ? "✓ record intact" : "✗ record broken",
+    `${p.gated_out_signed} of ${p.gated_out} sent on your signature`, `${p.held_now} held`,
+    `${p.client_messages} client messages`, `${onC} of ${p.connections.length} connected`].join(" · ");
+  const trouble = !p.chain_ok || p.gated_out !== p.gated_out_signed;
+  if (trouble && !("sec:proof" in OPEN)) document.getElementById("proof-sec").open = true;   // trouble opens it
 
   const needs = S.needs_you;
   const cnt = document.getElementById("needs-count");
@@ -530,7 +640,7 @@ function render() {
       [el("span", {class: "gtitle"}, g.title), el("span", {class: "count" + (g.cls === "urgent" ? "" : " soft")}, String(g.items.length))],
       g.items.map(i => needsCard(i, g.key !== "held" && g.key !== "wait")), force);
   }) : [el("div", {class: "empty"}, "Nothing is waiting for you.")]));
-  document.getElementById("listings").replaceChildren(...(S.listings.length ? S.listings.map(listingCard)
+  document.getElementById("listings").replaceChildren(...(S.listings.length ? [listingsHeader(), ...S.listings.map(listingCard)]
     : [el("div", {class: "empty"}, "No listings yet.")]));
   document.getElementById("leads").replaceChildren(...(S.leads.length ? S.leads.map(leadRow)
     : [el("div", {class: "empty"}, "No leads yet.")]));
@@ -559,6 +669,7 @@ async function load() {
     if (!(a && (a.classList.contains("reason") || a.id === "day-pick"))) render();
   } catch (e) { document.getElementById("who").textContent = "desk not reachable: " + e; }
 }
+document.getElementById("recap-left").onclick = () => reveal("needs-h");
 // the fixed sections remember open/closed too
 for (const d of document.querySelectorAll("details.section")) {
   const key = d.dataset.key;

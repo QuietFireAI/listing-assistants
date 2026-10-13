@@ -47,13 +47,21 @@ outlined in red, and **Next** is greyed out until you answer:
 |---|---|---|---|---|
 | 1 | 3 | press Cancel on the paused thread for S3-hot-again | **Cancel** | The card leaves; the lead "Pat Hot ... S3-hot-again" reads "Closed by your decision" |
 | 2 | 4 | press Send on the held vendor booking for S4 | **Send**, then **Tap again to sign and send** | Listing S4: Booked turns green |
-| 3 | 4 | press Send on the held marketing for S4 | **Send** twice, as above | S4: Marketed green, "Now: Marketing out"; proof tile "1 of 1" |
+| 3 | 4 | press Send on the held marketing for S4 | **Send** twice, as above | S4: Marketed green, "Now: Marketing out"; the recap reads "1 of 1 sent on your signature" |
 | 4 | 5 | press Send on the held vendor booking for S5 | **Send** twice | S5: Booked green |
 | 5 | 6 | press Send on the held vendor booking for S6 | **Send** twice | S6: Booked green |
 
 **Expect at the end:** the bar reads "SHOWCASE COMPLETE" over "All ten scenes
-played. Check the record to finish."; the proof strip reads **✓ Intact**, **4 of 4**, **3** held, **16**
-client messages; Needs you counts **14**.
+played. Check the record to finish." The recap under it reads **14 waiting
+for you**, "3 to send or not · 11 to handle · **2 hot leads to call**", and
+its four buttons read **✓ Record intact**, **4 of 4 sent on your
+signature**, **Today: 16 client messages · 3 leads · 3 bookings**, **1 of 6
+connected**. Needs you counts **14**.
+
+Tap **1 of 6 connected**. **Expect:** **Proof and connections** opens lower
+on the page: four tiles (**✓ Intact**, **4 of 4**, **3** held, **16** client
+messages) and the six connection chips, with only **Vendor roster: loaded**
+in green.
 
 ![The showcase at its first marketing hold](images/desk-manual/02-your-move.png)
 
@@ -63,8 +71,10 @@ Still on the finished showcase. On the first held card (Book a vendor, S1),
 tap **Don't send**, type `wrong photographer`, tap **Sign: don't send**.
 
 **Expect:** a note at the bottom "Signed: not sent - Book a vendor"; the card
-leaves; the held tile reads **2** with "· 1 you signed not to send"; the
-**4 of 4** tile does not change (nothing went out); the **What just
+leaves; the recap reads **13 waiting for you** and "2 to send or not"; its
+**4 of 4 sent on your signature** does not change (nothing went out); in
+Proof and connections the held tile reads **2** with "· 1 you signed not to
+send"; the **What just
 happened** line near the bottom reads "· latest: You signed Don't send: books
 the vendor (wrong photographer)".
 
@@ -125,10 +135,13 @@ python tools/desk.py
 
 **Expect:** `init` prints `"operator_key": "generated, private: mode 0o600"`
 (Windows: "only your account ... on the Windows permission list"). The page
-shows **LIVE · your records**, your name and login at the top left, **✓
-Intact**, **0 of 0**, "Nothing is waiting for you.", "No listings yet.",
-**Your team · 20 idle**, **Today's work · nothing recorded yet**, and the chip
-**Vendor roster: unratified**.
+shows **LIVE · your records**, your name and login at the top left; the
+recap reads **Nothing is waiting for you**, "All quiet.", **✓ Record
+intact**, **0 of 0 sent on your signature**, **Today: nothing yet**, **0 of 6
+connected**; Needs you says "Nothing is waiting for you." and Listings "No
+listings yet."; **Your team · 20 idle**; **Today's work · nothing recorded
+yet**; and, in Proof and connections, the chip **Vendor roster:
+unratified**.
 
 ![A first live desk](images/desk-manual/15-live-first-run.png)
 
@@ -182,7 +195,8 @@ Now press **Send** twice, then **Next** until the bar turns red again
 
 **Expect at the end:** the bar reads "TEST SCRIPT COMPLETE" over "All 11 lines
 played. Check the record to finish."; S4's
-track green from Signed to Marketed; **2 of 2**; **✓ Intact**. The listing
+track green from Signed to Marketed; the recap reads **2 of 2 sent on your
+signature** and **✓ Record intact**. The listing
 was signed with *your* key: your login is at the top left.
 
 ## T10 - Don't send on your live desk
@@ -197,8 +211,9 @@ Play it through; press **Send** twice when it asks for the S5 booking. The
 script ends with the S5 marketing held. On that card tap **Don't send**, type
 `hold for new photos`, tap **Sign: don't send**.
 
-**Expect:** the card leaves; held tile "· 1 you signed not to send"; the
-**N of N** tile does not move; S5's Marketed step stays grey; the **What
+**Expect:** the card leaves; the recap's "N of N sent on your signature" does
+not move; in Proof and connections the held tile adds "· 1 you signed not to
+send"; S5's Marketed step stays grey; the **What
 just happened** line reads "· latest: You signed Don't send: ... (hold for
 new photos)".
 

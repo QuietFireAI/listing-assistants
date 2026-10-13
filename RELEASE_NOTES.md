@@ -38,6 +38,13 @@ end-to-end test.
   number; any day can be picked and printed. Counts only: emails and texts
   are not split (no channel is connected yet) and no time-saved figure is
   shown (that needs minutes per task that only the broker can set).
+- **A recap at the top.** One box says where things stand: how much waits
+  for you and any hot lead to call, the record's check, how many messages
+  went out on your signature, today's headline numbers, how many
+  connections are live. Each part opens its detail; the proof tiles and
+  connection chips fold below it and open themselves if the record ever
+  fails. Listings are one row each with the step names printed once above
+  them.
 - **A calmer desk.** Needs you is in collapsible sections; a held message
   shows one line until opened, and opens itself when you tap Send, so a
   release is never signed unseen; listings fold their notes; Your team and
