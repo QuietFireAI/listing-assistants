@@ -37,54 +37,31 @@ Twenty spoke agents cover the listing lifecycle end to end:
 flowchart TB
     B(["You - the broker<br/>sign, decide, release"])
     H{{"00 Dispatcher hub<br/>carries and logs every message"}}
-    B -- "signed listings, settings, releases, decisions" --> H
-    H -- "questions, holds, alerts, reports" --> B
-    subgraph LEADS["Leads"]
-        A01["01 Lead Capture"]
-        A02["02 Lead Qualification"]
-        A03["03 Lead Nurture"]
-        A19["19 Prospecting"]
-    end
-    subgraph LISTING["Listing"]
-        A04["04 Listing Description"]
-        A05["05 MLS and Listing"]
-        A10["10 Market Data"]
-        A12["12 Marketing Campaign"]
-    end
-    subgraph BUYERS["Buyers and showings"]
-        A06["06 Showing Scheduler"]
-        A13["13 Buyer Search and Match"]
-    end
-    subgraph DEAL["Transaction"]
-        A07["07 Transaction Coordinator"]
-        A08["08 Document Collection"]
-        A09["09 Vendor Coordination"]
-    end
-    subgraph RECORDS["Clients and records"]
-        A11["11 Client Communication"]
-        A14["14 CRM and Pipeline"]
-        A15["15 Financial Tracking"]
-        A16["16 After-Close and Referral"]
-    end
-    subgraph OVERSIGHT["Oversight"]
-        A17["17 Compliance and Fair Housing"]
-        A18["18 Calendar and Tasks"]
-        A20["20 Social Media Monitoring"]
-    end
-    H <--> LEADS
-    H <--> LISTING
-    H <--> BUYERS
-    H <--> DEAL
-    H <--> RECORDS
-    H <--> OVERSIGHT
     X[/"Outside world<br/>clients, vendors, platforms"/]
-    H <-- "in: inquiries, replies, deliveries<br/>out to your client: sent, with consent on record<br/>out to vendors and the public: held for your release" --> X
+    B -- "signed listings, settings,<br/>releases, decisions" --> H
+    H -- "questions, holds,<br/>alerts, reports" --> B
+    H <-- "in: inquiries, replies, deliveries<br/>out to your client: with consent on record<br/>out to vendors and the public: held for your release" --> X
+    subgraph TEAMBOX["Your twenty agents - each one talks only through the hub"]
+        direction TB
+        LEADS["<b>Leads</b><br/>01 Lead Capture<br/>02 Lead Qualification<br/>03 Lead Nurture<br/>19 Prospecting"]
+        LISTING["<b>Listing</b><br/>04 Listing Description<br/>05 MLS and Listing<br/>10 Market Data<br/>12 Marketing Campaign"]
+        BUYERS["<b>Buyers and showings</b><br/>06 Showing Scheduler<br/>13 Buyer Search and Match"]
+        DEAL["<b>Transaction</b><br/>07 Transaction Coordinator<br/>08 Document Collection<br/>09 Vendor Coordination"]
+        RECORDS["<b>Clients and records</b><br/>11 Client Communication<br/>14 CRM and Pipeline<br/>15 Financial Tracking<br/>16 After-Close and Referral"]
+        OVERSIGHT["<b>Oversight</b><br/>17 Compliance and Fair Housing<br/>18 Calendar and Tasks<br/>20 Social Media Monitoring"]
+        LEADS ~~~ DEAL
+        LISTING ~~~ RECORDS
+        BUYERS ~~~ OVERSIGHT
+    end
+    H <--> TEAMBOX
+    classDef grp fill:#ffffff,stroke:#8c959f,color:#1f2328,text-align:left
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
     class B you
     class H hub
     class X out
+    class LEADS,LISTING,BUYERS,DEAL,RECORDS,OVERSIGHT grp
 ```
 
 *No agent talks to another directly: every arrow goes through the hub, and only on lanes listed in `identity/routes.json`. Each agent's own picture is in its folder (for example [05-mls-listing-management](05-mls-listing-management/README.md)).*
