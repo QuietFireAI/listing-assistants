@@ -197,7 +197,7 @@ your machine and in your backups only.
 A digital signature: a short code made from a message and your signing key.
 Anyone can check that the code matches the message and your key, and any
 change to the message after signing breaks the match. This system uses a
-standard method called *Ed25519*. Signing on the Broker Desk is one tap
+standard method called *Ed25519*. Signing on the Broker Desk takes two taps
 (**Send**, then **Tap again to sign and send**).
 
 ### Signed authority message
@@ -212,8 +212,9 @@ paused thread. The signature also covers the name of the person who signed.
 To approve a draft so it takes effect. Settings files in `config/` ship as
 proposed drafts; you ratify one by writing `RATIFIED`, the date and your
 name in its status line. Until then, the agents that read that file keep
-their built-in defaults. The agents' own rule files are already ratified,
-with the date in their first line.
+their built-in defaults. The agents' own rule files (`SKILL.md`,
+`DECISIONS.md`) are already ratified; each `DECISIONS.md` gives the date in
+its first line.
 
 ### Signer registry
 

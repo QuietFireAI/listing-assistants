@@ -42,7 +42,7 @@ in plain language (every one, with more detail: [docs/GLOSSARY.md](docs/GLOSSARY
 | [Audit log (the record)](docs/GLOSSARY.md#audit-log) | The running record of everything the swarm does. It is [hash-chained](docs/GLOSSARY.md#hash-chained): each entry carries a fingerprint of the one before, so any edit shows. |
 | [Client context](docs/GLOSSARY.md#client-context) | The short id of the client or file a message belongs to, such as `S4`. |
 | [Daily clock](docs/GLOSSARY.md#daily-clock) | The once-a-day run that wakes every agent for its scheduled checks: deadlines, re-scores, weekly reports. |
-| [Pillars](docs/GLOSSARY.md#pillars) | Six optional QuietFire self-check add-ons. One that is not installed says *UNARMED* on the record. |
+| [Pillars](docs/GLOSSARY.md#pillars) | Six QuietFire self-check add-ons, installed with everything else. One that is not installed says *UNARMED* on the record. |
 | [Test, suite and CI](docs/GLOSSARY.md#test-and-suite) | A test runs one part and checks the result; the suite is all of them; [CI](docs/GLOSSARY.md#ci) runs the suite on GitHub after every change. |
 
 ## What it does
