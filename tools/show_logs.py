@@ -53,10 +53,10 @@ def main():
                 return 1
             print(f"\n[INFO] No console audit log yet ({path}); run a console session first.\n")
             return 0
-        from dispatcher.core import AuditLogDamaged
+        from dispatcher.core import AuditLogBusy, AuditLogDamaged
         try:
             report = write_eod(AuditLog(path), logger, args.date)
-        except AuditLogDamaged as e:
+        except (AuditLogDamaged, AuditLogBusy) as e:
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             from console import damaged_record_error
             print(json.dumps(damaged_record_error(e, path)))

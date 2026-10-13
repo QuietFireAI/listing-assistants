@@ -56,7 +56,7 @@ def main(argv=None) -> int:
     from dispatcher.sweep_runner import run_daily_sweeps
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError
-    from dispatcher.core import AuditLogDamaged
+    from dispatcher.core import AuditLogBusy, AuditLogDamaged
     try:
         pager = load_pager(os.path.dirname(os.path.abspath(args.audit_log)))
     except ValueError as e:
@@ -68,7 +68,7 @@ def main(argv=None) -> int:
     except StateIntegrityError as e:
         print(json.dumps({"error": "saved state refused", "reason": str(e)}))
         return 2
-    except AuditLogDamaged as e:
+    except (AuditLogDamaged, AuditLogBusy) as e:
         print(json.dumps(damaged_record_error(e, args.audit_log)))
         return 2
     if pager:
@@ -77,7 +77,7 @@ def main(argv=None) -> int:
     try:
         results = run_daily_sweeps(hub, spokes, today=today, now_iso=now_iso)
         sw.save_state()
-    except AuditLogDamaged as e:      # broke or changed while the clock ran
+    except (AuditLogDamaged, AuditLogBusy) as e:      # broke or changed while the clock ran
         print(json.dumps(damaged_record_error(e, args.audit_log)))
         return 2
     errors = 0

@@ -460,10 +460,18 @@ def apply_action(sw, signer, operator, a, external=None):
 
 
 def damaged_record_error(e, audit_path):
-    """What every entry point prints when the audit record cannot be opened
+    """What every entry point prints when the audit record cannot be used
     (dispatcher.core.AuditLogDamaged; repair plan 1.2, owner decision D4).
     Nothing was written. A write cut off at the end is repaired by a person
-    with `console.py repair-record`; anything else is for a person to look at."""
+    with `console.py repair-record`; anything else is for a person to look at.
+    Also covers AuditLogBusy (third review): another program held the
+    record's lock for longer than the wait."""
+    from dispatcher.core import AuditLogBusy
+    if isinstance(e, AuditLogBusy):
+        return {"error": "the record (audit log) is in use by another program - nothing was done",
+                "file": audit_path, "reason": str(e),
+                "action": "wait a moment and try again; if it stays busy, stop the other program "
+                          "using this folder (a desk, a console session or the daily clock)"}
     out = {"error": "the record (audit log) is damaged - nothing was started or written",
            "file": audit_path, "line": e.line, "reason": e.reason,
            "cut_off_last_write": e.torn_tail}
@@ -480,7 +488,7 @@ def damaged_record_error(e, audit_path):
 
 
 def cmd_session(args):
-    from dispatcher.core import AuditLogDamaged
+    from dispatcher.core import AuditLogBusy, AuditLogDamaged
     from dispatcher.state_snapshot import StateIntegrityError
     folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
     other = desk_running(folder)
@@ -514,7 +522,7 @@ def cmd_session(args):
             "action": "nothing was restored or changed; move the state file aside "
                       "yourself after checking it, or run with --no-state"})
         return 2
-    except AuditLogDamaged as e:
+    except (AuditLogDamaged, AuditLogBusy) as e:
         _p(damaged_record_error(e, args.audit_log or AUDIT_PATH))
         return 2
     hub, spokes, external = sw.hub, sw.spokes, sw.external
@@ -536,8 +544,8 @@ def cmd_session(args):
         do = a.get("do")
         try:
             r, err = apply_action(sw, signer, operator, a, external)
-        except AuditLogDamaged as e:
-            # the record changed or broke under this session: stop here,
+        except (AuditLogDamaged, AuditLogBusy) as e:
+            # the record changed or broke under this session, or stayed busy: stop here,
             # write nothing more (no state save either), and say where
             _p({**damaged_record_error(e, args.audit_log or AUDIT_PATH),
                 "script_line": lineno, "do": do,
@@ -560,7 +568,12 @@ def cmd_verify(args):
     path = args.audit_log or AUDIT_PATH
     # check_file reads only and names the first bad line; it never raises on
     # damage (2026-10-13: a cut-off last line used to crash verify itself)
-    r = {"chain": AuditLog.check_file(path)}
+    from dispatcher.core import AuditLogBusy
+    try:
+        r = {"chain": AuditLog.check_file(path)}
+    except AuditLogBusy as e:
+        _p(damaged_record_error(e, path))
+        return 2
     if r["chain"]["ok"]:
         log = AuditLog(path)
         r["anchor"] = log.anchor()

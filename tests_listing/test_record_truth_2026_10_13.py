@@ -451,3 +451,70 @@ def test_the_swarms_escalation_outcomes_name_their_escalation(tmp_path):
     raised = [e for e in ev if e["kind"] == "escalation.raised"][-1]
     told = [e for e in ev if e["kind"] == "human.notified"][-1]
     assert told["raised_entry"] == raised["entry_hash"]
+
+
+# ------------------------------- third review: a record held by another program
+HOLD = ("import sys, time; sys.path.insert(0, sys.argv[1]);"
+        "from dispatcher.core import _FileLock;"
+        "l = _FileLock(sys.argv[2]); l.__enter__(); print('held', flush=True); time.sleep(20)")
+
+
+class _Holder:
+    def __init__(self, log):
+        self.p = subprocess.Popen([sys.executable, "-c", HOLD, ROOT, str(log)], stdout=subprocess.PIPE, text=True)
+        assert self.p.stdout.readline().strip() == "held"
+
+    def stop(self):
+        self.p.kill()
+        self.p.wait()
+
+
+def test_a_busy_record_is_named_by_the_clock_the_console_and_the_desk(tmp_path, monkeypatch, capsys):
+    import argparse
+    import console
+    import desk as desk_mod
+    import run_sweeps
+    from dispatcher.core import AuditLog
+    log = _with_record(tmp_path)
+    owner = desk_mod.OwnerThread(lambda: desk_mod.Desk(str(tmp_path / "state")))
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), desk_mod.make_handler(owner, None))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}"
+    monkeypatch.setattr(AuditLog, "LOCK_WAIT_S", 0.3)
+    before = log.read_bytes()
+    h = _Holder(log)
+    try:
+        with pytest.raises(urllib.error.HTTPError) as ei:
+            urllib.request.urlopen(url + "/api/state")
+        assert ei.value.code == 503
+        assert json.loads(ei.value.read())["error"].startswith("the record (audit log) is in use")
+        lockfile = tmp_path / "state" / "desk.lock"
+        lockfile.unlink()                                  # let the clock past the desk check
+        capsys.readouterr()
+        assert run_sweeps.main(["--audit-log", str(log), "--state-db",
+                                str(tmp_path / "state" / "swarm-state.sqlite"), "--today", "2026-10-13"]) == 2
+        out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+        assert out["error"].startswith("the record (audit log) is in use") and "Traceback" not in out["reason"]
+        assert console.cmd_verify(argparse.Namespace(audit_log=str(log), anchor=None)) == 2
+        assert "is in use" in capsys.readouterr().out
+    finally:
+        h.stop()
+        srv.shutdown()
+        srv.server_close()
+    assert log.read_bytes() == before
+
+
+def test_the_state_save_writes_the_store_while_holding_the_records_lock(tmp_path, monkeypatch):
+    from dispatcher import core
+    from dispatcher.swarm import build_swarm
+    log = str(tmp_path / "a.jsonl")
+    sw = build_swarm(log, state_db=str(tmp_path / "s.sqlite"))
+    seen = []
+    real = sw.store.save_state_snapshot
+
+    def save(*a, **k):
+        seen.append(core._PROCESS_HELD[os.path.realpath(log)].flock is not None)
+        return real(*a, **k)
+    monkeypatch.setattr(sw.store, "save_state_snapshot", save)
+    assert sw.save_state()["snapshot_id"] >= 1
+    assert seen == [True]

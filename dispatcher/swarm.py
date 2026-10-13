@@ -60,15 +60,21 @@ class Swarm:
         # written: a snapshot the log never records is refused at the next
         # start (2026-10-13 second review: a desk stopped after damage did
         # exactly that, and the documented repair then could not restart it)
-        ensure = getattr(self.hub.audit, "ensure_intact", None)
-        if ensure is not None:
-            ensure()
-        snap = ss.capture(self.hub, self.spokes, self.hitl, self.baseline)
-        body, digest = ss.body_and_hash(snap)
-        taken = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-        sid = self.store.save_state_snapshot(taken, digest, body)
-        self.hub.audit.append("state.saved", {"snapshot_id": sid, "sha256": digest,
-                                              "taken_at": taken, "bytes": len(body)})
+        # the check, the store write and the record of it under one hold of
+        # the log's lock, so no other program can change the log in between
+        # (third review)
+        import contextlib
+        holding = getattr(self.hub.audit, "holding", None)
+        with (holding() if holding else contextlib.nullcontext()):
+            ensure = getattr(self.hub.audit, "ensure_intact", None)
+            if ensure is not None:
+                ensure()
+            snap = ss.capture(self.hub, self.spokes, self.hitl, self.baseline)
+            body, digest = ss.body_and_hash(snap)
+            taken = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+            sid = self.store.save_state_snapshot(taken, digest, body)
+            self.hub.audit.append("state.saved", {"snapshot_id": sid, "sha256": digest,
+                                                  "taken_at": taken, "bytes": len(body)})
         return {"snapshot_id": sid, "sha256": digest}
 
     def write_eod(self, date_str: Optional[str] = None) -> dict:

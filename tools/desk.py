@@ -823,17 +823,17 @@ class Desk:
             f.write(str(os.getpid()))
         self.operator = console._operator()
         audit_path = os.path.join(state_dir, "console-audit.jsonl")
-        from dispatcher.core import AuditLogDamaged
+        from dispatcher.core import AuditLogBusy, AuditLogDamaged
         try:
             self.sw, self.signer = console.build(
                 audit_path, config_dir,
                 os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
-        except (AuditLogDamaged, StateIntegrityError) as e:
+        except (AuditLogDamaged, AuditLogBusy, StateIntegrityError) as e:
             # refuse to start, name why, and leave no lock behind (repair
             # plan 1.2 / owner decision D4, 2026-10-13: before this a damaged
             # record stopped the desk with a raw traceback)
             os.remove(self.lockfile)
-            if isinstance(e, AuditLogDamaged):
+            if isinstance(e, (AuditLogDamaged, AuditLogBusy)):
                 raise SystemExit(json.dumps(console.damaged_record_error(e, audit_path)))
             raise SystemExit(json.dumps({"error": "saved state refused", "reason": str(e),
                                          "action": "nothing was restored or changed; move the "
@@ -843,10 +843,10 @@ class Desk:
         self.model = ReadModel(self)
 
     def close(self):
-        from dispatcher.core import AuditLogDamaged
+        from dispatcher.core import AuditLogBusy, AuditLogDamaged
         try:
             self.sw.save_state()
-        except AuditLogDamaged as e:
+        except (AuditLogDamaged, AuditLogBusy) as e:
             # the record broke while the desk ran: nothing is saved (the
             # store is not written either), the reason is printed, not a
             # traceback, and the folder is left for the repair
@@ -999,10 +999,10 @@ def make_handler(desk, token):
                 day = q.get("day", [None])[0]
                 if day and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
                     return self._send(400, {"error": "day must be YYYY-MM-DD"})
-                from dispatcher.core import AuditLogDamaged
+                from dispatcher.core import AuditLogBusy, AuditLogDamaged
                 try:
                     return self._send(200, desk.state(day))
-                except AuditLogDamaged as e:   # the record broke while the desk ran
+                except (AuditLogDamaged, AuditLogBusy) as e:   # the record broke while the desk ran
                     return self._send(503, console.damaged_record_error(
                         e, os.path.join(desk.desk.state_dir, "console-audit.jsonl")))
             return self._send(404, {"error": "not found"})
@@ -1017,10 +1017,10 @@ def make_handler(desk, token):
                 body = json.loads(self.rfile.read(n) or b"{}")
             except ValueError:
                 return self._send(400, {"error": "bad JSON"})
-            from dispatcher.core import AuditLogDamaged
+            from dispatcher.core import AuditLogBusy, AuditLogDamaged
             try:
                 return self._send(200, desk.act(body))
-            except AuditLogDamaged as e:   # the record broke or changed: nothing was written
+            except (AuditLogDamaged, AuditLogBusy) as e:   # the record broke or changed: nothing was written
                 return self._send(503, console.damaged_record_error(
                     e, os.path.join(desk.desk.state_dir, "console-audit.jsonl")))
             except Exception as e:    # raw reason, never softened

@@ -221,9 +221,10 @@ class HumanReadableLogger:
             kinds: dict[str, int] = {}
             # an unreadable line stops read(): then the counts are not
             # computed, never shown as 0 (2026-10-13 reviews: this raised)
+            from .core import AuditLogDamaged
             try:
                 entries = audit_log.read()
-            except Exception:
+            except AuditLogDamaged:     # an unreadable line; a busy lock is not that
                 entries = None
             for e in entries or []:
                 kinds[e.get("kind", "?")] = kinds.get(e.get("kind", "?"), 0) + 1
