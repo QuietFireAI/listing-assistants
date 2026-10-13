@@ -261,3 +261,126 @@ def test_the_desk_page_names_damage_that_happens_while_it_runs(tmp_path):
         lockfile = tmp_path / "state" / "desk.lock"
         if lockfile.exists():
             lockfile.unlink()
+
+
+# ----------------------------- found by the 2026-10-13 cold review: mid-run damage
+def _damage(log):
+    with open(log, "ab") as f:
+        f.write(b'{"half')
+
+
+def test_the_desk_refuses_every_action_once_the_record_broke_while_it_runs(tmp_path):
+    import desk as desk_mod
+    log = _with_record(tmp_path)
+    owner = desk_mod.OwnerThread(lambda: desk_mod.Desk(str(tmp_path / "state")))
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), desk_mod.make_handler(owner, None))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        _damage(log)
+        before = log.read_bytes()
+        for action in ({"action": "ack", "id": "x", "title": "t"}, {"action": "sweep", "today": "2026-10-13"}):
+            req = urllib.request.Request(url + "/api/act", data=json.dumps(action).encode(),
+                                         headers={"Content-Type": "application/json"})
+            with pytest.raises(urllib.error.HTTPError) as ei:
+                urllib.request.urlopen(req)
+            assert ei.value.code == 503, action
+            body = json.loads(ei.value.read())
+            assert body["error"].startswith("the record (audit log) is damaged") and body["cut_off_last_write"]
+        assert log.read_bytes() == before                  # nothing written after the damage
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        lockfile = tmp_path / "state" / "desk.lock"
+        if lockfile.exists():
+            lockfile.unlink()
+
+
+def test_a_session_stops_at_the_line_where_the_record_broke(tmp_path, monkeypatch):
+    import console
+    log = _with_record(tmp_path)
+    state = tmp_path / "state"
+    for name, f in (("KEY_PATH", "operator-key.bin"), ("AUDIT_PATH", "console-audit.jsonl"),
+                    ("PAGER_PATH", "pager.json"), ("OPERATOR_PATH", "operator.json")):
+        monkeypatch.setattr(console, name, str(state / f))
+    real = console.apply_action
+    calls = []
+
+    def damaging(*a, **k):
+        calls.append(1)
+        if len(calls) == 2:
+            _damage(log)
+        return real(*a, **k)
+    monkeypatch.setattr(console, "apply_action", damaging)
+    script = _script(tmp_path, LEAD, dict(LEAD, ctx="RT2"), dict(LEAD, ctx="RT3"))
+    import argparse
+    args = argparse.Namespace(audit_log=str(log), script=script, config_dir=None, state_db=None,
+                              no_state=True, model_url=None, model_name=None, allow_remote_model=False)
+    printed = []
+    monkeypatch.setattr(console, "_p", printed.append)
+    assert console.cmd_session(args) == 2
+    assert len(calls) == 2
+    last = printed[-1]
+    assert last["script_line"] == 2 and last["cut_off_last_write"] is True and "stopped" in last
+    assert last["line"] == log.read_bytes().count(b"\n") + 1    # the record's own line
+    assert log.read_bytes().endswith(b'{"half')          # nothing after the damage
+
+
+def test_the_daily_clock_stops_when_the_record_breaks_while_it_runs(tmp_path, monkeypatch):
+    import run_sweeps
+    import dispatcher.sweep_runner as sr
+    log = _with_record(tmp_path)
+    real = sr.run_daily_sweeps
+
+    def damaging(*a, **k):
+        _damage(log)
+        return real(*a, **k)
+    monkeypatch.setattr(sr, "run_daily_sweeps", damaging)
+    assert run_sweeps.main(["--audit-log", str(log), "--state-db", str(tmp_path / "state" / "swarm-state.sqlite"),
+                            "--today", "2026-10-13"]) == 2
+    assert log.read_bytes().endswith(b'{"half')
+
+
+def test_the_end_of_day_report_names_a_damaged_record(tmp_path):
+    log = _with_record(tmp_path)
+    _damage(log)
+    p = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "show_logs.py"), "--eod",
+                        "--audit-log", str(log)], capture_output=True, text=True, cwd=ROOT)
+    assert p.returncode == 2 and "Traceback" not in p.stderr
+    out = json.loads(p.stdout.strip().splitlines()[-1])
+    assert out["cut_off_last_write"] is True and "repair-record" in out["action"]
+
+
+def test_the_repair_is_written_to_the_plain_language_log(tmp_path):
+    log = _with_record(tmp_path)
+    _damage(log)
+    rc, out, _ = _console(tmp_path, "repair-record")
+    assert rc == 0 and "readable_log_error" not in out[0]
+    stream = (tmp_path / "state" / "readable" / "stream.log").read_text(encoding="utf-8")
+    assert "Record repaired: a write cut off at line" in stream
+
+
+def test_a_decision_alert_records_whether_it_reached_anyone(tmp_path):
+    from dispatcher.hitl_protocol import HITLManager
+    from test_hitl_protocol import make_hub
+    hub, _ = make_hub(str(tmp_path))
+    hub.human_notifier = lambda q, r: {"status": "failed", "http_status": 401, "body": "provider says no"}
+    rec = HITLManager(hub=hub).pause_operation("ctx-9", "02", "lead.tier", "boundary", {"s": 70},
+                                               "TIER_OVERRIDE")
+    alerts = [n for n in hub.audit.read() if n["kind"] == "human.notify_failed"
+              and n["queue"] == "decision_required"]
+    assert len(alerts) == 1 and alerts[0]["notifier_http_status"] == 401
+    assert "provider says no" not in json.dumps(alerts[0])
+    assert all("provider says no" not in json.dumps(r) for r in [rec.__dict__] if hasattr(rec, "__dict__"))
+
+
+def test_the_end_of_day_integrity_section_reports_an_unreadable_record_without_crashing(tmp_path):
+    from dispatcher.core import AuditLog
+    from dispatcher.readable_logger import HumanReadableLogger
+    log = _with_record(tmp_path)
+    _damage(log)
+    reader = AuditLog.__new__(AuditLog)
+    reader.path = str(log)
+    sec = HumanReadableLogger._integrity_section(reader)
+    assert sec["data"]["chain"]["torn_tail"] is True
+    assert "BROKEN at line" in json.dumps(sec)

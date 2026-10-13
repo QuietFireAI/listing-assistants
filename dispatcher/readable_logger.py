@@ -219,7 +219,11 @@ class HumanReadableLogger:
         else:
             chain = audit_log.verify_chain()
             kinds: dict[str, int] = {}
-            for e in audit_log.read():
+            # an unreadable line stops read(); count only what can be read
+            # (2026-10-13 cold review: this raised on a damaged log)
+            entries = audit_log.read() if chain["ok"] or chain.get("reason") != \
+                "not a readable entry" else []
+            for e in entries:
                 kinds[e.get("kind", "?")] = kinds.get(e.get("kind", "?"), 0) + 1
             if chain["ok"]:
                 chain_line = f"- **Audit chain:** verified, {chain['entries']} entries, no break."

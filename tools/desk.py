@@ -1009,8 +1009,12 @@ def make_handler(desk, token):
                 body = json.loads(self.rfile.read(n) or b"{}")
             except ValueError:
                 return self._send(400, {"error": "bad JSON"})
+            from dispatcher.core import AuditLogDamaged
             try:
                 return self._send(200, desk.act(body))
+            except AuditLogDamaged as e:   # the record broke or changed: nothing was written
+                return self._send(503, console.damaged_record_error(
+                    e, os.path.join(desk.desk.state_dir, "console-audit.jsonl")))
             except Exception as e:    # raw reason, never softened
                 return self._send(500, {"error": repr(e)})
     return H

@@ -534,7 +534,15 @@ def cmd_session(args):
             errors += 1
             continue
         do = a.get("do")
-        r, err = apply_action(sw, signer, operator, a, external)
+        try:
+            r, err = apply_action(sw, signer, operator, a, external)
+        except AuditLogDamaged as e:
+            # the record changed or broke under this session: stop here,
+            # write nothing more (no state save either), and say where
+            _p({**damaged_record_error(e, args.audit_log or AUDIT_PATH),
+                "script_line": lineno, "do": do,
+                "stopped": "the session stopped at this script line; earlier lines were done"})
+            return 2
         if err:
             errors += 1
         _p({"line": lineno, "do": do, "result": r})
@@ -589,7 +597,18 @@ def cmd_repair_record(args):
     except (AuditLogDamaged, ValueError) as e:
         _p({"repaired": False, "refused": str(e), "changed": "nothing"})
         return 2
-    _p({"repaired": True, **rec, "chain": AuditLog.check_file(path)})
+    out = {"repaired": True, **rec, "chain": AuditLog.check_file(path)}
+    # the plain-language log is a view the swarm writes as it appends; the
+    # repair is not a swarm append, so it is written to the view here
+    try:
+        from dispatcher.readable_audit import describe
+        from dispatcher.readable_logger import HumanReadableLogger
+        cat, msg, _, _ = describe("audit.tail_quarantined", rec)
+        HumanReadableLogger(log_root=os.path.join(folder, "readable"),
+                            drawers_root=None).log_event(cat, msg)
+    except Exception as e:   # the view failing never undoes the repair; said, not hidden
+        out["readable_log_error"] = f"{type(e).__name__}: {e}"
+    _p(out)
     return 0
 
 

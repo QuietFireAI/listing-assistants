@@ -169,14 +169,16 @@ class HITLManager:
                 record["notifier_error"] = str(e)
                 self.errors.append(f"notifier: {e!r}")
         elif self.hub and getattr(self.hub, "human_notifier", None):
-            try:
-                record["hub_notifier_result"] = self.hub.human_notifier("decision_required", {
-                    "client_context_id": ws.client_context_id, "agent": ws.agent_id,
-                    "reason": ws.reason, "wait_id": ws.wait_id,
-                    "trigger": f"DECISION REQUIRED: {ws.required_decision}"})
-            except Exception as e:
-                record["hub_notifier_error"] = str(e)
-                self.errors.append(f"hub notifier: {e!r}")
+            # through the hub, so the outcome is on the chain like every other
+            # notification (2026-10-13 cold review: this called the notifier
+            # directly - no human.notified / notify_failed was recorded, and
+            # the notifier's raw answer was kept here)
+            record["hub_notification"] = self.hub.notify("decision_required", {
+                "client_context_id": ws.client_context_id, "agent": ws.agent_id,
+                "reason": ws.reason, "wait_id": ws.wait_id,
+                "trigger": f"DECISION REQUIRED: {ws.required_decision}"})
+            if record["hub_notification"] == "notify_failed":
+                self.errors.append("hub notifier: notification failed (see human.notify_failed)")
         else:
             record["undelivered"] = "no notifier configured - alert logged locally only"
         return record

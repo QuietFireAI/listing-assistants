@@ -74,8 +74,12 @@ def main(argv=None) -> int:
     if pager:
         pager.audit = sw.hub.audit
     hub, spokes = sw.hub, sw.spokes
-    results = run_daily_sweeps(hub, spokes, today=today, now_iso=now_iso)
-    sw.save_state()
+    try:
+        results = run_daily_sweeps(hub, spokes, today=today, now_iso=now_iso)
+        sw.save_state()
+    except AuditLogDamaged as e:      # broke or changed while the clock ran
+        print(json.dumps(damaged_record_error(e, args.audit_log)))
+        return 2
     errors = 0
     for r in results:
         print(json.dumps(r))

@@ -313,6 +313,9 @@ the line where the chain breaks, with the reason: a line that was changed,
 deleted or moved, or a line that cannot be read at all. Nothing starts on a
 record with an unreadable line - not the desk, a console session or the
 daily clock; each one names the line and stops before writing anything.
+The same holds while they run: before each write, the record is checked
+against what this program last wrote, and if the file was damaged, cut back
+or replaced in the meantime, nothing more is written and the line is named.
 
 ### Record repair
 
@@ -325,6 +328,9 @@ log's name and contains `.torn-`), keeps every complete entry exactly as it
 was, and adds an entry saying what it did, so the repair is on the record
 too. It repairs only that case: if any earlier line is damaged or the chain
 breaks, it refuses and changes nothing. `repair-record --check` only checks.
+The repair cannot tell a crash from someone cutting the log back on
+purpose; the anchor a console session prints at its end (entries and head
+hash) is what shows whether earlier entries are gone.
 
 ### Readable log
 
