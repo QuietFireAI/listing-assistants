@@ -345,7 +345,8 @@ def test_the_end_of_day_report_names_a_damaged_record(tmp_path):
     log = _with_record(tmp_path)
     _damage(log)
     p = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "show_logs.py"), "--eod",
-                        "--audit-log", str(log)], capture_output=True, text=True, cwd=ROOT)
+                        "--audit-log", str(log), "--log-dir", str(tmp_path / "readable")],
+                       capture_output=True, text=True, cwd=ROOT)
     assert p.returncode == 2 and "Traceback" not in p.stderr
     out = json.loads(p.stdout.strip().splitlines()[-1])
     assert out["cut_off_last_write"] is True and "repair-record" in out["action"]
@@ -365,13 +366,15 @@ def test_a_decision_alert_records_whether_it_reached_anyone(tmp_path):
     from test_hitl_protocol import make_hub
     hub, _ = make_hub(str(tmp_path))
     hub.human_notifier = lambda q, r: {"status": "failed", "http_status": 401, "body": "provider says no"}
-    rec = HITLManager(hub=hub).pause_operation("ctx-9", "02", "lead.tier", "boundary", {"s": 70},
-                                               "TIER_OVERRIDE")
+    hitl = HITLManager(hub=hub)
+    hitl.pause_operation("ctx-9", "02", "lead.tier", "boundary", {"s": 70}, "TIER_OVERRIDE")
     alerts = [n for n in hub.audit.read() if n["kind"] == "human.notify_failed"
               and n["queue"] == "decision_required"]
     assert len(alerts) == 1 and alerts[0]["notifier_http_status"] == 401
     assert "provider says no" not in json.dumps(alerts[0])
-    assert all("provider says no" not in json.dumps(r) for r in [rec.__dict__] if hasattr(rec, "__dict__"))
+    alert = hitl.notification_log[-1]                   # what the HITL keeps (and the store saves)
+    assert alert["hub_notification"] == "notify_failed"
+    assert "provider says no" not in json.dumps(alert, default=str)
 
 
 def test_the_end_of_day_integrity_section_reports_an_unreadable_record_without_crashing(tmp_path):
@@ -379,8 +382,72 @@ def test_the_end_of_day_integrity_section_reports_an_unreadable_record_without_c
     from dispatcher.readable_logger import HumanReadableLogger
     log = _with_record(tmp_path)
     _damage(log)
-    reader = AuditLog.__new__(AuditLog)
-    reader.path = str(log)
-    sec = HumanReadableLogger._integrity_section(reader)
-    assert sec["data"]["chain"]["torn_tail"] is True
-    assert "BROKEN at line" in json.dumps(sec)
+    sec = HumanReadableLogger._integrity_section(AuditLog.reader(str(log)))
+    assert sec["data"]["chain"]["torn_tail"] is True and sec["data"]["integrity_violations"] is None
+    assert "BROKEN at line" in sec["lines"][0] and "not computed (a line cannot be read)" in sec["lines"][0]
+
+
+def test_the_end_of_day_survives_an_edited_line_before_an_unreadable_one(tmp_path):
+    from dispatcher.core import AuditLog
+    from dispatcher.readable_logger import HumanReadableLogger
+    log = _with_record(tmp_path)
+    lines = log.read_bytes().split(b"\n")
+    lines[1] = lines[1].replace(b'"kind": "', b'"kind": "x', 1)    # edited, still readable
+    log.write_bytes(b"\n".join(lines) + b'{"half')
+    sec = HumanReadableLogger._integrity_section(AuditLog.reader(str(log)))
+    assert sec["data"]["chain"]["break_at"] == 2 and sec["data"]["rejects"] is None
+    assert "does not link" in sec["lines"][0]
+
+
+def test_stopping_the_desk_after_damage_saves_nothing_and_the_repair_then_restarts_it(tmp_path, capsys):
+    import desk as desk_mod
+    log = _with_record(tmp_path)
+    d = desk_mod.Desk(str(tmp_path / "state"))
+    db = tmp_path / "state" / "swarm-state.sqlite"
+    snaps = lambda: len(__import__("sqlite3").connect(str(db)).execute(
+        "select id from state_snapshots").fetchall())
+    before = snaps()
+    _damage(log)
+    d.close()                                            # Ctrl+C
+    out = capsys.readouterr().out
+    assert '"on_stop": "state not saved' in out and "Traceback" not in out
+    assert snaps() == before                             # the store was not written
+    assert not (tmp_path / "state" / "desk.lock").exists()
+    rc, rep_out, _ = _console(tmp_path, "repair-record")
+    assert rc == 0 and rep_out[0]["repaired"] is True
+    again = desk_mod.Desk(str(tmp_path / "state"))       # the documented recovery works
+    try:
+        assert again.state()["proof"]["chain_ok"]
+    finally:
+        again.close()
+
+
+def test_repair_record_reports_a_failed_swap_and_changes_nothing(tmp_path):
+    log = _with_record(tmp_path)
+    _damage(log)
+    before = log.read_bytes()
+    wrapper = tmp_path / "w.py"
+    wrapper.write_text("import os, runpy, sys\n"
+                       "def no(a, b):\n    raise PermissionError(13, 'in use')\n"
+                       "os.replace = no\n"
+                       "sys.argv = [sys.argv[1], 'repair-record']\n"
+                       "runpy.run_path(sys.argv[0], run_name='__main__')\n", encoding="utf-8")
+    env = {**os.environ, "LISTINGASSISTANTS_STATE_DIR": str(tmp_path / "state")}
+    p = subprocess.run([sys.executable, str(wrapper), os.path.join(ROOT, "tools", "console.py")],
+                       capture_output=True, text=True, env=env, cwd=ROOT)
+    assert p.returncode == 2 and "Traceback" not in p.stderr, p.stderr
+    out = json.loads(p.stdout.strip().splitlines()[-1])
+    assert out["repaired"] is False and out["changed"] == "nothing"
+    assert log.read_bytes() == before
+    assert not [f for f in os.listdir(tmp_path / "state") if ".torn-" in f or ".repair-" in f]
+
+
+def test_the_swarms_escalation_outcomes_name_their_escalation(tmp_path):
+    from dispatcher.swarm import build_swarm
+    sw = build_swarm(str(tmp_path / "a.jsonl"), state_db=None,
+                     human_notifier=lambda q, r: {"status": "sent"})
+    sw.hub.escalate("escalation.hot_lead", {"client_context_id": "Z"})
+    ev = sw.hub.audit.read()
+    raised = [e for e in ev if e["kind"] == "escalation.raised"][-1]
+    told = [e for e in ev if e["kind"] == "human.notified"][-1]
+    assert told["raised_entry"] == raised["entry_hash"]

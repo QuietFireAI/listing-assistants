@@ -313,9 +313,14 @@ the line where the chain breaks, with the reason: a line that was changed,
 deleted or moved, or a line that cannot be read at all. Nothing starts on a
 record with an unreadable line - not the desk, a console session or the
 daily clock; each one names the line and stops before writing anything.
-The same holds while they run: before each write, the record is checked
-against what this program last wrote, and if the file was damaged, cut back
-or replaced in the meantime, nothing more is written and the line is named.
+The same holds while they run: before each write, the record file's size
+and time are compared with what this program last wrote, and if another
+program damaged, cut back, edited or replaced it in the meantime, nothing
+more is written and the line is named. Programs on one record take turns
+through a lock file next to it (`console-audit.jsonl.lock`), so two of
+them never write at the same moment. An edit made to look untouched (same
+size, same time) is not seen at that moment; **Check the record** still
+finds it.
 
 ### Record repair
 

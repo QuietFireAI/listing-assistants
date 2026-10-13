@@ -56,6 +56,13 @@ class Swarm:
         if self.store is None:
             return None
         from . import state_snapshot as ss
+        # the log must be able to record the save BEFORE the store is
+        # written: a snapshot the log never records is refused at the next
+        # start (2026-10-13 second review: a desk stopped after damage did
+        # exactly that, and the documented repair then could not restart it)
+        ensure = getattr(self.hub.audit, "ensure_intact", None)
+        if ensure is not None:
+            ensure()
         snap = ss.capture(self.hub, self.spokes, self.hitl, self.baseline)
         body, digest = ss.body_and_hash(snap)
         taken = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")

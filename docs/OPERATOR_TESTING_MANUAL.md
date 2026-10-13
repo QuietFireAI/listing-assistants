@@ -59,7 +59,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1055 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1059 passed, 1 skipped
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```

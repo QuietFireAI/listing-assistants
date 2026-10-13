@@ -843,8 +843,16 @@ class Desk:
         self.model = ReadModel(self)
 
     def close(self):
+        from dispatcher.core import AuditLogDamaged
         try:
             self.sw.save_state()
+        except AuditLogDamaged as e:
+            # the record broke while the desk ran: nothing is saved (the
+            # store is not written either), the reason is printed, not a
+            # traceback, and the folder is left for the repair
+            print(json.dumps({**console.damaged_record_error(
+                e, os.path.join(self.state_dir, "console-audit.jsonl")),
+                "on_stop": "state not saved - the record could not record it"}), flush=True)
         finally:
             if os.path.exists(self.lockfile):
                 os.remove(self.lockfile)

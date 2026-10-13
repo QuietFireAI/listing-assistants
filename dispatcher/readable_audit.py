@@ -130,8 +130,8 @@ class ReadableAuditLog(AuditLog):
         self.mirror_errors: list[str] = []
         super().__init__(path)
 
-    def append(self, kind: str, record: dict) -> None:
-        super().append(kind, record)
+    def append(self, kind: str, record: dict) -> str:
+        entry_hash = super().append(kind, record)
         try:
             d = describe(kind, record)
             if d is not None:
@@ -139,6 +139,7 @@ class ReadableAuditLog(AuditLog):
                 self.readable.log_event(cat, msg, client_context_id=ctx, agent_id=agent)
         except Exception as e:  # the view failing must not touch the chain; counted, reported
             self.mirror_errors.append(f"{kind}: {type(e).__name__}: {e}")
+        return entry_hash      # the hub links a notification to its escalation by it
 
 
 def events_from_chain(audit: AuditLog, date_str: str) -> list[dict]:

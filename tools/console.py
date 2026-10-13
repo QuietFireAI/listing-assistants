@@ -578,7 +578,7 @@ def cmd_repair_record(args):
     The partial line goes to <log>.torn-<UTC time>-<sha12> next to the log,
     every complete entry stays, and an audit.tail_quarantined entry records
     the repair on the chain. Any other damage is refused, unchanged."""
-    from dispatcher.core import AuditLog, AuditLogDamaged
+    from dispatcher.core import AuditLog, AuditLogBusy, AuditLogDamaged
     path = args.audit_log or AUDIT_PATH
     folder = os.path.dirname(os.path.abspath(path))
     other = desk_running(folder)
@@ -594,8 +594,13 @@ def cmd_repair_record(args):
         return 0 if r["ok"] else 1
     try:
         rec = AuditLog.repair_torn_tail(path)
-    except (AuditLogDamaged, ValueError) as e:
+    except (AuditLogDamaged, AuditLogBusy, ValueError) as e:
         _p({"repaired": False, "refused": str(e), "changed": "nothing"})
+        return 2
+    except OSError as e:     # e.g. Windows: another program holds the record open
+        _p({"repaired": False, "changed": "nothing",
+            "refused": f"the repaired record could not replace the old one ({e!r}); "
+                       f"stop every program using this folder and run this again"})
         return 2
     out = {"repaired": True, **rec, "chain": AuditLog.check_file(path)}
     # the plain-language log is a view the swarm writes as it appends; the

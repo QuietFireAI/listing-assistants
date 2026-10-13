@@ -433,7 +433,7 @@ what the client video is recorded on
 | **Vendor roster: unratified** | Your vendor list is a draft | Ratify `config/vendor_panel.json` (section 1) |
 | **✗ Record broken** in the recap | The audit record does not check; the Proof tile names the line and why | Stop the desk; do not act; keep the folder as it is and contact support |
 | The desk will not start: `the record (audit log) is damaged - nothing was started or written`, with `"cut_off_last_write": true` | The last write to the record was cut off part-way (a crash or power cut) | Run `python tools/console.py repair-record`, then start the desk again. It keeps every complete entry and records the repair |
-| The page shows `the record (audit log) is damaged - nothing was started or written` while the desk is running, and buttons answer the same | The record was damaged or changed by another program while the desk ran; the desk wrote nothing after that | Stop the desk (Ctrl+C), then follow the two rows above |
+| The page shows `the record (audit log) is damaged - nothing was started or written` while the desk is running, and buttons answer the same | The record was damaged or changed by another program while the desk ran; the desk wrote nothing after that | Stop the desk (Ctrl+C). It prints the same message with "state not saved" and saves nothing, so nothing is left that the record does not show. Then follow the two rows above |
 | The same, with `"cut_off_last_write": false` | A line before the end is damaged or was edited: not a cut-off write | Do not repair it yourself. Keep a copy of the folder and contact support; the message names the line |
 | "Could not reach you about ..." in What just happened | A text page to you failed (the reason is in brackets) | The item is waiting in Needs you. Check the pager: `python tools/console.py pager --test` |
 | An agent tile shows PROBLEM | One of its handoffs was refused | Read the tile; it often points at a missing setting or vendor |
@@ -452,4 +452,6 @@ Everything lives in your records folder, `console-state/` (or the folder in
 | `swarm-state.sqlite` | The saved state, restored only when the audit record vouches for it |
 | `drawers/` | Each client's files |
 | `desk.lock` | Present while a desk is open on this folder |
+| `console-audit.jsonl.lock` | Lets the programs on this folder write the audit record one at a time. Always there; leave it |
+| `console-audit.jsonl.torn-...` | Only after a repair: the cut-off piece of a write, kept as it was |
 | `script-progress.json` | Where a test script is, when you use one |
