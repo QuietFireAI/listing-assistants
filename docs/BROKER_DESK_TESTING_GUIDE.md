@@ -24,8 +24,8 @@ pip install -r requirements.txt
 python -m pytest tests_listing/ -q
 ```
 
-**Expect:** `1022 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1023 passed` on Windows, after 5 to 8 minutes.
+**Expect:** `1023 passed, 1 skipped` on Linux or macOS (the skipped test runs
+only on Windows); `1024 passed` on Windows, after 5 to 8 minutes.
 
 ## T2 - The showcase plays through
 

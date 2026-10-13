@@ -68,6 +68,9 @@ import console  # noqa: E402
 from gen_diagrams import PHRASE, phrase  # noqa: E402
 
 PAGE = os.path.join(TOOLS, "desk.html")
+# The broker's page, as a product: README, manual and the page itself name
+# this number, and tests_listing/test_desk_manual.py keeps them agreeing.
+DESK_UI_VERSION = "1"
 FONTS = os.path.join(TOOLS, "fonts")
 FONT_FILES = {"manrope-latin-wght-normal.woff2", "manrope-latin-ext-wght-normal.woff2"}
 GATED = {"counterparty", "public"}
@@ -295,6 +298,7 @@ class ReadModel:
         acked = {e.get("item") for e in log if e.get("kind") == "desk.acknowledged"}
         return {
             "operator": self.d.operator,
+            "ui_version": DESK_UI_VERSION,
             "mode": "showcase" if self.d.showcase else "live",
             "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
             "needs_you": self.needs_you(hub, sw, acked),

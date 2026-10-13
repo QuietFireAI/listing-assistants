@@ -284,7 +284,8 @@ section{margin-bottom:22px}
     </details>
   </section>
   <p class="note foot">Every number on this page is read from the swarm and its audit log.
-  Send, Don't send and Continue/Cancel sign with your key on this computer, the same as the console.</p>
+  Send, Don't send and Continue/Cancel sign with your key on this computer, the same as the console.
+  <span id="uiv"></span></p>
 </main>
 <div class="toast" id="toast"></div>
 <script>
@@ -622,6 +623,7 @@ function render() {
 
   renderDay();
   renderRecap();
+  document.getElementById("uiv").textContent = `ListingAssistants Broker Desk · UI version ${S.ui_version}`;
   const onC = p.connections.filter(c => /^(on|loaded)$/.test(c.state)).length;
   document.getElementById("proof-line").textContent = "· " + [p.chain_ok ? "✓ record intact" : "✗ record broken",
     `${p.gated_out_signed} of ${p.gated_out} sent on your signature`, `${p.held_now} held`,

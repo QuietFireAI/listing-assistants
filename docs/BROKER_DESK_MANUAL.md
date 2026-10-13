@@ -5,6 +5,9 @@ twenty assistants are doing and everything waiting for you. It is the only
 place you need to look during the day. Every button that acts signs with your
 key, the same signature the console uses, and lands on the audit record.
 
+This manual describes **UI version 1**, the version shown at the bottom of
+the page.
+
 For testing the desk step by step, see
 [BROKER_DESK_TESTING_GUIDE.md](BROKER_DESK_TESTING_GUIDE.md).
 

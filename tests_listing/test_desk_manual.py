@@ -98,3 +98,14 @@ def test_every_line_of_the_days_work_is_in_the_manual():
         assert f"**{group}**" in manual, f"day's-work group {group!r} missing from the manual"
         for _, label, _ in rows:
             assert label in manual, f"day's-work line {label!r} missing from the manual"
+
+
+def test_the_ui_version_agrees_everywhere():
+    v = desk_mod.DESK_UI_VERSION
+    readme = open(os.path.join(ROOT, "README.md"), encoding="utf-8").read()
+    assert f"## The Broker Desk - UI version {v}" in readme
+    assert f"**UI version {v}**" in text(MANUAL)
+    assert "UI version ${S.ui_version}" in PAGE          # the page prints what desk.py serves
+    for img in re.findall(r"!\[The Broker Desk, UI version \d+[^\]]*\]\(([^)]+)\)", readme):
+        assert os.path.isfile(os.path.join(ROOT, img)), img
+    assert len(re.findall(r"!\[The Broker Desk, UI version " + v, readme)) == 2

@@ -350,7 +350,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1022 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1023 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -359,14 +359,23 @@ a clean clone, checks that the vendored core files match dispatcher-agents
 byte for byte, and checks that the swarm still routes with no pillars
 installed. Windows setup: [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md).
 
-## The Broker Desk
+## The Broker Desk - UI version 1
 
 One page that shows the broker what the swarm is doing, and the buttons for
 what is waiting on them. It runs on the broker's own computer and opens in
 any browser; with `--lan`, a tablet on the office network can open it with a
-printed access code.
+printed access code. This is **UI version 1** (October 2026); the page shows
+its version at the bottom.
 
-![The Broker Desk during the showcase: the recap at the top, the marketing for listing S4 held, and the presenter's next move is to press Send](docs/images/desk-manual/02-your-move.png)
+**A busy day** (the showcase, mid-run): the recap at the top, the marketing
+for listing S4 held, and the presenter's next move is to press Send.
+
+![The Broker Desk, UI version 1, during the showcase: the recap at the top, the marketing for listing S4 held, and the presenter's next move is to press Send](docs/images/desk-manual/02-your-move.png)
+
+**A quiet first morning** (a broker's own desk, just set up): nothing is
+waiting, the record is intact, and everything else is folded to one line.
+
+![The Broker Desk, UI version 1, on a broker's first morning: Nothing is waiting for you, all quiet](docs/images/desk-manual/15-live-first-run.png)
 
 - **The recap** at the top: how much waits for you (and any hot lead to
   call), whether the record is intact, how many messages went out on your

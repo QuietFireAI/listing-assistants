@@ -38,6 +38,7 @@ end-to-end test.
   number; any day can be picked and printed. Counts only: emails and texts
   are not split (no channel is connected yet) and no time-saved figure is
   shown (that needs minutes per task that only the broker can set).
+- **Broker Desk UI version 1.** The page, the README (with pictures of a busy day and a quiet first morning) and the manual all name it; a test keeps them agreeing.
 - **A recap at the top.** One box says where things stand: how much waits
   for you and any hot lead to call, the record's check, how many messages
   went out on your signature, today's headline numbers, how many
@@ -65,7 +66,7 @@ end-to-end test.
   cp1252; 118 places fixed, 33 in core) and secrets "made private" with
   chmod, which does nothing on Windows - the signing keys and pager config
   were readable by other accounts. `dispatcher/private_file.py` now makes
-  them private on every system. Windows: 1023 passed; Linux: 1022 passed,
+  them private on every system. Windows: 1024 passed; Linux: 1023 passed,
   1 skipped (a Windows-only test).
 - **Pictures for non-technical readers.** Every agent folder has a README
   with a diagram of who it hears from and who it talks to (drawn from
@@ -191,7 +192,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1022 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1023 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```
