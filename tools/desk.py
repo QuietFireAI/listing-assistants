@@ -590,6 +590,13 @@ class ReadModel:
             elif k == "desk.acknowledged":
                 out.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"), "kind": "you",
                             "text": f"You marked done: {e.get('title')}"})
+            elif k in ("human.notify_failed", "audit.tail_quarantined"):
+                # a page that did not reach you, and a repair of the record:
+                # both are yours to know about (2026-10-13), worded as in the
+                # readable log
+                from dispatcher.readable_audit import describe
+                out.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"), "kind": "hold",
+                            "text": describe(k, e)[1]})
             if len(out) >= n:
                 break
         return out
@@ -773,7 +780,7 @@ class Showcase:
 # ----------------------------------------------------------------- the desk
 class Desk:
     def __init__(self, state_dir, config_dir=None, showcase=False, scripts=None):
-        from dispatcher.state_snapshot import StateIntegrityError  # noqa: F401
+        from dispatcher.state_snapshot import StateIntegrityError
         # refuse a bad request before taking the lock or opening the swarm
         if showcase and scripts:
             raise SystemExit("--script plays into your own desk; leave out --showcase")
@@ -815,9 +822,22 @@ class Desk:
         with open(self.lockfile, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
         self.operator = console._operator()
-        self.sw, self.signer = console.build(
-            os.path.join(state_dir, "console-audit.jsonl"), config_dir,
-            os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
+        audit_path = os.path.join(state_dir, "console-audit.jsonl")
+        from dispatcher.core import AuditLogDamaged
+        try:
+            self.sw, self.signer = console.build(
+                audit_path, config_dir,
+                os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
+        except (AuditLogDamaged, StateIntegrityError) as e:
+            # refuse to start, name why, and leave no lock behind (repair
+            # plan 1.2 / owner decision D4, 2026-10-13: before this a damaged
+            # record stopped the desk with a raw traceback)
+            os.remove(self.lockfile)
+            if isinstance(e, AuditLogDamaged):
+                raise SystemExit(json.dumps(console.damaged_record_error(e, audit_path)))
+            raise SystemExit(json.dumps({"error": "saved state refused", "reason": str(e),
+                                         "action": "nothing was restored or changed; move the "
+                                                   "state file aside yourself after checking it"}))
         self.show = Showcase(self) if showcase else \
             (Showcase(self, scripts, script_lines) if scripts else None)
         self.model = ReadModel(self)
@@ -971,7 +991,12 @@ def make_handler(desk, token):
                 day = q.get("day", [None])[0]
                 if day and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
                     return self._send(400, {"error": "day must be YYYY-MM-DD"})
-                return self._send(200, desk.state(day))
+                from dispatcher.core import AuditLogDamaged
+                try:
+                    return self._send(200, desk.state(day))
+                except AuditLogDamaged as e:   # the record broke while the desk ran
+                    return self._send(503, console.damaged_record_error(
+                        e, os.path.join(desk.desk.state_dir, "console-audit.jsonl")))
             return self._send(404, {"error": "not found"})
 
         def do_POST(self):

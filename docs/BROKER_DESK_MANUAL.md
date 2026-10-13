@@ -346,7 +346,9 @@ signed. Your own actions are in bold.
   Press it once a day while the desk is open (the clock cannot run on its
   own while the desk holds the folder).
 - **Check the record** walks the whole audit chain and answers "The record is
-  intact" or names where it broke.
+  intact (N entries)" or names the line where it broke and why. When the last
+  write was cut off (a crash or power cut), the note says so: stop the desk
+  and run `python tools/console.py repair-record`.
 
 ## 11. Open it on a tablet
 
@@ -429,7 +431,10 @@ what the client video is recorded on
 | A console session says "the Broker Desk is running" | By design: one program on your records at a time | Stop the desk, or do it from the desk |
 | "Not done: that message is no longer held" | It was already answered (perhaps from another screen) | Nothing; the page refreshes |
 | **Vendor roster: unratified** | Your vendor list is a draft | Ratify `config/vendor_panel.json` (section 1) |
-| **✗ Record broken** in the recap | The audit record does not check | Stop the desk; do not act; keep the folder as it is and contact support |
+| **✗ Record broken** in the recap | The audit record does not check; the Proof tile names the line and why | Stop the desk; do not act; keep the folder as it is and contact support |
+| The desk will not start: `the record (audit log) is damaged - nothing was started or written`, with `"cut_off_last_write": true` | The last write to the record was cut off part-way (a crash or power cut) | Run `python tools/console.py repair-record`, then start the desk again. It keeps every complete entry and records the repair |
+| The same, with `"cut_off_last_write": false` | A line before the end is damaged or was edited: not a cut-off write | Do not repair it yourself. Keep a copy of the folder and contact support; the message names the line |
+| "Could not reach you about ..." in What just happened | A text page to you failed (the reason is in brackets) | The item is waiting in Needs you. Check the pager: `python tools/console.py pager --test` |
 | An agent tile shows PROBLEM | One of its handoffs was refused | Read the tile; it often points at a missing setting or vendor |
 | `Address already in use` (Windows: "Only one usage of each socket address") | Another program uses port 8765 | `python tools/desk.py --port 8770`, then open http://127.0.0.1:8770 |
 

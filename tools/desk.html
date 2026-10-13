@@ -606,7 +606,8 @@ function render() {
   proof.replaceChildren(
     el("div", {class: "tile " + (p.chain_ok ? "good" : "bad")},
        el("div", {class: "big"}, p.chain_ok ? "✓ Intact" : "✗ Broken"),
-       el("div", {class: "lbl"}, `The record: ${p.entries} entries, each chained to the last`)),
+       el("div", {class: "lbl"}, p.chain_ok ? `The record: ${p.entries} entries, each chained to the last`
+         : `The record breaks at line ${p.chain_detail.break_at}: ${p.chain_detail.reason}`)),
     el("div", {class: "tile " + (p.gated_out === p.gated_out_signed ? "good" : "bad")},
        el("div", {class: "big"}, `${p.gated_out_signed} of ${p.gated_out}`),
        el("div", {class: "lbl"}, "messages to vendors or the public that went out on your signed release")),
@@ -665,7 +666,13 @@ function render() {
 async function load() {
   try {
     const r = await fetch("api/state" + (day ? "?day=" + day : ""), {headers: H});
-    S = await r.json();
+    const j = await r.json();
+    if (j.error) {        // e.g. the record (audit log) is damaged: say so, in its own words
+      document.getElementById("who").textContent = j.error + (j.line ? ` (line ${j.line}: ${j.reason})` : "")
+        + (j.action ? " - " + j.action : "");
+      return;
+    }
+    S = j;
     // do not rebuild the page under someone typing a reason or picking a day
     const a = document.activeElement;
     if (!(a && (a.classList.contains("reason") || a.id === "day-pick"))) render();
@@ -694,7 +701,10 @@ document.getElementById("day-print").onclick = () => {
 document.getElementById("sweep").onclick = () =>
   act({action: "sweep"}).then(j => j && !j.error && toast("Today's checks ran"));
 document.getElementById("verify").onclick = () =>
-  act({action: "verify"}).then(j => j && toast(j.ok ? "The record is intact" : "The record is BROKEN: " + JSON.stringify(j)));
+  act({action: "verify"}).then(j => j && toast(j.ok ? `The record is intact (${j.entries} entries)`
+    : `The record is BROKEN at line ${j.break_at}: ${j.reason}` +
+      (j.torn_tail ? " - the last write was cut off; stop the desk and run: python tools/console.py repair-record"
+                   : " - keep a copy of the file and have someone look at that line")));
 document.getElementById("sc-step").onclick = () => act({action: "showcase.step"});
 document.getElementById("sc-auto").onchange = e => {
   clearInterval(autoTimer);

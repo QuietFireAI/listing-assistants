@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tools/inspect_client_drawer.py` reports real hash results instead of a fixed "VERIFIED" line.
 - Documentation rewritten to match the code; deleted disclosures restored; `docs/WHY_JEV_OVER_LLM.md`, `docs/LEARNING_LOOP_AND_DRIFT_ARCHITECTURE.md`, `docs/WEBSITE_PROJECT_HANDOFF.md` and `docs/SECURITY_AUDIT_REPORT.md` removed from the repository.
 
+- Who was reached (core repair plan 1.1, 2026-10-13): the record says a person was notified only when the screen showed it or a text page went through; a failed page is recorded as nobody reached ("Could not reach you about ..."), on the readable log and the desk's feed. The readable log no longer says "Paged you" for an escalation that paged nobody.
+- A damaged record (core repair plan 1.2, 2026-10-13): a record with an unreadable line stops the desk, console sessions and the daily clock before anything is written, and names the line; `console.py verify` names it instead of crashing; `console.py repair-record` repairs a write cut off at the end (a person runs it; anything else is refused unchanged).
 - Operator scenes (`scenes/`) and a test that runs them; fourteen real-traffic breaks they exposed fixed (see RELEASE_NOTES.md).
 - Swarm state saved and restored through the SQLite store, vouched for by the audit chain; one swarm builder for console, clock and MCP server.
 - Held threads (duplicate person, owner-less reply, social drafts) through the HITL protocol; console `decide`, `release`, `onboard`.
