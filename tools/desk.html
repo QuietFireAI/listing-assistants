@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Broker Desk</title>
 <style>
+/* Manrope (SIL Open Font License 1.1), bundled in tools/fonts/ so the desk
+   looks the same offline; served by desk.py at /fonts/ */
+@font-face{font-family:"Manrope";font-style:normal;font-display:swap;font-weight:200 800;
+  src:url(fonts/manrope-latin-wght-normal.woff2) format("woff2-variations"),url(fonts/manrope-latin-wght-normal.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Manrope";font-style:normal;font-display:swap;font-weight:200 800;
+  src:url(fonts/manrope-latin-ext-wght-normal.woff2) format("woff2-variations"),url(fonts/manrope-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
 :root{
+  --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --bg:#f6f7f9; --panel:#ffffff; --ink:#1f2328; --muted:#59636e; --line:#d8dee4;
   --blue:#1f6feb; --blue-ink:#ffffff; --you:#f2cc60; --you-bg:#fff8c5; --you-ink:#4d2d00;
   --ok:#1a7f37; --ok-bg:#dafbe1; --bad:#cf222e; --bad-bg:#ffebe9; --idle:#8c959f;
@@ -16,18 +25,19 @@
   --you-bg:#3b2e00; --you-ink:#f2cc60; --ok-bg:#0f2e1a; --bad-bg:#3d1214; --shadow:none;
 }}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--font);font-feature-settings:"tnum" 0}
+.num,.tile .big,.timer,.count,.tcount{font-variant-numeric:tabular-nums}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
   padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-header h1{font-size:20px;margin:0}
-.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+header h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700}
 .badge.show{background:var(--you);color:#1f2328}
 .badge.live{background:var(--ok-bg);color:var(--ok)}
 main{max-width:1400px;margin:0 auto;padding:16px 20px 60px}
 .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+button{font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
   padding:10px 16px;min-height:44px;cursor:pointer}
-button.primary{background:var(--blue);border-color:var(--blue);color:var(--blue-ink);font-weight:600}
+button.primary{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}
 button.warn{border-color:var(--bad);color:var(--bad)}
 button.armed{background:var(--bad);border-color:var(--bad);color:#fff}
 button:disabled{opacity:.5;cursor:default}
@@ -35,63 +45,114 @@ input.reason{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid va
 .decline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 100%}
 select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:44px}
 .showcase{background:var(--panel);border:2px solid var(--you);border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:var(--shadow)}
-.showcase .scene{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-.showcase .next{font-size:20px;font-weight:600;margin:4px 0 10px}
+.showcase .scene{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.showcase .next{font-size:20px;font-weight:700;margin:4px 0 10px}
 .showcase.yourmove{border-color:var(--bad);animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(207,34,46,.0)}50%{box-shadow:0 0 0 6px rgba(207,34,46,.18)}}
 .proof{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:12px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
-.tile .big{font-size:28px;font-weight:700}
+.tile .big{font-size:28px;font-weight:800;letter-spacing:-.01em}
 .tile .lbl{color:var(--muted);font-size:14px}
 .tile.good{border-color:var(--ok)} .tile.good .big{color:var(--ok)}
 .tile.bad{border-color:var(--bad)} .tile.bad .big{color:var(--bad)}
 .tile.you{border-color:var(--you)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
 .chip{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px;background:var(--panel)}
-.chip b{font-weight:600}
+.chip b{font-weight:700}
 .chip.off b{color:var(--bad)} .chip.on b{color:var(--ok)}
 .cols{display:grid;grid-template-columns:minmax(320px,1.1fr) minmax(320px,1fr);gap:18px}
 @media (max-width:900px){.cols{grid-template-columns:1fr}}
-h2{font-size:18px;margin:6px 0 10px;display:flex;gap:8px;align-items:center}
-h2 .count{background:var(--bad);color:#fff;border-radius:999px;font-size:13px;padding:1px 9px}
-h2 .count.zero{background:var(--ok)}
-.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+h2{font-size:18px;font-weight:800;margin:6px 0 10px;display:flex;gap:8px;align-items:center}
+.count{background:var(--bad);color:#fff;border-radius:999px;font-size:13px;padding:1px 9px;font-weight:700}
+.count.zero{background:var(--ok)}
+.count.soft{background:var(--line);color:var(--ink)}
+
+/* collapsible sections ("accordion"): native <details>, so they work with
+   a keyboard and a screen reader; open/closed is remembered per viewer */
+details>summary{list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+.chev{display:inline-block;width:1em;text-align:center;color:var(--muted);transition:transform .15s}
+details[open]>summary .chev{transform:rotate(90deg)}
+details.group{margin-bottom:12px}
+details.group>summary{display:flex;align-items:center;gap:8px;padding:10px 12px;min-height:46px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;font-weight:700;box-shadow:var(--shadow)}
+details.group>summary .gtitle{flex:1}
+details.group[open]>summary{margin-bottom:10px}
+details.group.urgent>summary{border-left:6px solid var(--you)}
+details.group.alarm>summary{border-left:6px solid var(--bad)}
+details.section>summary{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;margin:6px 0 10px;flex-wrap:wrap}
+details.section>summary .sline{font-size:14px;font-weight:500;color:var(--muted)}
+details.more>summary{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--blue);margin:6px 0 2px;min-height:32px}
+
+.card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
 .card.held,.card.wait{border-left-color:var(--you)}
 .card.queue{border-left-color:var(--bad)}
 .card.highlight{outline:3px solid var(--bad);outline-offset:2px}
-.card h3{margin:0 0 4px;font-size:17px}
-.meta{color:var(--muted);font-size:14px;margin-bottom:8px}
+.card h3{margin:0 0 2px;font-size:17px;font-weight:700}
+.meta{color:var(--muted);font-size:14px;margin-bottom:6px}
+.preview{font-size:14px;font-weight:600}
 .said{border-left:3px solid var(--line);padding:6px 10px;margin:8px 0;font-style:italic}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;font-size:14px;margin:8px 0;
   background:var(--bg);border-radius:8px;padding:8px 10px;overflow:auto}
 .kv dt{color:var(--muted)} .kv dd{margin:0;word-break:break-word}
 .why{font-size:14px;color:var(--muted)}
-.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
 .empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:12px;text-align:center}
+.lhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
 .track{display:flex;gap:4px;margin:10px 0 4px}
 .step{flex:1;height:10px;border-radius:5px;background:var(--line)}
 .step.done{background:var(--ok)} .step.you{background:var(--you)}
 .steplabels{display:flex;gap:4px;font-size:11px;color:var(--muted)}
 .steplabels span{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.now{font-weight:600}
-.flag{color:var(--bad);font-size:14px;margin-top:6px}
+.now{font-weight:700}
+.flag{color:var(--bad);font-size:14px;margin-top:4px}
+.flag.you{color:var(--you-ink)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.dot.you{background:var(--you)}
 .team{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .agent{background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--idle);border-radius:10px;padding:10px;font-size:14px}
 .agent b{display:block}
 .agent.working{border-top-color:var(--ok)} .agent.you{border-top-color:var(--you)}
 .agent.waiting{border-top-color:var(--blue)} .agent.problem{border-top-color:var(--bad)}
-.agent .st{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.agent .st{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
 .feed{font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;max-height:340px;overflow:auto}
 .feed div{padding:5px 0;border-bottom:1px solid var(--line)}
 .feed div:last-child{border-bottom:0}
-.feed .you{font-weight:600} .feed .hold{color:var(--you-ink);background:var(--you-bg);border-radius:6px;padding:5px 8px}
-.timer{font-variant-numeric:tabular-nums;font-weight:700;color:var(--bad)}
+.feed .you{font-weight:700} .feed .hold{color:var(--you-ink);background:var(--you-bg);border-radius:6px;padding:5px 8px}
+.timer{font-weight:800;color:var(--bad)}
 .lead{display:flex;justify-content:space-between;gap:10px;align-items:center}
+
+/* the day's work */
+.daybar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.tgroups{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.tgroup{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+.tgroup h3{margin:2px 0 6px;font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+details.trow{border-bottom:1px solid var(--line)}
+details.trow:last-child{border-bottom:0}
+details.trow>summary{display:flex;align-items:center;gap:8px;padding:8px 0;min-height:40px}
+details.trow>summary .tlabel{flex:1;font-size:15px}
+.tcount{font-size:20px;font-weight:800;min-width:2.5ch;text-align:right}
+.trow.zero .tcount,.trow.zero .tlabel{color:var(--muted)}
+.titems{font-size:13px;color:var(--muted);padding:0 0 8px 1.6em;margin:0;list-style:none}
+.titems li{padding:2px 0}
+.titems code{font-size:11px}
+
+.printonly{display:none}
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);
   padding:10px 16px;border-radius:10px;font-size:14px;max-width:90vw;opacity:0;transition:opacity .2s}
 .toast.on{opacity:1}
 .note{font-size:13px;color:var(--muted)}
 section{margin-bottom:22px}
+
+/* "Print the day": only the day's work, every row opened */
+@media print{
+  body{background:#fff;color:#000}
+  header .bar,#showcase,#top,.cols,#team-sec,#feed-sec,.foot,.toast,.daybar button,.daybar select{display:none !important}
+  #day-sec{display:block !important}
+  .noprint{display:none !important}
+  .printonly{display:inline !important;font-weight:700}
+  .tgroup{box-shadow:none;break-inside:avoid}
+}
 </style>
 </head>
 <body>
@@ -117,9 +178,24 @@ section{margin-bottom:22px}
     </div>
   </div>
 
-  <section>
+  <section id="top">
     <div class="proof" id="proof"></div>
     <div class="chips" id="chips"></div>
+  </section>
+
+  <section>
+    <details class="section" id="day-sec" data-key="sec:day">
+      <summary><span class="chev">▸</span><span id="day-title">The day's work</span>
+        <span class="sline" id="day-line"></span></summary>
+      <div class="daybar">
+        <label class="note noprint" for="day-pick">Day</label>
+        <span class="printonly" id="day-printdate"></span>
+        <select id="day-pick"></select>
+        <button id="day-print">Print the day</button>
+        <span class="note" id="day-basis"></span>
+      </div>
+      <div class="tgroups" id="day"></div>
+    </details>
   </section>
 
   <div class="cols">
@@ -136,23 +212,46 @@ section{margin-bottom:22px}
   </div>
 
   <section>
-    <h2>Your team</h2>
-    <div class="team" id="team"></div>
+    <details class="section" id="team-sec" data-key="sec:team">
+      <summary><span class="chev">▸</span>Your team <span class="sline" id="team-line"></span></summary>
+      <div class="team" id="team"></div>
+    </details>
   </section>
 
   <section>
-    <h2>What just happened</h2>
-    <div class="feed" id="feed"></div>
+    <details class="section" id="feed-sec" data-key="sec:feed">
+      <summary><span class="chev">▸</span>What just happened <span class="sline" id="feed-line"></span></summary>
+      <div class="feed" id="feed"></div>
+    </details>
   </section>
-  <p class="note">Every number on this page is read from the swarm and its audit log.
+  <p class="note foot">Every number on this page is read from the swarm and its audit log.
   Send, Don't send and Continue/Cancel sign with your key on this computer, the same as the console.</p>
 </main>
 <div class="toast" id="toast"></div>
 <script>
 const token = new URLSearchParams(location.search).get("t");
 const H = token ? {"X-Desk-Token": token} : {};
-let S = null, armed = null, autoTimer = null, busy = false;
+let S = null, armed = null, autoTimer = null, busy = false, day = null;
 const reasons = {};   // a typed "why not" survives the 1.5 s refresh
+
+// ---- open/closed memory: per viewer, survives the refresh and a reload
+const OPEN = (() => { try { return JSON.parse(localStorage.getItem("desk.open") || "{}"); } catch (e) { return {}; } })();
+function saveOpen() { try { localStorage.setItem("desk.open", JSON.stringify(OPEN)); } catch (e) {} }
+function isOpen(key, dflt) { return key in OPEN ? OPEN[key] : dflt; }
+function remember(d, key) {
+  d.addEventListener("toggle", () => {
+    if (d._forced || OPEN[key] === d.open) return;   // the page's own refresh is not a choice
+    OPEN[key] = d.open; saveOpen();
+  });
+}
+function details(cls, key, dflt, summaryKids, bodyKids, force) {
+  const d = el("details", {class: cls});
+  d.open = force || isOpen(key, dflt);
+  d._forced = !!force;
+  remember(d, key);
+  d.append(el("summary", {}, el("span", {class: "chev"}, "▸"), summaryKids), ...bodyKids);
+  return d;
+}
 
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
@@ -189,6 +288,11 @@ function kv(obj) {
               el("dd", {}, typeof v === "object" ? JSON.stringify(v) : String(v)));
   }
   return dl.children.length ? dl : null;
+}
+function preview(obj) {
+  if (!obj || typeof obj !== "object") return "";
+  return Object.entries(obj).filter(([k]) => !["absolute_signal", "provenance", "signal_sha256"].includes(k))
+    .map(([, v]) => typeof v === "object" ? JSON.stringify(v) : String(v)).join(" · ");
 }
 function sendButton(item) {
   const key = "send:" + item.id;
@@ -231,23 +335,30 @@ function yourMove() {
   if (!sc || !sc.waiting_for_you) return null;
   return sc;
 }
-function needsCard(i) {
-  const mv = yourMove();
-  const ln = mv && mv.line;
-  const hl = ln && i.ctx && i.ctx === ln.ctx &&
-             (ln.do === "decide" ? i.type === "wait"
-                                 : i.type === "held" && (!ln.intent || ln.intent === i.intent));
+// the one rule for "this card is your move": the script line itself
+function isYourMove(i) {
+  const mv = yourMove(), ln = mv && mv.line;
+  return !!(ln && i.ctx && i.ctx === ln.ctx &&
+            (ln.do === "decide" ? i.type === "wait"
+                                : i.type === "held" && (!ln.intent || ln.intent === i.intent)));
+}
+function needsCard(i, inGroup) {
+  const hl = isYourMove(i);
   const c = el("div", {class: `card ${i.type}${hl ? " highlight" : ""}`});
-  c.append(el("h3", {}, i.title));
-  c.append(el("div", {class: "meta"},
-    [i.ctx && `Client ${i.ctx}`, i.from_name && `from ${i.from} ${i.from_name}`, i.to && `to ${i.to}`]
-      .filter(Boolean).join(" · ")));
-  if (i.said) c.append(el("div", {class: "said"}, "“" + i.said + "”"));
+  const meta = [i.ctx && `Client ${i.ctx}`, i.from_name && `from ${i.from} ${i.from_name}`, i.to && `to ${i.to}`]
+    .filter(Boolean).join(" · ");
   if (i.type === "held") {
-    c.append(el("div", {class: "why"}, "What would go out:"), kv(i.content), el("div", {class: "why"}, i.why));
+    c.append(el("h3", {}, i.title), el("div", {class: "meta"}, meta));
+    // the full content opens by itself when it is your move or you tap Send,
+    // so a release is never signed without seeing what goes out
+    const force = hl || armed === "send:" + i.id || armed === "decline:" + i.id;
+    c.append(el("div", {class: "preview"}, preview(i.content)),
+      details("more", "card:" + i.id, false, "What would go out",
+              [kv(i.content), el("div", {class: "why"}, i.why)], force));
     c.append(el("div", {class: "actions"}, sendButton(i), declineControls(i),
       el("span", {class: "note"}, "Not ready? Leave it - it stays held until you answer.")));
   } else if (i.type === "wait") {
+    c.append(el("h3", {}, i.title), el("div", {class: "meta"}, meta));
     if (i.why) c.append(el("div", {class: "said"}, i.why));
     if (i.paused) c.append(el("div", {class: "why"}, "Paused: " + i.paused));
     let sel = null;
@@ -266,7 +377,11 @@ function needsCard(i) {
       .then(j => j && !j.error && toast("Signed: cancel"));
     c.append(el("div", {class: "actions"}, sel, go, no));
   } else {
-    if (!i.said) c.append(kv(i.content));
+    // inside its group the group's title already says what it is
+    c.append(inGroup ? el("div", {class: "meta"}, meta || " ")
+                     : [el("h3", {}, i.title), el("div", {class: "meta"}, meta)]);
+    if (i.said) c.append(el("div", {class: "said"}, "“" + i.said + "”"));
+    else c.append(details("more", "card:" + i.id, false, "Details", [kv(i.content)]));
     const done = el("button", {}, "Done");
     done.onclick = () => act({action: "ack", id: i.id, title: i.title, ctx: i.ctx});
     c.append(el("div", {class: "actions"}, done,
@@ -274,18 +389,42 @@ function needsCard(i) {
   }
   return c;
 }
+// Needs you, grouped: what can leave the business first, then decisions,
+// then the queues in the server's order (legal line first)
+const OPEN_BY_DEFAULT = {held: true, wait: true, "escalation.legal_line": true, "escalation.complaint": true,
+                         "integrity.violation": false, "dead.letter": false, "clarification.request": false};
+function needsGroups(needs) {
+  const groups = [];
+  const find = (key, title, cls) => {
+    let g = groups.find(x => x.key === key);
+    if (!g) { g = {key, title, cls, items: []}; groups.push(g); }
+    return g;
+  };
+  for (const i of needs) {
+    if (i.type === "held") find("held", "Held for your release", "urgent").items.push(i);
+    else if (i.type === "wait") find("wait", "Paused for your decision", "urgent").items.push(i);
+    else find(i.queue || "other", i.title, "alarm").items.push(i);
+  }
+  const order = g => g.key === "held" ? 0 : g.key === "wait" ? 1 : 2;
+  return groups.sort((a, b) => order(a) - order(b));
+}
 function listingCard(l) {
   const c = el("div", {class: "card"});
   const facts = Object.entries(l.facts || {}).map(([k, v]) =>
     k === "price" ? "$" + Number(v).toLocaleString() : `${v} ${k}`).join(" · ");
-  c.append(el("h3", {}, `Listing ${l.ctx}`), el("div", {class: "meta"}, facts || " "));
+  c.append(el("div", {class: "lhead"},
+    el("div", {}, el("h3", {}, `Listing ${l.ctx}`), el("div", {class: "meta"}, facts || " ")),
+    el("div", {}, "Now: ", el("span", {class: "now"}, l.now))));
   const track = el("div", {class: "track"}), labels = el("div", {class: "steplabels"});
   for (const s of l.steps) { track.append(el("div", {class: "step " + s.state, title: s.label})); labels.append(el("span", {}, s.label)); }
   c.append(track, labels);
-  c.append(el("div", {}, "Now: ", el("span", {class: "now"}, l.now)));
-  if (l.waiting_on_you.length) c.append(el("div", {class: "flag", style: "color:var(--you-ink)"},
-    "Waiting for you to send " + l.waiting_on_you.join(" and ")));
-  for (const f of l.flags) c.append(el("div", {class: "flag"}, f));
+  const notes = [...l.waiting_on_you.map(w => el("div", {class: "flag you"}, "Waiting for you to send " + w)),
+                 ...l.flags.map(f => el("div", {class: "flag"}, f))];
+  if (notes.length) {
+    const sum = [el("span", {class: "dot" + (l.flags.length ? "" : " you")}), " ",
+                 notes.length === 1 ? "1 note" : `${notes.length} notes`];
+    c.append(details("more", "listing:" + l.ctx, false, sum, notes));
+  }
   return c;
 }
 function leadRow(l) {
@@ -303,6 +442,37 @@ function leadRow(l) {
     el("div", {}, el("b", {}, l.name || l.ctx), el("div", {class: "meta"}, `${l.status} · ${l.channel || ""} · ${l.ctx}`)),
     right));
   return c;
+}
+function renderDay() {
+  const D = S.day;
+  const pick = document.getElementById("day-pick");
+  if (document.activeElement !== pick) {
+    pick.replaceChildren(...D.days.map(d => {
+      const o = el("option", {value: d}, d === new Date().toLocaleDateString("en-CA") ? `Today (${d})` : d);
+      if (d === D.day) o.selected = true;
+      return o;
+    }));
+  }
+  const all = Object.fromEntries(D.groups.flatMap(g => g.rows.map(r => [r.key, r.count])));
+  const top = [["client_messages", "client messages"], ["leads", "leads"], ["vendor", "bookings"],
+               ["held", "held for you"], ["released", "releases you signed"]]
+    .filter(([k]) => all[k]).map(([k, w]) => `${all[k]} ${w}`);
+  document.getElementById("day-title").textContent =
+    D.day === new Date().toLocaleDateString("en-CA") ? "Today's work" : `Work on ${D.day}`;
+  document.getElementById("day-line").textContent = top.length ? "· " + top.join(" · ") : "· nothing recorded yet";
+  document.getElementById("day-basis").textContent = "Counted from the audit log; open a line to see its entries.";
+  document.getElementById("day-printdate").textContent = "Day: " + D.day;
+  document.getElementById("day").replaceChildren(...D.groups.map(g =>
+    el("div", {class: "tgroup"}, el("h3", {}, g.name), ...g.rows.map(r => {
+      const items = el("ul", {class: "titems"}, ...r.items.map(it =>
+        el("li", {}, new Date(it.ts * 1000).toLocaleTimeString() + " · " + (it.ctx ? it.ctx + " · " : "") + it.text + " ",
+           el("code", {title: "audit entry"}, it.entry))),
+        r.more ? el("li", {}, `and ${r.more} more`) : null);
+      const d = details("trow" + (r.count ? "" : " zero"), "tally:" + r.key, false,
+        [el("span", {class: "tlabel"}, r.label), el("span", {class: "tcount"}, String(r.count))],
+        r.count ? [items] : []);
+      return d;
+    }))));
 }
 function render() {
   if (!S) return;
@@ -347,35 +517,67 @@ function render() {
     el("span", {class: "chip " + (/^(on|loaded)$/.test(c.state) ? "on" : "off"), title: c.note},
        c.name + ": ", el("b", {}, c.state))));
 
+  renderDay();
+
   const needs = S.needs_you;
   const cnt = document.getElementById("needs-count");
   cnt.textContent = needs.length; cnt.className = "count" + (needs.length ? "" : " zero");
-  const mv = yourMove();
-  const isHl = i => mv && i.ctx && mv.next.includes(i.ctx) &&
-    ((i.type === "held" && mv.next.includes("Send")) || (i.type === "wait" && !mv.next.includes("Send")));
-  needs.sort((a, b) => (isHl(b) ? 1 : 0) - (isHl(a) ? 1 : 0));
-  document.getElementById("needs").replaceChildren(...(needs.length ? needs.map(needsCard)
-    : [el("div", {class: "empty"}, "Nothing is waiting for you.")]));
+  const groups = needsGroups(needs);
+  document.getElementById("needs").replaceChildren(...(needs.length ? groups.map(g => {
+    g.items.sort((a, b) => (isYourMove(b) ? 1 : 0) - (isYourMove(a) ? 1 : 0));
+    const force = g.items.some(isYourMove) || g.items.some(i => armed && armed.endsWith(":" + i.id));
+    return details("group " + g.cls, "needs:" + g.key, OPEN_BY_DEFAULT[g.key] ?? true,
+      [el("span", {class: "gtitle"}, g.title), el("span", {class: "count" + (g.cls === "urgent" ? "" : " soft")}, String(g.items.length))],
+      g.items.map(i => needsCard(i, g.key !== "held" && g.key !== "wait")), force);
+  }) : [el("div", {class: "empty"}, "Nothing is waiting for you.")]));
   document.getElementById("listings").replaceChildren(...(S.listings.length ? S.listings.map(listingCard)
     : [el("div", {class: "empty"}, "No listings yet.")]));
   document.getElementById("leads").replaceChildren(...(S.leads.length ? S.leads.map(leadRow)
     : [el("div", {class: "empty"}, "No leads yet.")]));
   const stateWord = {working: "working", you: "waiting for you", waiting: "waiting", problem: "problem", idle: "idle"};
+  const tallyT = {};
+  for (const a of S.team) tallyT[a.state] = (tallyT[a.state] || 0) + 1;
+  document.getElementById("team-line").textContent = "· " + ["working", "waiting", "you", "problem", "idle"]
+    .filter(s => tallyT[s]).map(s => `${tallyT[s]} ${stateWord[s]}`).join(" · ");
+  const teamSec = document.getElementById("team-sec");
+  if (tallyT.problem && !("sec:team" in OPEN)) teamSec.open = true;   // a problem opens it
   document.getElementById("team").replaceChildren(...S.team.map(a =>
     el("div", {class: "agent " + a.state},
        el("span", {class: "st"}, stateWord[a.state]), el("b", {}, `${a.id} ${a.name}`), a.note)));
+  const latest = S.activity[0];
+  document.getElementById("feed-line").textContent = latest ? "· latest: " + latest.text : "· nothing yet";
   document.getElementById("feed").replaceChildren(...S.activity.map(f =>
     el("div", {class: f.kind || ""},
        new Date(f.ts * 1000).toLocaleTimeString() + " · " + (f.ctx ? f.ctx + " · " : "") + f.text)));
 }
 async function load() {
   try {
-    const r = await fetch("api/state", {headers: H});
+    const r = await fetch("api/state" + (day ? "?day=" + day : ""), {headers: H});
     S = await r.json();
-    // do not rebuild the page under someone typing a reason
-    if (!(document.activeElement && document.activeElement.classList.contains("reason"))) render();
+    // do not rebuild the page under someone typing a reason or picking a day
+    const a = document.activeElement;
+    if (!(a && (a.classList.contains("reason") || a.id === "day-pick"))) render();
   } catch (e) { document.getElementById("who").textContent = "desk not reachable: " + e; }
 }
+// the fixed sections remember open/closed too
+for (const d of document.querySelectorAll("details.section")) {
+  const key = d.dataset.key;
+  d.open = isOpen(key, false);
+  remember(d, key);
+}
+document.getElementById("day-pick").onchange = e => {
+  const today = new Date().toLocaleDateString("en-CA");
+  day = e.target.value === today ? null : e.target.value;
+  e.target.blur(); load();
+};
+document.getElementById("day-print").onclick = () => {
+  // print the day with every line opened, then put them back as they were
+  const rows = [...document.querySelectorAll("details.trow")];
+  const was = rows.map(d => d.open);
+  rows.forEach(d => { d._forced = true; d.open = true; });
+  window.print();
+  rows.forEach((d, n) => { d.open = was[n]; setTimeout(() => { d._forced = false; }, 0); });
+};
 document.getElementById("sweep").onclick = () =>
   act({action: "sweep"}).then(j => j && !j.error && toast("Today's checks ran"));
 document.getElementById("verify").onclick = () =>

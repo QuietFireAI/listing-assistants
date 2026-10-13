@@ -90,3 +90,11 @@ def test_links_resolve():
                     f"{os.path.basename(doc)} links to {path}, which is missing"
             elif frag:
                 assert frag in anchors, f"{os.path.basename(doc)} links to #{frag}, no such heading"
+
+
+def test_every_line_of_the_days_work_is_in_the_manual():
+    manual = re.sub(r"\s+", " ", text(MANUAL))
+    for group, rows in desk_mod.TALLY:
+        assert f"**{group}**" in manual, f"day's-work group {group!r} missing from the manual"
+        for _, label, _ in rows:
+            assert label in manual, f"day's-work line {label!r} missing from the manual"

@@ -333,6 +333,9 @@ Everything in sections 3 and 6 is on it:
   **What just happened** are read from the record as it is written.
 - **Run today's checks** runs the daily clock; **Check the record** walks the
   audit chain.
+- **Today's work** counts what was done, protected and decided that day,
+  from the audit record; each line lists its entries, and **Print the day**
+  prints it.
 
 A held message stays held until you answer it, Send or Don't send; both are
 signed and both are on the record. In a console session the same answers are

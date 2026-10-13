@@ -350,7 +350,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1015 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1022 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -384,6 +384,18 @@ printed access code.
   public went out and how many carried your signed release, and which
   outside connections exist (today: no MLS, no email or SMS to clients - a
   released client message is recorded, not delivered to a phone).
+- **Today's work:** what the swarm did for you that day, counted from the
+  audit record - leads captured, client messages, vendor bookings, documents
+  requested, compliance problems caught, decisions you signed and more. Each
+  line opens to the entries behind its number; any earlier day can be
+  picked, and **Print the day** prints just that panel.
+
+Long parts fold away: Needs you is in sections (held messages and paused
+threads open, questions and refusals closed), a held message shows one line
+until you open "What would go out" (or tap Send, which opens it), and Your
+team and What just happened are one summary line each until opened. The desk
+remembers what you opened. The page uses the Manrope typeface, bundled under
+its own licence (`THIRD_PARTY_NOTICES.md`).
 
 ```bash
 python tools/desk.py                 # your desk, on console-state/

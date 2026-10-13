@@ -12,18 +12,19 @@ For testing the desk step by step, see
 
 1. [Start the desk](#1-start-the-desk)
 2. [The page at a glance](#2-the-page-at-a-glance)
-3. [Needs you: what to answer](#3-needs-you-what-to-answer)
-4. [Listings](#4-listings)
-5. [Leads](#5-leads)
-6. [Your team](#6-your-team)
-7. [The proof strip and the connection chips](#7-the-proof-strip-and-the-connection-chips)
-8. [What just happened](#8-what-just-happened)
-9. [The two header buttons](#9-the-two-header-buttons)
-10. [Open it on a tablet](#10-open-it-on-a-tablet)
-11. [Test scripts and the showcase](#11-test-scripts-and-the-showcase)
-12. [Limits to know](#12-limits-to-know)
-13. [When something looks wrong](#13-when-something-looks-wrong)
-14. [Where your files are](#14-where-your-files-are)
+3. [The day's work](#3-the-days-work)
+4. [Needs you: what to answer](#4-needs-you-what-to-answer)
+5. [Listings](#5-listings)
+6. [Leads](#6-leads)
+7. [Your team](#7-your-team)
+8. [The proof strip and the connection chips](#8-the-proof-strip-and-the-connection-chips)
+9. [What just happened](#9-what-just-happened)
+10. [The two header buttons](#10-the-two-header-buttons)
+11. [Open it on a tablet](#11-open-it-on-a-tablet)
+12. [Test scripts and the showcase](#12-test-scripts-and-the-showcase)
+13. [Limits to know](#13-limits-to-know)
+14. [When something looks wrong](#14-when-something-looks-wrong)
+15. [Where your files are](#15-where-your-files-are)
 
 ---
 
@@ -50,7 +51,8 @@ python tools/desk.py
 ```
 
 Open **http://127.0.0.1:8765** in your browser. The page refreshes itself
-every second and a half. To stop the desk, press **Ctrl+C** in the window that
+every second and a half. Its typeface, Manrope, ships with the desk, so the
+page looks the same with or without an internet connection. To stop the desk, press **Ctrl+C** in the window that
 started it (on Windows, Ctrl+C or Ctrl+Break). Your state is saved after
 every button you press, so stopping and starting loses nothing.
 
@@ -67,29 +69,84 @@ same records at once. Use the desk's own **Run today's checks** button instead.
 
 | # | Part | What it tells you |
 |---|---|---|
-| 1 | **Mode badge and header buttons** | LIVE (your records) or SHOWCASE (synthetic demo data); **Run today's checks** and **Check the record** ([section 9](#9-the-two-header-buttons)) |
-| 2 | **Script bar** | Shown only while a test script or the showcase plays ([section 11](#11-test-scripts-and-the-showcase)) |
-| 3 | **Proof strip** | Is the record intact, did everything that left go out on your signature, how much is waiting ([section 7](#7-the-proof-strip-and-the-connection-chips)) |
+| 1 | **Mode badge and header buttons** | LIVE (your records) or SHOWCASE (synthetic demo data); **Run today's checks** and **Check the record** ([section 10](#10-the-two-header-buttons)) |
+| 2 | **Script bar** | Shown only while a test script or the showcase plays ([section 12](#12-test-scripts-and-the-showcase)) |
+| 3 | **Proof strip** | Is the record intact, did everything that left go out on your signature, how much is waiting ([section 8](#8-the-proof-strip-and-the-connection-chips)) |
 | 4 | **Connection chips** | What is and is not connected to the outside world |
-| 5 | **Needs you** | Everything waiting for your answer: held messages first, then paused threads, then items to handle ([section 3](#3-needs-you-what-to-answer)) |
-| 6 | **Listings** | One card per listing with its progress track ([section 4](#4-listings)) |
-| 7 | **Leads** (below Listings) | Each lead, with a five-minute call clock on a hot one ([section 5](#5-leads)) |
-| 8 | **Your team** (lower on the page) | What each of the twenty agents is doing ([section 6](#6-your-team)) |
-| 9 | **What just happened** (bottom) | The latest messages between agents, you and the outside ([section 8](#8-what-just-happened)) |
+| 5 | **Today's work** | One line of today's numbers; open it for the full count of what was done, protected and decided ([section 3](#3-the-days-work)) |
+| 6 | **Needs you** | Everything waiting for your answer, in sections: held messages first, then paused threads, then items to handle ([section 4](#4-needs-you-what-to-answer)) |
+| 7 | **Listings** | One card per listing with its progress track ([section 5](#5-listings)) |
+| 8 | **Leads** (below Listings) | Each lead, with a five-minute call clock on a hot one ([section 6](#6-leads)) |
+| 9 | **Your team** (lower on the page) | One line saying how many agents are working, waiting or idle; open it for each agent ([section 7](#7-your-team)) |
+| 10 | **What just happened** (bottom) | The latest line; open it for the last 25 ([section 9](#9-what-just-happened)) |
+
+**Anything with a ▸ opens and closes** when you tap its title: the sections
+of Needs you, "What would go out" on a held message, a listing's notes, Today's
+work and each of its lines, Your team, and What just happened. The desk
+remembers what you opened or closed, on this computer and this browser,
+through every refresh and the next time you open it.
 
 A narrow screen (a tablet held upright) stacks the same parts in one column.
 
-## 3. Needs you: what to answer
+## 3. The day's work
 
-The red number next to **Needs you** counts the cards waiting. There are three
-kinds of card, always in this order: held messages, paused threads, then
-items to handle (legal-line items at the top of those).
+**Today's work** counts what the system did for you today, from the audit
+record. Its title line carries the headline numbers; tap it to open the full
+count.
 
-### 3a. A held message (yellow edge)
+![The day's work, with one line opened to show the messages behind its number](images/desk-manual/19-day.png)
+
+Three groups:
+
+| Group | Lines |
+|---|---|
+| **Done for you** | Leads captured · Hot leads flagged to you · Client messages written and released · Client replies routed · Vendor bookings sent · Marketing campaigns published · Listing descriptions checked by compliance · Documents requested · Deadline alerts raised · Showings put on the calendar · Files filed in client folders · Reports delivered to you · Daily check runs · Transactions closed |
+| **Protected** | Messages held for your signature · Compliance problems caught · Unsigned or tampered messages refused · Items raised for a person (legal line, complaints, questions) |
+| **Your decisions** | Releases you signed (Send) · Don't-sends you signed · Continue / Cancel decisions · Items you marked Done or Called · Settings and listings you signed |
+
+**Every number can be checked.** Tap a line and it lists the entries behind
+its number, newest first: the time, the client, what happened, and the first
+characters of that entry's fingerprint in the audit record. Thirty are listed;
+past thirty the line says how many more there are.
+
+**Another day:** pick it in the **Day** list (every day that has entries is
+there). **Print the day** prints only this panel, every line opened, ready to
+hand to a client or save as a PDF from the print window.
+
+What the numbers are, and are not:
+
+- They are counts of entries in the audit record for that day, by the desk
+  computer's clock (a day runs midnight to midnight there). Nothing is
+  estimated.
+- "Client messages" are not split into emails and texts: no email or SMS
+  service is connected yet, so the record holds messages, not channels. Once
+  one is connected, the count can be split by channel.
+- There is no "time saved" figure. That needs the minutes each task would
+  have taken a person, which only you can set.
+
+## 4. Needs you: what to answer
+
+The red number next to **Needs you** counts the cards waiting. They come in
+sections you can open and close, always in this order:
+
+1. **Held for your release** (open)
+2. **Paused for your decision** (open)
+3. One section per kind of item to handle, each titled as in the table in
+   4c: the legal line and upset clients open; refusals, undeliverable
+   messages and questions closed.
+
+Each section shows its count on the right. When it is your move in a test
+script or the showcase, the section holding that card opens by itself.
+
+![Needs you in sections: held messages, then the legal line and an upset client open, refusals and questions closed](images/desk-manual/17-needs-groups.png)
+
+### 4a. A held message (yellow edge)
 
 Some messages would leave your business: a booking sent to a vendor, an ad
 sent to the public. Every one of them stops here first, with exactly what
-would go out and to whom.
+would go out and to whom. The card shows it in one line; tap **What would go
+out** for every field. The full content also opens by itself the moment you
+tap Send, so you always see it before your second tap signs.
 
 ![A held message: what would go out, and the Send and Don't send buttons](images/desk-manual/03-held-card.png)
 
@@ -107,7 +164,7 @@ You have three answers:
 
 A signed "don't send" can never be used as a "send", nor the other way round:
 your choice is inside what your key signs. After a Don't send, the agent that
-wrote the message is not told yet (see [section 12](#12-limits-to-know)); if
+wrote the message is not told yet (see [section 13](#13-limits-to-know)); if
 the work still needs doing, start it again yourself.
 
 ```mermaid
@@ -125,7 +182,7 @@ flowchart LR
 Messages to your own client are not held here; they go out once your client
 has given consent (recorded by Agent 14), and the proof strip counts them.
 
-### 3b. A paused thread (yellow edge, "Paused - your decision")
+### 4b. A paused thread (yellow edge, "Paused - your decision")
 
 An agent stopped and asks you to decide before it goes on. The card says why,
 in the agent's words, and what each answer means.
@@ -139,10 +196,11 @@ in the agent's words, and what each answer means.
 
 Both sign a decision with your key; one tap each.
 
-### 3c. Something for you to handle (red edge)
+### 4c. Something for you to handle (red edge)
 
-These are items only a person should handle. The card shows the words that
-raised it.
+These are items only a person should handle, in a section named for what
+they are. Each card shows the client, the agent, and the words that raised
+it.
 
 ![A legal-line item with its Done button](images/desk-manual/09-queue-item.png)
 
@@ -153,14 +211,14 @@ raised it.
 | A question for you | An agent needs a fact or a correction (a broken setting, photos that contradict the data sheet, no approved vendor) |
 | Refused: unsigned or tampered | A message claimed to come from you without your signature; the hub refused it |
 | Could not be delivered | A message that had nowhere to go |
-| Hot lead - call now | Shown on the lead itself ([section 5](#5-leads)) |
+| Hot lead - call now | Shown on the lead itself ([section 6](#6-leads)) |
 
 When you have handled it (called the client, fixed the setting), press
 **Done**. Done records on the audit log that you handled it, with your login,
 and takes the card off your list. It changes nothing in the swarm; the
 handling itself is yours.
 
-## 4. Listings
+## 5. Listings
 
 One card per listing you have signed, newest activity first.
 
@@ -179,12 +237,17 @@ The track reads left to right:
 | Contract | The executed contract is on file |
 | Closed | The settlement statement closed the transaction |
 
-**Green** = done. **Yellow** = waiting for you (a held booking or campaign;
-the card says "Waiting for you to send ..."). **Grey** = not reached yet.
-Red lines under the track are flags: a compliance phrase caught, photos that
-contradict the data sheet, a vendor missing from your roster.
+**Green** = done. **Yellow** = waiting for you (a held booking or campaign).
+**Grey** = not reached yet.
 
-## 5. Leads
+A listing with something to say has **notes** under its track: a red dot
+when one of them is a flag (a compliance phrase caught, photos that
+contradict the data sheet, a vendor missing from your roster), a yellow dot
+when it only waits for you. Tap the notes to read them.
+
+![A listing's notes opened](images/desk-manual/18-listing-notes.png)
+
+## 6. Leads
 
 ![A hot lead with its call clock](images/desk-manual/07-lead-hot.png)
 
@@ -197,9 +260,13 @@ Other statuses: **Captured** (in your pipeline), **Waiting for your decision**
 (a paused thread in Needs you, such as a possible duplicate person),
 **Closed by your decision** (you cancelled it).
 
-## 6. Your team
+## 7. Your team
 
 ![The twenty agents and what each is doing](images/desk-manual/11-team.png)
+
+**Your team** shows one line, for example "10 working · 4 waiting · 2
+waiting for you · 4 idle". Tap it to see each agent. It opens by itself when
+an agent has a PROBLEM, unless you have closed it yourself.
 
 Each tile is one agent, with a colored top edge:
 
@@ -211,7 +278,7 @@ Each tile is one agent, with a colored top edge:
 | IDLE | grey | Nothing yet |
 | PROBLEM | red | A handoff it made was refused; the tile says why. It clears the next time the agent's work goes through. |
 
-## 7. The proof strip and the connection chips
+## 8. The proof strip and the connection chips
 
 ![The proof strip and the connection chips](images/desk-manual/08-proof.png)
 
@@ -228,14 +295,15 @@ roster** (ratified or not), **Identity provider (login + MFA)**, and
 **Model-written remarks**. Red means not connected or off. Hover a chip for a
 note.
 
-## 8. What just happened
+## 9. What just happened
 
 ![The activity feed](images/desk-manual/12-feed.png)
 
-The latest messages, newest first, in plain words: who sent what to whom, what
-was held for you, what you signed. Your own actions are in bold.
+Its title line shows the latest message. Tap it for the last 25, newest
+first, in plain words: who sent what to whom, what was held for you, what you
+signed. Your own actions are in bold.
 
-## 9. The two header buttons
+## 10. The two header buttons
 
 - **Run today's checks** runs the daily clock now, the same as
   `run_sweeps.py`: contract deadlines and vendor hold-ups (07), document
@@ -248,7 +316,7 @@ was held for you, what you signed. Your own actions are in bold.
 - **Check the record** walks the whole audit chain and answers "The record is
   intact" or names where it broke.
 
-## 10. Open it on a tablet
+## 11. Open it on a tablet
 
 ```bash
 python tools/desk.py --lan
@@ -263,7 +331,7 @@ link with your computer's network address. Without the code the page refuses.
 Use `--lan` on a trusted office network only: the page and its code travel
 unencrypted.
 
-## 11. Test scripts and the showcase
+## 12. Test scripts and the showcase
 
 **A test script** plays prepared work into *your* desk, one step at a time,
 signed with *your* key. Use it to practise, to train someone, or to test with
@@ -297,7 +365,7 @@ It replays the ten operator scenes, stopping at each of your moves. It is
 what the client video is recorded on
 ([OPERATOR_TESTING_GUIDE.md](../OPERATOR_TESTING_GUIDE.md), section 0a).
 
-## 12. Limits to know
+## 13. Limits to know
 
 - **Messages are recorded, not delivered.** MLS, email and SMS are not
   connected yet. "Sent" means the hub released the message and recorded it.
@@ -312,8 +380,11 @@ what the client video is recorded on
 - **Done and Called cannot be undone from the page.** They only record that
   you handled something; nothing in the swarm changes.
 - **Tablet access is plain HTTP** on your network.
+- **The day's work counts; it does not estimate.** Emails and texts are
+  counted together as client messages, and there is no time-saved figure
+  (section 3).
 
-## 13. When something looks wrong
+## 14. When something looks wrong
 
 | You see | What it means | What to do |
 |---|---|---|
@@ -327,7 +398,7 @@ what the client video is recorded on
 | An agent tile shows PROBLEM | One of its handoffs was refused | Read the tile; it often points at a missing setting or vendor |
 | `Address already in use` (Windows: "Only one usage of each socket address") | Another program uses port 8765 | `python tools/desk.py --port 8770`, then open http://127.0.0.1:8770 |
 
-## 14. Where your files are
+## 15. Where your files are
 
 Everything lives in your records folder, `console-state/` (or the folder in
 `LISTINGASSISTANTS_STATE_DIR`):

@@ -1,6 +1,6 @@
 # The Broker Desk - Testing Guide
 
-Twelve tests, in order, each with what to do and exactly what you should see.
+Fourteen tests, in order, each with what to do and exactly what you should see.
 Together they cover the desk end to end: the showcase (what the client video
 records), your own live desk, test scripts, Send and Don't send, the lock,
 restarts, a tablet, and Windows. Allow about 45 minutes.
@@ -24,8 +24,8 @@ pip install -r requirements.txt
 python -m pytest tests_listing/ -q
 ```
 
-**Expect:** `1015 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1016 passed` on Windows, after 5 to 8 minutes.
+**Expect:** `1022 passed, 1 skipped` on Linux or macOS (the skipped test runs
+only on Windows); `1023 passed` on Windows, after 5 to 8 minutes.
 
 ## T2 - The showcase plays through
 
@@ -64,23 +64,48 @@ tap **Don't send**, type `wrong photographer`, tap **Sign: don't send**.
 
 **Expect:** a note at the bottom "Signed: not sent - Book a vendor"; the card
 leaves; the held tile reads **2** with "· 1 you signed not to send"; the
-**4 of 4** tile does not change (nothing went out); the first line of **What
-just happened** reads "You signed Don't send: books the vendor (wrong
-photographer)".
+**4 of 4** tile does not change (nothing went out); the **What just
+happened** line near the bottom reads "· latest: You signed Don't send: books
+the vendor (wrong photographer)".
 
 ![Don't send with a reason](images/desk-manual/13-dont-send.png)
 
 Then tap **Don't send** on another card and tap **Keep it held**.
 **Expect:** the card stays, unchanged.
 
-## T4 - The record checks
+## T4 - The day's work (showcase)
+
+Still on the showcase. Find **Today's work** under the connection chips.
+
+**Expect:** its title line reads "· 16 client messages · 3 leads · 3 bookings ·
+7 held for you · 4 releases you signed".
+
+Tap the title. **Expect:** three groups. Among the lines: Leads captured
+**3**, Hot leads flagged to you **2**, Client messages written and released
+**16**, Vendor bookings sent **3**, Messages held for your signature **7**,
+Compliance problems caught **1**, Unsigned or tampered messages refused **1**,
+Releases you signed (Send) **4**, Don't-sends you signed **1** (from T3),
+Continue / Cancel decisions **1**, Transactions closed **1**.
+
+Tap **Client messages written and released**. **Expect:** 16 lines, newest
+first, each with a time, a client (S4 ... S9), "11 Client Communication →
+outside: sends the client a message" and a short code (the entry's
+fingerprint in the audit record).
+
+Tap **Print the day**. **Expect:** the print window shows the header, "Day:"
+with today's date, and the day's work with every line opened; nothing else
+from the page. Cancel the print.
+
+![The day's work](images/desk-manual/19-day.png)
+
+## T5 - The record checks
 
 Press **Check the record**.
 **Expect:** a note "The record is intact".
 
 Stop the showcase with **Ctrl+C**.
 
-## T5 - Your live desk, first run
+## T6 - Your live desk, first run
 
 In a new folder for this test (your real records are untouched):
 
@@ -101,14 +126,15 @@ python tools/desk.py
 **Expect:** `init` prints `"operator_key": "generated, private: mode 0o600"`
 (Windows: "only your account ... on the Windows permission list"). The page
 shows **LIVE · your records**, your name and login at the top left, **✓
-Intact**, **0 of 0**, "Nothing is waiting for you.", "No listings yet.", all
-twenty agents IDLE, and the chip **Vendor roster: unratified**.
+Intact**, **0 of 0**, "Nothing is waiting for you.", "No listings yet.",
+**Your team · 20 idle**, **Today's work · nothing recorded yet**, and the chip
+**Vendor roster: unratified**.
 
 ![A first live desk](images/desk-manual/15-live-first-run.png)
 
-## T6 - The lock
+## T7 - The lock
 
-With the desk from T5 still running, in a second window (same
+With the desk from T6 still running, in a second window (same
 `LISTINGASSISTANTS_STATE_DIR`):
 
 ```bash
@@ -123,7 +149,7 @@ Try a second desk on the same folder: `python tools/desk.py --port 8770`.
 
 Stop the desk (Ctrl+C).
 
-## T7 - A test script into your live desk
+## T8 - A test script into your live desk
 
 The scenes' vendor roster is a draft. Ratify it for this test: open
 `scenes/config/vendor_panel.json`, replace the `_status` line's text with
@@ -142,10 +168,10 @@ Press **Next** until the bar turns red.
 
 ![A test script waiting for you](images/desk-manual/16-test-script.png)
 
-## T8 - Restart in the middle
+## T9 - Restart in the middle
 
 Without pressing Send, stop the desk (Ctrl+C) and start it again with the
-same command as T7.
+same command as T8.
 
 **Expect:** the bar is back at "Your move: press Send on the held vendor
 booking for S4", step 4 of 11 - not step 0. The S4 listing card shows once,
@@ -159,7 +185,7 @@ played. Check the record to finish."; S4's
 track green from Signed to Marketed; **2 of 2**; **✓ Intact**. The listing
 was signed with *your* key: your login is at the top left.
 
-## T9 - Don't send on your live desk
+## T10 - Don't send on your live desk
 
 Stop the desk and start it with the next scene:
 
@@ -172,16 +198,19 @@ script ends with the S5 marketing held. On that card tap **Don't send**, type
 `hold for new photos`, tap **Sign: don't send**.
 
 **Expect:** the card leaves; held tile "· 1 you signed not to send"; the
-**N of N** tile does not move; S5's Marketed step stays grey; the feed reads
-"You signed Don't send: ... (hold for new photos)".
+**N of N** tile does not move; S5's Marketed step stays grey; the **What
+just happened** line reads "· latest: You signed Don't send: ... (hold for
+new photos)".
 
-## T10 - The daily clock from the desk
+## T11 - The daily clock from the desk
 
 Press **Run today's checks**.
-**Expect:** a note "Today's checks ran"; new lines in **What just happened**
-(the morning briefing from 18 among them).
+**Expect:** a note "Today's checks ran". Open **What just happened**: new
+lines, the morning briefing from 18 among them ("18 Calendar & Task
+Management → you: delivers a report"). In **Today's work**, Daily check runs
+goes up by one.
 
-## T11 - A tablet
+## T12 - A tablet
 
 Stop the desk, then:
 
@@ -199,7 +228,7 @@ required"}`.
 
 ![The desk on a tablet](images/desk-manual/14-tablet.png)
 
-## T12 - Windows only
+## T13 - Windows only
 
 On Windows, in PowerShell: start `python tools\desk.py --showcase --fresh`,
 press **Next** a few times, then **Ctrl+Break** (or Ctrl+C).
@@ -211,6 +240,17 @@ Run `python tools\console.py init` in a new test folder and check the key's
 permissions: right-click `operator-key.bin` → Properties → Security.
 **Expect:** your account, SYSTEM and Administrators (OWNER RIGHTS may be
 listed too) - and no "Users", "Authenticated Users" or "Everyone".
+
+## T14 - What you open stays open
+
+On any desk with items in **Needs you**: tap the title of a closed section
+(for example "A question for you") to open it, and close an open one. Wait
+five seconds. **Expect:** both stay as you left them through the page's
+refreshes. Reload the page. **Expect:** still as you left them.
+
+On a held message, tap **Send** once. **Expect:** "What would go out" opens
+by itself, and the button reads "Tap again to sign and send". Wait five
+seconds without tapping: the button goes back to **Send**.
 
 ---
 
@@ -228,12 +268,14 @@ window the desk runs in. Keep the state folder as it is (do not delete or
 | T1 The build is sound | | |
 | T2 The showcase plays through | | |
 | T3 Don't send (showcase) | | |
-| T4 The record checks | | |
-| T5 Your live desk, first run | | |
-| T6 The lock | | |
-| T7 A test script into your live desk | | |
-| T8 Restart in the middle | | |
-| T9 Don't send on your live desk | | |
-| T10 The daily clock from the desk | | |
-| T11 A tablet | | |
-| T12 Windows only | | |
+| T4 The day's work (showcase) | | |
+| T5 The record checks | | |
+| T6 Your live desk, first run | | |
+| T7 The lock | | |
+| T8 A test script into your live desk | | |
+| T9 Restart in the middle | | |
+| T10 Don't send on your live desk | | |
+| T11 The daily clock from the desk | | |
+| T12 A tablet | | |
+| T13 Windows only | | |
+| T14 What you open stays open | | |

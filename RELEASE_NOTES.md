@@ -32,6 +32,17 @@ end-to-end test.
 - **The desk on Windows is tested.** CI runs the desk's tests on
   `windows-latest`, including the lock's process check and a clean
   Ctrl+Break stop (the desk now handles Ctrl+Break).
+- **The day's work.** The desk counts what the swarm did each day, from the
+  audit record: 14 kinds of work done for you, 4 kinds of protection, 5
+  kinds of decision you signed. Every line opens to the entries behind its
+  number; any day can be picked and printed. Counts only: emails and texts
+  are not split (no channel is connected yet) and no time-saved figure is
+  shown (that needs minutes per task that only the broker can set).
+- **A calmer desk.** Needs you is in collapsible sections; a held message
+  shows one line until opened, and opens itself when you tap Send, so a
+  release is never signed unseen; listings fold their notes; Your team and
+  What just happened are one line until opened. The desk remembers what you
+  open. Typeface: Manrope (SIL OFL 1.1, bundled; `THIRD_PARTY_NOTICES.md`).
 - **The Broker Desk has its own manual and testing guide.**
   `docs/BROKER_DESK_MANUAL.md` explains every part and button of the page
   with real screenshots; `docs/BROKER_DESK_TESTING_GUIDE.md` is twelve tests,
@@ -47,7 +58,7 @@ end-to-end test.
   cp1252; 118 places fixed, 33 in core) and secrets "made private" with
   chmod, which does nothing on Windows - the signing keys and pager config
   were readable by other accounts. `dispatcher/private_file.py` now makes
-  them private on every system. Windows: 1016 passed; Linux: 1015 passed,
+  them private on every system. Windows: 1023 passed; Linux: 1022 passed,
   1 skipped (a Windows-only test).
 - **Pictures for non-technical readers.** Every agent folder has a README
   with a diagram of who it hears from and who it talks to (drawn from
@@ -173,7 +184,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1015 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1022 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

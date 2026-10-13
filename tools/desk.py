@@ -48,6 +48,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import re
 import http.server
 import json
 import os
@@ -67,6 +68,8 @@ import console  # noqa: E402
 from gen_diagrams import PHRASE, phrase  # noqa: E402
 
 PAGE = os.path.join(TOOLS, "desk.html")
+FONTS = os.path.join(TOOLS, "fonts")
+FONT_FILES = {"manrope-latin-wght-normal.woff2", "manrope-latin-ext-wght-normal.woff2"}
 GATED = {"counterparty", "public"}
 QUEUE_TITLE = {
     "escalation.legal_line": "Legal line - yours to answer",
@@ -77,6 +80,131 @@ QUEUE_TITLE = {
     "dead.letter": "Could not be delivered",
 }
 REPLY_AGENTS = ["03", "04", "12", "13", "16", "20"]   # agents with a reply handler (Agent 11)
+
+
+# ----------------------------------------------------------------- the day's work
+# What the swarm did, counted from the audit log for one day (the desk
+# computer's local date). Every count is a count of log entries matching
+# the rule beside it, and each row carries those entries, so a number can
+# be checked one entry at a time. Nothing here is estimated.
+def _env(intent, frm=None, to=None, payload=None):
+    def m(e):
+        return (e.get("kind") == "envelope.persisted" and e.get("intent") == intent
+                and (frm is None or e.get("from_agent") == frm)
+                and (to is None or e.get("to_agent") == to)
+                and (payload is None or payload(e.get("payload") or {})))
+    return m
+
+
+def _kind(kind, pred=None):
+    return lambda e: e.get("kind") == kind and (pred is None or pred(e))
+
+
+TALLY = [
+    ("Done for you", [
+        ("leads", "Leads captured", _env("lead.captured")),
+        ("hot", "Hot leads flagged to you", _kind("escalation.raised",
+                                                 lambda e: e.get("queue") == "escalation.hot_lead")),
+        ("client_messages", "Client messages written and released", _env("client.message.send", to="external")),
+        ("client_replies", "Client replies routed", _env("client.reply", frm="external")),
+        ("vendor", "Vendor bookings sent", _env("vendor.schedule", to="external")),
+        ("marketing", "Marketing campaigns published", _env("campaign.publish", to="external")),
+        ("copy", "Listing descriptions checked by compliance", _env("content.verdict")),
+        ("docs", "Documents requested", _env("doc.request")),
+        ("deadlines", "Deadline alerts raised", _env("deadline.alert", to="18")),
+        ("showings", "Showings put on the calendar", _env("calendar.event", frm="06",
+                                                            payload=lambda p: p.get("event") == "showing")),
+        ("files", "Files filed in client folders", _kind("drawer.filed")),
+        ("reports", "Reports delivered to you", _env("report.package", to="human")),
+        ("checks", "Daily check runs", _kind("sweep.completed")),
+        ("closed", "Transactions closed", _env("transaction.closed", to="14")),
+    ]),
+    ("Protected", [
+        ("held", "Messages held for your signature", _kind("absolute_signal.hold")),
+        ("caught", "Compliance problems caught", _env("content.verdict",
+                                                       payload=lambda p: p.get("verdict") == "flagged")),
+        ("refused", "Unsigned or tampered messages refused", _kind("integrity.violation")),
+        ("raised", "Items raised for a person (legal line, complaints, questions)",
+         lambda e: (e.get("kind") == "escalation.raised" and e.get("queue") != "escalation.hot_lead")
+         or (e.get("kind") == "envelope.persisted" and e.get("intent") == "clarification.request"
+             and e.get("to_agent") == "queue")),
+    ]),
+    ("Your decisions", [
+        ("released", "Releases you signed (Send)", _kind("disclosure.authorized")),
+        ("declined", "Don't-sends you signed", _kind("disclosure.declined")),
+        ("decided", "Continue / Cancel decisions", _kind("hitl.decision.authorized")),
+        ("handled", "Items you marked Done or Called", _kind("desk.acknowledged")),
+        ("signed", "Settings and listings you signed", lambda e: e.get("kind") == "envelope.persisted"
+         and e.get("from_agent") == "human"
+         and e.get("intent") in ("config.update", "listing.change.authorized")),
+    ]),
+]
+TALLY_ITEMS_SHOWN = 30
+
+
+def local_day(ts):
+    return datetime.datetime.fromtimestamp(ts).date().isoformat()
+
+
+def _tally_line(e):
+    k = e.get("kind")
+    if k == "envelope.persisted":
+        frm, to = e.get("from_agent"), e.get("to_agent")
+        who = "You" if frm == "human" else "Outside" if frm == "external" \
+            else f"{frm} {NAMES.get(frm, '')}".strip()
+        dest = "you" if to in ("human", "queue") else "outside" if to == "external" \
+            else f"{to} {NAMES.get(to, '')}".strip()
+        text = f"{who} → {dest}: {words(e.get('intent'))}"
+        v = (e.get("payload") or {}).get("verdict")
+        return text + (f" ({v})" if v else "")
+    if k == "drawer.filed":
+        return f"{e.get('category')}/{e.get('filename')}"
+    if k == "escalation.raised":
+        return f"raised to you: {QUEUE_TITLE.get(e.get('queue'), e.get('queue'))}"
+    if k in ("disclosure.authorized", "disclosure.declined"):
+        why = f" - {e.get('reason')}" if e.get("reason") else ""
+        return f"{words(e.get('intent'))}{why}"
+    if k == "hitl.decision.authorized":
+        return f"decision: {e.get('decision')}"
+    if k == "desk.acknowledged":
+        return f"{e.get('title')} - by {e.get('by')}"
+    if k == "absolute_signal.hold":
+        return f"held: {words(e.get('intent'))} (to {e.get('audience')})"
+    if k == "integrity.violation":
+        return str(e.get("reason") or "refused")
+    if k == "sweep.completed":
+        return "the daily checks ran"
+    return k
+
+
+def day_tally(log, day=None):
+    """The day's work, from the audit log. `day` is YYYY-MM-DD in the desk
+    computer's local time (default: today). Returns the days that have
+    entries, newest first, and per group the rows {key, label, count,
+    items (up to TALLY_ITEMS_SHOWN, newest first), more}."""
+    day = day or datetime.date.today().isoformat()
+    days = sorted({local_day(e["ts"]) for e in log if e.get("ts")}, reverse=True)
+    todays = [e for e in log if e.get("ts") and local_day(e["ts"]) == day]
+    groups = []
+    for gname, rows in TALLY:
+        out = []
+        for key, label, match in rows:
+            hits = [e for e in todays if match(e)]
+            if key == "closed":       # one transaction can close to more than one agent
+                seen, uniq = set(), []
+                for e in hits:
+                    if e.get("client_context_id") not in seen:
+                        seen.add(e.get("client_context_id"))
+                        uniq.append(e)
+                hits = uniq
+            items = [{"ts": e.get("ts"), "ctx": e.get("client_context_id"), "text": _tally_line(e),
+                      "entry": (e.get("entry_hash") or "")[:12]}
+                     for e in reversed(hits[-TALLY_ITEMS_SHOWN:])]
+            out.append({"key": key, "label": label, "count": len(hits), "items": items,
+                        "more": max(0, len(hits) - TALLY_ITEMS_SHOWN)})
+        groups.append({"name": gname, "rows": out})
+    return {"day": day, "days": days if day in days else [day] + days, "groups": groups,
+            "basis": "counted from the audit log; each line lists the entries behind its number"}
 
 
 def now():
@@ -157,7 +285,7 @@ class ReadModel:
     def __init__(self, desk):
         self.d = desk
 
-    def build(self):
+    def build(self, day=None):
         sw = self.d.sw
         hub = sw.hub
         log = hub.audit.read()
@@ -175,6 +303,7 @@ class ReadModel:
             "team": self.team(log, hub, sw),
             "proof": self.proof(log, hub, sw, audience),
             "activity": self.activity(log),
+            "day": day_tally(log, day),
             "showcase": self.d.show.status() if self.d.show else None,
             "last_action": self.d.last_action,
         }
@@ -692,9 +821,9 @@ class Desk:
             if os.path.exists(self.lockfile):
                 os.remove(self.lockfile)
 
-    def state(self):
+    def state(self, day=None):
         with self.lock:
-            return self.model.build()
+            return self.model.build(day)
 
     def _done(self, what, result):
         self.sw.save_state()
@@ -779,8 +908,8 @@ class OwnerThread:
         self._ex = ThreadPoolExecutor(max_workers=1, thread_name_prefix="desk-owner")
         self.desk = self._ex.submit(factory).result()
 
-    def state(self):
-        return self._ex.submit(self.desk.state).result()
+    def state(self, day=None):
+        return self._ex.submit(self.desk.state, day).result()
 
     def act(self, body):
         return self._ex.submit(self.desk.act, body).result()
@@ -813,13 +942,28 @@ def make_handler(desk, token):
             self.wfile.write(data)
 
         def do_GET(self):
+            path = urllib.parse.urlparse(self.path).path
+            # the page's font: no data in it, so no access code (a tablet's
+            # browser asks for it without one)
+            if path.startswith("/fonts/") and path[len("/fonts/"):] in FONT_FILES:
+                data = open(os.path.join(FONTS, path[len("/fonts/"):]), "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", "font/woff2")
+                self.send_header("Cache-Control", "max-age=86400")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if not self._authorized():
                 return self._send(403, {"error": "access code required"})
-            path = urllib.parse.urlparse(self.path).path
             if path == "/":
                 return self._send(200, open(PAGE, "rb").read(), "text/html; charset=utf-8")
             if path == "/api/state":
-                return self._send(200, desk.state())
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                day = q.get("day", [None])[0]
+                if day and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+                    return self._send(400, {"error": "day must be YYYY-MM-DD"})
+                return self._send(200, desk.state(day))
             return self._send(404, {"error": "not found"})
 
         def do_POST(self):
