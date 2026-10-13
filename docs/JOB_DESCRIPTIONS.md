@@ -1,5 +1,7 @@
 # JOB_DESCRIPTIONS.md - the ListingAssistants agents
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 Compiled from each agent's ratified SKILL.md and `identity/routes.json`. One
 entry per agent: what it is, what it does, what it sends and receives, and
 how many predeliberated tuples govern it. The SKILL.md and DECISIONS.md in

@@ -2,6 +2,8 @@
 
 Hub and router for the ListingAssistants real estate swarm. Use for validating and routing inter-agent envelopes, issuing acks, enforcing client-context isolation, and operating the escalation, clarification, integrity, and dead-letter queues.
 
+> **Words used here.** Lane, closed track, playbook, tuple and the other technical words are explained in plain language in [GLOSSARY.md](../docs/GLOSSARY.md).
+
 ## What it does with every message
 
 The hub has no lanes of its own: every message between agents, and every message to you or to the outside world, passes through it. These are its checks, in the order `dispatcher/hub.py` runs them. Yellow: waits for you. Red: stopped. Green: done.

@@ -1,5 +1,7 @@
 # ListingAssistants - Broker's Manual
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 This manual is for the licensed broker or agent the swarm works for. It
 covers what the agents do for you each day, where your decisions come in,
 and how to read what the system tells you. Every behavior described here has

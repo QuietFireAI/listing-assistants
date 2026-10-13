@@ -2,6 +2,8 @@
 
 Transaction document management. Use for requesting, receiving, filing, and chasing pre-approvals, proof of funds, inspections, appraisals, title commitments, HOA docs, surveys, disclosures, and amendments.
 
+> **Words used here.** Lane, closed track, playbook, tuple and the other technical words are explained in plain language in [GLOSSARY.md](../docs/GLOSSARY.md).
+
 ## Who it works with
 
 Left: who sends this agent messages. Right: who it sends messages to. The blue circle is the agent; the yellow box is you. Every arrow is a lane on the closed track (`identity/routes.json`): the hub refuses any message that is not on one.

@@ -1,5 +1,7 @@
 # WHAT_SUCCESS_MEANS.md
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 > **Fiduciary notice.** Price, terms, and every movement of money stay with the
 > licensed broker and the client. ListingAssistants coordinates the work around
 > those decisions. Its default build contains no payment, transfer, or wire

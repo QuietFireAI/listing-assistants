@@ -1,5 +1,7 @@
 # JEV decision adapter
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 `dispatcher/decision_adapter.py` connects ListingAssistants to the external
 JEV decision service (TypeSafe AI) when you choose to use it, and otherwise
 scores locally with the same rules Agent 02 uses. Since 2026-10-12 Agent 02

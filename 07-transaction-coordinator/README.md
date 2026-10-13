@@ -2,6 +2,8 @@
 
 Transaction timeline tracking from offer submission through closing. Use for offer status and every deadline: inspection, appraisal, financing contingency, title, HOA docs, repairs, and closing coordination alerts.
 
+> **Words used here.** Lane, closed track, playbook, tuple and the other technical words are explained in plain language in [GLOSSARY.md](../docs/GLOSSARY.md).
+
 ## Who it works with
 
 Left: who sends this agent messages. Right: who it sends messages to. The blue circle is the agent; the yellow box is you. Every arrow is a lane on the closed track (`identity/routes.json`): the hub refuses any message that is not on one.

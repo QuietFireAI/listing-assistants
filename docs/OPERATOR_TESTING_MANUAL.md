@@ -1,5 +1,7 @@
 # OPERATOR_TESTING_MANUAL.md - Test It Like a Customer Would
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 This is the script for operational testing: you, set up as the broker any
 buyer of this product would be, driving the swarm through the console with
 no Python, and a camera running. The ten scenes are ready-made files in
@@ -57,7 +59,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1023 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1034 passed, 1 skipped
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```

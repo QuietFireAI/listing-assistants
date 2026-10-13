@@ -262,6 +262,17 @@ OPERATOR_PATH = os.path.join(STATE_DIR, "operator.json")
 PAGER_PATH = os.path.join(STATE_DIR, "pager.json")
 
 
+def load_pager(state_dir):
+    """The text pager for the swarm on this state folder, or None when it is
+    off (no pager.json). A pager.json that is there but unusable raises
+    ValueError naming what is wrong: a pager that is on must page. Used by
+    console sessions, the Broker Desk and the daily clock (2026-10-13: the
+    desk showed "Text pager to you: on" while its swarm paged nobody)."""
+    from dispatcher import pager as pg
+    cfg = pg.load_config(os.path.join(state_dir, "pager.json"))
+    return pg.Pager(cfg) if cfg else None
+
+
 def cmd_pager(args):
     """Turns the text-message pager on (asks for the Twilio details once,
     after onboarding), sends a test page, or turns it off (owner decision
@@ -450,13 +461,11 @@ def cmd_session(args):
         except ValueError as e:
             _p({"error": str(e)})
             return 2
-    from dispatcher import pager as pg
     try:
-        cfg = pg.load_config(PAGER_PATH)
+        pager = load_pager(os.path.dirname(PAGER_PATH))
     except ValueError as e:
         _p({"error": str(e)})
         return 2
-    pager = pg.Pager(cfg) if cfg else None
     try:
         sw, signer = build(args.audit_log or AUDIT_PATH, getattr(args, "config_dir", None),
                            None if args.no_state else (args.state_db or STATE_DB), model, pager)

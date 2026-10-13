@@ -47,7 +47,7 @@ def main(argv=None) -> int:
     now_iso = args.now_iso or now.replace(microsecond=0).isoformat()
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from console import desk_running
+    from console import desk_running, load_pager
     other = desk_running(os.path.dirname(os.path.abspath(args.audit_log)))
     if other:
         print(json.dumps({"error": f"the Broker Desk is running on this state (pid {other}); "
@@ -57,10 +57,18 @@ def main(argv=None) -> int:
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError
     try:
-        sw = build_swarm(args.audit_log, state_db=args.state_db, config_dir=args.config_dir)
+        pager = load_pager(os.path.dirname(os.path.abspath(args.audit_log)))
+    except ValueError as e:
+        print(json.dumps({"error": str(e)}))
+        return 2
+    try:
+        sw = build_swarm(args.audit_log, state_db=args.state_db, config_dir=args.config_dir,
+                         human_notifier=pager)       # the pager, when on, texts you from the clock too
     except StateIntegrityError as e:
         print(json.dumps({"error": "saved state refused", "reason": str(e)}))
         return 2
+    if pager:
+        pager.audit = sw.hub.audit
     hub, spokes = sw.hub, sw.spokes
     results = run_daily_sweeps(hub, spokes, today=today, now_iso=now_iso)
     sw.save_state()

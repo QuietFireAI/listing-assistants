@@ -47,6 +47,8 @@ flowchart TB
 *Arrows show what usually leads to what; any playbook can also start on its own trigger (listed in [PLAYBOOKS.md](PLAYBOOKS.md)). The "Every day" group runs alongside all of it.*
 <!-- /diagram:map-playbooks -->
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 One entry per playbook: trigger, agents deployed, and human-in-the-loop
 gates. Each playbook's executable definition is its end-to-end test,
 `test_pNN_*` in `tests_listing/test_playbooks_e2e.py` and

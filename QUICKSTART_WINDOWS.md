@@ -5,6 +5,9 @@
 **Official Repository:** `https://github.com/QuietFireAI/listing-assistants`  
 **Official Production Domain:** [ListingAssistants.com](https://ListingAssistants.com)
 
+
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [docs/GLOSSARY.md](docs/GLOSSARY.md).
+
 ---
 
 ## 1. Prerequisites (2 Minutes)
@@ -74,7 +77,7 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `1024 passed` (CI runs this on Windows on every push). It takes
+Expected: `1035 passed` (CI runs this on Windows on every push). It takes
 several minutes on Windows - every audit-log write is flushed to disk - where
 Linux takes under a minute. The suite runs every agent's rules and all 24
 playbooks end to end against the real hub.
@@ -103,7 +106,7 @@ operator scenes; when the bar turns red it is your move: press **Send**
 also has **Don't send**: it signs a decline, with your reason, and that
 message never goes out. Stop the desk with Ctrl+C (or Ctrl+Break). Your own
 desk, on your own records, is `python tools\desk.py`. Every part of the page
-is explained in `docs\BROKER_DESK_MANUAL.md`; twelve tests, with what you
+is explained in `docs\BROKER_DESK_MANUAL.md`; fourteen tests, with what you
 should see, are in `docs\BROKER_DESK_TESTING_GUIDE.md`.
 
 ### Step 4: Open the client funnel page

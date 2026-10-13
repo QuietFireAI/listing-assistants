@@ -539,7 +539,7 @@ class ReadModel:
         signed_out = sum(1 for e in gated_out if e.get("envelope_id") in released)
         client_msgs = sum(1 for e in log if e.get("kind") == "envelope.persisted"
                           and e.get("intent") == "client.message.send")
-        pager = os.path.exists(os.path.join(self.d.state_dir, "pager.json"))
+        pager = self.d.pager is not None      # on only when this desk's swarm pages
         return {
             "chain_ok": bool(chain.get("ok")), "entries": len(log),
             "chain_detail": chain,
@@ -801,6 +801,10 @@ class Desk:
         if not os.path.exists(key):
             raise SystemExit(f"no key in {state_dir}: run `python tools/console.py init` and "
                              f"`python tools/console.py onboard` first")
+        try:
+            self.pager = console.load_pager(state_dir)   # before the lock: a bad pager.json leaves none
+        except ValueError as e:
+            raise SystemExit(str(e))
         console.STATE_DIR = state_dir
         console.KEY_PATH = key
         console.OPERATOR_PATH = os.path.join(state_dir, "operator.json")
@@ -813,7 +817,7 @@ class Desk:
         self.operator = console._operator()
         self.sw, self.signer = console.build(
             os.path.join(state_dir, "console-audit.jsonl"), config_dir,
-            os.path.join(state_dir, "swarm-state.sqlite"))
+            os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
         self.show = Showcase(self) if showcase else \
             (Showcase(self, scripts, script_lines) if scripts else None)
         self.model = ReadModel(self)

@@ -1,5 +1,7 @@
 # The Broker Desk - Testing Guide
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 Fourteen tests, in order, each with what to do and exactly what you should see.
 Together they cover the desk end to end: the showcase (what the client video
 records), your own live desk, test scripts, Send and Don't send, the lock,
@@ -24,8 +26,8 @@ pip install -r requirements.txt
 python -m pytest tests_listing/ -q
 ```
 
-**Expect:** `1023 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1024 passed` on Windows, after 5 to 8 minutes.
+**Expect:** `1034 passed, 1 skipped` on Linux or macOS (the skipped test runs
+only on Windows); `1035 passed` on Windows, after 5 to 8 minutes.
 
 ## T2 - The showcase plays through
 

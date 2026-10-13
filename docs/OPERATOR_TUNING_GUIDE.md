@@ -1,5 +1,7 @@
 # ListingAssistants - Operator Guide
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 Setup, configuration, storage, offline updates, and the optional modules.
 Every command and code block in this guide was run against this repository
 on 2026-10-11. For every numeric parameter, see
@@ -72,7 +74,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1023 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1034 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
@@ -512,8 +514,11 @@ python tools/console.py pager --off    # forget the details
 ```
 
 Run it after `onboard`. The details are saved in `console-state/pager.json`
-(readable by your user only). From then on every console session texts you
-whenever something lands in a human queue, as well as printing it. A page
+(readable by your user only). From then on every console session, the
+Broker Desk and the daily clock text you whenever something lands in a human
+queue (a console session also prints it). If `pager.json` is there but
+unusable, the desk and the clock refuse to start and say why, rather than
+run without paging. A page
 says which queue and which client context, never the client's words, and
 every page attempt is on the audit chain (`pager.sent` / `pager.failed`)
 without the credentials.

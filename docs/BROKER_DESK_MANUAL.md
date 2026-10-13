@@ -1,5 +1,7 @@
 # The Broker Desk - User's Manual
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 The Broker Desk is one page, on your own computer, that shows everything your
 twenty assistants are doing and everything waiting for you. It is the only
 place you need to look during the day. Every button that acts signs with your

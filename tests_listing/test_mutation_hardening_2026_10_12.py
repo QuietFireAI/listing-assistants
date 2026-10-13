@@ -415,9 +415,9 @@ def test_pager_sends_exactly_one_minimal_text_and_records_it():
     assert auth == "Basic " + base64.b64encode(b"AC9:tok").decode()
     import urllib.parse as up
     assert up.parse_qs(data) == {"To": ["+15550000002"], "From": ["+15550000001"],
-                                 "Body": ["ListingAssistants: escalation.hot_lead waiting for you (C1). Open the console."]}
+                                 "Body": ["ListingAssistants: escalation.hot_lead waiting for you (C1). Open the Broker Desk or the console."]}
     assert appended == [("pager.sent", {"queue": "escalation.hot_lead", "client_context_id": "C1", "http_status": 201})]
-    assert page_text("q", {}) == "ListingAssistants: q waiting for you (no client). Open the console."
+    assert page_text("q", {}) == "ListingAssistants: q waiting for you (no client). Open the Broker Desk or the console."
 
 
 def test_pager_failures_are_recorded_not_raised():

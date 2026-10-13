@@ -374,6 +374,9 @@ def agent_readme(aid, agents, routes, appears, headings) -> str:
     folder = os.path.basename(a["dir"])
     parts = [f"# Agent {aid} - {a['name']}", "",
              a["summary"], "",
+             "> **Words used here.** Lane, closed track, playbook, tuple and the "
+             "other technical words are explained in plain language in "
+             "[GLOSSARY.md](../docs/GLOSSARY.md).", "",
              "## Who it works with", "",
              "Left: who sends this agent messages. Right: who it sends messages "
              "to. The blue circle is the agent; the yellow box is you. Every "
@@ -381,7 +384,7 @@ def agent_readme(aid, agents, routes, appears, headings) -> str:
              "the hub refuses any message that is not on one.", "",
              agent_diagram(aid, agents, routes), ""]
     if aid == "00":
-        parts = parts[:4] + [
+        parts = parts[:6] + [
             "## What it does with every message", "",
             "The hub has no lanes of its own: every message between agents, "
             "and every message to you or to the outside world, passes through "

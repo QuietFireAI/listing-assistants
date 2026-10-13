@@ -49,6 +49,8 @@ flowchart TB
 *No agent talks to another directly: every arrow goes through the hub, and only on lanes listed in `identity/routes.json`. Each agent's own picture is in its folder (for example [05-mls-listing-management](../05-mls-listing-management/README.md)).*
 <!-- /diagram:team-start -->
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 **What this is.** Twenty specialized agents, coordinated by one dispatcher hub, that run the coordination
 layer of a residential listing business — lead intake, listing
 go-to-market, transaction deadlines, document chasing, showing
@@ -76,7 +78,7 @@ minutes:
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1023 passed, 1 skipped)
+python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1034 passed, 1 skipped)
 ```
 
 That last command isn't a formality — it executes every playbook,

@@ -47,6 +47,8 @@ flowchart TB
 *Arrows show what usually leads to what; any playbook can also start on its own trigger (listed in [PLAYBOOKS.md](PLAYBOOKS.md)). The "Every day" group runs alongside all of it.* *Each playbook below has its own picture: one recorded test run, numbered in order. The yellow notes are holds waiting for you.*
 <!-- /diagram:map-pbp -->
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 This is the walkthrough for the person who asks "okay, but what does it
 actually *do*?" Each playbook below is narrated the way it executes: who
 talks to whom, what rides in each message, where the gates sit, and

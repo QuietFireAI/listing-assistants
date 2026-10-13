@@ -1,5 +1,7 @@
 # Listing Swarm — Operator Testing & Video Guide
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [docs/GLOSSARY.md](docs/GLOSSARY.md).
+
 For recording the swarm in action on a real Hermes agent, using your generated
 client/listing data. Written so every step produces something visible worth
 narrating. Nothing here asks you to trust the system — each act ends in a check
@@ -15,10 +17,10 @@ Repo: `github.com/QuietFireAI/listing-assistants`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt     # the 6 pillars, Ed25519 (cryptography), mcp
-python3 -m pytest tests_listing -q  # expect: 1023 passed, 1 skipped
+python3 -m pytest tests_listing -q  # expect: 1034 passed, 1 skipped
 ```
 
-If `1023 passed, 1 skipped` prints, the build is sound and nothing needs addressing before you
+If `1034 passed, 1 skipped` prints, the build is sound and nothing needs addressing before you
 record. If it does not, stop and send me the failure — do not record a swarm that
 does not pass its own suite.
 

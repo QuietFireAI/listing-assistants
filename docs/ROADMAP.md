@@ -22,6 +22,8 @@ flowchart LR
 ```
 <!-- /diagram:roadmap -->
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 Released tags: `archetype-v1.0.0`, `v1.1.0`. The audit-fix branch of
 2026-10-11 is not tagged; tagging the release commit is the owner's step.
 

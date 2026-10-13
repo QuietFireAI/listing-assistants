@@ -1,5 +1,7 @@
 # Financial Capability — status, controls, and how to engage it
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 This is the document a held message points you to. If a ListingAssistants agent stopped
 and told you it could not send financial or position-bearing content, it linked
 here. Nothing broke. The system did exactly what it is built to do.

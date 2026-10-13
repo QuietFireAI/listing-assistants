@@ -2,6 +2,8 @@
 
 Buyer-side search and matching. Use for maintaining client-stated buyer criteria, matching new inventory to buyers, delivering matches, and generating showing requests, with anti-steering safeguards.
 
+> **Words used here.** Lane, closed track, playbook, tuple and the other technical words are explained in plain language in [GLOSSARY.md](../docs/GLOSSARY.md).
+
 ## Who it works with
 
 Left: who sends this agent messages. Right: who it sends messages to. The blue circle is the agent; the yellow box is you. Every arrow is a lane on the closed track (`identity/routes.json`): the hub refuses any message that is not on one.

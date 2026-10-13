@@ -2,6 +2,8 @@
 
 Market data assembly with no opinions. Use for comp packages (recent sales, actives, expireds), buyer neighborhood packages (schools, crime, walkability, commute, amenities, HOA, flood zone, tax history), and farm-area macro trends.
 
+> **Words used here.** Lane, closed track, playbook, tuple and the other technical words are explained in plain language in [GLOSSARY.md](../docs/GLOSSARY.md).
+
 ## Who it works with
 
 Left: who sends this agent messages. Right: who it sends messages to. The blue circle is the agent; the yellow box is you. Every arrow is a lane on the closed track (`identity/routes.json`): the hub refuses any message that is not on one.

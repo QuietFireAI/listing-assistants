@@ -19,6 +19,32 @@ playbooks.
 
 ---
 
+## Words used here
+
+This page uses some words from the software side. The ones that matter most,
+in plain language (every one, with more detail: [docs/GLOSSARY.md](docs/GLOSSARY.md)):
+
+| Word | What it means here |
+|---|---|
+| [Agent](docs/GLOSSARY.md#agent) | One member of your digital operations team, with one job. There are twenty, numbered 01 to 20. |
+| [Swarm](docs/GLOSSARY.md#swarm) | The whole team working together: the twenty agents plus the hub. |
+| [Hub (dispatcher, Agent 00)](docs/GLOSSARY.md#dispatcher-and-hub) | The one piece every message passes through. It checks each message, delivers it, and writes it to the record. Agents talk only to the hub. |
+| [Identity](docs/GLOSSARY.md#identity) | The real estate version of a general-purpose system: the hub and the record come from [dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents); this repository adds the agents, their routes, their decisions and the playbooks. |
+| [Message and intent](docs/GLOSSARY.md#message) | One piece of work passed between agents through the hub. Its *intent* is the kind of message, written like `listing.data` or `vendor.request`. |
+| [Route and lane](docs/GLOSSARY.md#route-and-lane) | Which kind of message may go from which agent to which. Each sender-kind-receiver combination is a lane. |
+| [Closed track](docs/GLOSSARY.md#closed-track) | Messages travel only on the routes listed in `identity/routes.json`, like trains on rails. Anything else is refused or held for you. |
+| [Playbook](docs/GLOSSARY.md#playbook) | A standard piece of real estate work from start to finish (P01 New Listing Onboarding through P24), with the agents involved and the points where it waits for you. |
+| [Tuple](docs/GLOSSARY.md#tuple) | One decision made ahead of time, written as *(the situation, what to do)*. When no tuple fits, the agent stops and asks you. |
+| [Signature and signing key](docs/GLOSSARY.md#signature) | Your digital signature, made with a private key file on your computer. It proves a message came from you and was not changed after. |
+| [Hold and release](docs/GLOSSARY.md#hold) | A message leaving for anyone but your client waits at the hub (*held*) until you sign its *release* (**Send**) or sign **Don't send**. |
+| [Paused thread](docs/GLOSSARY.md#paused-thread) | Work an agent cannot finish on its own waits for your signed **Continue** or **Cancel**. |
+| [HITL](docs/GLOSSARY.md#hitl) | *Human in the loop*: the points where the system waits for you. |
+| [Audit log (the record)](docs/GLOSSARY.md#audit-log) | The running record of everything the swarm does. It is [hash-chained](docs/GLOSSARY.md#hash-chained): each entry carries a fingerprint of the one before, so any edit shows. |
+| [Client context](docs/GLOSSARY.md#client-context) | The short id of the client or file a message belongs to, such as `S4`. |
+| [Daily clock](docs/GLOSSARY.md#daily-clock) | The once-a-day run that wakes every agent for its scheduled checks: deadlines, re-scores, weekly reports. |
+| [Pillars](docs/GLOSSARY.md#pillars) | Six optional QuietFire self-check add-ons. One that is not installed says *UNARMED* on the record. |
+| [Test, suite and CI](docs/GLOSSARY.md#test-and-suite) | A test runs one part and checks the result; the suite is all of them; [CI](docs/GLOSSARY.md#ci) runs the suite on GitHub after every change. |
+
 ## What it does
 
 Twenty spoke agents cover the listing lifecycle end to end:
@@ -341,7 +367,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1023 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1034 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -413,7 +439,7 @@ python tools/desk.py --config-dir scenes/config --script scenes/scene04_new_list
 ```
 
 Every part and button is explained, with pictures, in
-[docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md); twelve tests to run
+[docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md); fourteen tests to run
 it end to end are in [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md).
 
 A held message waits for your answer: **Send** or **Don't send**, each a
@@ -448,6 +474,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 ## Reading order
 
 1. [docs/START_HERE.md](docs/START_HERE.md) - the 60-second version
+   (and [docs/GLOSSARY.md](docs/GLOSSARY.md) - every word explained, whenever you need it)
 2. [docs/WHAT_SUCCESS_MEANS.md](docs/WHAT_SUCCESS_MEANS.md) - what each playbook delivers
 3. [docs/PLAY-BY-PLAY.md](docs/PLAY-BY-PLAY.md) - what moves between agents, step by step
 4. [docs/JOB_DESCRIPTIONS.md](docs/JOB_DESCRIPTIONS.md) - every agent's role and rules
@@ -455,7 +482,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 6. [docs/TUNING_MANUAL.md](docs/TUNING_MANUAL.md) - every number you can turn
 7. [docs/AGENT_USER_MANUAL.md](docs/AGENT_USER_MANUAL.md) - a broker's day with the system
 8. [docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md) - the Broker Desk, part by part and button by button, with pictures
-9. [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md) - twelve desk tests, each with what you should see
+9. [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md) - fourteen desk tests, each with what you should see
 10. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, drawers, the decision engine and model drafting
 11. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - ten filmable operator scenes (`scenes/`), each checked by the suite
 12. [docs/FINANCIAL_CAPABILITY.md](docs/FINANCIAL_CAPABILITY.md) - the financial locks and the security reviewer's risk list

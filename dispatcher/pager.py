@@ -16,7 +16,7 @@ on screen, whenever something lands in a human queue.
 
 What a page says: the queue name and the client context id, nothing else -
 "ListingAssistants: escalation.hot_lead waiting for you (S3-hot). Open the
-console." No client words, names or figures leave the machine in a page.
+Broker Desk or the console." No client words, names or figures leave the machine in a page.
 Every page attempt is on the audit chain (pager.sent / pager.failed) without
 the credentials.
 
@@ -41,7 +41,7 @@ _LOCAL = {"localhost", "127.0.0.1", "::1"}
 
 def page_text(queue: str, record: dict) -> str:
     ctx = (record or {}).get("client_context_id") or "no client"
-    return f"ListingAssistants: {queue} waiting for you ({ctx}). Open the console."
+    return f"ListingAssistants: {queue} waiting for you ({ctx}). Open the Broker Desk or the console."
 
 
 def validate(cfg: dict) -> list[str]:

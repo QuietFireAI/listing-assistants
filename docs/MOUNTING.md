@@ -1,5 +1,7 @@
 # Mounting this identity as an MCP server
 
+> **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
+
 This identity ships a generic MCP wrapper (`dispatcher/identity_mcp.py`)
 that exposes it as a standard **stdio MCP server** — so it mounts
 identically on Hermes, OpenClaw, and Claude Desktop with zero per-host

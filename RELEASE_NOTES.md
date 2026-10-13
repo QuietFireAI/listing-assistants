@@ -32,6 +32,14 @@ end-to-end test.
 - **The desk on Windows is tested.** CI runs the desk's tests on
   `windows-latest`, including the lock's process check and a clean
   Ctrl+Break stop (the desk now handles Ctrl+Break).
+- **The pager texts you from the desk and the daily clock.** Turned on with
+  `python tools/console.py pager`, it used to text only during console
+  sessions while the desk showed it as on. Now the desk and the clock text
+  you too, and a broken `pager.json` stops them with the reason.
+- **Words used here.** `docs/GLOSSARY.md` explains every software word in
+  plain language (tuple, playbook, swarm, closed track, hold, release and
+  more); the README opens with the ones that matter most, and every manual
+  and agent page points to it.
 - **The day's work.** The desk counts what the swarm did each day, from the
   audit record: 14 kinds of work done for you, 4 kinds of protection, 5
   kinds of decision you signed. Every line opens to the entries behind its
@@ -53,7 +61,7 @@ end-to-end test.
   open. Typeface: Manrope (SIL OFL 1.1, bundled; `THIRD_PARTY_NOTICES.md`).
 - **The Broker Desk has its own manual and testing guide.**
   `docs/BROKER_DESK_MANUAL.md` explains every part and button of the page
-  with real screenshots; `docs/BROKER_DESK_TESTING_GUIDE.md` is twelve tests,
+  with real screenshots; `docs/BROKER_DESK_TESTING_GUIDE.md` is fourteen tests,
   each with what you should see. `tests_listing/test_desk_manual.py` fails if
   a button, title, step, flag, picture or link they name stops existing.
 - **Test scripts on your own desk.** `python tools/desk.py --script FILE`
@@ -192,7 +200,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1023 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1034 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```
