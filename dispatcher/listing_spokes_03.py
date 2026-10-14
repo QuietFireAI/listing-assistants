@@ -311,13 +311,20 @@ class Spoke03LeadNurture:
         if env.intent == "lead.nurture":
             consent = env.payload.get("consent") or {}
             inputs = env.payload.get("scoring_inputs")
+            prior = self.rescore_pool.get(ctx)
             if isinstance(inputs, dict) and env.payload.get("today"):
-                prior = self.rescore_pool.get(ctx)
                 self.rescore_pool[ctx] = {"inputs": inputs, "scored_on": env.payload["today"],
                                           "last_rescore": env.payload["today"],
                                           "awaiting": False}
+            elif prior is not None:
+                prior["awaiting"] = False
+            if prior is not None:
+                # 2026-10-14 (tuple runs, 03-08): this check used to sit inside
+                # the dated branch, so a re-score answer with no date (an
+                # engagement spike reported without one) fell through and
+                # restarted the running sequence from day 0
                 existing_seq = self.active_sequences.get(ctx)
-                if (prior is not None and env.payload.get("reassignment") and existing_seq
+                if (env.payload.get("reassignment") and existing_seq
                         and existing_seq["sequence_id"] == env.payload.get("sequence_id", "default_drip")):
                     # a cadence re-score kept the lead WARM on the same
                     # sequence: the pool entry is refreshed and the running
@@ -530,9 +537,33 @@ class Spoke03LeadNurture:
                             "and rescoring via 02; never converting the "
                             "signal into direct outreach myself",
                     result="paused, rescored")
-                self.hub.send(_env("03", "02", "lead.rescored", ctx,
-                                   {"reason": "engagement_spike",
-                                    "engagement_score": score_delta}))
+                # 2026-10-14 (tuple runs, 03-05): the spike re-score used to
+                # carry no scoring inputs, so Agent 02 halted it as "all
+                # rubric inputs unknown" and paged the broker. It now carries
+                # the lead's stated inputs from the re-score pool, with the
+                # timeline counted down by the days since scoring when the
+                # signal says what day it is (tuple 12: never any other input).
+                import datetime
+                body = {"reason": "engagement_spike", "engagement_score": score_delta}
+                entry = self.rescore_pool.get(ctx)
+                if entry:
+                    inputs = dict(entry["inputs"])
+                    today = env.payload.get("today")
+                    note = f"timeline as stated on {entry['scored_on']}"
+                    if today and isinstance(inputs.get("timeline_days"), (int, float)) \
+                            and not isinstance(inputs.get("timeline_days"), bool):
+                        try:
+                            elapsed = (datetime.date.fromisoformat(today)
+                                       - datetime.date.fromisoformat(entry["scored_on"])).days
+                            inputs["timeline_days"] = max(0, inputs["timeline_days"] - elapsed)
+                            note = f"{elapsed} days since scored"
+                        except (TypeError, ValueError):
+                            pass
+                    body = {**inputs, **body, "consent": (seq or {}).get("consent"),
+                            "rescore_reason": f"engagement spike: {note}"}
+                    if today:
+                        body["today"] = today
+                self.hub.send(_env("03", "02", "lead.rescored", ctx, body))
             return
 
         if env.intent == "content.verdict":

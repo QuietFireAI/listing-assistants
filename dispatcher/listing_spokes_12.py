@@ -399,7 +399,8 @@ class Spoke12MarketingCampaign:
             # spike feeds back into nurture, per 12's own legal edge to 03
             spike_threshold = payload.get("spike_threshold", 50)
             if value is not None and value >= spike_threshold:
-                self.hub.send(_env("12", "03", "behavioral.signal", ctx,
-                                   {"engagement_score": value,
-                                    "spike_threshold": spike_threshold}))
+                signal = {"engagement_score": value, "spike_threshold": spike_threshold}
+                if payload.get("today"):
+                    signal["today"] = payload["today"]   # lets 03 count the timeline down
+                self.hub.send(_env("12", "03", "behavioral.signal", ctx, signal))
             return

@@ -1,9 +1,15 @@
 {
  "_status": "RATIFIED 2026-10-14 for the synthetic tuple runs only (synth/tuples); a copy of the scenes' synthetic roster, not a broker's roster",
- "_purpose": "One made-up photographer so Scene 4 can book photography. Not a real vendor.",
+ "_purpose": "One made-up photographer and one made-up property checker for the synthetic tuple runs. Not real vendors.",
  "vendors": {
   "v-photo-synthetic": {
    "kind": "photography",
+   "license_expiry": "2027-12-31",
+   "insurance_expiry": "2027-12-31",
+   "regulated": false
+  },
+  "v-check-synthetic": {
+   "kind": "property_check",
    "license_expiry": "2027-12-31",
    "insurance_expiry": "2027-12-31",
    "regulated": false

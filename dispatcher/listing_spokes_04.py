@@ -101,7 +101,15 @@ class Spoke04ListingDescription:
         # note to human, never average
         sqft_tax = data.get("sqft_tax_record")
         sqft_seller = data.get("sqft_seller_claim")
-        if sqft_tax is not None and sqft_seller is not None and sqft_tax != sqft_seller:
+        if data.get("correction_of_discrepancy") and data.get("sqft") is not None:
+            # Agent 05's correction (its tuple 10: the MLS record is truth).
+            # 2026-10-14 (tuple runs, 05-10): this used to be ignored and the
+            # tax-record figure rebuilt, so the two agents looped.
+            facts.append({"text": f"{data['sqft']} sq ft",
+                         "attribution": "per MLS record", "adjective": False})
+            notes.append(f"sq ft corrected to the MLS record ({data['sqft']}); "
+                        f"tax record={sqft_tax}, seller claim={sqft_seller}")
+        elif sqft_tax is not None and sqft_seller is not None and sqft_tax != sqft_seller:
             facts.append({"text": f"{sqft_tax} sq ft",
                          "attribution": "per county tax records",
                          "adjective": False})

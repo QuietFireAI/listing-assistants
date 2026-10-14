@@ -33,8 +33,11 @@ case-insensitively against the whole entry as JSON.
 
 Results: PASS (every check held), VARIANCE (a check failed: the product does
 something other than the tuple says), ERROR (the session itself failed), and
-the spec's own status for tuples with no code path (NOT BUILT) or no outside
-entry (NOT REACHABLE).
+the spec's own status for tuples with no code path (NOT BUILT), no outside
+entry (NOT REACHABLE), or retired by the owner (RETIRED).
+
+A rejected envelope is never persisted, so a "reject" entry carries no
+context: match it with "contains", not "ctx".
 """
 from __future__ import annotations
 
@@ -150,7 +153,7 @@ def check(entries, idx, c):
 
 
 def run_one(spec, template, workdir):
-    if spec.get("status") in ("NOT BUILT", "NOT REACHABLE") and not spec.get("lines"):
+    if spec.get("status") in ("NOT BUILT", "NOT REACHABLE", "RETIRED") and not spec.get("lines"):
         return {"id": spec["id"], "result": spec["status"], "why": spec.get("why", "")}
     state = os.path.join(workdir, spec["id"])
     shutil.copytree(template, state)
@@ -185,7 +188,7 @@ def run_one(spec, template, workdir):
 
 def write_report(specs, results, path):
     by = {r["id"]: r for r in results}
-    order = ["PASS", "VARIANCE", "ERROR", "NOT REACHABLE", "NOT BUILT"]
+    order = ["PASS", "VARIANCE", "ERROR", "NOT REACHABLE", "NOT BUILT", "RETIRED"]
     counts = {k: sum(1 for r in results if r["result"] == k) for k in order}
     out = ["# Tuple runs", "",
            "Written by `python synth/tuples/run_tuples.py`. Each tuple ran in its own fresh",

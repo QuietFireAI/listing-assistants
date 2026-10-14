@@ -200,6 +200,29 @@ class Spoke05MLSListingManagement:
                         disagreements.append(fact["text"])
                         corrected_fields["sqft"] = record["sqft"]
             if disagreements:
+                # 2026-10-14 (tuple runs, 05-10): Agent 04 rebuilt the asset
+                # from the tax record again, so the same disagreement came
+                # back and the two agents corrected each other until the hub
+                # suspended the loop (73 suspensions in one run), and each
+                # disagreeing asset still went live. Now: one correction per
+                # listing, nothing goes live on an asset that disagrees, and
+                # a second disagreement goes to the broker.
+                sent = self.__dict__.setdefault("corrections_sent", set())
+                if ctx in sent:
+                    self.hub.ingest_spoke_trace(
+                        "05", env.envelope_id,
+                        thought=f"marketing asset still disagrees with the MLS record on "
+                                f"{disagreements} after one correction - holding for "
+                                f"the broker, not correcting again",
+                        result="held: asset still disagrees")
+                    self.hub.send(_env("05", "queue", "clarification.request", ctx,
+                                       {"reason": "the listing description still disagrees "
+                                                  "with the MLS record after one correction - "
+                                                  "nothing went live",
+                                        "disagreements": disagreements,
+                                        "mls_record": {k: record.get(k) for k in corrected_fields}}))
+                    return
+                sent.add(ctx)
                 self.hub.ingest_spoke_trace(
                     "05", env.envelope_id,
                     thought=f"marketing asset disagrees with MLS record on "
@@ -208,10 +231,15 @@ class Spoke05MLSListingManagement:
                             f"to rebuild the asset against, not just logging "
                             f"the discrepancy",
                     result="corrected: mls_is_truth")
+                self.hub.send(_env("05", "14", "interaction.log", ctx,
+                                   {"kind": "asset_mls_discrepancy",
+                                    "disagreements": disagreements,
+                                    "mls_record": {k: record.get(k) for k in corrected_fields}}))
                 self.hub.send(_env("05", "04", "listing.data", ctx,
                                    {**self.property_data.get(ctx, {}),
                                     **corrected_fields,
                                     "correction_of_discrepancy": disagreements}))
+                return
 
             # Phase 3: approved content clears the go-live gate. Status
             # change to 'active' still requires the signed authorization -
