@@ -9,8 +9,11 @@ every file Python can import under dispatcher/ and tools/, outside
 __pycache__ (.py, .pyc, .pyo, .so, .pyd, at any depth - so a package
 folder, a compiled extension or a sourceless .pyc that Python would import
 in place of a covered module is itself an unattested file; a .DS_Store or
-an editor's swap file is not code and is not covered), everything in
-identity/, MANNERS.md,
+an editor's swap file is not code and is not covered), any importable file
+at the repository root (first on the programs' import path, where it could
+stand in for a standard-library module: such a file is refused at the
+check, but it may already have run while the checker itself loaded),
+everything in identity/, MANNERS.md,
 SWARM.md, docs/PLAYBOOKS.md, docs/JOB_DESCRIPTIONS.md, and each agent
 folder's SKILL.md and DECISIONS.md - the resources identity/IDENTITY-*.md
 declares as attested at boot. config/ is not covered: its files are the
@@ -74,7 +77,11 @@ def covered_files(root: str = ROOT) -> list[str]:
                 p = os.path.join(dirpath, name)
                 if name.endswith(IMPORTABLE) and os.path.isfile(p):
                     out.add(os.path.relpath(p, root).replace(os.sep, "/"))
-    for pat in ("identity/*", "[0-9][0-9]-*/SKILL.md", "[0-9][0-9]-*/DECISIONS.md", *FIXED_FILES):
+    # the repository root is first on the programs' import path: a module
+    # there would stand in for a standard-library one (2026-10-14 review)
+    root_code = [f"*{ext}" for ext in IMPORTABLE]
+    for pat in ("identity/*", "[0-9][0-9]-*/SKILL.md", "[0-9][0-9]-*/DECISIONS.md", *FIXED_FILES,
+                *root_code):
         for p in glob.glob(os.path.join(root, pat)):
             if os.path.isfile(p):
                 out.add(os.path.relpath(p, root).replace(os.sep, "/"))

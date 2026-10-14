@@ -259,6 +259,17 @@ def test_files_python_cannot_import_do_not_stop_the_system(tmp_path):
         os.remove(os.path.join(root, code))
 
 
+def test_a_module_at_the_root_is_unattested(tmp_path):
+    # 2026-10-14 fourth review: a glob.py at the root ran in place of the
+    # standard library's, before the check that would have caught it
+    root, state = fake_install(tmp_path)
+    s, verify, fp = keys()
+    boot_attest.attest(state, s, root)
+    open(os.path.join(root, "glob.py"), "w").write("x = 1\n")
+    with pytest.raises(boot_attest.AttestationRefused, match="glob.py: not attested"):
+        boot_attest.check(state, verify, fp, root)
+
+
 def test_a_package_folder_shadowing_a_module_is_unattested(tmp_path):
     # 2026-10-14 review: dispatcher/readable_audit/__init__.py would be
     # imported in place of the attested readable_audit.py
