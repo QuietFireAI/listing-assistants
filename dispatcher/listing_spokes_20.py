@@ -138,6 +138,15 @@ class Spoke20SocialMediaMonitoring:
             is_viral = payload.get("is_viral", False)
             may_involve_client = payload.get("may_involve_client_unconfirmed", False)
 
+            # A mention that arrives with no sentiment label is read with the
+            # same phrase tagger as client replies (owner decision
+            # 2026-10-14: any adverse message goes to the human at once);
+            # anything else with no label still stops for the human below.
+            if sentiment is None:
+                from .message_tags import tag_message, ADVERSE
+                if any(t in ADVERSE for t in tag_message(text)):
+                    sentiment = "complaint"
+
             # tuple 1: genuinely mixed sentiment -> classify at complaint
             # priority, protective default
             effective_sentiment = "complaint" if sentiment == "mixed" else sentiment

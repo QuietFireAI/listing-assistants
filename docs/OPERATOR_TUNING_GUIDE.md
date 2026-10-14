@@ -77,7 +77,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1147 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1178 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
@@ -142,8 +142,10 @@ a setting the agent does not recognize is held too.
 | 02 | `decision_engine` | `{"allow_external": true\|false, "confidence_floor": 0..1}`: lets lead data go to live JEV (needs `JEV_API_KEY` too); the floor under which a lead holds for you |
 | 04 | `drafting` | `{"mode": "rules"}` (default) or `{"mode": "model"}`: model-written remarks, used only when section 10's conditions hold |
 | 03 | `nurture_sequences` | each sequence's touches: `{"touches": [{"day": 0, "text": "..."}]}` |
+| 12, 17 | `brokerage_identification` | the text every ad carries (send it to both). Agent 12 adds it to every ad and holds approved ads until it is set; Agent 17 flags any ad without it |
 | 05 | `occupancy`, `watch_interval_days` | `"vacant"` starts the P20 property-check watch (every 7 days unless you set the interval); `"occupied"` stops it. A listing package with `"occupancy": "vacant"` does the same |
 | 06 | `confirm_protected_bump` | confirms a held showing bump |
+| 06 | `showing_facts_source` | `"listing_record"` (default): a showing of your own listing takes occupancy, status and state from your listing record; `"requester"`: from the request. Occupancy not on record counts as occupied |
 | 06 | `seller_reports` | P18: `{"weekday": "monday", "listings": {"L8": "<seller context>"}}` - which day, and which seller gets each listing's report |
 | 07 | `timeline_init` | a transaction's milestone dates |
 | 08 | `expected_senders` | who should send each sensitive document: `{"closing_settlement_statement": ["title@..."]}` |
@@ -154,7 +156,7 @@ a setting the agent does not recognize is held too.
 | 14 | `client_dates` | P13 dates for a client: `{"purchase_anniversary": "07-18"}` (MM-DD every year, YYYY-MM-DD once) |
 | 14 | `access_grant`, `access_closed` | P19: `{"party": "...", "window_end": "YYYY-MM-DD", "custody_ref": "..."}` - never the code or key; `{"party": "..."}` when it is back or changed |
 | 16 | `client_list_entry` | puts a closed client on the after-close program |
-| 17 | `ruleset` | the fair-housing ruleset |
+| 17 | `ruleset` | the fair-housing ruleset; optional `covers` (content types it addresses) and `states_reviewed` (states counsel reviewed): anything else is flagged |
 | 19 | `zip_codes`, `approved_sources`, `dnc_entries` | prospecting scope |
 | 20 | `monitored_channels`, `reply_templates` | channels watched; your reply templates (question, praise) |
 

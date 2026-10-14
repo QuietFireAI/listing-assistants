@@ -3,3 +3,5 @@
 {"do": "config", "to": "03", "ctx": "setup", "payload": {"nurture_sequences": {"default_drip": {"touches": [{"day": 0, "text": "Thanks for reaching out - here are listings that match what you told us."}, {"day": 7, "text": "New listings this week that fit your search."}, {"day": 21, "text": "Checking in: is your timeline the same?"}]}}}}
 {"do": "config", "to": "17", "ctx": "setup", "payload": {"ruleset": {"prohibited_phrases": [{"phrase": "perfect for young families", "rule_id": "FH-1"}, {"phrase": "no kids", "rule_id": "FH-2"}], "state_rules": {}}, "version": "synth-r1"}}
 {"do": "config", "to": "20", "ctx": "setup", "payload": {"monitored_channels": ["facebook", "google_reviews"]}}
+{"do": "config", "to": "12", "ctx": "setup", "payload": {"brokerage_identification": "Synth Realty, Testville OH"}}
+{"do": "config", "to": "17", "ctx": "setup", "payload": {"brokerage_identification": "Synth Realty, Testville OH"}}

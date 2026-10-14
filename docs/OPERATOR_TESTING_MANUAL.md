@@ -59,7 +59,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1147 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1178 passed, 1 skipped
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```
@@ -155,32 +155,36 @@ The console prints each line's result as `{"line": N, ...}`; a page
 1. The seller's consent, to 14 (signed `consent_record`): `ack`. Without it
    Agent 11 would send the seller nothing.
 2. A ruleset for this listing, to 17: `ack`.
-3. The new listing with go-live (signed): `ack`; the photography booking
+3. Your brokerage identification, to 12 (signed): `ack`. Every ad carries
+   it; without it an approved ad is held and you are asked for it.
+4. The same, to 17 (signed): `ack`. Compliance checks every ad for it.
+5. The new listing with go-live (signed): `ack`; the photography booking
    holds for you (page).
-4. `show held`: the booking (and Scene 1's, still held).
-5. You release the S4 booking.
-6. A photo delivery with `"proof_artifact_present": false`.
-7. `show external`: only the booking. The claim is not the artifact.
-8. The real delivery: 04 drafts, 17 approves, the assets go to 05 and 12, the
+6. `show held`: the booking (and Scene 1's, still held).
+7. You release the S4 booking.
+8. A photo delivery with `"proof_artifact_present": false`.
+9. `show external`: only the booking. The claim is not the artifact.
+10. The real delivery: 04 drafts, 17 approves, the assets go to 05 and 12, the
    listing goes active (11, 12 and 14 told), and the campaign holds for you
    (page).
-9. `show held`: the campaign.
-10. You release the campaign.
-11. `show external`: the booking, the seller's "active" notice and the
+11. `show held`: the campaign, with your brokerage identification on it.
+12. You release the campaign.
+13. `show external`: the booking, the seller's "active" notice and the
     campaign.
 
 ## Scene 5 - Compliance catches your planted phrase (`scene05_compliance.jsonl`)
 
 1. The seller's consent, to 14: `ack`.
 2. A ruleset to 17: `ack`.
-3. A listing whose features include the phrase from your Scene 2 ruleset
+3. and 4. Your brokerage identification, to 12 and to 17 (signed): `ack`.
+5. A listing whose features include the phrase from your Scene 2 ruleset
    (signed): `ack`; the booking holds (page).
-4. You release the booking.
-5. The photo delivery. On the audit log: `content.verdict: flagged` citing
+6. You release the booking.
+7. The photo delivery. On the audit log: `content.verdict: flagged` citing
    the phrase and rule FH-1; 04 removes exactly that phrase and resubmits;
    the second verdict is `approved`. The campaign holds for you (page).
-6. `show held`: the S5 campaign (left held).
-7. `show queues`. No released asset contains the phrase.
+8. `show held`: the S5 campaign (left held).
+9. `show queues`. No released asset contains the phrase.
 
 ## Scene 6 - Photos versus data sheet (`scene06_photo_contradiction.jsonl`)
 

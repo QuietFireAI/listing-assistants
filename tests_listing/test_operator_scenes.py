@@ -104,9 +104,11 @@ def test_scene03_hot_lead_paged_duplicate_held_and_cancelled_no_outreach(run):
 
 def test_scene04_listing_end_to_end_and_no_proof_releases_nothing(run):
     r = results(run, "scene04")
-    assert [x["intent"] for x in r[7] if x["ctx"] == "S4"] == ["vendor.schedule"], \
+    # lines 3 and 4 set the brokerage identification (2026-10-14), so the
+    # release lines moved from 7 and 11 to 9 and 13
+    assert [x["intent"] for x in r[9] if x["ctx"] == "S4"] == ["vendor.schedule"], \
         "the proof-less deliverable must release nothing"
-    final = [x["intent"] for x in r[11] if x["ctx"] == "S4"]
+    final = [x["intent"] for x in r[13] if x["ctx"] == "S4"]
     assert final[0] == "vendor.schedule" and "campaign.publish" in final \
         and "client.message.send" in final
     assert {e["to_agent"] for e in persisted(run, "asset.release", "S4")} == {"05", "12"}

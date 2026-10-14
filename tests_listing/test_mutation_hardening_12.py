@@ -25,7 +25,7 @@ def make_hub(tmp_path):
 
 
 def spoke(tmp_path):
-    return Spoke12MarketingCampaign(make_hub(tmp_path))
+    return Spoke12MarketingCampaign(make_hub(tmp_path), brokerage_identification="Synth Realty, Testville OH")
 
 
 def status_update(ctx, status):

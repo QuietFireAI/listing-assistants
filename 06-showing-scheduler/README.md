@@ -12,10 +12,10 @@ Left: who sends this agent messages. Right: who it sends messages to. The blue c
 flowchart LR
     subgraph IN["Hears from"]
         direction TB
+        I05["05 MLS and Listing Management"]
         I13["13 Buyer Search and Match"]
         I11["11 Client Communication"]
         IB(["You (broker)"])
-        I05["05 MLS and Listing Management"]
         I18["18 Calendar and Task Management"]
         I09["09 Vendor Coordination"]
         IK(["Daily clock"])
@@ -30,10 +30,10 @@ flowchart LR
         OB(["You (broker)"])
         O05["05 MLS and Listing Management"]
     end
+    I05 -- "shares the listing details<br/>answers with the listing's status" --> A06
     I13 -- "asks for a showing" --> A06
     I11 -- "asks for a showing<br/>reports a no-show<br/>passes on showing feedback" --> A06
     IB -- "your signed settings" --> A06
-    I05 -- "answers with the listing's status" --> A06
     I18 -- "reports a no-show" --> A06
     I09 -- "reports a vendor cancellation" --> A06
     IK -- "the daily clock runs" --> A06
@@ -56,7 +56,12 @@ flowchart LR
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
 - [P01 - New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01---new-listing-onboarding)
+- [P02 - Price Adjustment](../docs/PLAY-BY-PLAY.md#p02---price-adjustment)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
+- [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
 - [P07 - Tour Day Coordination](../docs/PLAY-BY-PLAY.md#p07---tour-day-coordination)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
 - [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
 - [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
 - [P14 - Complaint Response](../docs/PLAY-BY-PLAY.md#p14---complaint-response)

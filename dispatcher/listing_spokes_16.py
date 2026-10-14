@@ -261,12 +261,20 @@ class Spoke16AfterCloseReferral:
         if env.intent == "lead.reply":
             message = str(payload.get("message", "")).lower()
 
+            if any(w in message for w in _INCENTIVE_WORDS):
+                # tuple 5: referral gift/incentive idea -> Legal Line
+                self.hub.escalate("escalation.legal_line",
+                                  {"client_context_id": ctx,
+                                   "trigger": payload.get("message"),
+                                   "agent": "16"})
+                return
+
             if payload.get("mentions_referral_reward"):
-                # tuple 8: referral reward mention -> 17 gate first.
-                # Checked before the fuzzy incentive-word match below - an
-                # explicit caller-supplied signal is more reliable than my
-                # own keyword guess, and the two lists can genuinely
-                # overlap (e.g. "reward for referring" matches both).
+                # tuple 8: referral reward mention -> 17 gate first. Since
+                # 2026-10-14 the label comes from Agent 11's phrase tagger,
+                # so a gift or incentive idea (tuple 5, legal line) is
+                # checked first: the two lists overlap ("reward for
+                # referring"), and the legal line is the stronger answer.
                 # the client's own words are what 17 reviews (2026-10-12 doc
                 # review: with no draft, 17 checked this agent's reason text)
                 self.hub.send(_env("16", "17", "content.review", ctx,
@@ -276,14 +284,6 @@ class Spoke16AfterCloseReferral:
                 self.hub.send(_env("16", "18", "agent.status", ctx,
                                    {"waiting_on": "referral_reward_review",
                                     "since": payload.get("today")}))
-                return
-
-            if any(w in message for w in _INCENTIVE_WORDS):
-                # tuple 5: referral gift/incentive idea -> Legal Line
-                self.hub.escalate("escalation.legal_line",
-                                  {"client_context_id": ctx,
-                                   "trigger": payload.get("message"),
-                                   "agent": "16"})
                 return
 
             if any(w in message for w in _PRICING_WORDS):

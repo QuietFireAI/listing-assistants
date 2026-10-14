@@ -58,7 +58,7 @@ class Spoke12MarketingCampaign:
           config.update
     """
 
-    def __init__(self, hub):
+    def __init__(self, hub, brokerage_identification: str | None = None):
         self.hub = guard(hub, "12")   # handoff rule (audit TU-2)
         self.mls_confirmed: dict[str, bool] = {}
         self.exempt_status: dict[str, dict] = {}  # ctx -> {exempt, disclosure_on_file}
@@ -68,6 +68,11 @@ class Spoke12MarketingCampaign:
         self.approved_awaiting_ccp: dict[str, dict] = {}  # ctx -> approved content, gate not yet clear
         self.signed_budgets: dict[str, float] = {}  # ctx -> current signed budget
         self.engagement_sources: dict[str, dict[str, dict]] = {}  # ctx -> source -> metrics
+        # The brokerage identification every ad must carry (Agent 17 tuple 7,
+        # owner decision 2026-10-14): a signed setting, appended to every ad.
+        # None until the broker sets it; no ad publishes without it.
+        self.brokerage_identification: str | None = brokerage_identification
+        self.held_for_brokerage_id: dict[str, dict] = {}  # ctx -> {campaign, source}
         register_spoke(hub, "12", self)
 
     def _ccp_gate_clear(self, ctx: str) -> bool:
@@ -76,7 +81,30 @@ class Spoke12MarketingCampaign:
         exempt = self.exempt_status.get(ctx, {})
         return bool(exempt.get("exempt") and exempt.get("disclosure_on_file"))
 
+    def _with_brokerage_id(self, campaign):
+        if isinstance(campaign, dict):
+            return {**campaign, "brokerage_identification": self.brokerage_identification}
+        return {"content": campaign, "brokerage_identification": self.brokerage_identification}
+
     def _publish_approved(self, ctx: str, campaign, source: str):
+        if not self.brokerage_identification:
+            # no exceptions for format constraints (Agent 17 tuple 7)
+            first = ctx not in self.held_for_brokerage_id
+            self.held_for_brokerage_id[ctx] = {"campaign": campaign, "source": source}
+            self.hub.ingest_spoke_trace(
+                "12", "internal",
+                thought=f"approved ad for {ctx!r} held: no brokerage identification "
+                        f"on file, and every ad must carry it",
+                result="held: brokerage_identification")
+            if first:
+                self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                   {"reason": "an approved ad is held: no brokerage "
+                                              "identification is on file and every ad "
+                                              "must carry it. Set it with a signed "
+                                              "brokerage_identification setting to Agent 12 "
+                                              "and Agent 17; the held ad then publishes"}))
+            return
+        campaign = self._with_brokerage_id(campaign)
         self.published[ctx] = {"content": campaign, "verdict_locked": True}
         res = self.hub.send(_env("12", "external", "campaign.publish", ctx,
                                  {"content": campaign, "source": source}))
@@ -204,6 +232,21 @@ class Spoke12MarketingCampaign:
             return
 
         if env.intent == "config.update":
+            if "brokerage_identification" in payload:
+                text = payload["brokerage_identification"]
+                if not isinstance(text, str) or not text.strip():
+                    self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                       {"reason": "brokerage_identification rejected; nothing "
+                                                  "changed - it must be the text every ad carries"}))
+                    return
+                self.brokerage_identification = text.strip()
+                self.hub.ingest_spoke_trace("12", env.envelope_id,
+                                            thought="broker-signed brokerage identification set",
+                                            result="brokerage identification set")
+                for held_ctx, held in list(self.held_for_brokerage_id.items()):
+                    self.held_for_brokerage_id.pop(held_ctx)
+                    self._publish_approved(held_ctx, held["campaign"], held["source"])
+                return
             if "exempt_status" in payload:
                 self.exempt_status[ctx] = payload["exempt_status"]
                 self._check_awaiting_ccp(ctx)
@@ -229,6 +272,10 @@ class Spoke12MarketingCampaign:
                                                        "required first, "
                                                        "reputational surface"}))
                     return
+                # every ad carries the brokerage identification when one is on
+                # file; Agent 17 checks it is there (tuple 7, 2026-10-14)
+                if self.brokerage_identification:
+                    campaign = self._with_brokerage_id(campaign)
                 self.pending_review[ctx] = campaign
                 # wait opened BEFORE the review (17 answers inside hub.send;
                 # fixed 2026-10-11 - a resolved review stayed open forever)
@@ -236,7 +283,8 @@ class Spoke12MarketingCampaign:
                                    {"waiting_on": "compliance_review",
                                     "since": payload.get("today")}))
                 self.hub.send(_env("12", "17", "content.review", ctx,
-                                   {"campaign": campaign}))
+                                   {"campaign": campaign, "content_type": "advertising",
+                                    "state": campaign.get("state") if isinstance(campaign, dict) else None}))
                 return
             if "budget_change_verbal" in payload:
                 # tuple 10: verbal budget change -> signed budget stands
@@ -308,6 +356,7 @@ class Spoke12MarketingCampaign:
             truncated_content = payload.get("truncated_content")
             self.hub.send(_env("12", "17", "content.review", ctx,
                                {"campaign": truncated_content,
+                                "content_type": "advertising",
                                 "reason": "platform-forced truncation - "
                                          "truncation is an edit"}))
             self.hub.ingest_spoke_trace(

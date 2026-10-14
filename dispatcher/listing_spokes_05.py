@@ -88,11 +88,29 @@ class Spoke05MLSListingManagement:
         # P20 Vacant Property Watch (J3, 2026-10-12): ctx -> {"since",
         # "last_check", "interval_days"} for listings the broker marked vacant
         self.vacant_watch: dict[str, dict] = {}
+        self.occupancy: dict[str, str] = {}   # ctx -> "vacant" | "occupied", broker-signed (2026-10-14)
         register_spoke(hub, "05", self)
 
     # TUNABLE (J3, 2026-10-12): days between condition checks on a vacant listing
     VACANT_CHECK_INTERVAL_DAYS = 7
     _ENDED = ("sold", "withdrawn", "expired", "cancelled", "closed")
+
+    # the fields a listing description is drafted from: a signed change to
+    # one sends Agent 04 the updated listing (2026-10-14)
+    REDRAFT_FIELDS = ("beds", "baths", "sqft", "address")
+
+    def _push_listing_facts(self, ctx: str):
+        """The facts a showing depends on, from this listing's signed record,
+        to Agent 06 (owner decision 2026-10-14: showings read occupancy,
+        status and state from the listing record, not from the requester).
+        Sent at intake, at go-live, and on every status or occupancy change."""
+        from .listing_spokes_04 import _state_of
+        self.hub.send(_env("05", "06", "listing.data", ctx,
+                           {"listing_id": ctx,
+                            "status": self.mls_records.get(ctx, {}).get("status"),
+                            "occupancy": self.occupancy.get(ctx),
+                            "state": _state_of(self.property_data.get(ctx, {}).get("address")),
+                            "facts_for": "showings"}))
 
     def _set_occupancy(self, ctx: str, env: Envelope, occupancy, interval, today):
         if occupancy not in ("vacant", "occupied") or (
@@ -103,6 +121,8 @@ class Spoke05MLSListingManagement:
                                           "\"vacant\" or \"occupied\"; watch_interval_days a "
                                           "whole number of days"}))
             return
+        self.occupancy[ctx] = occupancy
+        self._push_listing_facts(ctx)
         if occupancy == "occupied":
             if self.vacant_watch.pop(ctx, None) is not None:
                 self.hub.send(_env("05", "14", "interaction.log", ctx,
@@ -262,6 +282,7 @@ class Spoke05MLSListingManagement:
                 self.hub.send(_env("05", "11", "status.update", ctx, {"status": "active"}))
                 self.hub.send(_env("05", "12", "status.update", ctx, {"status": "active"}))
                 self.hub.send(_env("05", "14", "status.update", ctx, {"status": "active"}))
+                self._push_listing_facts(ctx)
                 # Phase 3c: listing into buyer-match feeds
                 self.hub.send(_env("05", "13", "listing.data", ctx,
                                    {**self.property_data.get(ctx, {}),
@@ -302,8 +323,8 @@ class Spoke05MLSListingManagement:
                 package = change["new_listing"]
                 phase_gate(self.hub, f"P01 phase 1 (signed intake) on {ctx}")
                 self.property_data[ctx] = package
-                if package.get("occupancy") == "vacant":   # P20 (J3)
-                    self._set_occupancy(ctx, env, "vacant", None, change.get("today"))
+                if package.get("occupancy") in ("vacant", "occupied"):   # P20 (J3); occupied recorded since 2026-10-14
+                    self._set_occupancy(ctx, env, package["occupancy"], None, change.get("today"))
                 file_record(self.hub, "05", ctx, "artifacts", f"listing_package_{env.envelope_id[:12]}",
                             {"new_listing": package, "authorize_go_live": bool(change.get("authorize_go_live")),
                              "signed_envelope": env.envelope_id},
@@ -363,7 +384,7 @@ class Spoke05MLSListingManagement:
             # a field this context already has an executed value for, from
             # a DIFFERENT signer, is a real conflict - not the same party
             # updating their own prior instruction.
-            if field in ("status", "price"):
+            if field in VALID_MLS_FIELDS:
                 new_value = change.get("value")
                 conflict = self._conflicting_authorization(
                     ctx, field, new_value, authorizing_identity)
@@ -444,6 +465,7 @@ class Spoke05MLSListingManagement:
                                    {"status": new_status}))
                 self.hub.send(_env("05", "14", "status.update", ctx,
                                    {"status": new_status}))
+                self._push_listing_facts(ctx)
                 return
 
             if field == "price":
@@ -478,12 +500,56 @@ class Spoke05MLSListingManagement:
                 self.hub.send(_env("05", "14", "status.update", ctx,
                                    {"price": new_price}))
                 return
+
+            # Every other MLS field (owner decision 2026-10-14): a signed
+            # change to beds, baths, square feet, remarks, address or photos
+            # was accepted and did nothing. It is applied to the record,
+            # logged with the prior value, and a field the description is
+            # drafted from sends Agent 04 the updated listing so the copy
+            # never outruns the MLS record.
+            if field in VALID_MLS_FIELDS:
+                new_value = change.get("value")
+                if new_value is None or new_value == "":
+                    self.hub.send(_env("05", "queue", "clarification.request", ctx,
+                                       {"reason": f"signed change to {field!r} carries no value - "
+                                                  f"nothing changed"}))
+                    return
+                record = self.mls_records.setdefault(ctx, {})
+                prior = record.get(field)
+                record[field] = new_value
+                if ctx in self.property_data:
+                    self.property_data[ctx][field] = new_value
+                self._record_authorization(ctx, field, new_value, authorizing_identity)
+                self.hub.ingest_spoke_trace(
+                    "05", env.envelope_id,
+                    thought=f"{field} change {prior!r} -> {new_value!r} authorized by "
+                            f"{authorizing_identity!r}, applied to the MLS record",
+                    result=f"{field} executed")
+                self.hub.send(_env("05", "14", "interaction.log", ctx,
+                                   {"kind": "mls_field_changed", "field": field,
+                                    "prior": prior, "value": new_value,
+                                    "authorized_by": authorizing_identity}))
+                if field in self.REDRAFT_FIELDS and ctx in self.property_data:
+                    self.hub.send(_env("05", "04", "listing.data", ctx,
+                                       {**self.property_data[ctx],
+                                        "changed_field": field}))
+                return
+            # no field named: nothing to apply (the valid-field gate above
+            # already answered an unknown field)
+            self.hub.send(_env("05", "queue", "clarification.request", ctx,
+                               {"reason": "signed listing change names no field - nothing changed"}))
             return
 
         if env.intent == "status.request":
-            record = self.mls_records.get(ctx, {})
+            # 2026-10-14: looked up by the listing the request names. It
+            # was looked up by the requester's context, which for a showing
+            # is the BUYER, so every answer was "unknown" and a possibly
+            # under-contract listing could never be confirmed show-able.
+            listing_id = env.payload.get("listing_id") or ctx
+            record = self.mls_records.get(listing_id, {})
             self.hub.send(_env("05", env.from_agent, "status.response", ctx,
-                               {"status": record.get("status", "unknown")},
+                               {"status": record.get("status", "unknown"),
+                                "listing_id": listing_id},
                                confidence=SOURCE_VERIFIED))
             return
 
