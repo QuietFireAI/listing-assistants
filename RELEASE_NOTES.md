@@ -19,13 +19,16 @@ end-to-end test.
   (agents 00 to 20 and `SWARM.md`) have a spec in `synth/tuples/` and were
   run through the console as a broker drives it:
   `python synth/tuples/run_tuples.py` writes `synth/tuples/REPORT.md`.
-  211 pass. 2 differ from the tuple and wait on an owner decision (01-01,
-  04-03). 35 cannot be reached from the product's entries, 20 have no code
+  213 pass. 2 differ from the tuple and wait on an owner decision (01-01,
+  04-03). 33 cannot be reached from the product's entries, 20 have no code
   path, 4 are retired; each says why. Seventeen fixes came out of the runs
   (Agents 03, 04, 05, 06, 07, 09, 10, 11, 12, 14, 15, 17 and 19), listed
   with the open decisions in `docs/TUNING_MANUAL.md`, "Tuple runs
-  (2026-10-14)". CI checks every tuple has its spec and reruns the 16
-  specs whose code changed.
+  (2026-10-14)". CI checks every tuple has its spec and reruns the 19
+  specs whose code changed. A plumbing pass the same day wired 07-03 (a
+  document's own deadline is compared with the timeline) and 18-06 (the
+  calendar tracks deadlines by source), and Agent 11 no longer confirms a
+  channel change that Agent 14 did not record.
 
 - **Three lead-capture gaps closed (2026-10-14, found by the synthetic
   sample run).**
@@ -269,7 +272,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1143 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1147 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

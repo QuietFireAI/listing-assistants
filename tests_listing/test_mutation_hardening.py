@@ -322,23 +322,35 @@ def test_18_protected_block_move_decision_table(tmp_path):
 
 # ------------------------------------------------------------ 18:343
 def test_18_briefing_tracks_only_genuinely_conflicting_deadlines(tmp_path):
-    """Conflict tracked iff a ctx has >1 distinct deadline for its
-    milestones; agreeing sources must NOT appear. Kills the >1 flip."""
+    """Conflict tracked iff two sources give one milestone different
+    dates; agreeing sources must NOT appear. Kills the >1 flip.
+    Corrected 2026-10-14: this test used to require that two DIFFERENT
+    milestones on different days (financing 08-20, inspection 08-25) be
+    reported as a conflict, which put every ordinary timeline in the
+    briefing's conflict list."""
     hub, _ = make_hub(str(tmp_path))
     spoke = Spoke18CalendarTask(hub)
     hub.on_turn_start()
     hub.send(env("07", "18", "deadline.alert", "cf-1",
                  {"milestone": "financing", "deadline": "2026-08-20"}))
     hub.send(env("07", "18", "deadline.alert", "cf-1",
-                 {"milestone": "inspection", "deadline": "2026-08-25"}))
+                 {"milestone": "financing", "deadline": "2026-08-22", "source": "artifact"}))
     hub.send(env("07", "18", "deadline.alert", "cf-2",
                  {"milestone": "financing", "deadline": "2026-08-20"}))
+    hub.send(env("07", "18", "deadline.alert", "cf-2",
+                 {"milestone": "inspection", "deadline": "2026-08-25"}))
+    hub.send(env("07", "18", "deadline.alert", "cf-3",
+                 {"milestone": "financing", "deadline": "2026-08-20"}))
+    hub.send(env("07", "18", "deadline.alert", "cf-3",
+                 {"milestone": "financing", "deadline": "2026-08-20", "source": "artifact"}))
     briefing = spoke.generate_briefing()
     tracked = briefing["deadline_conflicts_tracked"]
-    assert "cf-1" in tracked, \
-        "two distinct deadlines for one ctx must be tracked as a conflict"
+    assert tracked.get("cf-1") == {"financing": {"07": "2026-08-20", "artifact": "2026-08-22"}}, \
+        "two sources disagreeing on one milestone must be tracked as a conflict"
     assert "cf-2" not in tracked, \
-        "a single agreed deadline must not be reported as a conflict"
+        "two milestones on different days are a timeline, not a conflict"
+    assert "cf-3" not in tracked, \
+        "two agreeing sources must not be reported as a conflict"
 
 
 # ------------------------------------------------------------ 19:239
