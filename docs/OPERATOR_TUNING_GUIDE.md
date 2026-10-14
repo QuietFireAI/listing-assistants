@@ -77,7 +77,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1101 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1104 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
@@ -546,8 +546,10 @@ python tools/mcp_roundtrip.py
 ## 16. Boot attestation
 
 `python tools/console.py init` signs, with your operator key, the SHA-256
-of what the system runs and the rules it runs by: every file under
-`dispatcher/` and `tools/` (the code and the programs that start it),
+of what the system runs and the rules it runs by: every file Python can
+import under `dispatcher/` and `tools/` (`.py`, `.pyc`, `.so`, `.pyd`: the
+code and the programs that start it; a `.DS_Store` or an editor's swap file
+is not code and is not covered),
 everything in `identity/`, `MANNERS.md`, `SWARM.md`, `docs/PLAYBOOKS.md`,
 `docs/JOB_DESCRIPTIONS.md`, and each agent folder's `SKILL.md` and
 `DECISIONS.md`. The list goes into `console-state/boot-attestation.json`
@@ -557,22 +559,24 @@ their `_status` line (§3).
 
 Each time the console, the Broker Desk or the daily clock starts, and
 before `console.py repair-record` writes a repair, the install is checked
-first: after the check that no desk holds the folder, and before anything
-is written or any other part of the system is loaded (the files are
-compared while only the checker itself has run). It stops and names the
-reason when:
+first, before anything is written or any other part of the system is
+loaded: the files are compared while only the program you started and the
+checker itself have run. It stops and names the reason when:
 - a covered file changed, appeared or is missing;
 - the attestation is not signed by your key;
 - the audit log it is about to write was last attested with a different
   list (an older attestation put back) or with a different key;
 - that log has entries from before attestation existed and was never
-  attested: run `python tools/console.py attest` (with `--audit-log` for
-  a log kept elsewhere) once after this update.
+  attested: after this update, run `python tools/console.py attest
+  --new-key` once (with `--audit-log` for a log kept elsewhere). Taking an
+  old log is recorded on the chain as `boot.key_changed`, so whichever key
+  takes it, it is never silent.
 
 When everything matches, the chain records `boot.attestation` with
 `enforced: true`. These programs also compile Python's bytecode into a
-private folder for each run (removed when it ends; a folder left by a
-killed run is removed a day later), so a stale or planted `.pyc` beside a
+private folder for each run (removed when it ends; one left by a
+hard-killed run stays in the system's temp folder, since no other run can
+tell it from a desk still running), so a stale or planted `.pyc` beside a
 source file is never loaded.
 
 After you have reviewed a change (an update pack, a new release),

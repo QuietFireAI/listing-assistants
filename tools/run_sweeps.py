@@ -30,16 +30,12 @@ import sys
 
 # Only attested source runs (2026-10-14): this process compiles its bytecode
 # into a new private folder, set before any module of this repository is
-# imported, so a .pyc planted beside a source file is never loaded. Folders
-# left behind by a hard-killed run are removed after a day.
-import atexit as _atexit, glob as _glob, shutil as _shutil, tempfile as _tempfile, time as _time  # noqa: E401,E402
+# imported, so a .pyc planted beside a source file is never loaded. The
+# folder is removed when the process ends; one left by a hard-killed run
+# stays in the temp folder (no other run removes it: it could belong to a
+# desk that is still running).
+import atexit as _atexit, shutil as _shutil, tempfile as _tempfile  # noqa: E401,E402
 if not getattr(sys, "_listing_fresh_bytecode", False):
-    for _old in _glob.glob(os.path.join(_tempfile.gettempdir(), "listing-pyc-*")):
-        try:
-            if _time.time() - os.path.getmtime(_old) > 86400:
-                _shutil.rmtree(_old, ignore_errors=True)
-        except OSError:
-            pass
     sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
     _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
     sys._listing_fresh_bytecode = True
@@ -63,16 +59,9 @@ def main(argv=None) -> int:
     today = args.today or now.date().isoformat()
     now_iso = args.now_iso or now.replace(microsecond=0).isoformat()
 
-    # a running desk holds this state: refuse first (reads a lock file only)
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from console import desk_running
-    other = desk_running(os.path.dirname(os.path.abspath(args.audit_log)))
-    if other:
-        print(json.dumps({"error": f"the Broker Desk is running on this state (pid {other}); "
-                                   f"use its 'Run today's checks' button, or stop it first"}))
-        return 2
-    # then the install, before any dispatcher module but the checker is
-    # loaded (2026-10-14): the files, then the operator key and the log
+    # the install first, before anything else of this repository is loaded
+    # (2026-10-14): the files, then the operator key and the log. It only
+    # reads, so it is safe while a desk runs.
     from dispatcher.boot_attest import AttestationRefused, preflight
     state_dir = os.path.dirname(os.path.abspath(args.audit_log))
     try:
@@ -86,11 +75,18 @@ def main(argv=None) -> int:
         from dispatcher.core import AuditLogBusy, AuditLogDamaged
         if not isinstance(e, (AuditLogDamaged, AuditLogBusy)):
             raise
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from console import damaged_record_error
         print(json.dumps(damaged_record_error(e, args.audit_log)))
         return 2
 
-    from console import damaged_record_error, load_pager
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from console import damaged_record_error, desk_running, load_pager
+    other = desk_running(os.path.dirname(os.path.abspath(args.audit_log)))
+    if other:
+        print(json.dumps({"error": f"the Broker Desk is running on this state (pid {other}); "
+                                   f"use its 'Run today's checks' button, or stop it first"}))
+        return 2
     from dispatcher.sweep_runner import run_daily_sweeps
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError

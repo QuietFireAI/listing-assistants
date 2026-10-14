@@ -24,7 +24,8 @@ end-to-end test.
   MANNERS.md text on every call. The post-compaction trigger has no event
   in this product (nothing compacts a context) and is documented as such.
 - **Boot attestation.** `console.py init` signs, with your key, the SHA-256
-  of every `.py` file in `dispatcher/`, the programs that start the system,
+  of every importable file in `dispatcher/` and `tools/` (the code and the
+  programs that start the system),
   everything in `identity/`, MANNERS.md, SWARM.md, the playbooks and job
   descriptions, and every agent's SKILL.md and DECISIONS.md, and records
   it on the audit chain. The console, the Broker Desk, the daily clock and
@@ -32,8 +33,9 @@ end-to-end test.
   anything, and refuse on any change, on an older attestation put back, or
   on another key's attestation; after reviewing a change,
   `console.py attest` names what changed and signs it (Operator Guide §16).
-  An existing install needs `console.py attest` once (and once per log
-  kept elsewhere, with `--audit-log`). A replaced key takes a log over only
+  An existing install needs `console.py attest --new-key` once (and once
+  per log kept elsewhere, with `--audit-log`): taking a log written before
+  attestation is recorded on the chain. A replaced key takes a log over only
   with `console.py attest --new-key`, recorded on the chain. The daily
   clock now also checks signatures with your key. This is drift detection with your
   signature, not tamper resistance: someone who can write to the install
@@ -224,7 +226,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1101 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1104 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

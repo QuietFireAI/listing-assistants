@@ -61,16 +61,12 @@ import urllib.parse
 
 # Only attested source runs (2026-10-14): this process compiles its bytecode
 # into a new private folder, set before any module of this repository is
-# imported, so a .pyc planted beside a source file is never loaded. Folders
-# left behind by a hard-killed run are removed after a day.
-import atexit as _atexit, glob as _glob, shutil as _shutil, tempfile as _tempfile, time as _time  # noqa: E401,E402
+# imported, so a .pyc planted beside a source file is never loaded. The
+# folder is removed when the process ends; one left by a hard-killed run
+# stays in the temp folder (no other run removes it: it could belong to a
+# desk that is still running).
+import atexit as _atexit, shutil as _shutil, tempfile as _tempfile  # noqa: E401,E402
 if not getattr(sys, "_listing_fresh_bytecode", False):
-    for _old in _glob.glob(os.path.join(_tempfile.gettempdir(), "listing-pyc-*")):
-        try:
-            if _time.time() - os.path.getmtime(_old) > 86400:
-                _shutil.rmtree(_old, ignore_errors=True)
-        except OSError:
-            pass
     sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
     _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
     sys._listing_fresh_bytecode = True
@@ -1114,8 +1110,11 @@ def main(argv=None):
     ap.add_argument("--fresh", action="store_true",
                     help="with --showcase: start the showcase from scene 1 on empty state")
     args = ap.parse_args(argv)
+    # console.STATE_DIR's rule, computed here so console.py is not loaded
+    # before the install check below (2026-10-14)
     state_dir = args.state_dir or (os.path.join(ROOT, "showcase-state") if args.showcase
-                                   else console.STATE_DIR)
+                                   else os.environ.get("LISTINGASSISTANTS_STATE_DIR")
+                                   or os.path.join(ROOT, "console-state"))
     if args.showcase and args.fresh and os.path.isdir(state_dir):
         if not is_showcase_folder(state_dir):
             # 2026-10-14 review: it deleted any folder without an operator key
@@ -1132,6 +1131,15 @@ def main(argv=None):
             raise SystemExit(json.dumps({"error": "install not attested", "reason": str(e),
                                          "action": "nothing was written; review the install, "
                                                    "then run `python tools/console.py attest`"}))
+        except Exception as e:
+            # a damaged or busy record is named, as the desk always did
+            # (owner decision D4); 2026-10-14 third review: this check
+            # read the log first and let the error through as a traceback
+            from dispatcher.core import AuditLogBusy, AuditLogDamaged
+            if not isinstance(e, (AuditLogDamaged, AuditLogBusy)):
+                raise
+            raise SystemExit(json.dumps(console.damaged_record_error(
+                e, os.path.join(state_dir, "console-audit.jsonl"))))
     scripts = [os.path.abspath(f) for f in (args.script or [])]
     for f in scripts:
         if not os.path.isfile(f):

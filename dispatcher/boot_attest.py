@@ -5,11 +5,12 @@ attestation; a changed hash without signed authorization = tainted = halt."
 Until 2026-10-14 boot attestation was never called here.
 
 What is attested (repository-relative paths, SHA-256 of the raw bytes):
-every file under dispatcher/ and tools/ except __pycache__ (the vendored
-core, this identity's agents, and the programs that start the swarm and
-check this - every file, so a package folder, a compiled extension or a
-sourceless .pyc that Python would import in place of a covered module is
-itself an unattested file), everything in identity/, MANNERS.md,
+every file Python can import under dispatcher/ and tools/, outside
+__pycache__ (.py, .pyc, .pyo, .so, .pyd, at any depth - so a package
+folder, a compiled extension or a sourceless .pyc that Python would import
+in place of a covered module is itself an unattested file; a .DS_Store or
+an editor's swap file is not code and is not covered), everything in
+identity/, MANNERS.md,
 SWARM.md, docs/PLAYBOOKS.md, docs/JOB_DESCRIPTIONS.md, and each agent
 folder's SKILL.md and DECISIONS.md - the resources identity/IDENTITY-*.md
 declares as attested at boot. config/ is not covered: its files are the
@@ -29,7 +30,8 @@ broker's own business content, ratified through their _status line.
   old attestation put back) or a different key; or that log has entries
   from before attestation existed and has never been attested. The files
   are hashed before anything else of this repository is imported: only
-  dispatcher/__init__.py and this module run before the file check.
+  dispatcher/__init__.py and this module, besides the program that was
+  started, run before the file check.
 - A swarm built without a check (the tests, the showcase desk, the MCP
   server with no operator key) writes boot.attestation with enforced: false
   and the hash of what is running, so it is never silent.
@@ -52,6 +54,7 @@ import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ATTEST_FILE = "boot-attestation.json"
+IMPORTABLE = (".py", ".pyc", ".pyo", ".so", ".pyd")
 FIXED_FILES = ("MANNERS.md", "SWARM.md", "docs/PLAYBOOKS.md", "docs/JOB_DESCRIPTIONS.md")
 
 
@@ -69,7 +72,7 @@ def covered_files(root: str = ROOT) -> list[str]:
             dirnames[:] = [d for d in dirnames if d != "__pycache__"]
             for name in filenames:
                 p = os.path.join(dirpath, name)
-                if os.path.isfile(p):
+                if name.endswith(IMPORTABLE) and os.path.isfile(p):
                     out.add(os.path.relpath(p, root).replace(os.sep, "/"))
     for pat in ("identity/*", "[0-9][0-9]-*/SKILL.md", "[0-9][0-9]-*/DECISIONS.md", *FIXED_FILES):
         for p in glob.glob(os.path.join(root, pat)):
@@ -142,12 +145,20 @@ def attest(state_dir: str, signer, root: str = ROOT, audit_path: str | None = No
     records boot.key_changed first."""
     path = os.path.join(state_dir, ATTEST_FILE)
     fp = fingerprint(signer.public_key_bytes())
-    previous_key = _chain(audit_path)["key"]
+    chain = _chain(audit_path)
+    previous_key = chain["key"]
     if previous_key not in (None, fp) and not new_key:
         raise AttestationRefused(
             f"{audit_path} was last attested with another key ({previous_key}); this key is "
             f"{fp}. If you replaced your key, run `python tools/console.py attest --new-key`; "
             f"it records the change on the chain")
+    if chain["entries"] and previous_key is None and not new_key:
+        # 2026-10-14 third review: on a log from before attestation the first
+        # key to attest won silently. Taking such a log is a recorded step.
+        raise AttestationRefused(
+            f"{audit_path} has entries from before boot attestation and no key yet. Taking it "
+            f"with this key ({fp}) is recorded on the chain: run "
+            f"`python tools/console.py attest --new-key`")
     try:
         _, old = _read(state_dir)
     except AttestationRefused:
@@ -170,7 +181,7 @@ def attest(state_dir: str, signer, root: str = ROOT, audit_path: str | None = No
         from .core import AuditLog
         try:
             log = AuditLog(audit_path)
-            if previous_key not in (None, fp):
+            if new_key and previous_key != fp and (previous_key is not None or chain["entries"]):
                 log.append("boot.key_changed", {"from_key": previous_key, "to_key": fp,
                                                 "reason": "attest --new-key"})
             log.append("boot.attested", {
@@ -235,7 +246,8 @@ def check(state_dir: str, verify_bytes, key_fingerprint: str, root: str = ROOT,
     if chain["entries"] and chain["key"] is None:
         raise AttestationRefused(
             f"{audit_path} has entries from before boot attestation and was never attested. "
-            f"Review the install, then run `python tools/console.py attest --audit-log {audit_path}`")
+            f"Review the install, then run `python tools/console.py attest --new-key "
+            f"--audit-log {audit_path}`")
     if last_attested is not None and last_attested.get("manifest_sha256") != msha:
         raise AttestationRefused(
             f"{path} is not the attestation last recorded on {audit_path} (an older or "

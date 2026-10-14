@@ -65,16 +65,12 @@ import sys
 
 # Only attested source runs (2026-10-14): this process compiles its bytecode
 # into a new private folder, set before any module of this repository is
-# imported, so a .pyc planted beside a source file is never loaded. Folders
-# left behind by a hard-killed run are removed after a day.
-import atexit as _atexit, glob as _glob, shutil as _shutil, tempfile as _tempfile, time as _time  # noqa: E401,E402
+# imported, so a .pyc planted beside a source file is never loaded. The
+# folder is removed when the process ends; one left by a hard-killed run
+# stays in the temp folder (no other run removes it: it could belong to a
+# desk that is still running).
+import atexit as _atexit, shutil as _shutil, tempfile as _tempfile  # noqa: E401,E402
 if not getattr(sys, "_listing_fresh_bytecode", False):
-    for _old in _glob.glob(os.path.join(_tempfile.gettempdir(), "listing-pyc-*")):
-        try:
-            if _time.time() - os.path.getmtime(_old) > 86400:
-                _shutil.rmtree(_old, ignore_errors=True)
-        except OSError:
-            pass
     sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
     _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
     sys._listing_fresh_bytecode = True

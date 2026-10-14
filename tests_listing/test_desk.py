@@ -257,7 +257,10 @@ def test_http_page_state_lock_and_access_code(tmp_path):
                                 "--audit-log", os.path.join(state, "console-audit.jsonl"),
                                 "--state-db", os.path.join(state, "swarm-state.sqlite")],
                                cwd=ROOT, capture_output=True, text=True)
-        assert clock.returncode == 2 and "Broker Desk is running" in clock.stdout
+        # a showcase folder is not attested: the clock's install check comes
+        # first and refuses it (the clock's lock check is tested on an
+        # attested folder in test_manners_wiring.py)
+        assert clock.returncode == 2 and "install not attested" in clock.stdout
     finally:
         stop(p)
     assert not os.path.exists(os.path.join(state, "desk.lock"))   # removed on a clean stop

@@ -234,12 +234,29 @@ def test_what_is_covered_matches_what_the_identity_declares():
                  "identity/IDENTITY-real-estate-listing-agent.md", "docs/PLAYBOOKS.md",
                  "docs/JOB_DESCRIPTIONS.md", "05-mls-listing-management/SKILL.md",
                  "05-mls-listing-management/DECISIONS.md", "dispatcher/hub.py",
-                 "dispatcher/boot_attest.py", "dispatcher/LICENSE-CORE", "tools/console.py",
-                 "tools/desk.py", "tools/run_sweeps.py", "tools/gen_diagrams.py",
-                 "tools/doc_diagrams.py", "tools/desk.html"):
+                 "dispatcher/boot_attest.py", "tools/console.py", "tools/desk.py",
+                 "tools/run_sweeps.py", "tools/gen_diagrams.py", "tools/doc_diagrams.py"):
         assert must in files, must
     assert len([f for f in files if f.endswith("/SKILL.md")]) == 21
     assert not [f for f in files if f.startswith("config/") or "__pycache__" in f]
+
+
+def test_files_python_cannot_import_do_not_stop_the_system(tmp_path):
+    # 2026-10-14 third review: a Finder .DS_Store or an editor swap file
+    # stopped the console, the desk and the clock
+    root, state = fake_install(tmp_path)
+    s, verify, fp = keys()
+    boot_attest.attest(state, s, root)
+    for junk in ("tools/.DS_Store", "dispatcher/.core.py.swp", "dispatcher/Thumbs.db",
+                 "dispatcher/notes.txt"):
+        open(os.path.join(root, junk), "w").write("x")
+    boot_attest.check(state, verify, fp, root)
+    for code in ("dispatcher/extra.pyc", "dispatcher/fast.cpython-313-x86_64-linux-gnu.so",
+                 "tools/helper.pyd"):
+        open(os.path.join(root, code), "w").write("x")
+        with pytest.raises(boot_attest.AttestationRefused, match=f"{code}: not attested"):
+            boot_attest.check(state, verify, fp, root)
+        os.remove(os.path.join(root, code))
 
 
 def test_a_package_folder_shadowing_a_module_is_unattested(tmp_path):
@@ -488,21 +505,42 @@ def test_changed_modules_never_run_before_the_refusal(tmp_path):
                                     cwd=str(inst), env=env)
     assert run("tools/console.py", "init").returncode == 0
     marker = tmp_path / "ran.txt"
-    for mod in ("state_snapshot", "pager", "core", "sweep_runner", "swarm", "listing_spokes_17"):
-        with open(inst / "dispatcher" / f"{mod}.py", "a", encoding="utf-8") as f:
+    for mod in ("dispatcher/state_snapshot", "dispatcher/pager", "dispatcher/core",
+                "dispatcher/sweep_runner", "dispatcher/swarm", "dispatcher/listing_spokes_17",
+                "dispatcher/signatures", "tools/gen_diagrams", "tools/console"):
+        with open(inst / f"{mod}.py", "a", encoding="utf-8") as f:
             f.write(f"\nopen(r'{marker}', 'a').write('{mod}\\n')\n")
     log = state / "console-audit.jsonl"
     before = log.read_text()
-    r = run("tools/console.py", "session", script(tmp_path))
-    assert r.returncode == 2 and "install not attested" in r.stdout
+    # the clock and the desk load nothing but the checker before refusing
     r = run("tools/run_sweeps.py", "--audit-log", str(log), "--state-db", str(state / "s.sqlite"))
+    assert r.returncode == 2 and "install not attested" in r.stdout
+    r = run("tools/desk.py")              # its default folder, from LISTINGASSISTANTS_STATE_DIR
+    assert r.returncode != 0 and "install not attested" in (r.stdout + r.stderr)
+    assert not marker.exists(), marker.read_text()
+    # (the line added to console.py comes after its sys.exit(main()), so it
+    # runs only if another program imports console.py before the check)
+    r = run("tools/console.py", "session", script(tmp_path))
     assert r.returncode == 2 and "install not attested" in r.stdout
     r = run("tools/console.py", "repair-record")
     assert r.returncode == 2 and "install not attested" in r.stdout
-    r = run("tools/desk.py", "--state-dir", str(state))
-    assert r.returncode != 0 and "install not attested" in (r.stdout + r.stderr)
     assert not marker.exists(), marker.read_text()
     assert log.read_text() == before
+
+
+def test_the_desk_names_a_damaged_record_instead_of_a_traceback(tmp_path):
+    # 2026-10-14 third review: the new check read the log and let
+    # AuditLogDamaged through as a traceback
+    state = tmp_path / "cs"
+    console(state, "init")
+    with open(state / "console-audit.jsonl", "a", encoding="utf-8") as f:
+        f.write('{"kind": "cut off')
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "desk.py"), "--state-dir",
+                        str(state), "--port", "0"], capture_output=True, text=True, cwd=ROOT,
+                       timeout=60)
+    assert r.returncode != 0 and "Traceback" not in r.stderr
+    assert "damaged" in (r.stdout + r.stderr)
+    assert not (state / "desk.lock").exists()
 
 
 def test_a_log_from_before_attestation_must_be_attested_once(tmp_path):
@@ -513,8 +551,14 @@ def test_a_log_from_before_attestation_must_be_attested_once(tmp_path):
     AuditLog(str(old_log)).append("note", {"x": "an entry written before attestation existed"})
     rc, out = console(state, "session", script(tmp_path), "--audit-log", str(old_log), "--no-state")
     assert rc == 2 and "never attested" in out[-1]["reason"]
+    # taking an old log is a recorded step, not a silent first-come claim
     rc, out = console(state, "attest", "--audit-log", str(old_log))
+    assert rc == 2 and "attest --new-key" in out[0]["reason"]
+    rc, out = console(state, "attest", "--audit-log", str(old_log), "--new-key")
     assert rc == 0
+    changed = [json.loads(l) for l in open(old_log, encoding="utf-8")
+               if '"boot.key_changed"' in l]
+    assert len(changed) == 1 and changed[0]["from_key"] is None
     rc, out = console(state, "session", script(tmp_path), "--audit-log", str(old_log), "--no-state")
     assert rc == 0
 
@@ -552,3 +596,19 @@ def test_the_clock_needs_the_key_and_the_attestation(tmp_path):
     assert r.returncode == 0, r.stdout[-400:]
     kinds = [json.loads(l)["kind"] for l in open(log, encoding="utf-8")]
     assert "verifier.unarmed" not in kinds and "boot.attestation" in kinds
+
+
+def test_the_clock_refuses_while_a_desk_holds_an_attested_folder(tmp_path):
+    state = tmp_path / "cs"
+    console(state, "init")
+    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        (state / "desk.lock").write_text(str(sleeper.pid))
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "run_sweeps.py"),
+                            "--audit-log", str(state / "console-audit.jsonl"),
+                            "--state-db", str(state / "s.sqlite")],
+                           capture_output=True, text=True, cwd=ROOT, timeout=60)
+        assert r.returncode == 2 and "Broker Desk is running" in r.stdout
+    finally:
+        sleeper.kill()
+        sleeper.wait()
