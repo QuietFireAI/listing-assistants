@@ -38,6 +38,18 @@ def test_demo_mode_is_explicit_and_works():
     assert ident.describe()["governance"]["server_signs_for_host"] is True
 
 
+def test_a_server_signature_is_named_on_the_chain():
+    # 2026-10-14 cold review: a server-signed authorization looked the same
+    # on the chain as a broker-signed one
+    ident = identity(True)
+    ident.submit("listing.authorize", LISTING)
+    ident.authority("listing.change.authorized", {"to": "05", "new_listing": {}},
+                    signature_hex="DEMO_SIGN_WITH_SERVER_KEY")
+    marks = [e for e in ident.hub.audit.read() if e["kind"] == "authority.server_signed"]
+    assert len(marks) == 2 and all(m["intent"] == "listing.change.authorized" for m in marks)
+    assert not [e for e in identity(False).hub.audit.read() if e["kind"] == "authority.server_signed"]
+
+
 def test_mount_docs_do_not_enable_demo_signing():
     text = open(os.path.join(ROOT, "docs", "MOUNTING.md"), encoding="utf-8").read()
     arg_lines = [l for l in text.splitlines() if "args" in l]

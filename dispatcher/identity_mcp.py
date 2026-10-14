@@ -130,6 +130,16 @@ class GovernedIdentity:
     """Builds the hub + spokes once, keeps state across submits within the
     server's lifetime, and exposes only front-door operations."""
 
+    def _declare_server_signed(self, env) -> None:
+        """--demo-signing: say on the chain that the server, not a person,
+        signed this authority envelope (2026-10-14 cold review: before, a
+        server-signed authorization looked the same on the chain as a
+        broker-signed one)."""
+        self.hub.audit.append("authority.server_signed", {
+            "envelope_id": env.envelope_id, "intent": env.intent,
+            "client_context_id": env.client_context_id,
+            "reason": "--demo-signing: the MCP server signed for the host; no person signed"})
+
     def __init__(self, routes, signer, verifier, demo_signing: bool = False):
         self.signer = signer
         self.demo_signing = demo_signing
@@ -211,6 +221,7 @@ class GovernedIdentity:
                                provenance={"source": "mcp-host",
                                            "captured_at": "runtime",
                                            "verbatim_available": True})
+                self._declare_server_signed(env)
                 self.signer.sign(env)
                 res = self.hub.send(env)
                 return {"ok": res.get("status") == "ack",
@@ -246,6 +257,7 @@ class GovernedIdentity:
             # explicit demo affordance: server signs so a host can see the
             # signed path succeed. Production hosts present their OWN
             # signature; this is clearly labelled, not a hidden bypass.
+            self._declare_server_signed(env)
             self.signer.sign(env)
         res = self.hub.send(env)
         accepted = res.get("status") == "ack"

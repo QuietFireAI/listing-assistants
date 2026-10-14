@@ -30,9 +30,11 @@ jobs:
       # Fork-drift gate: the vendored dispatcher/ must match that commit exactly.
       # This job existing earlier would have caught the 105-line hub.py lag.
       - run: python tools/sync_core.py --core /tmp/core --check --require-pin
-      # listing main may only carry a core that is on core main
+      # listing main may only carry a core that is on core main; checked on
+      # a push to main and on a pull request into main (where github.ref is
+      # refs/pull/N/merge, so the ref test alone would skip it)
       - name: on main, the pinned core must be on core main
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
         run: |
           git -C /tmp/core merge-base --is-ancestor "$(python tools/sync_core.py --print-pin)" origin/main \
             && echo "pinned core is on core main" \
@@ -66,7 +68,8 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/test_desk.py -q
   windows-full-suite:
-    # The whole suite on Windows, a gate since run 38321234628 (1003 passed).
+    # The whole suite on Windows, a gate since run 38321234628 (1003 passed
+    # then; today's count is in QUICKSTART_WINDOWS.md, held by test_doc_counts).
     # It takes ~5-8 min there: every audit write is fsynced, and Windows
     # flushes slowly. QUICKSTART_WINDOWS.md promises this result.
     runs-on: windows-latest

@@ -33,13 +33,15 @@ def test_every_authorization_intent_in_the_code_needs_a_signature():
     for f in code_files():
         named |= set(SHAPED.findall(open(f, encoding="utf-8").read()))
     # audit event names share the shape (disclosure.authorized,
-    # hitl.decision.authorized) but are not messages; only intents count:
-    # the ones on the track, and the .authority lanes the hub serves directly
-    named = {i for i in named if i in on_track or i.endswith(".authority")}
-    named.add("config.update")
-    assert "listing.change.authorized" in named          # the scan finds the one that matters
-    undeclared = sorted(i for i in named if not is_authority(i, declared))
+    # hitl.decision.authorized) but are not messages, so only intents on the
+    # track count. `.authority` intents are left out: the core requires a
+    # signature on them by name, so a declaration adds nothing to check
+    # (2026-10-14 cold review: including them made part of this test vacuous).
+    checked = {i for i in named if i in on_track and not i.endswith(".authority")}
+    assert "listing.change.authorized" in checked        # the scan finds the one that matters
+    undeclared = sorted(i for i in checked if i not in declared)
     assert undeclared == [], f"signed in code but not declared in routes.json: {undeclared}"
+    assert all(is_authority(i, declared) for i in checked)
 
 
 def test_an_unsigned_listing_change_is_refused_on_the_real_track(tmp_path):

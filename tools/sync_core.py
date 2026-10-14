@@ -23,8 +23,8 @@ The pin (owner decision D1, 2026-10-14): CORE_PIN.json at the repo root
 names the exact dispatcher-agents commit these files came from. A sync
 writes it, and refuses when the core checkout has uncommitted changes in
 dispatcher/ (the pin would name a commit that is not what was copied).
---check also compares the core checkout's commit with the pin
-(--require-pin makes a mismatch fail), and --print-pin prints the pinned
+--check also compares the core checkout's commit with the pin: a mismatch
+is printed as a note, and --require-pin makes it fail. --print-pin prints the pinned
 commit for CI to check out. CI checks listing against its pin, not
 against whatever core main is today, so a core merge never turns listing
 red, and a release names the core it ships.
@@ -63,15 +63,37 @@ def _git(core, *args):
     return r.returncode, r.stdout.strip()
 
 
+class PinError(ValueError):
+    pass
+
+
 def read_pin(target):
+    """The pin, None when there is none; PinError when the file is not a pin
+    (2026-10-14 cold review: a damaged file gave a traceback)."""
     path = os.path.join(target, PIN_FILE)
     if not os.path.exists(path):
         return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            pin = json.load(f)
+        commit = pin["commit"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise PinError(f"{path} is not a valid pin ({type(e).__name__}: {e}) - "
+                       f"run a sync to rewrite it") from None
+    if not isinstance(commit, str) or not commit:
+        raise PinError(f"{path} names no commit - run a sync to rewrite it")
+    return pin
 
 
 def main() -> int:
+    try:
+        return _main()
+    except PinError as e:
+        print(f"FATAL: {e}", file=sys.stderr)
+        return 2
+
+
+def _main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--core", default=None,
                     help="path to a dispatcher-agents checkout (required except with --print-pin)")
@@ -138,9 +160,14 @@ def main() -> int:
     if args.check:
         pin = read_pin(here)
         pinned = pin["commit"] if pin else None
-        if args.require_pin and (pinned is None or head != pinned):
-            print(f"PIN MISMATCH: {PIN_FILE} names core {pinned}, the core checkout is at {head}")
-            return 1
+        if pinned != head:
+            if args.require_pin:
+                print(f"PIN MISMATCH: {PIN_FILE} names core {pinned}, the core checkout is at {head}")
+                return 1
+            # without --require-pin only the files are compared; say so
+            # rather than pass a different commit silently (2026-10-14)
+            print(f"note: {PIN_FILE} names core {pinned}, the core checkout is at {head}; "
+                  f"comparing files only (--require-pin makes this fail)")
         if drifted:
             print("CORE DRIFT DETECTED (vendored copy lags core):")
             for name, n in drifted:

@@ -80,8 +80,17 @@ def test_print_pin_without_a_pin_fails(tmp_path):
 
 def test_ci_checks_against_the_pin_not_core_main():
     ci = open(os.path.join(ROOT, ".github", "workflows", "ci.yml"), encoding="utf-8").read()
-    assert "--print-pin" in ci and "--require-pin" in ci and "merge-base --is-ancestor" in ci
-    assert "clone core at main" not in ci
+    # the core-parity job's own block, up to the next job (2026-10-14 cold
+    # review: a search of the whole file could be satisfied by any job)
+    job = re.search(r"^  core-parity:\n(.*?)(?=^  [a-z-]+:\n)", ci, re.M | re.S).group(1)
+    steps = [l.strip() for l in job.splitlines()]
+    checkout = next(i for i, l in enumerate(steps) if 'checkout --quiet "$PIN"' in l)
+    check = next(i for i, l in enumerate(steps) if "sync_core.py --core /tmp/core --check --require-pin" in l)
+    anc = next(i for i, l in enumerate(steps) if "merge-base --is-ancestor" in l)
+    assert checkout < check < anc                       # pinned checkout, then the file check, then main
+    cond = next(l for l in steps if "if: github.ref == 'refs/heads/main'" in l)
+    assert "github.base_ref == 'main'" in cond          # also on pull requests into main
+    assert "PIN=$(python tools/sync_core.py --print-pin)" in job
 
 
 def test_drift_is_counted_in_changed_lines_without_the_diff_program(core_and_target, monkeypatch):
@@ -91,3 +100,25 @@ def test_drift_is_counted_in_changed_lines_without_the_diff_program(core_and_tar
         f.write("# local edit\n# another\n")
     r = tool("--core", str(core), "--target", str(target), "--check")
     assert r.returncode == 1 and "kpi.py: 2 diff lines" in r.stdout
+
+
+def test_check_without_require_pin_says_when_the_commit_differs(core_and_target):
+    # 2026-10-14 cold review: it passed a different commit silently
+    core, target = core_and_target
+    assert tool("--core", str(core), "--target", str(target)).returncode == 0
+    (core / "README").write_text("moved\n", encoding="utf-8")
+    git(core, "add", "README")
+    git(core, "commit", "-qm", "move, dispatcher/ unchanged")
+    r = tool("--core", str(core), "--target", str(target), "--check")
+    assert r.returncode == 0 and "comparing files only" in r.stdout
+    r = tool("--core", str(core), "--target", str(target), "--check", "--require-pin")
+    assert r.returncode == 1 and "PIN MISMATCH" in r.stdout
+
+
+def test_a_damaged_pin_is_a_message_not_a_traceback(tmp_path):
+    (tmp_path / "CORE_PIN.json").write_text("{not json", encoding="utf-8")
+    r = tool("--print-pin", "--target", str(tmp_path))
+    assert r.returncode == 2 and "is not a valid pin" in r.stderr and "Traceback" not in r.stderr
+    (tmp_path / "CORE_PIN.json").write_text('{"commit": ""}', encoding="utf-8")
+    r = tool("--print-pin", "--target", str(tmp_path))
+    assert r.returncode == 2 and "names no commit" in r.stderr
