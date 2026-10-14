@@ -205,6 +205,15 @@ class Spoke14CRMPipeline:
         # with a differing value is a conflict, named on the new entry
         # itself so a later reader sees it without re-deriving it.
         prior_same_kind = [e for e in self.records.get(ctx, []) if e["kind"] == kind]
+        # interaction.log carries many kinds of event (payload "kind":
+        # lead_captured, client_touch, ...). Fixed 2026-10-14 (tuple runs):
+        # every log entry was compared with whatever log entry came before
+        # it, so two different events (a campaign log after a status log)
+        # were flagged as "conflicting" on the kind field itself, and the
+        # flag meant nothing. Facts conflict only within one kind of event.
+        if kind == "interaction.log" and isinstance(env.payload, dict):
+            prior_same_kind = [e for e in prior_same_kind
+                               if e["payload"].get("kind") == env.payload.get("kind")]
         conflicts = {}
         if prior_same_kind:
             prior_payload = prior_same_kind[-1]["payload"]
@@ -449,11 +458,16 @@ class Spoke14CRMPipeline:
                 self.identity_verified[ctx] = bool(payload["requester_identity_verified"])
             self.hub.ingest_spoke_trace(
                 "14", env.envelope_id,
-                thought=f"append-only interaction entry {entry_id}; "
-                        f"consent updated per most-restrictive-per-channel "
+                thought=(f"append-only interaction entry {entry_id}; "
+                         if entry_id != "FROZEN" else
+                         # 2026-10-14 (tuple runs): this used to read
+                         # "appended=FROZEN" when nothing was appended
+                         "record frozen, NO entry appended; ")
+                        + f"consent updated per most-restrictive-per-channel "
                         f"rule if present in payload; property interests "
                         f"list replaced with the caller's full current list",
-                result=f"appended={entry_id}")
+                result=(f"appended={entry_id}" if entry_id != "FROZEN"
+                        else "not appended: record_frozen; side state updated"))
             return
 
         if env.intent in ("transaction.closed", "status.update"):

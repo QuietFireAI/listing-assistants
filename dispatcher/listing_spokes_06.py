@@ -204,6 +204,16 @@ class Spoke06ShowingScheduler:
                                 "since": today}))
         return "asked"
 
+    def clock_showing_feedback(self, ctx: str, today: str):
+        """Daily clock entry for showing feedback. 2026-10-14 (tuple runs):
+        the clock called request_showing_feedback directly, so feedback was
+        asked for on the day a showing was booked, before it happened. It
+        asks only once a confirmed showing's date has passed."""
+        dates = [str(s.get("time") or "")[:10] for s in self.confirmed_showings.get(ctx, [])]
+        if not any(d and d < today for d in dates):
+            return "not_yet_shown"
+        return self.request_showing_feedback(ctx, today)
+
     def handle(self, env: Envelope):
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
             from .clock import handle_tick

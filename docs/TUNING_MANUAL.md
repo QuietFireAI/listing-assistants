@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1126 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1144 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -174,6 +174,71 @@ Not fixed:
 | Agent 02's "lead demands a human" tuple is not reached from intake | Agent 01 escalates a demand for a person itself (legal line) and does not forward it | No agent sets `demands_human` on a message to Agent 02, so its tuple "(lead demands a human, hot path regardless of score)" cannot fire. Forwarding it would page you twice for one request (legal line from 01, hot lead from 02); the owner decides |
 | A second inquiry after capture starts from nothing | Agent 01 merges fields only while a capture is pending | A later inquiry that repeats no budget or timeline scores UNKNOWN |
 | The MCP server takes a host's signature and never uses it | `dispatcher/identity_mcp.py` `identity.authority` (integration snapshot 2026-10-14) | `signature_hex` is compared only with the demo string; the hub trusts only a key the server makes at each start. Without `--demo-signing` the MCP server can describe the trade and show the record, nothing else |
+
+### Tuple runs (2026-10-14)
+
+Every tuple in agents 00 to 20 (`DECISIONS.md`) and in `SWARM.md`, 272 in
+all, has a spec in `synth/tuples/specs/` and was run through the console
+the way a broker drives it: inquiries, client replies, vendor events,
+platform metrics, mentions, discovery feeds, signed settings and
+authorizations, releases and the daily clock. Run them with
+`python synth/tuples/run_tuples.py` (it writes `synth/tuples/REPORT.md`);
+`--show 01-02` prints one tuple's session file to run by hand with
+`python tools/console.py session <file>`. The results: 211 PASS,
+2 VARIANCE, 35 NOT REACHABLE, 20 NOT BUILT, 4 RETIRED. CI checks that every
+tuple has its spec and reruns the 16 specs whose code changed
+(`tests_listing/test_tuple_runs_2026_10_14.py`).
+
+Fixed during the runs:
+- Agent 03: a re-score after an engagement spike carries the lead's stored
+  answers (timeline counted down by the days elapsed); an undated re-score
+  that keeps the tier WARM no longer restarts the sequence at day 0.
+  Agent 12's spike signal carries the date.
+- Agent 05: an approved asset that disagrees with the MLS record gets one
+  correction and never goes live; a second disagreement goes to you.
+  Agent 04 drafts the corrected square footage from the MLS record, which
+  ended a 04/05 correction loop.
+- Agent 06 asks for showing feedback after the showing date, not on the day
+  it is booked. Agent 11 sends a client's request for access (a lockbox
+  code, "just let them in") to the legal line.
+- Agent 07: an overdue earnest-money milestone goes to the legal line.
+- Agent 09: when the only roster vendors of a kind have lapsed credentials,
+  that goes to the legal line naming them (it was reported as "no approved
+  vendor").
+- Agent 10 counts the comps it leaves out as stale (`dropped_stale`).
+- Agent 12 logs `campaign_publish_held` when the hub holds a campaign for
+  your release (it logged "published").
+- Agent 14 flags conflicting facts only within one kind of event (every
+  log entry was flagged against the one before it), and a write refused on
+  a frozen record is traced as not appended.
+- Agent 15: a forecast request with no horizon gets a clarification (it
+  raised an error); an unsigned projection keeps its computed label.
+- Agent 17 records a review waiting for a ruleset, so the SLA alert can
+  fire (it never could).
+- Agent 19 compares owner contacts with its do-not-contact list in
+  normalized form.
+
+For the owner:
+
+| Tuple(s) | What the run showed | Decision needed |
+|---|---|---|
+| 01-01 (VARIANCE) | Two inquiries for one context are captured and scored separately | Merge a later inquiry into the first by channel rank (Agent 14 returns the prior capture), or keep them apart |
+| 04-03 (VARIANCE) | Copy you supply is escalated but never sent to compliance or used in the draft | How your own copy enters a listing description |
+| 02-03 | Forwarding a demand for a person from 01 to 02 would page you twice | One page or two |
+| Agent 05 | A signed change to an MLS field other than status or price (beds, baths, square feet, remarks, address, photos) is accepted and does nothing | Apply it, or refuse it with a clarification |
+| 06-05, 06-07, 06-08, 06-11, 07-03, 09-05, 10-05, 11-03, 12-06, 18-06 | The agent reads a field no sender sets (occupied, hours of notice, possibly under contract, showing agent, a contradicted deadline, slot priority, license scope, conflict key, unconfirmed data, a second deadline source) | Which upstream agent or setting supplies each |
+| 13-01, 16-08, 16-10 | Agent 11 forwards only the client's words to Agents 13 and 16, so their classifier-driven tuples cannot fire; the reply reaches you instead | Forward the labels, or keep replies with you |
+| 17-01, 17-04, 17-05, 17-07, 17-09 | No submitter tells compliance the content type, state, or brokerage identification, so state rules never apply, no ad is checked for brokerage identification, and copy with no listed phrase is approved | What each submitter must send |
+| 11-04 | Quiet hours apply only to client replies that carry an hour; deadline alerts and clock-driven sends are treated as noon | Stamp the hour on agent sends |
+| 18-09 | Agents 06 and 09 mark every calendar event's timezone as confirmed | Whether a local time counts as confirmed |
+| 14-04 | A client asks to be texted after opting out of texts: the "no" stands (tuple 14), and Agent 11 still confirms the change to the client | Confirm only what will happen |
+| 12-03 | Engagement is keyed by platform: two platforms always "conflict", and the same platform reported twice keeps only the last figure | What counts as a conflict |
+| 16-03 | A past client's new business goes straight to Agent 02, skipping Agent 01's consent and duplicate checks | Route it through 01 |
+| Agent 09 | A vendor's calendar event is dated the day of the request; no appointment date reaches 09 | Where the appointment date comes from |
+| Agent 03 | A sequence paused by a spike stays paused when the re-score keeps WARM | Resume or stay paused |
+| Agent 14 | A frozen record still takes consent changes (the end-of-day report names it as a logging gap) | Whether a freeze also holds consent |
+| Agent 17 | A review that waited for a ruleset is not rerun when one arrives; the SLA alert repeats daily | Rerun, or leave to you |
+| SW-01 to SW-04, SW-12, SW-14 | Priority classes, siding, the after-action report and playbook matching exist in the core but this product's runtime does not call them | Wiring per part |
 
 ---
 

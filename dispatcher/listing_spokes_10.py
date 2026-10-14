@@ -179,7 +179,10 @@ class Spoke10MarketData:
         # tuple 4: staleness threshold - regenerate, never reship. A stale
         # datum here means dropped and reported, not silently kept.
         import datetime
+        # Counted since 2026-10-14 (tuple runs): a stale comp used to vanish
+        # from the package without a word, a silent narrowing of the set.
         today = payload.get("today")
+        dropped_stale = 0
         if today:
             today_d = datetime.date.fromisoformat(today)
             fresh = []
@@ -187,6 +190,7 @@ class Spoke10MarketData:
                 rd = datetime.date.fromisoformat(c["retrieval_date"])
                 if (today_d - rd).days <= self.staleness_days:
                     fresh.append(c)
+            dropped_stale = len(valid) - len(fresh)
             valid = fresh
 
         # tuple 9: two sources disagree on sold price -> report both, never pick
@@ -203,6 +207,8 @@ class Spoke10MarketData:
             "package_type": "comp",
             "comps": valid,
             "dropped_no_provenance": dropped,
+            "dropped_stale": dropped_stale,
+            "staleness_days": self.staleness_days,
             "thin": thin,
             "comp_count": len(valid),
             "comp_minimum": self.comp_minimum,

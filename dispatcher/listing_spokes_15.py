@@ -93,7 +93,10 @@ class Spoke15FinancialTracking:
             if not signed:
                 # tuple 6: unsigned amendment -> compute on signed docs
                 # only, projection labeled as such
+                # source kept since 2026-10-14 (tuple runs): an unsigned close
+                # computed at the default rate lost the "computed" label
                 self.commissions[ctx] = {"amount": amount, "signed": False,
+                                         "source": source,
                                          "labeled": "projection - unsigned amendment"}
             else:
                 self.commissions[ctx] = {"amount": amount, "signed": True,
@@ -293,6 +296,15 @@ class Spoke15FinancialTracking:
             if "forecast_request" in payload:
                 horizon = payload["forecast_request"].get("horizon_months")
                 data_horizon = payload["forecast_request"].get("data_horizon_months", 0)
+                # 2026-10-14 (tuple runs): a request with no horizon raised a
+                # TypeError on the comparison below; the broker got nothing.
+                if not all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                           for v in (horizon, data_horizon)):
+                    self.hub.send(_env("15", "queue", "clarification.request", ctx,
+                                       {"reason": "forecast_request needs horizon_months and "
+                                                  "data_horizon_months as numbers; nothing "
+                                                  "forecast"}))
+                    return
                 if horizon > data_horizon:
                     # tuple 10: forecast past data horizon -> decline the
                     # horizon, deliver what data supports
