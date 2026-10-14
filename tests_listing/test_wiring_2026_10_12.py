@@ -484,10 +484,13 @@ def test_restore_point_exam_over_http_then_console_drafts_with_the_model(tmp_pat
             {"do": "config", "to": "04", "ctx": "setup", "payload": {"drafting": {"mode": "model"}}},
             {"do": "send", "from": "05", "to": "04", "intent": "listing.data", "ctx": "MH", "payload": LISTING},
         ]) + "\n", encoding="utf-8")
+        from console_state import init_state
+        init_state(tmp_path / "cs")
         p = subprocess.run([sys.executable, os.path.join(root, "tools", "console.py"), "session", str(script),
                             "--audit-log", str(tmp_path / "state" / "a.jsonl"), "--no-state",
                             "--model-url", url, "--model-name", "hermes-test"],
-                           capture_output=True, text=True, cwd=root)
+                           capture_output=True, text=True, cwd=root,
+                           env=dict(os.environ, LISTINGASSISTANTS_STATE_DIR=str(tmp_path / "cs")))
         lines = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
         assert lines[0]["model_drafting"] == {"ok": True, "checkpoint": "ck-http"}, p.stdout[:500]
         assert lines[-1]["errors"] == 0 and lines[-1]["chain"]["ok"]

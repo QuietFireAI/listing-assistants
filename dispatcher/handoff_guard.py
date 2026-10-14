@@ -116,6 +116,15 @@ def register(hub: Any, agent_id: str, spoke: Any) -> None:
     handler = spoke.handle
 
     def handle(env):
+        result = _handle(env)
+        # MANNERS turn backstop (2026-10-14): one handled envelope is one
+        # turn of this agent (dispatcher/manners_reinjection.py)
+        m = getattr(hub, "manners", None)
+        if m is not None:
+            m.turn(agent_id)
+        return result
+
+    def _handle(env):
         if env.intent != "config.update":
             return handler(env)
         before_tip = hub.audit._prev

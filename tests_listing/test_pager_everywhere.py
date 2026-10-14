@@ -85,6 +85,8 @@ def test_an_unusable_pager_file_stops_the_desk_and_leaves_no_lock(tmp_path):
 def test_the_daily_clock_pages_when_the_pager_is_on(tmp_path, texts, monkeypatch, capsys):
     state = str(tmp_path / "console-state")
     write_pager(state)
+    from console_state import init_state
+    init_state(state)                          # the clock checks the attested install
     import dispatcher.sweep_runner as sr
 
     def fake_sweeps(hub, spokes, today, now_iso):

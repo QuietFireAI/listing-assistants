@@ -808,6 +808,12 @@ class Desk:
             roster["_status"] = (f"RATIFIED {datetime.date.today().isoformat()} showcase copy of "
                                  f"scenes/config/vendor_panel.json - synthetic vendors")
             json.dump(roster, open(os.path.join(config_dir, "vendor_panel.json"), "w", encoding="utf-8"), indent=1)
+            # the showcase runs on synthetic data in its own folder: it
+            # attests whatever is installed each time it starts (2026-10-14);
+            # your own desk checks against what you attested
+            from dispatcher.signatures import Ed25519Signer
+            from dispatcher.boot_attest import attest
+            attest(state_dir, Ed25519Signer(private_key_bytes=open(key, "rb").read()))
         if not os.path.exists(key):
             raise SystemExit(f"no key in {state_dir}: run `python tools/console.py init` and "
                              f"`python tools/console.py onboard` first")
@@ -827,15 +833,20 @@ class Desk:
         self.operator = console._operator()
         audit_path = os.path.join(state_dir, "console-audit.jsonl")
         from dispatcher.core import AuditLogBusy, AuditLogDamaged
+        from dispatcher.boot_attest import AttestationRefused
         try:
             self.sw, self.signer = console.build(
                 audit_path, config_dir,
                 os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
-        except (AuditLogDamaged, AuditLogBusy, StateIntegrityError) as e:
+        except (AuditLogDamaged, AuditLogBusy, StateIntegrityError, AttestationRefused) as e:
             # refuse to start, name why, and leave no lock behind (repair
             # plan 1.2 / owner decision D4, 2026-10-13: before this a damaged
             # record stopped the desk with a raw traceback)
             os.remove(self.lockfile)
+            if isinstance(e, AttestationRefused):
+                raise SystemExit(json.dumps({"error": "install not attested", "reason": str(e),
+                                             "action": "nothing was written; review the install, "
+                                                       "then run `python tools/console.py attest`"}))
             if isinstance(e, (AuditLogDamaged, AuditLogBusy)):
                 raise SystemExit(json.dumps(console.damaged_record_error(e, audit_path)))
             raise SystemExit(json.dumps({"error": "saved state refused", "reason": str(e),

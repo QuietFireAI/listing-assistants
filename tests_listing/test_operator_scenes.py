@@ -32,12 +32,16 @@ def run(tmp_path_factory):
     roster["_status"] = "RATIFIED 2026-10-12 scene test"
     (cfg / "vendor_panel.json").write_text(json.dumps(roster), encoding="utf-8")
     audit, state = d / "audit.jsonl", d / "state.sqlite"
+    sys.path.insert(0, os.path.join(ROOT, "tests_listing"))
+    from console_state import init_state
+    init_state(d / "cs")                       # as `console init` would (2026-10-14)
+    env = dict(os.environ, LISTINGASSISTANTS_STATE_DIR=str(d / "cs"))
     out = {}
     for f in SCENES:
         p = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "console.py"), "session",
                             os.path.join(ROOT, "scenes", f), "--audit-log", str(audit),
                             "--state-db", str(state), "--config-dir", str(cfg)],
-                           capture_output=True, text=True, cwd=ROOT)
+                           capture_output=True, text=True, cwd=ROOT, env=env)
         lines = [json.loads(l) for l in p.stdout.splitlines() if l.startswith("{")]
         out[f[:7]] = {"rc": p.returncode, "lines": lines, "stderr": p.stderr}
     entries = [json.loads(l) for l in open(audit, encoding="utf-8")]

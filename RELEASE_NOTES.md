@@ -15,6 +15,21 @@ end-to-end test.
 
 ## Changes in this release
 
+- **MANNERS is wired (owner decision 2026-10-14).** MANNERS.md's
+  re-injection now fires: at P01's three phase gates, at every signed
+  release, decline or HITL decision, and every 10 envelopes an agent
+  handles with no other trigger. Each goes on the audit log
+  (`manners.reinjection`), and Agent 04's model prompt carries the
+  MANNERS.md text on every call. The post-compaction trigger has no event
+  in this product (nothing compacts a context) and is documented as such.
+- **Boot attestation.** `console.py init` signs the SHA-256 of every file
+  in `dispatcher/`, `identity/routes.json` and `MANNERS.md` with your key.
+  The console, the Broker Desk and the daily clock refuse to start, before
+  writing anything, when the install differs from what you signed; after
+  reviewing a change, `console.py attest` names what changed and signs it
+  (Operator Guide §16). An existing install needs `console.py attest`
+  once. The daily clock now also checks signatures with your key.
+
 - **The Broker Desk.** `python tools/desk.py` shows the broker everything
   waiting on them, with Send, Continue/Cancel and Done buttons that sign
   with the broker's key, plus listing progress, hot-lead clocks, the
@@ -200,7 +215,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1075 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1088 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

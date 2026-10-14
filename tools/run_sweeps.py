@@ -62,9 +62,26 @@ def main(argv=None) -> int:
     except ValueError as e:
         print(json.dumps({"error": str(e)}))
         return 2
+    from dispatcher.boot_attest import AttestationRefused
+    from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
+    state_dir = os.path.dirname(os.path.abspath(args.audit_log))
+    key = os.path.join(state_dir, "operator-key.bin")
+    if not os.path.exists(key):
+        print(json.dumps({"error": "install not attested",
+                          "reason": f"no operator key at {key}: run `python tools/console.py init`"}))
+        return 2
+    verifier = Ed25519Verifier(Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes())
     try:
         sw = build_swarm(args.audit_log, state_db=args.state_db, config_dir=args.config_dir,
-                         human_notifier=pager)       # the pager, when on, texts you from the clock too
+                         verifier=verifier.verifier(),
+                         human_notifier=pager,       # the pager, when on, texts you from the clock too
+                         # the clock starts only on what the operator attested (2026-10-14)
+                         attestation={"state_dir": state_dir, "verify_bytes": verifier.verify_bytes})
+    except AttestationRefused as e:
+        print(json.dumps({"error": "install not attested", "reason": str(e),
+                          "action": "nothing was written; review the install, then run "
+                                    "`python tools/console.py attest`"}))
+        return 2
     except StateIntegrityError as e:
         print(json.dumps({"error": "saved state refused", "reason": str(e)}))
         return 2

@@ -307,6 +307,10 @@ class HITLManager:
             "wait_id": wait_id, "decision": decision,
             "authorized_by_envelope": auth.envelope_id,
             "client_context_id": ws.client_context_id, "agent": ws.agent_id})
+        # a signed human decision is a gate in every playbook: re-inject
+        # MANNERS (dispatcher/manners_reinjection.py, 2026-10-14)
+        from .manners_reinjection import phase_gate
+        phase_gate(self.hub, f"HITL decision {decision} on {wait_id}")
         resolution = {"decision": decision, "human_payload": payload,
                       "resolved_at": time.time(), "authorized_by_envelope": auth.envelope_id}
 

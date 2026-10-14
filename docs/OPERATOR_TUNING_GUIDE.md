@@ -77,8 +77,9 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1075 passed, 1 skipped
-python tools/console.py init             # your signing key, mode 0600, stays on this machine
+python -m pytest tests_listing/          # expect: 1088 passed, 1 skipped
+python tools/console.py init             # your signing key, mode 0600, stays on this machine,
+                                         # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
 ```
@@ -308,7 +309,33 @@ Ed25519 signature over the manifest, the SHA-256 of every listed file, that
 no unlisted file is present, that no manifest path escapes `payload/`, and,
 with `--installed-version`, that the pack is strictly newer. `--dev-bypass`
 skips only the signature check, exits 3, and prints NOT VERIFIED. Afterwards,
-run the test suite and `python tools/console.py verify`.
+run the test suite and `python tools/console.py verify`, then
+`python tools/console.py attest`: it names every file the update changed and
+signs the new install. Until you do, the console, the Broker Desk and the
+daily clock refuse to start, because the install no longer matches what you
+attested (see §16).
+
+## 16. Boot attestation
+
+`python tools/console.py init` signs a list of the SHA-256 of every file in
+`dispatcher/`, `identity/routes.json` and `MANNERS.md` with your operator
+key, into `console-state/boot-attestation.json`. Each time the console, the
+Broker Desk or the daily clock starts, it checks the install against that
+list before writing anything. If a file changed, was added or is missing,
+or the list is not signed by your key, it stops and names the reason, and
+the audit log is left as it was. When the match holds, the chain records
+`boot.attestation` with `enforced: true`.
+
+After you have reviewed a change (an update pack, a new release),
+`python tools/console.py attest` shows what changed and signs the new
+install. MANNERS.md's own rule is the reason for this: its hash is
+registered at boot, and a change without your signature is treated as
+tainted and stops the system.
+
+The showcase desk (`tools/desk.py --showcase`, synthetic data in its own
+folder) attests whatever is installed each time it starts. Swarms started
+without a check (the test suite, the MCP server) record the hash of what
+is running with `enforced: false`, so they are never silent about it.
 
 ## 8. Human decisions on paused work (`dispatcher/hitl_protocol.py`)
 

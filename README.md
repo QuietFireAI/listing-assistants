@@ -367,7 +367,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1075 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1088 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -457,7 +457,8 @@ desk's tests on Windows as well as Linux.
 python tools/run_demo.py                 # one listing, six acts, on the real hub
 python tools/desk.py --showcase          # the Broker Desk, replaying the operator scenes
 python tools/mcp_roundtrip.py            # live stdio round trip of the MCP server
-python tools/console.py init             # create your signing key
+python tools/console.py init             # create your signing key and attest this install
+python tools/console.py attest           # after reviewing a change: sign the new install
 python tools/console.py onboard          # who you are, asked once
 python tools/console.py session scenes/scene01_signature.jsonl --config-dir scenes/config
 python tools/console.py verify           # walk the audit chain

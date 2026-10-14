@@ -183,7 +183,10 @@ text file that GitHub shows as a formatted page.
 
 Two files that apply to every agent. `MANNERS.md` sets how every agent
 behaves in every situation: never do harm, always be truthful, never claim
-done without checking, ask when unsure. `SWARM.md` holds the decisions that
+done without checking, ask when unsure. Its rules are put back in front of
+the agents at each phase gate and human decision, and every 10 messages an
+agent handles; the system will not start if the file changed since you
+signed the install (`console.py attest`). `SWARM.md` holds the decisions that
 apply to the whole team and the counts of agents, routes and playbooks.
 
 ## Your authority

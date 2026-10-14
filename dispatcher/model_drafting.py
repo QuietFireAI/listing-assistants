@@ -101,6 +101,7 @@ class DraftingModel:
     def __init__(self, hub: Any, client: Any, model_name: str, checkpoints_dir: str):
         from .hermes_seam import HermesCognitiveSeam
         from .model_checkpoint_manager import ModelCheckpointManager
+        self.hub = hub
         self.client = client
         self.model_name = model_name
         self.checkpoints = ModelCheckpointManager(checkpoints_dir)
@@ -153,6 +154,11 @@ class DraftingModel:
                   f"Use ONLY these facts; keep every attribution; add no number, feature, "
                   f"neighborhood, school, or description of who would like the home:\n"
                   + "\n".join(lines))
+        # MANNERS on every model call (owner decision 2026-10-14): the one
+        # model prompt in this product carries the conduct rules
+        manners = getattr(self.hub, "manners", None)
+        if manners is not None:
+            prompt = manners.prompt_block() + "\n" + prompt
         from .hermes_seam import HermesUnavailableError
         try:
             thinking, text = self.seam.draft_and_trace(agent_id, envelope_id, prompt, learn=False)

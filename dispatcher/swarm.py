@@ -123,6 +123,28 @@ def load_roster(config_dir: str):
     return roster, verdict, problems
 
 
+def _human_gates(hub) -> None:
+    """A signed release or decline of a held message is a human gate in
+    every playbook: re-inject MANNERS when one succeeds. The HITL decision
+    gate fires in dispatcher/hitl_protocol.py."""
+    release, decline = hub.release_disclosure, hub.decline_disclosure
+
+    def release_disclosure(auth):
+        res = release(auth)
+        if isinstance(res, dict) and res.get("status") != "reject":
+            hub.manners.phase_gate(f"human release of {auth.payload.get('held_envelope_id')}")
+        return res
+
+    def decline_disclosure(auth):
+        res = decline(auth)
+        if isinstance(res, dict) and res.get("status") == "declined":
+            hub.manners.phase_gate(f"human decline of {auth.payload.get('held_envelope_id')}")
+        return res
+
+    hub.release_disclosure = release_disclosure
+    hub.decline_disclosure = decline_disclosure
+
+
 def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 config_dir: Optional[str] = None,
                 verifier: Optional[Callable] = None,
@@ -133,7 +155,14 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 decision_adapter: Any = None,
                 model_client: Any = None,
                 model_name: Optional[str] = None,
-                checkpoints_dir: Optional[str] = None) -> Swarm:
+                checkpoints_dir: Optional[str] = None,
+                attestation: Optional[dict] = None) -> Swarm:
+    """attestation: {"state_dir": ..., "verify_bytes": callable} makes this
+    swarm refuse to start (boot_attest.AttestationRefused) unless what is
+    installed is what the operator's key attested - the console, the Broker
+    Desk and the daily clock pass it. None records the running hash with
+    enforced: false (tests, the MCP server). Checked before anything is
+    written (owner decision 2026-10-14)."""
     from .core import Routes, AuditLog
     from .hub import Hub
     from .hitl_protocol import HITLManager
@@ -157,6 +186,11 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     from .listing_spokes_18 import Spoke18CalendarTask
     from .listing_spokes_19 import Spoke19Prospecting
     from .listing_spokes_20 import Spoke20SocialMediaMonitoring
+
+    from . import boot_attest
+    attested = None
+    if attestation is not None:
+        attested = boot_attest.check(attestation["state_dir"], attestation["verify_bytes"])
 
     from .readable_logger import HumanReadableLogger
     from .readable_audit import ReadableAuditLog
@@ -184,6 +218,27 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     hub.register("external", lambda env: external.append(
         {"intent": env.intent, "ctx": env.client_context_id, "payload": env.payload}))
     hub.register("human", human_sink or (lambda env: None))
+
+    # Boot attestation on the chain: what is running, and whether it was
+    # checked against the operator's signed manifest (MANNERS.md
+    # §Re-injection: the file's hash is registered at boot).
+    if attested is not None:
+        hub.audit.append("boot.attestation", {"enforced": True, "matches": True, **attested})
+    else:
+        manifest = boot_attest.current_manifest()
+        hub.audit.append("boot.attestation", {
+            "enforced": False, "files": len(manifest),
+            "manifest_sha256": boot_attest.manifest_sha256(manifest),
+            "manners_sha256": manifest.get("MANNERS.md"),
+            "reason": "this process does not check a signed manifest (tests, the MCP "
+                      "server); the hash of what is running is recorded"})
+
+    # MANNERS re-injection (dispatcher/manners_reinjection.py): phase gates,
+    # the human gates below, and the turn backstop counted in
+    # handoff_guard.register.
+    from .manners_reinjection import MannersReinjector, default_manners_path
+    hub.manners = MannersReinjector(hub, default_manners_path())
+    _human_gates(hub)
 
     from .client_drawer import ClientDrawerManager
     drawers = ClientDrawerManager(drawers_root)

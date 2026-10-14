@@ -105,14 +105,21 @@ def build(audit_path, config_dir=None, state_db=None, model=None, pager=None):
     console-state/swarm-state.sqlite) when the audit chain vouches for it."""
     from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
     from dispatcher.swarm import build_swarm
-    if os.path.exists(KEY_PATH):
-        signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
-    else:
-        signer = Ed25519Signer()
+    from dispatcher.boot_attest import AttestationRefused
+    if not os.path.exists(KEY_PATH):
+        # 2026-10-14: the install is attested with the operator key, so
+        # there is nothing to check it against without one
+        raise AttestationRefused(f"no operator key at {KEY_PATH}: run "
+                                 f"`python tools/console.py init` first")
+    signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
     verifier = Ed25519Verifier(signer.public_key_bytes())
     sw = build_swarm(
         audit_path, state_db=state_db, config_dir=config_dir,
         verifier=verifier.verifier(),
+        # refuse to start unless the install is what this key attested
+        # (MANNERS.md §Re-injection; owner decision 2026-10-14)
+        attestation={"state_dir": os.path.dirname(KEY_PATH),
+                     "verify_bytes": verifier.verify_bytes},
         # every human-queue landing prints as it happens; with the pager on it
         # also texts you, and the hub records what the notifier says happened
         human_notifier=lambda queue, record: _notify_human(queue, record, pager),
@@ -190,9 +197,13 @@ def cmd_init(_args):
     signer = Ed25519Signer()
     # private from the first byte, on Linux, macOS and Windows alike
     write_private(KEY_PATH, signer.private_key_bytes())
+    # the install you just set up is the one you attest (2026-10-14)
+    from dispatcher.boot_attest import attest
+    att = attest(STATE_DIR, signer)
     _p({"initialized": STATE_DIR,
         "operator_key": "generated, private: " + is_private(KEY_PATH)[1],
         "audit_log": AUDIT_PATH,
+        "attested": {"files": att["files"], "file": att["path"]},
         "note": "this key signs YOUR authority actions - it stays on "
                 "this machine"})
     return 0
@@ -490,6 +501,7 @@ def damaged_record_error(e, audit_path):
 def cmd_session(args):
     from dispatcher.core import AuditLogBusy, AuditLogDamaged
     from dispatcher.state_snapshot import StateIntegrityError
+    from dispatcher.boot_attest import AttestationRefused
     folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
     other = desk_running(folder)
     if other:
@@ -524,6 +536,11 @@ def cmd_session(args):
         return 2
     except (AuditLogDamaged, AuditLogBusy) as e:
         _p(damaged_record_error(e, args.audit_log or AUDIT_PATH))
+        return 2
+    except AttestationRefused as e:
+        _p({"error": "install not attested", "reason": str(e),
+            "action": "nothing was written; review the install, then run "
+                      "`python tools/console.py attest`"})
         return 2
     hub, spokes, external = sw.hub, sw.spokes, sw.external
     operator = _operator()
@@ -630,10 +647,28 @@ def cmd_repair_record(args):
     return 0
 
 
+def cmd_attest(_args):
+    """Sign what is installed now, after you have reviewed a change (an
+    offline update, a core sync). Names what changed since the last
+    attestation. The console, the Broker Desk and the daily clock refuse to
+    start until the install matches what you attested (2026-10-14)."""
+    from dispatcher.signatures import Ed25519Signer
+    from dispatcher.boot_attest import attest
+    if not os.path.exists(KEY_PATH):
+        _p({"error": f"no operator key at {KEY_PATH}: run `python tools/console.py init` first"})
+        return 2
+    signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
+    _p({"attested": attest(STATE_DIR, signer),
+        "note": "you signed what is installed now; the console, the Broker Desk and "
+                "the daily clock start only while it stays exactly this"})
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
+    sub.add_parser("attest", help="sign what is installed now, after reviewing a change")
     o = sub.add_parser("onboard")
     o.add_argument("--name", default=None)
     o.add_argument("--login", default=None)
@@ -672,7 +707,8 @@ def main():
     rr.add_argument("--check", action="store_true", help="check only; change nothing")
     args = ap.parse_args()
     try:
-        return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
+        return {"init": cmd_init, "attest": cmd_attest, "onboard": cmd_onboard,
+                "session": cmd_session,
                 "verify": cmd_verify, "pager": cmd_pager,
                 "repair-record": cmd_repair_record}[args.cmd](args)
     except EOFError:
