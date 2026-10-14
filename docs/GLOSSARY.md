@@ -312,11 +312,13 @@ Recomputing every link in the audit log to confirm nothing was changed
 the line where the chain breaks, with the reason: a line that was changed,
 deleted or moved, or a line that cannot be read at all. Nothing starts on a
 record with an unreadable line - not the desk, a console session or the
-daily clock; each one names the line and stops before writing anything.
-The same holds while they run: before each write, the record file's size
-and time are compared with what this program last wrote, and if another
-program damaged, cut back, edited or replaced it in the meantime, nothing
-more is written and the line is named. Programs on one record take turns
+daily clock; each one names the first line where the record breaks (which
+may be an edited line before the unreadable one) and stops before writing
+anything. The same holds while they run: before each write, the record
+file's size and time are compared with what this program last wrote, and
+if another program damaged, cut back, edited or replaced it in the
+meantime, nothing more is written and the problem is named (a line, or
+that entries this program wrote are gone). Programs on one record take turns
 through a lock file next to it (`console-audit.jsonl.lock`), so two of
 them never write at the same moment. An edit made to look untouched (same
 size, same time) is not seen at that moment; **Check the record** still

@@ -185,7 +185,9 @@ def test_a_cut_off_record_stops_the_session_names_the_line_and_writes_nothing(tm
     assert side.read_bytes() == b'{"ts": 1, "kind": "envelope.persi'
     assert _audit(tmp_path)[-1]["kind"] == "audit.tail_quarantined"
     import desk as desk_mod                    # the repair shows on the desk's feed
-    feed = [f["text"] for f in desk_mod.ReadModel(None).activity(_audit(tmp_path))]
+    items = desk_mod.ReadModel(None).activity(_audit(tmp_path))
+    assert items[0]["kind"] == "system"                  # information, not styled as a hold
+    feed = [f["text"] for f in items]
     assert feed[0].startswith(f"Record repaired: a write cut off at line {lines} (33 bytes) was moved to "
                               f"console-audit.jsonl.torn-")
     rc, out, p = _console(tmp_path, "session", _script(tmp_path, LEAD))

@@ -595,7 +595,10 @@ class ReadModel:
                 # both are yours to know about (2026-10-13), worded as in the
                 # readable log
                 from dispatcher.readable_audit import describe
-                out.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"), "kind": "hold",
+                # a failed page needs you (highlighted like a hold); a repair
+                # is information - its own quieter style (2026-10-13)
+                out.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"),
+                            "kind": "hold" if k == "human.notify_failed" else "system",
                             "text": describe(k, e)[1]})
             if len(out) >= n:
                 break
