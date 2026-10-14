@@ -442,6 +442,8 @@ def render_html_dashboard(clients: list[dict], out_path: str = "dashboard.html")
 
 
 def main():
+    if os.name != "nt":
+        os.umask(0o077)     # what this writes about clients is readable only by this account
     parser = argparse.ArgumentParser(description="View Client Funnel & Drawer Portal.")
     parser.add_argument("--html", action="store_true", help="Generate interactive HTML dashboard")
     parser.add_argument("--out", default="dashboard.html", help="HTML output filename (default: dashboard.html)")

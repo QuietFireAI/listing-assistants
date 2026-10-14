@@ -236,13 +236,15 @@ def test_http_page_state_lock_and_access_code(tmp_path):
         s = json.load(urllib.request.urlopen(f"{base}/api/state?t={token}"))
         assert s["mode"] == "showcase" and s["showcase"]["total"] > 0
         req = urllib.request.Request(f"{base}/api/act?t={token}", method="POST",
-                                     data=json.dumps({"action": "send", "id": "nope"}).encode())
+                                     data=json.dumps({"action": "send", "id": "nope"}).encode(),
+                                     headers={"Content-Type": "application/json"})
         assert "no longer held" in json.load(urllib.request.urlopen(req))["error"]
         # a real step over HTTP: runs the swarm and saves its SQLite state,
         # from a server thread, through the desk's owner thread
         for _ in range(3):
             step = urllib.request.Request(f"{base}/api/act?t={token}", method="POST",
-                                          data=json.dumps({"action": "showcase.step"}).encode())
+                                          data=json.dumps({"action": "showcase.step"}).encode(),
+                                          headers={"Content-Type": "application/json"})
             r = json.load(urllib.request.urlopen(step))
             assert r.get("stepped") and r.get("error") is not True, r
         assert json.load(urllib.request.urlopen(f"{base}/api/state?t={token}"))["showcase"]["pos"] >= 3

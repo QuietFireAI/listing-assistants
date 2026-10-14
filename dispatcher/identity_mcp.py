@@ -82,8 +82,8 @@ def _boot_conformance():
     #    authority envelope is rejected by the hub.
     signer = Ed25519Signer()
     verifier = Ed25519Verifier(signer.public_key_bytes())
-    probe_audit = AuditLog(
-        os.path.join(tempfile.gettempdir(), f"conformance-{uuid.uuid4().hex[:8]}.jsonl"))
+    probe_path = os.path.join(tempfile.gettempdir(), f"conformance-{uuid.uuid4().hex[:8]}.jsonl")
+    probe_audit = AuditLog(probe_path)
     hub = Hub(routes, probe_audit,
               signature_verifier=verifier.verifier())
     hub.register("human", lambda e: None)
@@ -115,6 +115,13 @@ def _boot_conformance():
     # 3. Audit chain verifies and is tamper-evident.
     if not probe_audit.verify_chain().get("ok"):
         problems.append("audit chain does not verify at boot")
+    # the probe's log is thrown away (2026-10-14: every boot left one in the
+    # temp folder; 4,389 had piled up on one test machine)
+    for leftover in (probe_path, probe_path + ".lock"):
+        try:
+            os.remove(leftover)
+        except OSError:
+            pass
 
     if problems:
         raise ConformanceError(
@@ -393,6 +400,8 @@ def operator_attestation():
 
 
 def main():
+    if os.name != "nt":
+        os.umask(0o077)     # its audit log and state are readable only by this account
     from dispatcher.boot_attest import AttestationRefused
     try:
         asyncio.run(_serve())

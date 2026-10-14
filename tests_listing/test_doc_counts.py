@@ -1,8 +1,9 @@
 """The test counts the docs state match the suite (2026-10-14). The counts
 went stale more than once; now a wrong number fails CI instead of shipping.
 
-One test runs on Windows only, so on Linux and macOS the suite reports
-(collected - 1) passed and 1 skipped, and on Windows (collected) passed."""
+One test runs on Windows only and one on Linux / macOS only (2026-10-14:
+the state-folder permission check), so every system reports
+(collected - 1) passed and 1 skipped."""
 import importlib.util
 import os
 import re
@@ -46,12 +47,16 @@ def test_the_documented_test_counts_match_the_suite():
         found[name] = [int(x) for x in re.findall(r"(\d{3,}) passed, 1 skipped", text(name))]
         assert found[name], f"{name}: no 'N passed, 1 skipped' line"
     windows = {
-        "QUICKSTART_WINDOWS.md": re.findall(r"Expected: `(\d+) passed`", text("QUICKSTART_WINDOWS.md")),
-        "docs/BROKER_DESK_TESTING_GUIDE.md": re.findall(r"`(\d+) passed` on Windows",
+        "QUICKSTART_WINDOWS.md": re.findall(r"Expected: `(\d+) passed, 1 skipped`",
+                                            text("QUICKSTART_WINDOWS.md")),
+        "docs/BROKER_DESK_TESTING_GUIDE.md": re.findall(r"`(\d+) passed, 1 skipped` on Windows",
                                                         text("docs/BROKER_DESK_TESTING_GUIDE.md")),
+    }
+    totals = {
         "SKILL.md": re.findall(r"a test suite \((\d+) tests", text("SKILL.md")),
         "docs/TUNING_MANUAL.md": re.findall(r"20 spokes, (\d+) tests", text("docs/TUNING_MANUAL.md")),
     }
     wrong = {k: v for k, v in found.items() if any(x != n - 1 for x in v)}
-    wrong.update({k: v for k, v in windows.items() if not v or any(int(x) != n for x in v)})
-    assert not wrong, f"collected {n}: expected {n - 1} passed + 1 skipped / {n} on Windows; found {wrong}"
+    wrong.update({k: v for k, v in windows.items() if not v or any(int(x) != n - 1 for x in v)})
+    wrong.update({k: v for k, v in totals.items() if not v or any(int(x) != n for x in v)})
+    assert not wrong, f"collected {n}: expected {n - 1} passed + 1 skipped on every system; found {wrong}"

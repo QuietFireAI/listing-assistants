@@ -77,7 +77,8 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `1106 passed` (CI runs this on Windows on every push). It takes
+Expected: `1117 passed, 1 skipped` (CI runs this on Windows on every push;
+the skipped test checks Linux / macOS file permissions). It takes
 several minutes on Windows - every audit-log write is flushed to disk - where
 Linux takes about two minutes. The suite runs every agent's rules and all 24
 playbooks end to end against the real hub.
