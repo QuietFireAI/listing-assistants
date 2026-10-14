@@ -5,25 +5,31 @@ attestation; a changed hash without signed authorization = tainted = halt."
 Until 2026-10-14 boot attestation was never called here.
 
 What is attested (repository-relative paths, SHA-256 of the raw bytes):
-every .py file in dispatcher/ (the vendored core and this identity's
-agents), the three programs that start the swarm and check this
-(tools/console.py, desk.py, run_sweeps.py and tools/fresh_bytecode.py),
-everything in identity/, MANNERS.md, SWARM.md, docs/PLAYBOOKS.md,
-docs/JOB_DESCRIPTIONS.md, and each agent folder's SKILL.md and
-DECISIONS.md - the resources identity/IDENTITY-*.md declares as attested
-at boot. config/ is not covered: its files are the broker's own business
-content, ratified through their _status line.
+every file under dispatcher/ and tools/ except __pycache__ (the vendored
+core, this identity's agents, and the programs that start the swarm and
+check this - every file, so a package folder, a compiled extension or a
+sourceless .pyc that Python would import in place of a covered module is
+itself an unattested file), everything in identity/, MANNERS.md,
+SWARM.md, docs/PLAYBOOKS.md, docs/JOB_DESCRIPTIONS.md, and each agent
+folder's SKILL.md and DECISIONS.md - the resources identity/IDENTITY-*.md
+declares as attested at boot. config/ is not covered: its files are the
+broker's own business content, ratified through their _status line.
 
 - `python tools/console.py init` attests the install it creates the key for.
 - `python tools/console.py attest` re-attests after a reviewed change: it
   names what changed and signs the new manifest. Both write boot.attested
   (the manifest's hash and the key's fingerprint) to the audit chain.
+  attest refuses a log last attested with another key; a replaced key is
+  a deliberate step (`attest --new-key`) that records boot.key_changed.
 - The console, the Broker Desk, the daily clock and console repair-record
-  check before writing anything, and refuse (AttestationRefused) when:
-  there is no attestation; it is not signed by this operator's key; any
-  covered file changed, appeared or disappeared; the audit log they are
-  about to write was last attested with a different manifest (an old
-  attestation put back) or a different key.
+  check first, in their main(), and refuse (AttestationRefused) when:
+  there is no attestation; any covered file changed, appeared or
+  disappeared; it is not signed by this operator's key; the audit log
+  they are about to write was last attested with a different manifest (an
+  old attestation put back) or a different key; or that log has entries
+  from before attestation existed and has never been attested. The files
+  are hashed before anything else of this repository is imported: only
+  dispatcher/__init__.py and this module run before the file check.
 - A swarm built without a check (the tests, the showcase desk, the MCP
   server with no operator key) writes boot.attestation with enforced: false
   and the hash of what is running, so it is never silent.
@@ -31,8 +37,10 @@ content, ratified through their _status line.
 Where the protection ends: this detects an unreviewed change made by
 someone who is not trying to get round it (an update copied in, an edit, a
 sync). Anyone who can write to the install can also change this checker,
-the programs that call it, or use the key file next to it. It is drift
-detection with a signature, not tamper resistance.
+the programs that call it, or use the key file next to it, and anyone who
+can run `attest --new-key` on the log can take it over - visibly, as
+boot.key_changed on the chain. It is drift detection with a signature,
+not tamper resistance.
 """
 from __future__ import annotations
 
@@ -44,8 +52,6 @@ import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ATTEST_FILE = "boot-attestation.json"
-CHECKED_TOOLS = ("tools/console.py", "tools/desk.py", "tools/run_sweeps.py",
-                 "tools/fresh_bytecode.py")
 FIXED_FILES = ("MANNERS.md", "SWARM.md", "docs/PLAYBOOKS.md", "docs/JOB_DESCRIPTIONS.md")
 
 
@@ -57,10 +63,15 @@ def covered_files(root: str = ROOT) -> list[str]:
     """Repository-relative paths, '/'-separated, sorted. A link is followed
     and its target's bytes are hashed (a linked module still runs); a link
     to nothing, such as an editor's lock file, is not a file to hash."""
-    pats = ["dispatcher/*.py", "identity/*", "[0-9][0-9]-*/SKILL.md",
-            "[0-9][0-9]-*/DECISIONS.md", *CHECKED_TOOLS, *FIXED_FILES]
     out = set()
-    for pat in pats:
+    for top in ("dispatcher", "tools"):
+        for dirpath, dirnames, filenames in os.walk(os.path.join(root, top), followlinks=True):
+            dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+            for name in filenames:
+                p = os.path.join(dirpath, name)
+                if os.path.isfile(p):
+                    out.add(os.path.relpath(p, root).replace(os.sep, "/"))
+    for pat in ("identity/*", "[0-9][0-9]-*/SKILL.md", "[0-9][0-9]-*/DECISIONS.md", *FIXED_FILES):
         for p in glob.glob(os.path.join(root, pat)):
             if os.path.isfile(p):
                 out.add(os.path.relpath(p, root).replace(os.sep, "/"))
@@ -121,18 +132,27 @@ def differences(attested: dict, root: str = ROOT) -> list[str]:
             + [f"{p}: attested, now missing" for p in d["removed"]])
 
 
-def attest(state_dir: str, signer, root: str = ROOT, audit_path: str | None = None) -> dict:
+def attest(state_dir: str, signer, root: str = ROOT, audit_path: str | None = None,
+           new_key: bool = False) -> dict:
     """Sign what is installed now; returns what changed since the last
     attestation (everything is 'added' the first time). A damaged
     attestation file is replaced. With audit_path, boot.attested goes on
-    that chain, so an old attestation cannot be put back unnoticed."""
+    that chain, so an old attestation cannot be put back unnoticed; a log
+    last attested with another key is refused unless new_key, which
+    records boot.key_changed first."""
     path = os.path.join(state_dir, ATTEST_FILE)
+    fp = fingerprint(signer.public_key_bytes())
+    previous_key = _chain(audit_path)["key"]
+    if previous_key not in (None, fp) and not new_key:
+        raise AttestationRefused(
+            f"{audit_path} was last attested with another key ({previous_key}); this key is "
+            f"{fp}. If you replaced your key, run `python tools/console.py attest --new-key`; "
+            f"it records the change on the chain")
     try:
         _, old = _read(state_dir)
     except AttestationRefused:
         old = None
     manifest = current_manifest(root)
-    fp = fingerprint(signer.public_key_bytes())
     doc = {"manifest": manifest,
            "signature": signer.sign_bytes(canonical(manifest)),
            "key_fingerprint": fp,
@@ -149,7 +169,11 @@ def attest(state_dir: str, signer, root: str = ROOT, audit_path: str | None = No
         # file is left as it was
         from .core import AuditLog
         try:
-            AuditLog(audit_path).append("boot.attested", {
+            log = AuditLog(audit_path)
+            if previous_key not in (None, fp):
+                log.append("boot.key_changed", {"from_key": previous_key, "to_key": fp,
+                                                "reason": "attest --new-key"})
+            log.append("boot.attested", {
                 "manifest_sha256": result["manifest_sha256"], "key_fingerprint": fp,
                 "files": len(manifest), "changed": diff["changed"], "added": len(diff["added"]),
                 "removed": diff["removed"]})
@@ -160,19 +184,22 @@ def attest(state_dir: str, signer, root: str = ROOT, audit_path: str | None = No
     return result
 
 
-def _chain(audit_path: str | None):
-    """The last boot.attested and the last enforced boot.attestation on the
-    log about to be written, if it exists."""
+def _chain(audit_path: str | None) -> dict:
+    """What the log about to be written says: whether it has entries, its
+    last boot.attested, and the key of its most recent key-bearing entry
+    (boot.attested or an enforced boot.attestation)."""
+    out = {"entries": False, "attested": None, "key": None}
     if not audit_path or not os.path.exists(audit_path) or os.path.getsize(audit_path) == 0:
-        return None, None
+        return out
     from .core import AuditLog
-    attested = enforced = None
     for e in AuditLog.reader(audit_path).read():
-        if e.get("kind") == "boot.attested":
-            attested = e
-        elif e.get("kind") == "boot.attestation" and e.get("enforced") is True:
-            enforced = e
-    return attested, enforced
+        out["entries"] = True
+        k = e.get("kind")
+        if k == "boot.attested":       # a key change is always followed by one
+            out["attested"], out["key"] = e, e.get("key_fingerprint")
+        elif k == "boot.attestation" and e.get("enforced") is True:
+            out["key"] = e.get("key_fingerprint")
+    return out
 
 
 def check(state_dir: str, verify_bytes, key_fingerprint: str, root: str = ROOT,
@@ -185,26 +212,60 @@ def check(state_dir: str, verify_bytes, key_fingerprint: str, root: str = ROOT,
         raise AttestationRefused(
             f"this install is not attested (no {path}). Review it, then run "
             f"`python tools/console.py attest`")
-    if not verify_bytes(canonical(doc["manifest"]), doc["signature"]):
-        raise AttestationRefused(
-            f"{path} is not signed by this operator's key. Review the install, then run "
-            f"`python tools/console.py attest`")
+    # the files first, before any other module of this repository is
+    # imported (the signature check below imports dispatcher.signatures)
     found = differences(doc["manifest"], root)
     if found:
         raise AttestationRefused(
             "the install differs from what was attested - tainted, not starting: "
             + "; ".join(found)
             + ". Review the change, then run `python tools/console.py attest`")
+    if not verify_bytes(canonical(doc["manifest"]), doc["signature"]):
+        raise AttestationRefused(
+            f"{path} is not signed by this operator's key. Review the install, then run "
+            f"`python tools/console.py attest`")
     msha = manifest_sha256(doc["manifest"])
-    last_attested, last_enforced = _chain(audit_path)
-    for e in (last_attested, last_enforced):
-        if e is not None and e.get("key_fingerprint") not in (None, key_fingerprint):
-            raise AttestationRefused(
-                f"{audit_path} was attested with another key ({e['key_fingerprint']}); this "
-                f"key is {key_fingerprint}. Use the state folder that belongs to this log")
+    chain = _chain(audit_path)
+    last_attested = chain["attested"]
+    if chain["key"] not in (None, key_fingerprint):
+        raise AttestationRefused(
+            f"{audit_path} was attested with another key ({chain['key']}); this key is "
+            f"{key_fingerprint}. Use the state folder that belongs to this log, or, if you "
+            f"replaced your key, run `python tools/console.py attest --new-key`")
+    if chain["entries"] and chain["key"] is None:
+        raise AttestationRefused(
+            f"{audit_path} has entries from before boot attestation and was never attested. "
+            f"Review the install, then run `python tools/console.py attest --audit-log {audit_path}`")
     if last_attested is not None and last_attested.get("manifest_sha256") != msha:
         raise AttestationRefused(
             f"{path} is not the attestation last recorded on {audit_path} (an older or "
             f"replaced one). Review the install, then run `python tools/console.py attest`")
     return {"attested_on": doc.get("attested_on"), "files": len(doc["manifest"]),
             "key_fingerprint": key_fingerprint, "manifest_sha256": msha}
+
+
+def preflight(state_dir: str, audit_path: str | None = None) -> dict:
+    """The whole check for a program's main(), before it imports anything
+    else from this repository: the files are compared first (only this
+    module and dispatcher/__init__.py have run), then the operator key in
+    state_dir is loaded to check the signature and the log."""
+    key_path = os.path.join(state_dir, "operator-key.bin")
+    if not os.path.exists(key_path):
+        raise AttestationRefused(f"no operator key at {key_path}: run "
+                                 f"`python tools/console.py init` first")
+    path, doc = _read(state_dir)
+    if doc is None:
+        raise AttestationRefused(
+            f"this install is not attested (no {path}). Review it, then run "
+            f"`python tools/console.py attest`")
+    found = differences(doc["manifest"])
+    if found:
+        raise AttestationRefused(
+            "the install differs from what was attested - tainted, not starting: "
+            + "; ".join(found)
+            + ". Review the change, then run `python tools/console.py attest`")
+    from .signatures import Ed25519Signer, Ed25519Verifier
+    with open(key_path, "rb") as f:
+        pub = Ed25519Signer(private_key_bytes=f.read()).public_key_bytes()
+    return check(state_dir, Ed25519Verifier(pub).verify_bytes, fingerprint(pub),
+                 audit_path=audit_path)

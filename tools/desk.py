@@ -59,13 +59,47 @@ import threading
 import time
 import urllib.parse
 
+# Only attested source runs (2026-10-14): this process compiles its bytecode
+# into a new private folder, set before any module of this repository is
+# imported, so a .pyc planted beside a source file is never loaded. Folders
+# left behind by a hard-killed run are removed after a day.
+import atexit as _atexit, glob as _glob, shutil as _shutil, tempfile as _tempfile, time as _time  # noqa: E401,E402
+if not getattr(sys, "_listing_fresh_bytecode", False):
+    for _old in _glob.glob(os.path.join(_tempfile.gettempdir(), "listing-pyc-*")):
+        try:
+            if _time.time() - os.path.getmtime(_old) > 86400:
+                _shutil.rmtree(_old, ignore_errors=True)
+        except OSError:
+            pass
+    sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
+    _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
+    sys._listing_fresh_bytecode = True
+
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TOOLS)
 sys.path.insert(0, ROOT)
 sys.path.insert(0, TOOLS)
 
-import console  # noqa: E402
-from gen_diagrams import PHRASE, phrase  # noqa: E402
+class _LazyModule:
+    """console.py is imported on first use, not when the desk is loaded, so
+    main() checks the install (2026-10-14) before console's code runs."""
+    __slots__ = ("_name",)
+
+    def __init__(self, name):
+        object.__setattr__(self, "_name", name)
+
+    def _module(self):
+        import importlib
+        return importlib.import_module(object.__getattribute__(self, "_name"))
+
+    def __getattr__(self, attr):
+        return getattr(self._module(), attr)
+
+    def __setattr__(self, attr, value):
+        setattr(self._module(), attr, value)
+
+
+console = _LazyModule("console")
 
 PAGE = os.path.join(TOOLS, "desk.html")
 # The broker's page, as a product: README, manual and the page itself name
@@ -229,6 +263,7 @@ NAMES = agent_names()
 
 
 def words(intent):
+    from gen_diagrams import phrase      # on first use, after main()'s check
     try:
         return phrase(intent)
     except KeyError:
@@ -1063,8 +1098,6 @@ def is_showcase_folder(state_dir):
 
 
 def main(argv=None):
-    from fresh_bytecode import use_fresh_bytecode
-    use_fresh_bytecode()            # only attested source runs (2026-10-14)
     ap = argparse.ArgumentParser(description="The Broker Desk")
     ap.add_argument("--showcase", action="store_true",
                     help="a separate desk that replays the ten operator scenes on synthetic data")
@@ -1084,10 +1117,21 @@ def main(argv=None):
     state_dir = args.state_dir or (os.path.join(ROOT, "showcase-state") if args.showcase
                                    else console.STATE_DIR)
     if args.showcase and args.fresh and os.path.isdir(state_dir):
-        if os.path.exists(os.path.join(state_dir, "operator-key.bin")) \
-                and not is_showcase_folder(state_dir):
+        if not is_showcase_folder(state_dir):
+            # 2026-10-14 review: it deleted any folder without an operator key
             raise SystemExit(f"--fresh deletes only a showcase folder; {state_dir} is not one")
         shutil.rmtree(state_dir)
+    if not args.showcase and os.path.exists(os.path.join(state_dir, "operator-key.bin")):
+        # the install first, before the desk loads anything else of this
+        # repository (2026-10-14); a folder with no key gets the desk's own
+        # "run init" message below
+        from dispatcher.boot_attest import AttestationRefused, preflight
+        try:
+            preflight(state_dir, os.path.join(state_dir, "console-audit.jsonl"))
+        except AttestationRefused as e:
+            raise SystemExit(json.dumps({"error": "install not attested", "reason": str(e),
+                                         "action": "nothing was written; review the install, "
+                                                   "then run `python tools/console.py attest`"}))
     scripts = [os.path.abspath(f) for f in (args.script or [])]
     for f in scripts:
         if not os.path.isfile(f):

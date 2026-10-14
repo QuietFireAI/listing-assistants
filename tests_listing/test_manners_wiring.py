@@ -234,11 +234,26 @@ def test_what_is_covered_matches_what_the_identity_declares():
                  "identity/IDENTITY-real-estate-listing-agent.md", "docs/PLAYBOOKS.md",
                  "docs/JOB_DESCRIPTIONS.md", "05-mls-listing-management/SKILL.md",
                  "05-mls-listing-management/DECISIONS.md", "dispatcher/hub.py",
-                 "dispatcher/boot_attest.py", "tools/console.py", "tools/desk.py",
-                 "tools/run_sweeps.py", "tools/fresh_bytecode.py"):
+                 "dispatcher/boot_attest.py", "dispatcher/LICENSE-CORE", "tools/console.py",
+                 "tools/desk.py", "tools/run_sweeps.py", "tools/gen_diagrams.py",
+                 "tools/doc_diagrams.py", "tools/desk.html"):
         assert must in files, must
     assert len([f for f in files if f.endswith("/SKILL.md")]) == 21
-    assert not [f for f in files if f.startswith("config/")]
+    assert not [f for f in files if f.startswith("config/") or "__pycache__" in f]
+
+
+def test_a_package_folder_shadowing_a_module_is_unattested(tmp_path):
+    # 2026-10-14 review: dispatcher/readable_audit/__init__.py would be
+    # imported in place of the attested readable_audit.py
+    root, state = fake_install(tmp_path)
+    s, verify, fp = keys()
+    boot_attest.attest(state, s, root)
+    pkg = os.path.join(root, "dispatcher", "readable_audit")
+    os.mkdir(pkg)
+    open(os.path.join(pkg, "__init__.py"), "w").close()
+    with pytest.raises(boot_attest.AttestationRefused,
+                       match="dispatcher/readable_audit/__init__.py: not attested"):
+        boot_attest.check(state, verify, fp, root)
 
 
 def test_attest_then_check_and_every_refusal(tmp_path):
@@ -366,12 +381,18 @@ def test_console_init_attests_and_a_changed_attestation_stops_the_console(tmp_pa
     kinds = [json.loads(l)["kind"] for l in open(state / "console-audit.jsonl", encoding="utf-8")]
     assert kinds == ["boot.attested"]
     att = state / boot_attest.ATTEST_FILE
-    doc = json.loads(att.read_text())
-    doc["manifest"]["MANNERS.md"] = "0" * 64                        # edited after signing
+    original = att.read_text()
+    doc = json.loads(original)
+    doc["signature"] = "00" * 64                                    # not this key's signature
     att.write_text(json.dumps(doc))
     rc, out = console(state, "session", script(tmp_path))
     assert rc == 2 and out[-1]["error"] == "install not attested"
     assert "not signed by this operator" in out[-1]["reason"]
+    doc = json.loads(original)
+    doc["manifest"]["MANNERS.md"] = "0" * 64                        # the list edited after signing
+    att.write_text(json.dumps(doc))
+    rc, out = console(state, "session", script(tmp_path))
+    assert rc == 2 and "MANNERS.md: changed since it was attested" in out[-1]["reason"]
     rc, out = console(state, "attest")
     assert rc == 0 and out[0]["attested"]["changed"] == ["MANNERS.md"]
     rc, out = console(state, "session", script(tmp_path))
@@ -416,23 +437,107 @@ def test_the_showcase_never_touches_an_operator_folder(tmp_path):
     before = (real / boot_attest.ATTEST_FILE).read_text()
     with pytest.raises(SystemExit, match="not a showcase folder"):
         desk.Desk(str(real), showcase=True)
-    with pytest.raises(SystemExit, match="deletes only a showcase folder"):
-        desk.main(["--showcase", "--fresh", "--state-dir", str(real)])
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "desk.py"), "--showcase",
+                        "--fresh", "--state-dir", str(real), "--port", "0"],
+                       capture_output=True, text=True, cwd=ROOT, timeout=60)
+    assert r.returncode != 0 and "deletes only a showcase folder" in r.stderr
     assert (real / boot_attest.ATTEST_FILE).read_text() == before
     assert not desk.is_showcase_folder(str(real))
+    other = tmp_path / "notes"                                  # no key, not a showcase folder
+    other.mkdir()
+    (other / "notes.txt").write_text("mine")
+    # a subprocess with a timeout: if the guard broke, the desk would start
+    # serving instead of failing
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "desk.py"), "--showcase",
+                        "--fresh", "--state-dir", str(other), "--port", "0"],
+                       capture_output=True, text=True, cwd=ROOT, timeout=60)
+    assert r.returncode != 0 and "deletes only a showcase folder" in r.stderr
+    assert (other / "notes.txt").read_text() == "mine"
 
 
 def test_the_programs_compile_bytecode_into_a_private_folder():
-    code = ("import sys; sys.path.insert(0, 'tools'); from fresh_bytecode import use_fresh_bytecode; "
-            "use_fresh_bytecode(); import dispatcher.boot_attest as b; "
-            "print(sys.pycache_prefix); print(b.__cached__)")
+    for prog in ("console.py", "desk.py", "run_sweeps.py"):
+        src = open(os.path.join(ROOT, "tools", prog), encoding="utf-8").read()
+        switch = src.index("sys.pycache_prefix = _tempfile.mkdtemp(")
+        for local in ("\nimport console", "\nfrom console", "from dispatcher", "import dispatcher",
+                      "from gen_diagrams"):
+            i = src.find(local)
+            assert i == -1 or switch < i, (prog, local)
+    code = ("import importlib.util as u; s = u.spec_from_file_location('c', 'tools/console.py'); "
+            "m = u.module_from_spec(s); s.loader.exec_module(m); import sys; "
+            "import dispatcher.boot_attest as b; print(sys.pycache_prefix); print(b.__cached__)")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                          cwd=ROOT).stdout.split("\n")
     assert "listing-pyc-" in out[0] and out[1].startswith(out[0])
-    for prog in ("console.py", "desk.py", "run_sweeps.py"):
-        src = open(os.path.join(ROOT, "tools", prog), encoding="utf-8").read()
-        main = src[src.index("def main("):]
-        assert main.index("use_fresh_bytecode()") < main.index("ap = argparse.ArgumentParser(")
+
+
+def copy_install(tmp_path):
+    dst = tmp_path / "copy"
+    shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+        ".git", "__pycache__", "console-state", "showcase-state", "*.sqlite"))
+    return dst
+
+
+def test_changed_modules_never_run_before_the_refusal(tmp_path):
+    # 2026-10-14 review: the console and the clock imported state_snapshot,
+    # pager, core and sweep_runner before checking
+    inst = copy_install(tmp_path)
+    state = tmp_path / "cs"
+    env = dict(os.environ, LISTINGASSISTANTS_STATE_DIR=str(state))
+    run = lambda *a: subprocess.run([sys.executable, *a], capture_output=True, text=True,  # noqa: E731
+                                    cwd=str(inst), env=env)
+    assert run("tools/console.py", "init").returncode == 0
+    marker = tmp_path / "ran.txt"
+    for mod in ("state_snapshot", "pager", "core", "sweep_runner", "swarm", "listing_spokes_17"):
+        with open(inst / "dispatcher" / f"{mod}.py", "a", encoding="utf-8") as f:
+            f.write(f"\nopen(r'{marker}', 'a').write('{mod}\\n')\n")
+    log = state / "console-audit.jsonl"
+    before = log.read_text()
+    r = run("tools/console.py", "session", script(tmp_path))
+    assert r.returncode == 2 and "install not attested" in r.stdout
+    r = run("tools/run_sweeps.py", "--audit-log", str(log), "--state-db", str(state / "s.sqlite"))
+    assert r.returncode == 2 and "install not attested" in r.stdout
+    r = run("tools/console.py", "repair-record")
+    assert r.returncode == 2 and "install not attested" in r.stdout
+    r = run("tools/desk.py", "--state-dir", str(state))
+    assert r.returncode != 0 and "install not attested" in (r.stdout + r.stderr)
+    assert not marker.exists(), marker.read_text()
+    assert log.read_text() == before
+
+
+def test_a_log_from_before_attestation_must_be_attested_once(tmp_path):
+    state = tmp_path / "cs"
+    console(state, "init")
+    old_log = tmp_path / "old" / "console-audit.jsonl"
+    old_log.parent.mkdir()
+    AuditLog(str(old_log)).append("note", {"x": "an entry written before attestation existed"})
+    rc, out = console(state, "session", script(tmp_path), "--audit-log", str(old_log), "--no-state")
+    assert rc == 2 and "never attested" in out[-1]["reason"]
+    rc, out = console(state, "attest", "--audit-log", str(old_log))
+    assert rc == 0
+    rc, out = console(state, "session", script(tmp_path), "--audit-log", str(old_log), "--no-state")
+    assert rc == 0
+
+
+def test_another_key_cannot_attest_the_log_and_a_replaced_key_is_a_recorded_step(tmp_path):
+    real, stranger = tmp_path / "real", tmp_path / "stranger"
+    console(real, "init")
+    log = real / "console-audit.jsonl"
+    console(stranger, "init")
+    before = log.read_text()
+    rc, out = console(stranger, "attest", "--audit-log", str(log))
+    assert rc == 2 and "last attested with another key" in out[0]["reason"]
+    assert log.read_text() == before
+    assert console(real, "session", script(tmp_path))[0] == 0      # the operator is not locked out
+    # a replaced key: deliberate, and on the chain
+    rc, out = console(stranger, "attest", "--audit-log", str(log), "--new-key")
+    assert rc == 0
+    kinds = [json.loads(l)["kind"] for l in open(log, encoding="utf-8")]
+    assert kinds[-2:] == ["boot.key_changed", "boot.attested"]
+    rc, out = console(real, "session", script(tmp_path))
+    assert rc == 2 and "attested with another key" in out[-1]["reason"]
+    assert console(real, "attest", "--new-key")[0] == 0            # and back, also recorded
+    assert console(real, "session", script(tmp_path))[0] == 0
 
 
 def test_the_clock_needs_the_key_and_the_attestation(tmp_path):

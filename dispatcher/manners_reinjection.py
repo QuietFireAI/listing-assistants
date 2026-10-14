@@ -9,9 +9,11 @@ fired in this product: the core could record a re-injection
   release or decline of a held message, a signed HITL decision, and any
   other signed human authority the hub accepts (a price or status change,
   a config.update). One gate fires once: a signed message that already
-  crossed a named gate (P01's intake) does not fire a second time. The
-  release and decline gates fire after the hub has acted on the signature;
-  a refused (unsigned, wrong-key) answer fires nothing.
+  crossed a named gate (P01's intake) does not fire a second time. A gate
+  on a signed message fires once the hub has accepted it - after the
+  release, the decline or the delivery, not before; a refused (unsigned,
+  wrong-key) message fires nothing. P01's phase gates fire in Agent 05
+  before the step they open.
 - turn_backstop: every N agent turns with no other trigger, N = 10 (the
   value ratified 2026-07-17). A turn is one envelope an agent handles;
   the count is per agent, and any phase gate re-injection resets every

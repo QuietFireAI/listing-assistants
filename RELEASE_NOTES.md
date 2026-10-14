@@ -32,8 +32,10 @@ end-to-end test.
   anything, and refuse on any change, on an older attestation put back, or
   on another key's attestation; after reviewing a change,
   `console.py attest` names what changed and signs it (Operator Guide §16).
-  An existing install needs `console.py attest` once. The daily clock now
-  also checks signatures with your key. This is drift detection with your
+  An existing install needs `console.py attest` once (and once per log
+  kept elsewhere, with `--audit-log`). A replaced key takes a log over only
+  with `console.py attest --new-key`, recorded on the chain. The daily
+  clock now also checks signatures with your key. This is drift detection with your
   signature, not tamper resistance: someone who can write to the install
   can also change the checker.
 
@@ -222,7 +224,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1097 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1101 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```
