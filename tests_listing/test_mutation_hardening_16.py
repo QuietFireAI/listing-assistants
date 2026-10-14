@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 16 (after-close referral), remaining gap.
+"""Mutation-hardening - spoke 16 (after-close referral), remaining gap.
 
 Fable covers 16:246. This closes 16:283 (_NEW_BUSINESS_WORDS detection routing
 a new lead.captured to 02). Kill-verified.

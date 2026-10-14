@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 13 (buyer search & match).
+"""Mutation-hardening - spoke 13 (buyer search & match).
 
 Closes the 12 spoke-13 true gaps. positive+negative per decision, each
 verified to KILL its mutation.

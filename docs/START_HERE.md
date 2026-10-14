@@ -1,4 +1,4 @@
-# START HERE — The 60-Second Version
+# START HERE - The 60-Second Version
 
 <!-- diagram:team-start - drawn in tools/doc_diagrams.py; edit it there, not here -->
 ```mermaid
@@ -52,9 +52,9 @@ flowchart TB
 > **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
 
 **What this is.** Twenty specialized agents, coordinated by one dispatcher hub, that run the coordination
-layer of a residential listing business — lead intake, listing
+layer of a residential listing business - lead intake, listing
 go-to-market, transaction deadlines, document chasing, showing
-logistics, client updates, follow-up, and the books — under one
+logistics, client updates, follow-up, and the books - under one
 dispatcher, on one auditable track. You keep every decision that makes
 you a fiduciary: prices, offers, negotiations, legal calls, and every
 word that goes out under your name past a hold.
@@ -81,7 +81,7 @@ pip install -r requirements.txt
 python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1117 passed, 1 skipped)
 ```
 
-That last command isn't a formality — it executes every playbook,
+That last command isn't a formality - it executes every playbook,
 end to end, against the same hub that runs in production, and it's the
 same check our CI runs on every change.
 
@@ -90,10 +90,10 @@ lead-scoring rubric (the thresholds are yours, signed, versioned),
 your approved vendor roster with credential dates, your compliance
 ruleset, your nurture sequences, your message templates, your cadences.
 Then a daily scheduler
-invokes the clock layer (`tools/run_sweeps.py` — one cron line), and
+invokes the clock layer (`tools/run_sweeps.py` - one cron line), and
 the swarm starts doing what the docs describe. Until your external
 adapters are connected, outbound actions (MLS writes, client sends,
-ad publishes) queue visibly rather than pretending — the system tells
+ad publishes) queue visibly rather than pretending - the system tells
 you what's dark.
 
 **Test it yourself on camera.** `docs/OPERATOR_TESTING_MANUAL.md` walks
@@ -101,14 +101,14 @@ ten ready-made scenes (`scenes/`), each with the exact output to expect;
 the suite runs the same ten files on every build.
 
 **Where to read next, in order:**
-1. `docs/AGENT_USER_MANUAL.md` — your day with ListingAssistants, as a broker
-   (and `docs/BROKER_DESK_MANUAL.md` — the one page you work from, with pictures)
-2. `docs/OPERATOR_TUNING_GUIDE.md` — setup, storage, offline updates, and the optional modules
-3. `docs/WHAT_SUCCESS_MEANS.md` — what each playbook delivers and what it takes off your plate
-4. `docs/PLAY-BY-PLAY.md` — the step-by-step narration of what actually moves between agents
-5. `docs/JOB_DESCRIPTIONS.md` — every agent's role and rules
-6. `docs/PLAYBOOKS.md` — all 24 playbooks: triggers, agents, gates
-7. `docs/TUNING_MANUAL.md` — every number you can turn, and its default
+1. `docs/AGENT_USER_MANUAL.md` - your day with ListingAssistants, as a broker
+   (and `docs/BROKER_DESK_MANUAL.md` - the one page you work from, with pictures)
+2. `docs/OPERATOR_TUNING_GUIDE.md` - setup, storage, offline updates, and the optional modules
+3. `docs/WHAT_SUCCESS_MEANS.md` - what each playbook delivers and what it takes off your plate
+4. `docs/PLAY-BY-PLAY.md` - the step-by-step narration of what actually moves between agents
+5. `docs/JOB_DESCRIPTIONS.md` - every agent's role and rules
+6. `docs/PLAYBOOKS.md` - all 24 playbooks: triggers, agents, gates
+7. `docs/TUNING_MANUAL.md` - every number you can turn, and its default
 
 **The four guarantees, which every document above keeps repeating
 because they're the product:** completion is verified, never claimed;

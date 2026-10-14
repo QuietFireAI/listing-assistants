@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 08 (document collection), remaining gaps.
+"""Mutation-hardening - spoke 08 (document collection), remaining gaps.
 
 Fable covers 08:176. This closes 08:101 (wire-quarantine return) and 08:370
 (signed_docs_only passthrough on the settlement statement). Kill-verified.

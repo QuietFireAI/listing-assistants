@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 18 supplement.
+"""Mutation-hardening - spoke 18 supplement.
 
 Fable's decision-table test closes 18:249/257/264/343. This file closes the
 3 remaining spoke-18 gaps from the clean sweep:

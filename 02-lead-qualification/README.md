@@ -44,9 +44,9 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P04 — Open House Cycle](../docs/PLAY-BY-PLAY.md#p04--open-house-cycle)
-- [P11 — Speed to Lead](../docs/PLAY-BY-PLAY.md#p11--speed-to-lead)
-- [P21 — Lead Rescore Cycle](../docs/PLAY-BY-PLAY.md#p21--lead-rescore-cycle)
+- [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P11 - Speed to Lead](../docs/PLAY-BY-PLAY.md#p11---speed-to-lead)
+- [P21 - Lead Rescore Cycle](../docs/PLAY-BY-PLAY.md#p21---lead-rescore-cycle)
 
 ## The rules it follows
 

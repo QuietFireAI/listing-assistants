@@ -1,4 +1,4 @@
-# Final Sweep Ledger — a72c398 + provenance hardening
+# Final Sweep Ledger - a72c398 + provenance hardening
 
 Method: full regenerated mutation sweep (every single-op comparison flip +
 every bool-literal flip) across all 19 listing spoke modules = **624 mutations**,

@@ -1,10 +1,10 @@
-# Listing Swarm — Operator Testing & Video Guide
+# Listing Swarm - Operator Testing & Video Guide
 
 > **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [docs/GLOSSARY.md](docs/GLOSSARY.md).
 
 For recording the swarm in action on a real Hermes agent, using your generated
 client/listing data. Written so every step produces something visible worth
-narrating. Nothing here asks you to trust the system — each act ends in a check
+narrating. Nothing here asks you to trust the system - each act ends in a check
 you can point a camera at.
 
 Repo: `github.com/QuietFireAI/listing-assistants`.
@@ -21,7 +21,7 @@ python3 -m pytest tests_listing -q  # expect: 1117 passed, 1 skipped
 ```
 
 If `1117 passed, 1 skipped` prints, the build is sound and nothing needs addressing before you
-record. If it does not, stop and send me the failure — do not record a swarm that
+record. If it does not, stop and send me the failure - do not record a swarm that
 does not pass its own suite.
 
 ---
@@ -81,17 +81,17 @@ The fastest, cleanest recording. One command, six acts, self-narrating output:
 python3 tools/run_demo.py
 ```
 
-**What to narrate, act by act — and the exact line that proves it:**
+**What to narrate, act by act - and the exact line that proves it:**
 
 | Act | What the viewer sees | The proof line on screen |
 |-----|----------------------|--------------------------|
-| 1 — Signed authorization | A signed listing kicks off setup. The vendor booking is HELD. | `vendor booking (a COUNTERPARTY) auto-sent? False … held by the Absolute Signal (True)` |
-| 1 — Price | The list price arrived from the human; no agent set or touches it. | `$500,000 list price came in on the signed envelope. No agent set it…` |
-| 2 — Production gate | Description drafted only after photos verified; compliance reviews every asset. | `compliance verdict on the clean draft: approved` |
-| 3 — Fair housing | A steering phrase in the data is FLAGGED and never markets. | `did the flagged phrase EVER reach a marketing release? False` |
-| 4 — **The Absolute Signal** | Campaign to the public HOLDS, human signs a release, THEN it publishes. | `held by the Absolute Signal: True` → `auto-published without a human? False` → `human signs a release` → `NOW campaign published: True` |
-| 5 — Pricing question | Any price question routes to a human, never answered by an agent. | `did any agent ANSWER the price question? False` |
-| 6 — The chain | Every event hash-linked; tamper is detectable. | `verify_chain(): ok=True … dead letters: 0` |
+| 1 - Signed authorization | A signed listing kicks off setup. The vendor booking is HELD. | `vendor booking (a COUNTERPARTY) auto-sent? False … held by the Absolute Signal (True)` |
+| 1 - Price | The list price arrived from the human; no agent set or touches it. | `$500,000 list price came in on the signed envelope. No agent set it…` |
+| 2 - Production gate | Description drafted only after photos verified; compliance reviews every asset. | `compliance verdict on the clean draft: approved` |
+| 3 - Fair housing | A steering phrase in the data is FLAGGED and never markets. | `did the flagged phrase EVER reach a marketing release? False` |
+| 4 - **The Absolute Signal** | Campaign to the public HOLDS, human signs a release, THEN it publishes. | `held by the Absolute Signal: True` → `auto-published without a human? False` → `human signs a release` → `NOW campaign published: True` |
+| 5 - Pricing question | Any price question routes to a human, never answered by an agent. | `did any agent ANSWER the price question? False` |
+| 6 - The chain | Every event hash-linked; tamper is detectable. | `verify_chain(): ok=True … dead letters: 0` |
 
 After the demo, three optional checks you can show on screen:
 
@@ -107,7 +107,7 @@ the whole product in five lines.
 
 **To prove the chain claim live (great B-roll):** open the audit log the demo prints
 (`log file: /tmp/…/audit.jsonl`), change one character in any line, re-run
-`verify_chain()` on it — it names the broken line. "Not trust us. Check us."
+`verify_chain()` on it - it names the broken line. "Not trust us. Check us."
 
 ---
 
@@ -140,11 +140,11 @@ for path in glob.glob("YOUR_DATA_DIR/listing_*.json"):
 A batch driver (`tools/run_batch.py`) is not written yet. Given one sample
 `listing_*.json` and one `client_*.json`, it can be built to run every listing,
 report pass/fail per listing, and dump a summary (how many completed, how many held for release, zero price mutations). That
-turns "watch one" into "here are 2000 runs, all chain-verified" — a far stronger
+turns "watch one" into "here are 2000 runs, all chain-verified" - a far stronger
 claim for a broker.
 
 **Do not** hand-edit the data to make a run pass. If a listing fails, that is a
-finding — capture it.
+finding - capture it.
 
 ---
 
@@ -178,13 +178,13 @@ Only claim what the run shows. Each of these is backed by a visible line above:
 
 - No agent sets or changes a price. (Act 1, Act 5)
 - No agent sends financial or position-bearing content to the other side without a
-  human's signed release. (Act 1, Act 4 — the Absolute Signal)
+  human's signed release. (Act 1, Act 4 - the Absolute Signal)
 - Flagged fair-housing content cannot market. (Act 3)
 - Every action is on a hash-chained, tamper-evident log. (Act 6)
-- Financial *execution* isn't disabled — it is absent from the build, and adding it
+- Financial *execution* isn't disabled - it is absent from the build, and adding it
   needs a signed software update. (see `docs/FINANCIAL_CAPABILITY.md`)
 
-**What NOT to claim on camera:** that the signer registry is armed. It is not yet —
+**What NOT to claim on camera:** that the signer registry is armed. It is not yet -
 `config/authority_signers.json` is the unratified template, so today the release is
 Ed25519-signed but not yet bound to a named human login + MFA. If asked, that is the
 honest answer, and arming it is one ratification step. Do not imply MFA-bound signing
@@ -205,9 +205,9 @@ suite (verified 30+ consecutive clean runs) and the demo (15+ clean runs) both p
 reliably on their own; a rare non-print has only ever been a transient when two
 Python processes launch back-to-back, never a code failure, and it does not repeat.
 A *real* problem fails twice. So: if it fails once, re-run. If it fails **twice in a
-row**, the build has a genuine problem — capture the full output and send it before
+row**, the build has a genuine problem - capture the full output and send it before
 filming rather than recording around a failure.
 
-(This transient is logged as an open, unreproduced item — 30 isolated suite runs
+(This transient is logged as an open, unreproduced item - 30 isolated suite runs
 could not trigger it. If you ever catch a named test failing, send me the name; that
 converts an unknown into something I can fix.)

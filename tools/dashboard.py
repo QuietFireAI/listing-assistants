@@ -187,7 +187,7 @@ load_all_clients = load_all_drawers
 
 def render_terminal_dashboard(clients: list[dict]):
     print("\n" + "=" * 90)
-    print("  LISTINGASSISTANTS — NON-TECHNICAL CLIENT FUNNEL & DRAWER PORTAL")
+    print("  LISTINGASSISTANTS - NON-TECHNICAL CLIENT FUNNEL & DRAWER PORTAL")
     print("  ListingAssistants.com | dispatcher + 20 agents")
     print("=" * 90)
 
@@ -308,7 +308,7 @@ def render_html_dashboard(clients: list[dict], out_path: str = "dashboard.html")
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ListingAssistants — Non-Technical Client Funnel & Drawer Portal</title>
+    <title>ListingAssistants - Non-Technical Client Funnel & Drawer Portal</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -408,7 +408,7 @@ def render_html_dashboard(clients: list[dict], out_path: str = "dashboard.html")
 <body>
     <div class="container">
         <div class="header">
-            <h1>ListingAssistants — Client Funnel & Drawer Portal</h1>
+            <h1>ListingAssistants - Client Funnel & Drawer Portal</h1>
             <p>Non-Technical Operational Dashboard &bull; Dispatcher + 20 agents &bull; <a href="https://ListingAssistants.com" style="color:#90cdf4;">ListingAssistants.com</a></p>
         </div>
 

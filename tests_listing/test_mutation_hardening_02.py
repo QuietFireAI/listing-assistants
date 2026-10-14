@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 02 (lead qualification), remaining gaps.
+"""Mutation-hardening - spoke 02 (lead qualification), remaining gaps.
 
 Fable covers 02:146. This closes 203, 205, 285, 398. Each kill-verified.
 """

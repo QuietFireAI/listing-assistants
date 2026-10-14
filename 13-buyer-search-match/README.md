@@ -55,17 +55,17 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P01 — New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01--new-listing-onboarding)
-- [P02 — Price Adjustment](../docs/PLAY-BY-PLAY.md#p02--price-adjustment)
-- [P03 — Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03--under-contract-transition)
-- [P04 — Open House Cycle](../docs/PLAY-BY-PLAY.md#p04--open-house-cycle)
-- [P05 — Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05--expiredwithdrawn-wind-down)
-- [P06 — New Buyer Onboarding](../docs/PLAY-BY-PLAY.md#p06--new-buyer-onboarding)
-- [P07 — Tour Day Coordination](../docs/PLAY-BY-PLAY.md#p07--tour-day-coordination)
-- [P08 — Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08--offer-to-acceptance)
-- [P09 — Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09--contract-to-close-the-deadline-engine)
-- [P10 — Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10--close--post-close-handoff)
-- [P22 — Buyer Feedback Match Refresh](../docs/PLAY-BY-PLAY.md#p22--buyer-feedback-match-refresh)
+- [P01 - New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01---new-listing-onboarding)
+- [P02 - Price Adjustment](../docs/PLAY-BY-PLAY.md#p02---price-adjustment)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
+- [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
+- [P06 - New Buyer Onboarding](../docs/PLAY-BY-PLAY.md#p06---new-buyer-onboarding)
+- [P07 - Tour Day Coordination](../docs/PLAY-BY-PLAY.md#p07---tour-day-coordination)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
+- [P22 - Buyer Feedback Match Refresh](../docs/PLAY-BY-PLAY.md#p22---buyer-feedback-match-refresh)
 
 ## The rules it follows
 

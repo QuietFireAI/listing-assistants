@@ -47,8 +47,8 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P12 — Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12--geographic-farm-campaign)
-- [P24 — Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24--prospecting-outreach-probation-mode)
+- [P12 - Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12---geographic-farm-campaign)
+- [P24 - Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24---prospecting-outreach-probation-mode)
 
 ## The rules it follows
 

@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 12 (marketing campaign).
+"""Mutation-hardening - spoke 12 (marketing campaign).
 
 Closes the 4 spoke-12 gaps: 97, 98, 121, 253. Each kill-verified.
 """
