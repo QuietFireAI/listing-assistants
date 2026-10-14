@@ -5,9 +5,9 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 
 | Result | Tuples |
 |---|---|
-| PASS | 211 |
+| PASS | 213 |
 | VARIANCE | 2 |
-| NOT REACHABLE | 35 |
+| NOT REACHABLE | 33 |
 | NOT BUILT | 20 |
 | RETIRED | 4 |
 
@@ -121,7 +121,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 06-13 | 06 | intake | PASS | (seller-report setting is malformed, reject it whole; nothing changes) |  |
 | 07-01 | 07 | intake | PASS | (deadline calculable two ways, clarification with both calculations shown) | The broker relays the question as a signed setting (no entry reads a contract). |
 | 07-02 | 07 | intake | PASS | (party claims an extension with no amendment on file, track the original; record the claim as stated_by_party; alert human) |  |
-| 07-03 | 07 | none | NOT REACHABLE | (received artifact contradicts the tracked deadline, halt that milestone; human with both items) | Agent 07 reads contradicts_tracked_deadline on a doc.status, but Agent 08 never sets it, and nothing compares a received artifact's dates with the timeline. |
+| 07-03 | 07 | intake | PASS | (received artifact contradicts the tracked deadline, halt that milestone; human with both items) | T1: the report states 2026-10-22 against a tracked 2026-10-25, so the milestone is not satisfied and both dates go to the broker. T2: the dates agree and the report is filed normally. |
 | 07-04 | 07 | intake | PASS | (multiple deadlines land the same day, alert each individually; never summarize into one alert) |  |
 | 07-05 | 07 | intake | PASS | (wire topic appears anywhere, full stop; escalation.legal_line flagged out-of-band; no partial handling) | Caught at Agent 11 before the document reaches Agent 08 or 07. |
 | 07-06 | 07 | intake | PASS | (inspection report received, log + distribute per contract parties; repair NEGOTIATION content is human-only, full stop) |  |
@@ -148,7 +148,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 09-02 | 09 | intake | PASS | (credential expires mid-engagement, flag before any next scheduling) | The roster's only photographer's license expired 2027-12-31; a listing signed on 2028-01-15 needs photos. |
 | 09-03 | 09 | intake | PASS | (vendor proposes a rate change mid-job, halt + human; RESPA-adjacent territory) |  |
 | 09-04 | 09 | intake | PASS | (deliverable arrives partial, report partial truthfully; never mark collected) |  |
-| 09-05 | 09 | none | NOT REACHABLE | (two agents request the same vendor slot, deadline-driven request wins; ties go to human) | Agent 09 reads slot_key and deadline_priority on a vendor.request, but neither requester (Agent 05 for photos and property checks, Agent 07 for inspectors and appraisers) sends them. |
+| 09-05 | 09 | none | NOT REACHABLE | (two agents request the same vendor slot, deadline-driven request wins; ties go to human) | Agent 09 reads slot_key and deadline_priority on a vendor.request, and neither requester (Agent 05, Agent 07) sends them. A slot needs a vendor and an appointment time; no appointment date reaches Agent 09, and each roster vendor serves one kind, so two agents never ask for the same vendor. Owner decision: appointment dates and vendor capacity per slot. |
 | 09-06 | 09 | intake | PASS | (vendor not on the approved list, refuse to schedule; propose addition to human; urgency does not create approval) | No inspector on the roster. Requesters never name a vendor, so the product form of 'not on the approved list' is no approved vendor of that kind. |
 | 09-07 | 09 | intake | PASS | (vendor requests property access codes, custody protocol only; codes never ride vendor messages) |  |
 | 09-08 | 09 | intake | PASS | (completion claimed without proof artifact, status stays open; deliverable.release requires the proof) |  |
@@ -168,7 +168,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 10-11 | 10 | intake | PASS | (historic data requested beyond retention, absent is the answer; never reconstruct from model memory) |  |
 | 11-01 | 11 | intake | PASS | (client reply mixes routine + advice questions, answer neither; split and route both) | has_routine_component is an upstream classifier label. The 'split' is a label on the forwarded reply; the full message is forwarded (Agent 11 docstring). |
 | 11-02 | 11 | none | RETIRED | (client is angry, acknowledge + escalation.complaint; no defensiveness, no promises) - RETIRED 2026-10-12 (owner decision): angry clients go straight to the human; no acknowledgement is sent (replacement tuple below) | Owner decision 2026-10-12: replaced by tuple 14 (angry clients go straight to the human). |
-| 11-03 | 11 | none | NOT REACHABLE | (two agents report conflicting statuses, send nothing; clarification) | Agent 11 compares statuses by conflict_key, and no agent that sends status.update, deadline.alert or client.message.request sets conflict_key. |
+| 11-03 | 11 | none | NOT REACHABLE | (two agents report conflicting statuses, send nothing; clarification) | Agent 11 compares statuses by conflict_key, and no sender sets it. No two agents report a status on the same thing to Agent 11 (05 reports listing status, 07 deadlines, 08 documents). Owner decision: which reports can conflict, or retire the tuple. |
 | 11-04 | 11 | none | NOT REACHABLE | (urgent deadline alert lands inside quiet hours, send only if human config marks that alert class exempt; otherwise wake the human, not the client) | Quiet hours are judged from an hour field. Agent 07's deadline.alert carries no hour or alert_class, the daily clock carries no hour, and exempt alert classes can be set only in code, so every deadline alert is treated as noon. |
 | 11-05 | 11 | intake | PASS | ('what would you do?' from a client, escalation.legal_line with the question verbatim) |  |
 | 11-06 | 11 | intake | PASS | (client asks a pricing/strategy question in any channel, Legal Line; template acknowledgment + human handoff) |  |
@@ -205,7 +205,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 14-01 | 14 | intake | PASS | (two agents logged conflicting facts for one event, keep both + flag; the record system never merges truth) | Two entries for one kind of event disagree: both stand and the second is flagged. The same check covers two agents logging one event. |
 | 14-02 | 14 | intake | PASS | (merge candidate with unconfirmed identity, no merge) | Same phone, different name: nothing merges; the second inquiry is held for the broker. |
 | 14-03 | 14 | intake | PASS | (report requested over a known logging gap, state the gap; never smooth) | A record frozen before its first entry: the lead's consent is recorded but its log entries are refused, so the end-of-day report (console show eod) names T1 as a logging gap. |
-| 14-04 | 14 | intake | PASS | (consent flags conflict across channels, honor the most restrictive per channel, exactly) | A later 'yes' never lifts a 'no' on its own; only a broker-signed consent_record marked reconfirmed_by_client does (tuple 14). |
+| 14-04 | 14 | intake | PASS | (consent flags conflict across channels, honor the most restrictive per channel, exactly) | A later 'yes' never lifts a 'no' on its own; only a broker-signed consent_record marked reconfirmed_by_client does (tuple 14). Since 2026-10-14 the client is not told the change was made; the broker is. |
 | 14-05 | 14 | intake | PASS | (record deletion request, human; retention rules are jurisdiction, not judgment) |  |
 | 14-06 | 14 | intake | PASS | (merge candidates detected, propose merge with evidence; never auto-merge client contexts) |  |
 | 14-07 | 14 | intake | PASS | (record edit would erase history, append-correct instead; the log is written in ink) | Agent 14 has no edit or overwrite method; every change is a new entry. Checked here: two signed consent changes are two entries. |
@@ -251,7 +251,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 18-03 | 18 | none | NOT BUILT | (human instruction conflicts with a contractual deadline, surface both; act on neither until directed) | No input or handler exists for a human instruction to compare against a deadline (Agent 18 docstring, tuple 3). |
 | 18-04 | 18 | intake | PASS | (an agent asks to move a protected deadline block, refuse; human confirmation only) | Agents have no route to ask 18 to move a block; the broker relays the ask as a signed setting naming the requesting agent. |
 | 18-05 | 18 | intake | PASS | (overloaded day, propose a priority order; the human confirms it) | Nine showings on one day; the cap is 8 events a day (TUNING_MANUAL). |
-| 18-06 | 18 | none | NOT REACHABLE | (two deadline sources disagree, track both, alert the conflict; never pick the friendlier date) | Only Agent 07 sends deadline.alert, so there is never a second source. Agent 18 compares by milestone, not by source: an amended date from 07 itself would be reported as two sources. Listed as a finding. |
+| 18-06 | 18 | intake | PASS | (two deadline sources disagree, track both, alert the conflict; never pick the friendlier date) | The timeline (Agent 07) and the inspection report disagree on the date. The calendar keeps both, alerts the broker, and the briefing lists the conflict. Wired 2026-10-14. |
 | 18-07 | 18 | intake | PASS | (owner calendar shows conflict with a contractual deadline, deadline outranks; propose the move on the soft item) |  |
 | 18-08 | 18 | none | NOT REACHABLE | (recurring task silently failing (no completion events), surface the pattern; a quiet calendar is a suspect calendar) | No sender sets recurring_task_id and the daily clock does not run check_recurring_task (Agent 18 docstring, tuple 8). |
 | 18-09 | 18 | none | NOT REACHABLE | (timezone ambiguity on any party, confirm before scheduling; assumptions here cost closings) | Both senders of calendar.event (06 and 09) set timezone_confirmed true on every event, so the timezone gate never holds one. Listed as an owner decision. |

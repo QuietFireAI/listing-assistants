@@ -91,7 +91,7 @@ class Spoke18CalendarTask:
         self.hub = guard(hub, "18")   # handoff rule (audit TU-2)
         self.calendar: dict[str, list[dict]] = {}  # day -> events
         self.protected_blocks: dict[str, dict] = {}  # event_id -> {day, source: "07"}
-        self.deadline_sources: dict[str, dict[str, str]] = {}  # ctx -> {source: date}
+        self.deadline_sources: dict[str, dict[str, dict[str, str]]] = {}  # ctx -> {milestone: {source: date}}
         self.waiting: dict[str, dict] = {}  # (agent, ctx, waiting_on) key -> status record
         self.recurring_task_last_seen: dict[str, str] = {}  # task_id -> last completion date
         self.max_events_per_day = max_events_per_day
@@ -235,20 +235,25 @@ class Spoke18CalendarTask:
         if env.intent == "deadline.alert":
             milestone = payload.get("milestone")
             deadline = payload.get("deadline")
-            source = env.from_agent
-
             # tuple 6: two deadline sources disagree -> track both, alert,
-            # never pick the friendlier date
-            existing = self.deadline_sources.setdefault(ctx, {})
-            if milestone in existing and existing[milestone] != deadline:
+            # never pick the friendlier date. Keyed by source since
+            # 2026-10-14 (plumbing): it was keyed by milestone only, so an
+            # amended date from the same source read as "two sources", and
+            # the briefing listed any context whose milestones fell on
+            # different days as a deadline conflict. A source is the
+            # sender, or the payload's "source" (Agent 07 sends "artifact"
+            # for a date a received document states).
+            source = str(payload.get("source") or env.from_agent)
+            by_source = self.deadline_sources.setdefault(ctx, {}).setdefault(milestone, {})
+            by_source[source] = deadline
+            if len(set(by_source.values())) > 1:
                 self.hub.send(_env("18", "queue", "clarification.request", ctx,
                                    {"reason": f"conflicting deadline sources "
                                              f"for {milestone!r}: "
-                                             f"{existing[milestone]!r} vs "
-                                             f"{deadline!r} - tracking both, "
-                                             f"never picking the friendlier "
-                                             f"date"}))
-            existing[milestone] = deadline
+                                             + ", ".join(f"{k} says {v!r}" for k, v in sorted(by_source.items()))
+                                             + " - tracking both, never picking the "
+                                               "friendlier date",
+                                    "sources": dict(by_source)}))
 
             # Doctrine: "deadline blocks originating from 07 are
             # protected." 07 isn't a legal sender of calendar.event at all
@@ -256,7 +261,7 @@ class Spoke18CalendarTask:
             # creates its own protected block for the deadline, sourced
             # from 07's alert, rather than expecting 07 to send a
             # calendar.event it structurally cannot send.
-            block_id = f"deadline-{ctx}-{milestone}"
+            block_id = f"deadline-{ctx}-{milestone}" + ("" if source == "07" else f"-{source}")
             day_events = self.calendar.setdefault(deadline, [])
             if not any(e["event_id"] == block_id for e in day_events):
                 day_events.append({"event_id": block_id, "source": "07",
@@ -389,8 +394,9 @@ class Spoke18CalendarTask:
                 if "human" in str(w.get("waiting_on", "")).lower()
             ],
             "deadline_conflicts_tracked": {
-                ctx: sources for ctx, sources in self.deadline_sources.items()
-                if len(set(sources.values())) > 1},
+                ctx: conflicts for ctx, conflicts in (
+                    (c, {m: dict(srcs) for m, srcs in ms.items() if len(set(srcs.values())) > 1})
+                    for c, ms in self.deadline_sources.items()) if conflicts},
         }
         self.hub.send(_env("18", "human", "report.package", "briefing", briefing))
         return briefing

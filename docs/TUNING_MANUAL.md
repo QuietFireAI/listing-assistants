@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1144 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1148 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -184,9 +184,9 @@ platform metrics, mentions, discovery feeds, signed settings and
 authorizations, releases and the daily clock. Run them with
 `python synth/tuples/run_tuples.py` (it writes `synth/tuples/REPORT.md`);
 `--show 01-02` prints one tuple's session file to run by hand with
-`python tools/console.py session <file>`. The results: 211 PASS,
-2 VARIANCE, 35 NOT REACHABLE, 20 NOT BUILT, 4 RETIRED. CI checks that every
-tuple has its spec and reruns the 16 specs whose code changed
+`python tools/console.py session <file>`. The results: 213 PASS,
+2 VARIANCE, 33 NOT REACHABLE, 20 NOT BUILT, 4 RETIRED. CI checks that every
+tuple has its spec and reruns the 19 specs whose code changed
 (`tests_listing/test_tuple_runs_2026_10_14.py`).
 
 Fixed during the runs:
@@ -218,6 +218,20 @@ Fixed during the runs:
 - Agent 19 compares owner contacts with its do-not-contact list in
   normalized form.
 
+Plumbing pass the same day:
+- 07-03 is wired: a document's own date for its milestone
+  (`stated_deadline`) travels from Agent 11 through 08 to 07, which compares
+  it with the timeline. A disagreement leaves the milestone unsatisfied and
+  sends you both dates.
+- 18-06 is wired: Agent 18 tracks deadlines by source (Agent 07's timeline,
+  or the date a document states), so the two dates are both kept, both get
+  a protected block, and the conflict is alerted. It was keyed by milestone
+  only, so the briefing listed every timeline whose milestones fell on
+  different days as a conflict, and an amended date read as two sources.
+- Agent 11 confirms a channel change to the client only when Agent 14 now
+  records consent on that channel. A client who opted out keeps the "no"
+  (tuple 14) and you are told; the client was told the change was made.
+
 For the owner:
 
 | Tuple(s) | What the run showed | Decision needed |
@@ -226,12 +240,13 @@ For the owner:
 | 04-03 (VARIANCE) | Copy you supply is escalated but never sent to compliance or used in the draft | How your own copy enters a listing description |
 | 02-03 | Forwarding a demand for a person from 01 to 02 would page you twice | One page or two |
 | Agent 05 | A signed change to an MLS field other than status or price (beds, baths, square feet, remarks, address, photos) is accepted and does nothing | Apply it, or refuse it with a clarification |
-| 06-05, 06-07, 06-08, 06-11, 07-03, 09-05, 10-05, 11-03, 12-06, 18-06 | The agent reads a field no sender sets (occupied, hours of notice, possibly under contract, showing agent, a contradicted deadline, slot priority, license scope, conflict key, unconfirmed data, a second deadline source) | Which upstream agent or setting supplies each |
+| 06-05, 06-07, 06-08, 06-11, 10-05, 12-06 | The agent reads a field no sender sets (occupied, hours of notice, possibly under contract, showing agent, license scope, unconfirmed data) | Which upstream agent or setting supplies each |
+| 09-05 | Vendor slot contention needs a slot: a vendor and an appointment time. No appointment date reaches Agent 09 (see the Agent 09 row), and each roster vendor serves one kind, so two agents never ask for the same vendor | Appointment dates for vendors, and how many jobs a vendor takes in one slot |
+| 11-03 | No two agents report a status on the same thing to Agent 11: 05 reports listing status, 07 deadlines, 08 documents | Which reports can conflict, or retire the tuple |
 | 13-01, 16-08, 16-10 | Agent 11 forwards only the client's words to Agents 13 and 16, so their classifier-driven tuples cannot fire; the reply reaches you instead | Forward the labels, or keep replies with you |
 | 17-01, 17-04, 17-05, 17-07, 17-09 | No submitter tells compliance the content type, state, or brokerage identification, so state rules never apply, no ad is checked for brokerage identification, and copy with no listed phrase is approved | What each submitter must send |
 | 11-04 | Quiet hours apply only to client replies that carry an hour; deadline alerts and clock-driven sends are treated as noon | Stamp the hour on agent sends |
 | 18-09 | Agents 06 and 09 mark every calendar event's timezone as confirmed | Whether a local time counts as confirmed |
-| 14-04 | A client asks to be texted after opting out of texts: the "no" stands (tuple 14), and Agent 11 still confirms the change to the client | Confirm only what will happen |
 | 12-03 | Engagement is keyed by platform: two platforms always "conflict", and the same platform reported twice keeps only the last figure | What counts as a conflict |
 | 16-03 | A past client's new business goes straight to Agent 02, skipping Agent 01's consent and duplicate checks | Route it through 01 |
 | Agent 09 | A vendor's calendar event is dated the day of the request; no appointment date reaches 09 | Where the appointment date comes from |

@@ -55,9 +55,11 @@ def test_every_spec_without_a_run_says_why():
             assert s.get("lines") and s.get("expect"), f"{s['id']} has nothing to run"
 
 
-# the specs whose code changed during the 2026-10-14 runs
+# the specs whose code changed during the 2026-10-14 runs (the last three
+# by the plumbing pass the same day)
 FIXED = ["03-05", "03-08", "05-10", "06-03", "06-06", "06-10", "07-11", "09-02",
-         "10-04", "12-09", "14-01", "14-03", "15-06", "15-10", "17-03", "19-08"]
+         "10-04", "12-09", "14-01", "14-03", "15-06", "15-10", "17-03", "19-08",
+         "07-03", "14-04", "18-06"]
 
 
 @pytest.fixture(scope="module")
