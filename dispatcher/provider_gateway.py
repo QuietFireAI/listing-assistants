@@ -9,7 +9,8 @@ Key Principles:
   2. Local-Only Storage: All credentials stay securely on the on-premise appliance.
   3. Strict Secret Masking: Secret tokens and RSA keys are never printed in plain text
      in logs, audit drawers, or command outputs.
-  4. Zero Stubs: Provides live validation, structured schemas, and environment overrides.
+  4. A registry only: it makes no network calls and no agent reads it yet; it
+     records which providers the broker intends to connect (docs/TUNING_MANUAL.md).
 """
 from __future__ import annotations
 

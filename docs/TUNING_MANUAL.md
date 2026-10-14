@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1062 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1072 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -45,9 +45,10 @@ them inline.
 
 ## TOP OF LIST — Deliberate placeholders & unratified configs (read before deployment)
 
-Full stub sweep 2026-07-18: every placeholder in the codebase is listed
-here. Nothing else is stubbed, faked, or silently defaulted. If it's not
-in this table it's real, wired code.
+Re-swept 2026-10-14 from the code and from what the swarm writes when it
+starts: every placeholder is in this table, and every stand-in or unarmed
+mode is in **Stand-ins and unarmed modes** below. The core's own list is in
+dispatcher-agents `docs/TUNING_MANUAL.md`.
 
 | Item | Where | Status | What blocks / what to do |
 |---|---|---|---|
@@ -56,11 +57,37 @@ in this table it's real, wired code.
 | Vacant check interval (P20) | `Spoke05MLSListingManagement.VACANT_CHECK_INTERVAL_DAYS` | **7 days** (signed `watch_interval_days` per listing overrides) | |
 | Disclosure warning lead (J4) | `Spoke08DocumentCollection.DISCLOSURE_LEAD_DAYS` | **3 days** | Warned once on the legal line. |
 | `loop_threshold=20` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | No empirical basis existed to pick a better number; revisit after production traffic. |
-| MANNERS `N=10` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | Same: deliberate, revisit with real data. |
+| MANNERS `N=10` | core `dispatcher/hub.py` (comments only) | **RATIFIED (2026-07-17), NOT IMPLEMENTED (owner decision D7, 2026-10-14)** | Nothing counts turns or fires the backstop; the swarm is deterministic and has no turn loop for it to count. |
 | `config/authority_signers.json` | this repo | **UNRATIFIED — fails closed** | Template for identity-provider logins with MFA. No identity provider is connected in this build, so leave it unratified; the hub checks the key's signature and records that the login binding is off. |
 | `config/vendor_panel.json` | this repo | **UNRATIFIED — fails closed** | Template in Agent 09's format (`vendors: vendor_id -> {kind, license_expiry, insurance_expiry, regulated}`); needs your actual vendors. Same fail-closed rule. The operator scenes use `scenes/config/vendor_panel.json`, a synthetic roster you ratify by hand. |
 | External adapters (`vendor.schedule`, `client.message.send`, `campaign.publish`) | the `external` destination on the closed track | **NOT WIRED** | Held until your signed release, then queued to `external`; tracked in the adapter table below until connected to real providers. |
 | `approved_by` fields | `config/message_templates.json` | **RATIFIED 2026-07-18** (owner blanket sign-off in `_status`) | No code reads this file yet; Agent 11 sends template ids and variables, and wording is the deployment's adapter's job. |
+
+### Stand-ins and unarmed modes (re-swept 2026-10-14)
+
+Each row says how the mode shows itself. The boot lines are the first
+entries of the audit log every time the swarm starts.
+
+| Mode | Where | What happens | How it shows itself | To replace |
+|---|---|---|---|---|
+| Exit gate unarmed (pre-response-selfcheck) | core hub; the swarm passes no reviewer | Outbound text is not reviewed by a second reader | `selfcheck.unarmed` at boot and per outbound check | A reviewer model passed as `selfcheck_model` |
+| Second opinion unarmed (splitvantage) | core hub | No second model on drift-flagged reflections | `splitvantage.unarmed` at boot | A reviewer pair passed as `crosspol_models` |
+| No human notifier | a hub or swarm built without one: the MCP server (`dispatcher/identity_mcp.py`), the playbook test builder | Escalations land on queues and reach no person | `notifier.unarmed` at boot (2026-10-14) | The console always passes one (next row) |
+| Pager off | `tools/console.py`, no `console-state/pager.json` | Human-queue landings are printed on the session screen (and listed on the Broker Desk) and recorded as `shown`, not as a person reached | `human.notified` with `transport_status: shown`; `onboard` prints `sms_pager: off` | `python tools/console.py pager` |
+| JEV local rules | `dispatcher/decision_adapter.py` | Leads are scored by the local rubric engine | `jev.unarmed_fallback` and `decision.engine` at boot; every result carries `is_fallback` and a fallback warning | `JEV_API_KEY` plus a signed `decision_engine.allow_external: true` |
+| Signer registry not armed | `config/authority_signers.json` unratified | The key's Ed25519 signature is checked; which login signed is not | `signer.unarmed` on each authority envelope and HITL decision; `onboard` prints it under `not_armed` | Ratify the file with real IdP logins, then `hub.arm_signer_registry()` |
+| Model drafting off | `dispatcher/model_drafting.py` | Agent 04 writes remarks by its rules | `drafting.model_status` with `model_ready: false` at boot | `--model-url`, an examined checkpoint, and a signed `drafting.mode: model` |
+| Agent state not saved | the MCP server without `LISTING_STATE_DB`, the console with `--no-state`, tests | Agent state, held messages and waits live in the process only | `state.ephemeral` at boot | `LISTING_STATE_DB`; the console saves to `console-state/swarm-state.sqlite` unless `--no-state` |
+| Unratified config files | `config/vendor_panel.json`, `config/transaction_milestones.json`, `config/cadence_settings.json` | Refused: Agent 09's roster stays empty, so every vendor request is refused; Agents 07 and 08 keep their ratified constructor defaults | `config.load` with `verdict: unratified` at boot | Edit, ratify (`_status` RATIFIED, date, name) |
+| Config files no code reads | `config/message_templates.json`, `config/milestone_map.json`, `config/integrations_template.json` | Nothing: they record decisions and intended providers | Stated in this manual and the Operator Guide | Wiring that reads them |
+| External destinations | `vendor.schedule`, `client.message.send`, `campaign.publish` | Kept in a list in the process; nothing leaves the machine | The deliveries are on the audit log; `show external` lists them | A real adapter (table below) |
+| Provider registry | `dispatcher/provider_gateway.py`, `config/integrations.json` | Holds provider settings and masks secrets; no network calls, no agent reads it | Operator Guide §13 | Wiring per provider |
+| Hermes seam without pillars | `dispatcher/hermes_seam.py` | A model call is refused | `REFUSED_PILLARS_UNARMED` | Install the pillar packages |
+| MCP demo signing | `python -m dispatcher.identity_mcp --demo-signing` | The server signs authority calls for the host; demo only | `server_signs_for_host: true` in the identity description the server returns | Run without the flag; the host signs |
+| Synthetic showcase | `tools/desk.py --showcase`, `scenes/config/vendor_panel.json` | The ten operator scenes on synthetic data and a synthetic vendor roster | Marked synthetic on the desk and in the roster's `_status` | Not for real work |
+| Not built: portal and MLS feedback (Agent 05), scrape-source blocking (Agent 10 tuple 6) | `listing_spokes_05.py`, `listing_spokes_10.py` | No code path; those tuples cannot fire | Named in each agent's docstring | A real integration to build against |
+| MANNERS re-injection | `MANNERS.md` §Re-injection (ratified v0.3) | The document says the phase-gate and post-compaction re-injections fire always, plus the N=10 backstop, and that its hash is registered at boot. In this product no code fires any of the three, and boot attestation is not called, so the hash is not registered. The core can record a re-injection; nothing here reports one | Not on the log; listed here (2026-10-14) | Owner decision: wire the triggers and attestation, or amend MANNERS.md (a signed document, not edited without sign-off) |
+| Core parts not called | boot attestation, KPIs, the core after-action report, priority and siding, heartbeat, territories, sleep-marks | Not used by this product | dispatcher-agents README, "What runs in listing-assistants today" | Wiring per part |
 
 Ratification path for the config files: review content → edit → change
 `_status` to `RATIFIED` with date + sign-off → load. Fail-closed until
@@ -143,7 +170,7 @@ now the second one. Revisit when real after-action/fade-rate data exists.
 | Location | Parameter | Value | Controls |
 |---|---|---|---|
 | `dispatcher-agents/dispatcher/hub.py` `Hub.__init__` | `loop_threshold` | `20` | Max envelopes per `(client_context_id, intent)` pair before the hub suspends the loop into `clarification.request`, treating it as a possible runaway |
-| `dispatcher-agents/MANNERS.md` §Re-injection | backstop `N` | `10` | Agent turns allowed with no other MANNERS re-injection trigger (phase gate, post-compaction) before a mandatory turn-backstop re-injection fires anyway |
+| `dispatcher-agents/MANNERS.md` §Re-injection | backstop `N` | `10` | Meant as the agent turns allowed before a mandatory re-injection. **NOT IMPLEMENTED** (D7, 2026-10-14): nothing counts turns or fires it |
 
 ## Ratified 2026-07-17 (owner decisions #1, #3, #4, #6 — this session)
 
@@ -163,10 +190,13 @@ now the second one. Revisit when real after-action/fade-rate data exists.
 
 ## External adapters — NOT YET WIRED (owner decision #6: tracked here until clean)
 
-Three intents route to the virtual destination `external` and currently
-**dead-letter at runtime** (benign `no handler for external` path — audited,
-not notified). Nothing leaves the swarm until a real adapter registers a
-handler for `"external"` on the hub:
+Three intents route to the virtual destination `external`. The swarm
+(`dispatcher/swarm.py`) registers a stand-in handler that keeps each
+delivered envelope in a list in the running process; `python tools/console.py`
+`{"do": "show", "what": "external"}` shows it. Nothing leaves the machine,
+the list is not saved across restarts, and each delivery is on the audit
+log. A real adapter replaces the stand-in by registering its own handler
+for `"external"`:
 
 | Intent | Sender | What's dark until an adapter exists |
 |---|---|---|
@@ -179,16 +209,12 @@ with these dark is a swarm that talks to itself.
 
 ## Also worth knowing about (not tuning-manual material, but adjacent)
 
-- **`dispatcher-agents/dispatcher/notifier.py`**: `TWILIO_ACCOUNT_SID` /
-  `TWILIO_AUTH_TOKEN` default to literal placeholder strings, and the
-  destination number is a fictional NANP placeholder
-  (`+1-555-555-0100`). This isn't a tunable threshold, it's a real
-  production dependency that doesn't exist yet - already flagged
-  previously as the actual last-mile gap in the escalation/notification
-  path (everything upstream works; nobody is listening on the other end
-  yet). Restating it here because it's the same *category* of "not yet
-  a real decision" as the two items above, even though it's a credential,
-  not a number.
+- **`dispatcher/notifier.py`** (vendored core): `TWILIO_ACCOUNT_SID` /
+  `TWILIO_AUTH_TOKEN` default to placeholder strings and the numbers to
+  the fictional `+1-555-555-0100` block. While they are placeholders the
+  core notifier sends nothing and reports "not configured" (2026-10-14).
+  The console does not use it: its pages go through `dispatcher/pager.py`
+  with the details you give `python tools/console.py pager`.
 
 ## Config files (separate from code — business content, not tuning knobs)
 
