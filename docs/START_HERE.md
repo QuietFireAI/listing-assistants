@@ -78,7 +78,7 @@ minutes:
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1147 passed, 1 skipped)
+python -m pytest tests_listing/     # watch all 24 playbooks prove themselves (1178 passed, 1 skipped)
 ```
 
 That last command isn't a formality - it executes every playbook,
@@ -88,7 +88,8 @@ same check our CI runs on every change.
 **What day one looks like.** You configure what only you can: your
 lead-scoring rubric (the thresholds are yours, signed, versioned),
 your approved vendor roster with credential dates, your compliance
-ruleset, your nurture sequences, your message templates, your cadences.
+ruleset, your brokerage identification for ads, your nurture sequences,
+your message templates, your cadences.
 Then a daily scheduler
 invokes the clock layer (`tools/run_sweeps.py` - one cron line), and
 the swarm starts doing what the docs describe. Until your external

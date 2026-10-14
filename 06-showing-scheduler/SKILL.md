@@ -81,13 +81,14 @@ Dispatcher returns an `ack`.
 | OUT | → HITL queue | Access authorization requests; showing requested without a buyer agreement on file | `escalation.legal_line` |
 | OUT | → 05 MLS & Listing Mgmt | Status check before scheduling | `status.request` |
 | IN | ← 05 MLS & Listing Mgmt | Current listing status | `status.response` |
+| IN | ← 05 MLS & Listing Mgmt | The listing record's status, occupancy and state, read for every showing of our own listings (owner decision 2026-10-14) | `listing.data` |
 | IN | ← 11 Client Communication | Post-showing feedback relayed | `showing.feedback_response` |
 | IN | ← 11 Client Communication / 18 Calendar & Task | No-show reported | `showing.no_show` |
 | IN | ← 09 Vendor Coordination | Late vendor cancellation that may affect a scheduled showing (e.g. stager, cleaner) | `vendor.cancellation_notice` |
 | OUT | → 18 Calendar & Task | Wait-state signal (feedback pending) | `agent.status` |
 | OUT | → HITL queue | Calendar conflict, protected-deadline bump held, listing status blocks the showing, vendor cancellation, seller-report setting rejected; weekly seller report held for continue | `clarification.request` / HITL hold |
 | IN | ← Clock (through the hub) | Daily tick: feedback requests, weekly seller report | `clock.tick` |
-| IN | ← Broker (signed) | Settings: `seller_reports` (`weekday`, `listings`), `confirm_protected_bump` | `config.update` |
+| IN | ← Broker (signed) | Settings: `seller_reports` (`weekday`, `listings`), `confirm_protected_bump`, `showing_facts_source` (`listing_record` or `requester`) | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

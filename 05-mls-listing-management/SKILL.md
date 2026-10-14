@@ -70,6 +70,7 @@ Dispatcher returns an `ack`.
 | IN | ← Broker (signed) | Authorized price/status change, go-live | `listing.change.authorized` |
 | IN | ← 09 Vendor Coordination | Photo deliverables | `deliverable.release` |
 | OUT | → 04 / 10 / 13 | Listing data packages | `listing.data` |
+| OUT | → 06 Showing Scheduler | The facts a showing depends on (status, occupancy, state), at intake, go-live and every change | `listing.data` |
 | OUT | → 09 Vendor Coordination | Photo order | `vendor.request` |
 | OUT | → 11 / 12 / 14 | Status change and MLS-entry confirmations | `status.update` |
 | IN | ← 06 Showing Scheduler | Status check before scheduling | `status.request` |

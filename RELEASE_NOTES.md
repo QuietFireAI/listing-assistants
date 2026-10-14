@@ -15,6 +15,18 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Your decisions of 2026-10-14, wired.** A phrase tagger reads client
+  words at intake, and any angry or negative message goes to you as a
+  complaint at once, whatever else it asks. Compliance is told each piece of
+  content's type and state and checks every ad for your brokerage
+  identification, which Agent 12 adds to every ad (set it with a signed
+  `brokerage_identification` to Agents 12 and 17; until then approved ads
+  are held). Showings read occupancy, status and state from your listing
+  record. A signed change to beds, baths, square feet, remarks, address or
+  photos is applied and logged. Tuples now: 224 pass, 2 variance, 22 not
+  reachable, 20 not built, 4 retired. Details and the new phrase lists and
+  settings: `docs/TUNING_MANUAL.md`, "Ratified 2026-10-14".
+
 - **Every tuple run through the product (2026-10-14).** All 272 tuples
   (agents 00 to 20 and `SWARM.md`) have a spec in `synth/tuples/` and were
   run through the console as a broker drives it:
@@ -272,7 +284,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1147 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1178 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

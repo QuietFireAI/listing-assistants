@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1148 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1179 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -132,6 +132,10 @@ not match Agent 11's wire list.
 | 16 | `_PRICING_WORDS` | 3: what's my house worth, what is my house worth, what would it sell for now | Legal-line escalation |
 | 16 | `_INCENTIVE_WORDS` | 4: gift card, referral bonus, pay you for, reward for referring | Legal-line escalation |
 | 20 | `_PRICING_LEGAL_WORDS` | 5: the price is, we can offer, contract terms, legal advice, guarantee | A drafted public reply containing one is never published; legal-line escalation |
+| 11, 20 | `ANGRY_WORDS` (`message_tags.py`, PROVISIONAL 2026-10-14) | 12: ridiculous, unacceptable, furious, angry, outraged, fed up, disgusted, incompetent, how dare, sue you, report you, scam | Complaint to you at once and an outbound hold; nothing is sent to the client |
+| 11, 20 | `NEGATIVE_WORDS` (PROVISIONAL) | 12: not happy, unhappy, disappointed, frustrated, frustrating, annoyed, not thrilled, upset, not impressed, poor service, nobody called, no one called | Complaint to you at once and an outbound hold; the reply also goes to the owning agent marked for P14 |
+| 11 | `CRITERIA_CHANGE_WORDS` (PROVISIONAL) | 9: forget the, changed my mind, actually i want, actually we want, no longer need, doesn't matter anymore, matters more, more important than, we've decided we want | Passed to the owning agent; Agent 13 asks the client to confirm and changes nothing |
+| 11 | `REFERRAL_REWARD_WORDS` (PROVISIONAL) | 8: referral reward, referral fee, finder's fee, finders fee, reward if, for referring, kickback, referral incentive | Passed to the owning agent; Agent 16 sends the words to compliance (a gift idea goes to the legal line first) |
 | Hermes seam | `WIRE_PHRASES`, `FAIR_HOUSING_PHRASES`, `PRICE_PHRASES` (`hermes_seam.py`) | 4, 11 and 3 phrases | Score a model draft; a score of 0.5 or more quarantines a correction (below) |
 
 **Other fixed values.**
@@ -184,9 +188,9 @@ platform metrics, mentions, discovery feeds, signed settings and
 authorizations, releases and the daily clock. Run them with
 `python synth/tuples/run_tuples.py` (it writes `synth/tuples/REPORT.md`);
 `--show 01-02` prints one tuple's session file to run by hand with
-`python tools/console.py session <file>`. The results: 213 PASS,
-2 VARIANCE, 33 NOT REACHABLE, 20 NOT BUILT, 4 RETIRED. CI checks that every
-tuple has its spec and reruns the 19 specs whose code changed
+`python tools/console.py session <file>`. The results: 224 PASS,
+2 VARIANCE, 22 NOT REACHABLE, 20 NOT BUILT, 4 RETIRED. CI checks that every
+tuple has its spec and reruns the 32 specs whose code changed
 (`tests_listing/test_tuple_runs_2026_10_14.py`).
 
 Fixed during the runs:
@@ -232,6 +236,32 @@ Plumbing pass the same day:
   records consent on that channel. A client who opted out keeps the "no"
   (tuple 14) and you are told; the client was told the change was made.
 
+Your decisions the same day (see "Ratified 2026-10-14" below for the
+settings and lists):
+- A phrase tagger reads client words at intake. Any adverse message (angry
+  or negative) goes to you as a complaint at once and holds every outbound
+  touch for that client, whatever else it asks: an angry message with a
+  pricing question also goes to the legal line, and the automatic hand-off
+  note is not sent. Agent 11 passes the criteria-change and referral-reward
+  labels to the owning agent. Wired: 13-01, 16-08, 16-10; 11-10 and 11-14
+  now fire on the words alone. A social mention with no sentiment label is
+  read the same way.
+- Compliance is told the content type and state, checks every ad for your
+  brokerage identification, flags content types the ruleset does not cover
+  and states counsel has not reviewed, and refuses template-class
+  pre-approval. Agent 12 adds your brokerage identification to every ad and
+  holds an approved ad until one is set. Wired: 17-01, 17-04, 17-05, 17-07,
+  17-09.
+- Showings read occupancy, status and state from the signed listing record
+  for your own listings; a listing whose occupancy is not on record is
+  treated as occupied. Notice is measured from when the client wrote
+  (`sent_at`). Agent 05 now answers a status check by the listing, not by
+  the buyer's context (it answered "unknown" for every showing). Wired:
+  06-05, 06-07, 06-11.
+- Agent 05 applies a signed change to beds, baths, square feet, remarks,
+  address or photos, logs the prior value, and sends Agent 04 the updated
+  listing when the description is drafted from that field.
+
 For the owner:
 
 | Tuple(s) | What the run showed | Decision needed |
@@ -239,12 +269,9 @@ For the owner:
 | 01-01 (VARIANCE) | Two inquiries for one context are captured and scored separately | Merge a later inquiry into the first by channel rank (Agent 14 returns the prior capture), or keep them apart |
 | 04-03 (VARIANCE) | Copy you supply is escalated but never sent to compliance or used in the draft | How your own copy enters a listing description |
 | 02-03 | Forwarding a demand for a person from 01 to 02 would page you twice | One page or two |
-| Agent 05 | A signed change to an MLS field other than status or price (beds, baths, square feet, remarks, address, photos) is accepted and does nothing | Apply it, or refuse it with a clarification |
-| 06-05, 06-07, 06-08, 06-11, 10-05, 12-06 | The agent reads a field no sender sets (occupied, hours of notice, possibly under contract, showing agent, license scope, unconfirmed data) | Which upstream agent or setting supplies each |
+| 06-08, 10-05, 12-06 | The agent reads a field no sender sets (showing agent, license scope, unconfirmed data) | Which upstream agent or setting supplies each; 10-05 and 12-06 are closed upstream and could be retired |
 | 09-05 | Vendor slot contention needs a slot: a vendor and an appointment time. No appointment date reaches Agent 09 (see the Agent 09 row), and each roster vendor serves one kind, so two agents never ask for the same vendor | Appointment dates for vendors, and how many jobs a vendor takes in one slot |
 | 11-03 | No two agents report a status on the same thing to Agent 11: 05 reports listing status, 07 deadlines, 08 documents | Which reports can conflict, or retire the tuple |
-| 13-01, 16-08, 16-10 | Agent 11 forwards only the client's words to Agents 13 and 16, so their classifier-driven tuples cannot fire; the reply reaches you instead | Forward the labels, or keep replies with you |
-| 17-01, 17-04, 17-05, 17-07, 17-09 | No submitter tells compliance the content type, state, or brokerage identification, so state rules never apply, no ad is checked for brokerage identification, and copy with no listed phrase is approved | What each submitter must send |
 | 11-04 | Quiet hours apply only to client replies that carry an hour; deadline alerts and clock-driven sends are treated as noon | Stamp the hour on agent sends |
 | 18-09 | Agents 06 and 09 mark every calendar event's timezone as confirmed | Whether a local time counts as confirmed |
 | 12-03 | Engagement is keyed by platform: two platforms always "conflict", and the same platform reported twice keeps only the last figure | What counts as a conflict |
@@ -349,6 +376,21 @@ now the second one. Revisit when real after-action/fade-rate data exists.
 |---|---|---|---|
 | 13 (Buyer Search & Match) | `max_matches_per_buyer_per_day` | `5` | Individual match pings per buyer per day. Beyond it, matches join a ranked end-of-day digest (`flush_match_digest`, sweep-called): ranked by stated-criteria-met desc, ties newest-first. Nothing silently dropped - every match logs to 14 individually (decision #7) |
 | 06 (Showing Scheduler) | protected-deadline bump tier gate | `HOT` only | A protected-deadline claim only earns a HITL bump OFFER when `lead_tier` (relayed by 13 from 14's CRM records, where 02 logged it - never client-writable) is HOT. Not hot or unknown: plain conflict sequencing, no offer (decision #2). The bump itself still executes only on the human's signed `confirm_protected_bump` |
+
+## Ratified 2026-10-14 (owner decisions: tags, compliance inputs, showing facts, MLS fields)
+
+| Where | Setting | Default | What it does |
+|---|---|---|---|
+| `dispatcher/message_tags.py` | the four phrase lists above | as listed | Tags client words at intake (Agent 11) and unlabeled social mentions (Agent 20). An explicit label from an upstream classifier is honored too. Phrases common in neutral messages ("worst case", "still waiting") are left off: an adverse tag holds every outbound touch for that client until you release it (`resolve_complaint_hold`) |
+| Agents 12 and 17 | `brokerage_identification` (signed setting, or constructor argument) | none | The text every ad carries. Agent 12 adds it to every ad and holds an approved ad until it is set; Agent 17 flags an ad that lacks it, or any ad when it has none on file |
+| Agent 17 ruleset | `covers` (optional list) | absent: every type covered | Content types the ruleset addresses: `listing_description`, `advertising`, `nurture_sequence`, `buyer_criteria`, `client_message`, `social_reply`. A type not listed is flagged as uncovered |
+| Agent 17 ruleset | `states_reviewed` (optional list) | absent: no state check | States counsel has reviewed; content for any other state, or with no state, is blocked and goes to the legal line |
+| Agent 17 | `preapprove_template_class` (signed request) | - | Always refused with a clarification; verdicts are per item |
+| Agent 06 | `showing_facts_source` (signed setting) | `listing_record` | Where a showing's occupancy, status and state come from: your listing record for your own listings, or `requester` (the request's own fields). An onboarding choice; you may change it |
+| Agent 06 | unknown occupancy on your own listing | treated as occupied | The minimum-notice rule applies |
+| Agent 05 | `REDRAFT_FIELDS` | beds, baths, sqft, address | A signed change to one of these sends Agent 04 the updated listing to redraft the description |
+
+---
 
 ## External adapters - NOT YET WIRED (owner decision #6: tracked here until clean)
 

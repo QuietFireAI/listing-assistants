@@ -134,7 +134,7 @@ communication in that one guarantee.
 | `content.review` | 03, 04, 12, 13, 20, 16 | 17 |
 | `content.verdict` | 17 | 03, 04, 12, 13, 20, 16 |
 | `asset.release` | 04 | 12, 05 |
-| `listing.data` | 05 | 04, 10, 13 |
+| `listing.data` | 05 | 04, 06, 10, 13 |
 | `listing.change.authorized` | human (broker) - SIGNED | 05 |
 | `showing.request` | 13, 11 | 06 |
 | `doc.request` | 07 | 08 |

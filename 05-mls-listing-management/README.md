@@ -22,6 +22,7 @@ flowchart LR
     subgraph OUT["Talks to"]
         direction TB
         O04["04 Listing Description"]
+        O06["06 Showing Scheduler"]
         O10["10 Market Data"]
         O13["13 Buyer Search and Match"]
         O09["09 Vendor Coordination"]
@@ -29,7 +30,6 @@ flowchart LR
         O11["11 Client Communication"]
         O12["12 Marketing Campaign"]
         OB(["You (broker)"])
-        O06["06 Showing Scheduler"]
         O17["17 Compliance and Fair Housing"]
         O18["18 Calendar and Task Management"]
     end
@@ -39,6 +39,7 @@ flowchart LR
     I06 -- "asks for the listing's status" --> A05
     IK -- "the daily clock runs" --> A05
     A05 -- "shares the listing details" --> O04
+    A05 -- "shares the listing details<br/>answers with the listing's status" --> O06
     A05 -- "shares the listing details" --> O10
     A05 -- "shares the listing details" --> O13
     A05 -- "asks to book a vendor" --> O09
@@ -46,7 +47,6 @@ flowchart LR
     A05 -- "reports the listing's status" --> O11
     A05 -- "reports the listing's status" --> O12
     A05 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
-    A05 -- "answers with the listing's status" --> O06
     A05 -- "sends it for a compliance check" --> O17
     A05 -- "reports what it is waiting on" --> O18
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff

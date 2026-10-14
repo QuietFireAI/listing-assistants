@@ -1050,11 +1050,14 @@ def test_16_a_reviewed_referral_reward_mention_goes_to_the_broker(tmp_path):
 
 
 def test_16_sends_the_clients_own_words_to_17(tmp_path):
+    # 2026-10-14: the message changed. "gift card" is a gift idea (tuple 5),
+    # which now goes to the legal line before the referral label is read.
     sw, s = _swarm(tmp_path)
     sw.hub.send(_env("11", "16", "lead.reply", "RW",
-                     {"message": "Do I get a gift card for referring?", "mentions_referral_reward": True}))
+                     {"message": "Is there a referral fee if my friend lists with you?",
+                      "mentions_referral_reward": True}))
     [r] = _persisted(sw, "content.review", "RW")
-    assert r["payload"]["draft"] == "Do I get a gift card for referring?"
+    assert r["payload"]["draft"] == "Is there a referral fee if my friend lists with you?"
 
 
 # ------------------------------------------------ 14 consent_record (owner decision 2026-10-12)

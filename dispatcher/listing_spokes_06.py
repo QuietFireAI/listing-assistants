@@ -70,6 +70,12 @@ class Spoke06ShowingScheduler:
     def __init__(self, hub, min_notice_hours: dict[str, int] | None = None,
                  feedback_ask_cap: int = 2, no_show_pattern_threshold: int = 2):
         self.hub = guard(hub, "06")   # handoff rule (audit TU-2)
+        # Where a showing's facts come from (owner decision 2026-10-14; an
+        # onboarding setting): "listing_record" (default) reads occupancy,
+        # status and state from Agent 05's signed listing record when the
+        # listing is ours; "requester" takes them from the request.
+        self.showing_facts_source = "listing_record"
+        self.listing_facts: dict[str, dict] = {}   # listing_id -> facts pushed by 05
         self.feedback_ask_cap = feedback_ask_cap
         self.no_show_pattern_threshold = no_show_pattern_threshold
         self.confirmed_showings: dict[str, list[dict]] = {}  # ctx -> showings
@@ -171,6 +177,38 @@ class Spoke06ShowingScheduler:
         self.hub.send(_env("06", "11", "client.message.request", ctx,
                            {"template": "seller_weekly_report", "variables": report}))
         return "continued: report sent to 11"
+
+    def _with_listing_facts(self, payload: dict, env: Envelope) -> dict:
+        """Owner decision 2026-10-14 (tuples 5, 7, 11): occupancy, status and
+        state come from the signed listing record for a listing that is
+        ours; for any other listing (a buyer touring another brokerage's
+        listing) they come from the request, as before. Notice hours are
+        measured from when the client wrote (sent_at) to the requested
+        time; with no sent_at, the request's own figure (or none) stands."""
+        import datetime
+        lid = payload.get("listing_id")
+        facts = self.listing_facts.get(lid) if lid else None
+        if self.showing_facts_source == "listing_record" and facts is not None:
+            occ = facts.get("occupancy")
+            # unknown occupancy on our own listing is treated as occupied:
+            # the notice rule protects whoever may live there
+            payload["property_occupied"] = occ != "vacant"
+            payload["possibly_under_contract"] = facts.get("status") != "active"
+            if facts.get("state"):
+                payload["state"] = facts["state"]
+            self.hub.ingest_spoke_trace(
+                "06", env.envelope_id,
+                thought=f"showing facts for {lid!r} from the listing record: occupancy "
+                        f"{occ!r}, status {facts.get('status')!r}, state {facts.get('state')!r}",
+                result="facts: listing_record")
+        if payload.get("sent_at") and payload.get("requested_time"):
+            try:
+                hours = (datetime.datetime.fromisoformat(payload["requested_time"]) -
+                         datetime.datetime.fromisoformat(payload["sent_at"])).total_seconds() / 3600
+                payload["hours_notice"] = hours
+            except (TypeError, ValueError):
+                pass
+        return payload
 
     def _access_request_hit(self, text: str) -> str | None:
         low = text.lower()
@@ -281,8 +319,28 @@ class Spoke06ShowingScheduler:
                                          f"depends on this vendor's work"}))
             return
 
+        if env.intent == "listing.data":
+            # facts pushed by Agent 05 from the signed listing record
+            lid = env.payload.get("listing_id") or ctx
+            self.listing_facts[lid] = {k: env.payload.get(k)
+                                       for k in ("status", "occupancy", "state")}
+            return
+
+        if env.intent == "config.update" and "showing_facts_source" in env.payload:
+            src = env.payload["showing_facts_source"]
+            if src not in ("listing_record", "requester"):
+                self.hub.send(_env("06", "queue", "clarification.request", ctx,
+                                   {"reason": "showing_facts_source rejected; nothing changed - "
+                                              "\"listing_record\" or \"requester\""}))
+                return
+            self.showing_facts_source = src
+            self.hub.ingest_spoke_trace("06", env.envelope_id,
+                                        thought=f"broker-signed: showing facts come from {src}",
+                                        result="showing facts source set")
+            return
+
         if env.intent == "showing.request":
-            payload = env.payload
+            payload = self._with_listing_facts(dict(env.payload), env)
 
             trigger = self._access_request_hit(str(payload.get("message", "")))
             if trigger:
@@ -352,7 +410,8 @@ class Spoke06ShowingScheduler:
                             "show-ability via MLS (05) before scheduling, "
                             "never assuming active",
                     result="status.request issued, holding")
-                self.hub.send(_env("06", "05", "status.request", ctx, {}))
+                self.hub.send(_env("06", "05", "status.request", ctx,
+                                   {"listing_id": payload.get("listing_id")}))
                 return
 
             self._schedule(ctx, payload, env)

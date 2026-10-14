@@ -340,7 +340,7 @@ portal stale, MLS rejects an entry) cannot fire until one exists.
 **Type:** Coordination / scheduling
 **Summary:** Showing coordination. Use for scheduling buyer showings against seller availability, the confirmation/cancellation/reminder flow, post-showing feedback, and open house RSVPs.
 **Sends:** agent.status, calendar.event, client.message.request, interaction.log, status.request, vendor.request
-**Receives:** clock.tick, showing.feedback_response, showing.no_show, showing.request, status.response, vendor.cancellation_notice
+**Receives:** clock.tick, listing.data, showing.feedback_response, showing.no_show, showing.request, status.response, vendor.cancellation_notice
 **Predeliberated tuples:** 13 (see 06-showing-scheduler/DECISIONS.md)
 **Picture:** who it works with, in [06-showing-scheduler](../06-showing-scheduler/README.md)
 

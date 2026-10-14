@@ -5,9 +5,9 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 
 | Result | Tuples |
 |---|---|
-| PASS | 213 |
+| PASS | 224 |
 | VARIANCE | 2 |
-| NOT REACHABLE | 33 |
+| NOT REACHABLE | 22 |
 | NOT BUILT | 20 |
 | RETIRED | 4 |
 
@@ -110,13 +110,13 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 06-02 | 06 | intake | PASS | (requester identity cannot be verified, cancel the access-bearing appointment; no exceptions) |  |
 | 06-03 | 06 | intake | PASS | ('just let them in' request, refuse + escalation.legal_line; access is the line) | A client's message asking to let someone in. |
 | 06-04 | 06 | intake | PASS | (no-show, log + send feedback request; no reproach messaging) |  |
-| 06-05 | 06 | none | NOT REACHABLE | (same-day showing request on occupied property, minimum-notice rules still apply; occupancy is never squeezed) | Agent 06 reads property_occupied and hours_notice on a showing request, but neither sender (Agent 11 for a client's request, Agent 13 for a buyer match) forwards it: they send only the time, listing, protected-deadline claim, lead tier, buyer agreement and identity check. So the tuple cannot fire on a real request. |
+| 06-05 | 06 | intake | PASS | (same-day showing request on occupied property, minimum-notice rules still apply; occupancy is never squeezed) | The listing record says occupied; the client wrote at 10:00 for 15:00 the same day (5 hours); the minimum is 24 hours (TUNING_MANUAL). Wired 2026-10-14 (owner decision: showings read the listing record). |
 | 06-06 | 06 | intake | PASS | (access code or lockbox combo requested in a message, never transmit; access instructions route through the custody protocol only) | A client's message asking for the lockbox combination. |
-| 06-07 | 06 | none | NOT REACHABLE | (showing request inside occupied-home notice window, offer first legal slot; never ask seller to waive notice unprompted) | Agent 06 reads property_occupied and hours_notice on a showing request, but neither sender (Agent 11 for a client's request, Agent 13 for a buyer match) forwards it: they send only the time, listing, protected-deadline claim, lead tier, buyer agreement and identity check. So the tuple cannot fire on a real request. |
+| 06-07 | 06 | intake | PASS | (showing request inside occupied-home notice window, offer first legal slot; never ask seller to waive notice unprompted) | Occupancy is not on this listing's record, so it is treated as occupied. 20 hours' notice against 24: the client is offered the first legal slot and nobody is asked to waive notice. Wired 2026-10-14. |
 | 06-08 | 06 | none | NOT REACHABLE | (agent no-shows twice, flag pattern to human before third confirmation) | The pattern counts no-shows by showing_agent_id with is_agent_no_show true; a client's no-show report (via Agent 11) carries neither, and Agent 18's calendar-detected no-show sets is_agent_no_show false. No entry names a showing agent. |
 | 06-09 | 06 | intake | PASS | (overlapping showings requested, sequence with buffer; never double-book and hope) |  |
 | 06-10 | 06 | intake | PASS | (feedback request unanswered after two asks, stop; nagging showing agents burns the network) | A showing on 10-17: no feedback request on 10-16 or 10-17 (not shown yet), asks on 10-18 and 10-19, stops on 10-20. |
-| 06-11 | 06 | none | NOT REACHABLE | (request for a property under contract, confirm show-ability status via 05 first; never assume active) | Agent 06 reads possibly_under_contract on a showing request, but neither sender (Agent 11 for a client's request, Agent 13 for a buyer match) forwards it: they send only the time, listing, protected-deadline claim, lead tier, buyer agreement and identity check. So the tuple cannot fire on a real request. |
+| 06-11 | 06 | intake | PASS | (request for a property under contract, confirm show-ability status via 05 first; never assume active) | The listing record says pending, so Agent 06 confirms with Agent 05 before anything is booked and holds it. 05 now looks the status up by the listing, not by the buyer's context (it answered "unknown" before). Wired 2026-10-14. |
 | 06-12 | 06 | intake | PASS | (broker's signed seller-report weekday arrives, count each listed property's showings and feedback for the week and hold the report for the broker; continue sends it through 11, cancel skips; once per week per listing) | Monday 2026-10-19; the second sweep the same day must not hold a second report. |
 | 06-13 | 06 | intake | PASS | (seller-report setting is malformed, reject it whole; nothing changes) |  |
 | 07-01 | 07 | intake | PASS | (deadline calculable two ways, clarification with both calculations shown) | The broker relays the question as a signed setting (no entry reads a contract). |
@@ -166,7 +166,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 10-09 | 10 | intake | PASS | (two sources disagree on a sold price, report both with sources; never pick silently) |  |
 | 10-10 | 10 | intake | PASS | (request smells like appraisal substitution, data package with the not-an-appraisal note; 17 informed) |  |
 | 10-11 | 10 | intake | PASS | (historic data requested beyond retention, absent is the answer; never reconstruct from model memory) |  |
-| 11-01 | 11 | intake | PASS | (client reply mixes routine + advice questions, answer neither; split and route both) | has_routine_component is an upstream classifier label. The 'split' is a label on the forwarded reply; the full message is forwarded (Agent 11 docstring). |
+| 11-01 | 11 | intake | PASS | (client reply mixes routine + advice questions, answer neither; split and route both) | has_routine_component is an upstream classifier label (no phrase list sets it). The 'split' is a label on the forwarded reply; the full message is forwarded (Agent 11 docstring). |
 | 11-02 | 11 | none | RETIRED | (client is angry, acknowledge + escalation.complaint; no defensiveness, no promises) - RETIRED 2026-10-12 (owner decision): angry clients go straight to the human; no acknowledgement is sent (replacement tuple below) | Owner decision 2026-10-12: replaced by tuple 14 (angry clients go straight to the human). |
 | 11-03 | 11 | none | NOT REACHABLE | (two agents report conflicting statuses, send nothing; clarification) | Agent 11 compares statuses by conflict_key, and no sender sets it. No two agents report a status on the same thing to Agent 11 (05 reports listing status, 07 deadlines, 08 documents). Owner decision: which reports can conflict, or retire the tuple. |
 | 11-04 | 11 | none | NOT REACHABLE | (urgent deadline alert lands inside quiet hours, send only if human config marks that alert class exempt; otherwise wake the human, not the client) | Quiet hours are judged from an hour field. Agent 07's deadline.alert carries no hour or alert_class, the daily clock carries no hour, and exempt alert classes can be set only in code, so every deadline alert is treated as noon. |
@@ -179,7 +179,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 11-11 | 11 | intake | PASS | (client requests contact-channel change, honor immediately, record via 14, confirm once) |  |
 | 11-12 | 11 | intake | PASS | (client has no consent on record at 14 on any channel, send nothing; log each blocked message to 14 and tell the broker once for that client) |  |
 | 11-13 | 11 | intake | PASS | (client opted out on every channel, send nothing and log it; the one opt-out confirmation still goes) |  |
-| 11-14 | 11 | intake | PASS | (client is angry, straight to the human: escalation.complaint with the words verbatim, logged to 14, outbound held; nothing is sent to the client - the response is human) | Touch 1 goes on day 0; the client writes angrily on day 1; the day-7 touch is held (P14 outbound hold) and nothing is sent in reply. |
+| 11-14 | 11 | intake | PASS | (client is angry, straight to the human: escalation.complaint with the words verbatim, logged to 14, outbound held; nothing is sent to the client - the response is human) | No label on the message: Agent 11's tagger reads 'ridiculous'. Touch 1 goes on day 0; the client writes angrily on day 1; the day-7 touch is held (P14 outbound hold) and nothing is sent in reply. T2: an angry message that also asks a pricing question goes to the human as a complaint and to the legal line, and the automatic hand-off note is not sent. |
 | 12-01 | 12 | intake | PASS | (approved asset needs platform truncation, truncation is an edit; back through 17) |  |
 | 12-02 | 12 | intake | PASS | (platform rejects an ad, log the raw rejection + human; never tweak targeting to pass a filter) |  |
 | 12-03 | 12 | intake | PASS | (engagement numbers conflict between sources, report both, named) | Agent 12 keys engagement by platform, so two platforms with different numbers count as a conflict, and the same platform reported twice overwrites the first figure. Listed as a finding. |
@@ -191,7 +191,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 12-09 | 12 | intake | PASS | (published asset found factually stale, correct or retract within the same day; log the delta) |  |
 | 12-10 | 12 | intake | PASS | (budget change requested verbally, current signed budget stands until config.update) | A verbal change reported through a config.update is logged and ignored; only a signed_budget figure changes the budget. |
 | 12-11 | 12 | intake | PASS | (compliance flags campaign copy, publish nothing; tell the broker with 17's findings and wait for corrected signed copy) |  |
-| 13-01 | 13 | intake | NOT REACHABLE | (client feedback contradicts stated criteria, ask the client via 11; never rewrite the profile silently) | Agent 13 acts on contradicts_stated_criteria, but Agent 11 forwards only the client's message to the owning agent. The reply reaches the broker instead (checked below), so the profile is never rewritten; the client is not asked. |
+| 13-01 | 13 | intake | PASS | (client feedback contradicts stated criteria, ask the client via 11; never rewrite the profile silently) | Agent 11 tags the change ('forget the') and passes the label on; Agent 13 asks the client to confirm through 11 and leaves the profile as stated. Wired 2026-10-14 (owner decision: phrase tagger at intake). |
 | 13-02 | 13 | intake | PASS | (a criterion correlates with a protected class, refuse the criterion + escalation.legal_line + verbatim log) | The escalation carries the criterion verbatim; the other criteria are kept. |
 | 13-03 | 13 | intake | PASS | (listing is incomplete on a hard criterion, hold and ask the client; delivering flagged-unknown requires their standing preference) |  |
 | 13-04 | 13 | intake | PASS | ('is this a good price?', escalation.legal_line) |  |
@@ -233,18 +233,18 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 16-05 | 16 | intake | PASS | (referral gift or incentive idea, escalation.legal_line; license law + RESPA territory) |  |
 | 16-06 | 16 | intake | PASS | (anniversary touch would land during a known distress event (death, divorce on file), suppress; human decides) |  |
 | 16-07 | 16 | intake | PASS | (past client asks a new-transaction question, new context opened, routed as new lead; old context stays closed) |  |
-| 16-08 | 16 | intake | NOT REACHABLE | (referral reward mention requested, 17 gate first; inducement rules vary by state) | Agent 16 sends a referral-reward mention to 17 when the reply carries mentions_referral_reward, and Agent 11 forwards only the message. The reply reaches the broker instead (checked below). |
+| 16-08 | 16 | intake | PASS | (referral reward mention requested, 17 gate first; inducement rules vary by state) | Agent 11 tags 'referral fee' and passes the label on; Agent 16 sends the client's words to compliance first. Wired 2026-10-14. |
 | 16-09 | 16 | intake | PASS | (contact bounced/disconnected, mark stale, no skip-tracing; re-permission is a human choice) |  |
-| 16-10 | 16 | none | NOT REACHABLE | (compliance verdict on a past client's referral-reward mention, send it to the broker with the client's own words; the broker answers the client) | Follows 16-08: no referral-reward mention reaches 17 through the real entries, so no verdict comes back. |
-| 17-01 | 17 | none | NOT REACHABLE | (ruleset is silent on the construction, flag as uncovered; never approve by omission) | Agent 17 reads uncovered_construction on a content.review, and no submitter (03, 04, 12, 13, 16, 20) sends it. In practice anything that matches no prohibited phrase is approved. Listed as a finding. |
+| 16-10 | 16 | intake | PASS | (compliance verdict on a past client's referral-reward mention, send it to the broker with the client's own words; the broker answers the client) | The verdict goes to the broker with the client's words; nothing is sent to the client. Wired 2026-10-14. |
+| 17-01 | 17 | intake | PASS | (ruleset is silent on the construction, flag as uncovered; never approve by omission) | The ruleset lists the content types it covers and advertising is not one: the ad is flagged as uncovered, not approved. Wired 2026-10-14 (owner decision). |
 | 17-02 | 17 | intake | PASS | (flagged content resubmitted unchanged, flag the repeat + human) |  |
 | 17-03 | 17 | intake | PASS | (SLA pressure on a verdict, verdict quality wins; alert the SLA breach instead) | No ruleset loaded: the listing description waits for review. The clock starts on the first sweep that sees it (submitters send no date); two days later the breach is alerted. |
-| 17-04 | 17 | none | NOT REACHABLE | (federal-compliant but stricter local rule applies, the stricter rule wins + flag) | Agent 17 reads state on a content.review, and no submitter (03, 04, 12, 13, 16, 20) sends it. State rules never apply. |
-| 17-05 | 17 | none | NOT REACHABLE | (asked to pre-approve a template class, refuse; verdicts are per-item) | Agent 17 reads request_type on a content.review, and no submitter (03, 04, 12, 13, 16, 20) sends it. |
+| 17-04 | 17 | intake | PASS | (federal-compliant but stricter local rule applies, the stricter rule wins + flag) | No federal phrase matches; the Ohio rule does, and the stricter rule wins. Wired 2026-10-14: the state now travels with the content. |
+| 17-05 | 17 | intake | PASS | (asked to pre-approve a template class, refuse; verdicts are per-item) | The broker's signed request is refused; nothing is stored. Wired 2026-10-14. |
 | 17-06 | 17 | intake | PASS | (content contains steering language however soft, changes required with the exact phrase cited; never approve with a note) |  |
-| 17-07 | 17 | none | NOT REACHABLE | (advertising missing brokerage identification, block until corrected; no exceptions for format constraints) | Agent 17 reads content_type and brokerage_id_present on a content.review, and no submitter (03, 04, 12, 13, 16, 20) sends it. No advertising is checked for brokerage identification. Listed as a finding. |
+| 17-07 | 17 | intake | PASS | (advertising missing brokerage identification, block until corrected; no exceptions for format constraints) | Agent 12 has no brokerage identification, so the ad goes to compliance without it; compliance checks against its own signed setting and blocks it. Wired 2026-10-14. |
 | 17-08 | 17 | intake | PASS | (request to review its own prior verdict, re-review fresh; never rubber-stamp its own history) | The same copy is checked fresh against the ruleset in force (r2 has no FH-1), not answered from the prior verdict. |
-| 17-09 | 17 | none | NOT REACHABLE | (state-specific rule uncertainty, block + human counsel flag; training-level knowledge never clears a legal gate) | Agent 17 reads state_rule_uncertain on a content.review, and no submitter (03, 04, 12, 13, 16, 20) sends it. |
+| 17-09 | 17 | intake | PASS | (state-specific rule uncertainty, block + human counsel flag; training-level knowledge never clears a legal gate) | Counsel has reviewed Ohio only; a Pennsylvania ad is blocked and flagged for counsel. Wired 2026-10-14. |
 | 17-10 | 17 | intake | PASS | (pattern of near-miss language from one agent, report the pattern to owner; single verdicts miss drift) |  |
 | 18-01 | 18 | intake | PASS | (event conflict the priority rules cannot resolve, human; never silently move either) | Two showings of two listings at the same hour: the second is not put on the calendar and the broker decides. |
 | 18-02 | 18 | none | NOT BUILT | (a briefing item's source envelope is missing, state the gap in the briefing) | No expected-items layer exists, so a briefing cannot know an item is missing (Agent 18 docstring, tuple 2). |
@@ -265,7 +265,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 19-08 | 19 | intake | PASS | (prospect appears on DNC, suppress, log; the miss goes in the books as suppressed-by-rule) |  |
 | 19-09 | 19 | intake | PASS | (ranking rationale weaker than threshold, present unranked with data; a confident-looking rank without basis is fabrication) |  |
 | 19-10 | 19 | intake | PASS | (neighbor data requested for farm outreach, aggregate level only; individual household inferences refused) |  |
-| 20-01 | 20 | intake | PASS | (sentiment is genuinely mixed, classify at complaint priority; protective default) |  |
+| 20-01 | 20 | intake | PASS | (sentiment is genuinely mixed, classify at complaint priority; protective default) | S2 arrives with no sentiment label; the phrase tagger reads 'furious' and it goes to the human as a complaint (2026-10-14). |
 | 20-02 | 20 | intake | PASS | (mention may involve a client, identity unconfirmed, route without confirming identity anywhere, including the clarification itself) | may_involve_client_unconfirmed is an upstream classifier label. The escalation says the identity is not confirmed and asserts nothing. |
 | 20-03 | 20 | intake | PASS | (negative thread going viral, escalation.complaint at priority; no drafts) |  |
 | 20-04 | 20 | intake | PASS | (praise post detected, log only; no auto-engagement) |  |
