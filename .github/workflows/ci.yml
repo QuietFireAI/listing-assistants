@@ -70,7 +70,7 @@ jobs:
   windows-full-suite:
     # The whole suite on Windows, a gate since run 38321234628 (1003 passed
     # then; today's count is in QUICKSTART_WINDOWS.md, held by test_doc_counts).
-    # It takes ~5-8 min there: every audit write is fsynced, and Windows
+    # It takes ~5-10 min there: every audit write is fsynced, and Windows
     # flushes slowly. QUICKSTART_WINDOWS.md promises this result.
     runs-on: windows-latest
     timeout-minutes: 30

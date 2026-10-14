@@ -27,7 +27,7 @@ python -m pytest tests_listing/ -q
 ```
 
 **Expect:** `1105 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1106 passed` on Windows, after 5 to 8 minutes.
+only on Windows); `1106 passed` on Windows, after 5 to 10 minutes.
 
 ## T2 - The showcase plays through
 
