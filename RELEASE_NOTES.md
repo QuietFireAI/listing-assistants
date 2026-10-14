@@ -15,6 +15,27 @@ end-to-end test.
 
 ## Changes in this release
 
+- **The Broker Desk answers only its own page (2026-10-14).** Before, the
+  desk on this computer had no check at all. A web page the broker visited
+  could reach it by DNS rebinding, read it, and post actions the desk signs
+  with the broker's key. Now:
+  - The desk on this computer answers only a request addressed to it by
+    name (`127.0.0.1`, `localhost` or `[::1]`).
+  - An action must come from the desk's own page and must be JSON.
+  - The access code of the `--lan` desk is compared in constant time.
+- **Your records folder is private (2026-10-14).** On Linux and macOS the
+  record, client drawers, readable logs and the state store used to be
+  readable by every account on the computer. Only the key and the pager
+  settings were private. Now:
+  - Every program that writes them creates files readable only by your
+    account.
+  - The console, the desk and the daily clock tighten a folder an earlier
+    version left readable.
+  - On Windows, files under your user folder were already private to you;
+    that is not measured by the suite.
+- **The MCP server's boot check leaves no file behind (2026-10-14).** Each
+  start used to leave a `conformance-*.jsonl` file in the temp folder.
+
 - **MANNERS is wired (owner decision 2026-10-14).** MANNERS.md's
   re-injection now fires: at P01's three phase gates, at every signed
   human decision the system accepts (a release, a decline, a HITL
@@ -226,7 +247,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1105 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1117 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

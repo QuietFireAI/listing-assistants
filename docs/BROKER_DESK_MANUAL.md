@@ -438,6 +438,7 @@ what the client video is recorded on
 | `the record (audit log) is in use by another program - nothing was done` | Another program on this folder (a desk, a console session, the daily clock) held the record for more than 30 seconds | Wait and try again; if it stays, stop the other program |
 | "Could not reach you about ..." in What just happened | A text page to you failed (the reason is in brackets) | The item is waiting in Needs you. Check the pager: `python tools/console.py pager --test` |
 | An agent tile shows PROBLEM | One of its handoffs was refused | Read the tile; it often points at a missing setting or vendor |
+| `this desk answers only at its own address` | The desk on this computer was opened by another name (the computer's name or network address) | Open http://127.0.0.1:8765. To use the desk from a tablet, start it with `--lan` and open the link it prints |
 | `Address already in use` (Windows: "Only one usage of each socket address") | Another program uses port 8765 | `python tools/desk.py --port 8770`, then open http://127.0.0.1:8770 |
 
 ## 15. Where your files are

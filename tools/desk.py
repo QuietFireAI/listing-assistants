@@ -48,6 +48,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import hmac
 import re
 import http.server
 import json
@@ -1007,16 +1008,59 @@ class OwnerThread:
             self._ex.shutdown(wait=True)
 
 
-def make_handler(desk, token):
+LOCAL_NAMES = {"127.0.0.1", "localhost", "::1"}
+
+
+def make_handler(desk, token, lan=False):
+    """The desk's HTTP handler.
+
+    Who may use it (2026-10-14, integration snapshot finding 1: local mode
+    had no check at all, so a web page the broker visited could read the
+    desk by DNS rebinding and post actions the desk signs with the broker's
+    key):
+      - Local mode (lan=False): only a request addressed to this machine by
+        name (Host 127.0.0.1, localhost or [::1]). A rebinding page's
+        requests carry the page's own host name and are refused.
+      - LAN mode (lan=True): the access code is required (token).
+      - Both: an action (POST) from a browser must come from the desk's own
+        page (Origin, when present, names the same host) and must be JSON,
+        so another site cannot send one with a plain form or a simple
+        request.
+    """
+    if lan and not token:
+        raise ValueError("the desk on the network needs an access code")
+
     class H(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
+
+        def _host(self):
+            return (self.headers.get("Host") or "").strip()
+
+        def _host_ok(self):
+            if lan:
+                return True                     # the access code guards the network desk
+            try:
+                name = urllib.parse.urlsplit("//" + self._host()).hostname or ""
+            except ValueError:                  # a malformed Host header
+                return False
+            return name.lower() in LOCAL_NAMES
 
         def _authorized(self):
             if token is None:
                 return True
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            return self.headers.get("X-Desk-Token") == token or q.get("t", [None])[0] == token
+            given = self.headers.get("X-Desk-Token") or q.get("t", [""])[0] or ""
+            return hmac.compare_digest(given.encode(), token.encode())
+
+        def _same_origin(self):
+            origin = self.headers.get("Origin")
+            if origin is None:
+                return True                     # not a browser page (curl, the tests)
+            try:
+                return urllib.parse.urlsplit(origin).netloc.lower() == self._host().lower()
+            except ValueError:
+                return False
 
         def _send(self, code, body, ctype="application/json"):
             data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
@@ -1040,6 +1084,9 @@ def make_handler(desk, token):
                 self.end_headers()
                 self.wfile.write(data)
                 return
+            if not self._host_ok():
+                return self._send(403, {"error": "this desk answers only at its own address "
+                                                 "(http://127.0.0.1:<port>/)"})
             if not self._authorized():
                 return self._send(403, {"error": "access code required"})
             if path == "/":
@@ -1058,8 +1105,16 @@ def make_handler(desk, token):
             return self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if not self._host_ok():
+                return self._send(403, {"error": "this desk answers only at its own address "
+                                                 "(http://127.0.0.1:<port>/)"})
             if not self._authorized():
                 return self._send(403, {"error": "access code required"})
+            if not self._same_origin():
+                return self._send(403, {"error": "actions come only from the desk's own page"})
+            ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            if ctype != "application/json":
+                return self._send(415, {"error": "an action is sent as application/json"})
             if urllib.parse.urlparse(self.path).path != "/api/act":
                 return self._send(404, {"error": "not found"})
             n = int(self.headers.get("Content-Length") or 0)
@@ -1110,6 +1165,10 @@ def main(argv=None):
     ap.add_argument("--fresh", action="store_true",
                     help="with --showcase: start the showcase from scene 1 on empty state")
     args = ap.parse_args(argv)
+    if os.name != "nt":
+        # private by default (2026-10-14, integration snapshot finding 2):
+        # the record, drawers and state are readable only by this account
+        os.umask(0o077)
     # console.STATE_DIR's rule, computed here so console.py is not loaded
     # before the install check below (2026-10-14)
     state_dir = args.state_dir or (os.path.join(ROOT, "showcase-state") if args.showcase
@@ -1144,12 +1203,14 @@ def main(argv=None):
     for f in scripts:
         if not os.path.isfile(f):
             raise SystemExit(f"--script {f}: no such file")
+    from dispatcher.private_file import tighten_tree
+    tighten_tree(state_dir)                 # a folder an earlier version left readable
     desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase,
                                     scripts=scripts or None))
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
     # connections on their own threads; the swarm on one (OwnerThread)
-    srv = http.server.ThreadingHTTPServer((host, args.port), make_handler(desk, token))
+    srv = http.server.ThreadingHTTPServer((host, args.port), make_handler(desk, token, lan=args.lan))
     srv.daemon_threads = True
     url = f"http://{'<this-computer>' if args.lan else '127.0.0.1'}:{args.port}/" + \
         (f"?t={token}" if token else "")
