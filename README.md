@@ -490,7 +490,8 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 ## Layout
 
 - `dispatcher/` - vendored dispatcher-agents core (the 16 files listed in
-  `tools/sync_core.py`, kept identical by `--check` in CI), the 20
+  `tools/sync_core.py`, kept identical by `--check` in CI against the core
+  commit named in `CORE_PIN.json`), the 20
   `listing_spokes*.py` agents, `handoff_guard.py`, `lead_rubric.py`,
   `config_status.py`, and the modules above.
 - `identity/routes.json` - the closed track.
@@ -516,7 +517,9 @@ configuration templates, and the generated docs (`tools/gen_job_descriptions.py`
 rebuilds docs/JOB_DESCRIPTIONS.md; a test fails when it drifts). The
 dispatcher core in `dispatcher/` is vendored from
 [dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents) and
-must stay byte-identical (`tools/sync_core.py --check`, run in CI).
+must stay byte-identical to the core commit named in `CORE_PIN.json`
+(`tools/sync_core.py --check`, run in CI; on `main` the pinned commit must
+also be on core's `main`).
 
 ## License
 

@@ -51,7 +51,10 @@ flowchart TB
 - **Core parity.** Sixteen files in `dispatcher/` are vendored from
   dispatcher-agents and must stay byte-identical. The list is in
   `tools/sync_core.py`; `python tools/sync_core.py --core <checkout> --check`
-  reports any drift, and CI runs it.
+  reports any drift, and CI runs it against the core commit named in
+  `CORE_PIN.json`. A sync (`--core <checkout>` without `--check`) copies the
+  files and moves the pin; it refuses a core checkout with uncommitted
+  changes, so the pin always names what was copied.
 - **Agents.** `dispatcher/listing_spokes*.py` holds the 20 agents. They are
   deterministic Python rule engines and make no model calls. Each holds its
   hub through `HandoffGuard` (`dispatcher/handoff_guard.py`), which turns a

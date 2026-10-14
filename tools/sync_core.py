@@ -18,12 +18,25 @@ Usage:
   python tools/sync_core.py --core ../dispatcher-agents --check  # CI gate
 
 --check exits 1 on any drift and prints per-file diff-line counts.
+
+The pin (owner decision D1, 2026-10-14): CORE_PIN.json at the repo root
+names the exact dispatcher-agents commit these files came from. A sync
+writes it, and refuses when the core checkout has uncommitted changes in
+dispatcher/ (the pin would name a commit that is not what was copied).
+--check also compares the core checkout's commit with the pin
+(--require-pin makes a mismatch fail), and --print-pin prints the pinned
+commit for CI to check out. CI checks listing against its pin, not
+against whatever core main is today, so a core merge never turns listing
+red, and a release names the core it ships.
 Never syncs identity-owned files (*_spokes*.py, identity_mcp.py,
 sweep_runner.py stay untouched);
 never deletes; core is the single source for exactly the files below.
 """
 import argparse
+import datetime
+import difflib
 import filecmp
+import json
 import os
 import shutil
 import subprocess
@@ -42,16 +55,47 @@ CORE_FILES = [
 ]
 
 
+PIN_FILE = "CORE_PIN.json"
+
+
+def _git(core, *args):
+    r = subprocess.run(["git", "-C", core, *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip()
+
+
+def read_pin(target):
+    path = os.path.join(target, PIN_FILE)
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--core", required=True,
-                    help="path to a dispatcher-agents checkout")
+    ap.add_argument("--core", default=None,
+                    help="path to a dispatcher-agents checkout (required except with --print-pin)")
     ap.add_argument("--check", action="store_true",
                     help="report drift and exit 1; change nothing")
     ap.add_argument("--target", default=None,
                     help="identity repo to sync INTO (default: this "
                          "script's own repo)")
+    ap.add_argument("--require-pin", action="store_true",
+                    help="with --check: fail unless the core checkout is at the pinned commit")
+    ap.add_argument("--print-pin", action="store_true",
+                    help="print the pinned core commit and exit")
     args = ap.parse_args()
+    if args.print_pin:
+        here = os.path.abspath(args.target) if args.target else \
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pin = read_pin(here)
+        if not pin:
+            print(f"FATAL: no {PIN_FILE} in {here}", file=sys.stderr)
+            return 2
+        print(pin["commit"])
+        return 0
+    if not args.core:
+        ap.error("--core is required")
 
     # Fixed 2026-07-18, caught in the act: this resolved the target from
     # __file__, so invoking listing-agents' copy from inside ANOTHER
@@ -81,26 +125,58 @@ def main() -> int:
         if not os.path.exists(dst) or not filecmp.cmp(src, dst, shallow=False):
             n = "new"
             if os.path.exists(dst):
-                diff = subprocess.run(
-                    ["diff", dst, src], capture_output=True, text=True)
-                n = str(len(diff.stdout.splitlines()))
+                # difflib, not the diff program: Windows has none (2026-10-14)
+                a = open(dst, encoding="utf-8", errors="replace").read().splitlines()
+                b = open(src, encoding="utf-8", errors="replace").read().splitlines()
+                n = str(sum(1 for l in difflib.unified_diff(a, b, lineterm="", n=0)
+                            if l[:1] in "+-" and l[:3] not in ("+++", "---")))
             drifted.append((name, n))
 
+    rc, head = _git(args.core, "rev-parse", "HEAD")
+    head = head if rc == 0 else None
+
     if args.check:
+        pin = read_pin(here)
+        pinned = pin["commit"] if pin else None
+        if args.require_pin and (pinned is None or head != pinned):
+            print(f"PIN MISMATCH: {PIN_FILE} names core {pinned}, the core checkout is at {head}")
+            return 1
         if drifted:
             print("CORE DRIFT DETECTED (vendored copy lags core):")
             for name, n in drifted:
                 print(f"  {name}: {n} diff lines")
             print("Run: python tools/sync_core.py --core <path>")
             return 1
-        print(f"sync_core --check: {len(CORE_FILES)} files, zero drift")
+        print(f"sync_core --check: {len(CORE_FILES)} files, zero drift"
+              + (f" (core {head[:12]}, pinned {str(pinned)[:12]})" if head else ""))
         return 0
+
+    if head is None:
+        print(f"FATAL: {args.core} is not a git checkout - the pin needs a commit",
+              file=sys.stderr)
+        return 2
+    rc, dirty = _git(args.core, "status", "--porcelain", "--", "dispatcher")
+    if dirty:
+        print(f"FATAL: the core checkout has uncommitted changes in dispatcher/ - commit "
+              f"them first, so {PIN_FILE} names what is copied:\n{dirty}", file=sys.stderr)
+        return 2
 
     for name, _ in drifted:
         shutil.copy2(os.path.join(src_dir, name), os.path.join(dst_dir, name))
         print(f"synced: {name}")
     if not drifted:
         print("already in sync - nothing copied")
+    pin = read_pin(here) or {}
+    if pin.get("commit") != head:
+        _, branch = _git(args.core, "rev-parse", "--abbrev-ref", "HEAD")
+        pin = {"repo": "https://github.com/QuietFireAI/dispatcher-agents",
+               "commit": head, "branch_at_sync": branch,
+               "synced_on": datetime.date.today().isoformat(),
+               "files": len(CORE_FILES)}
+        with open(os.path.join(here, PIN_FILE), "w", encoding="utf-8") as f:
+            json.dump(pin, f, indent=1)
+            f.write("\n")
+        print(f"{PIN_FILE}: core {head}")
     return 0
 
 

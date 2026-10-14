@@ -44,7 +44,7 @@ python -m pytest tests_listing/   # every playbook, every gate
 **On dispatcher-agents:** this repo IS the identity side-load - routes,
 configs, spokes, and docs mount directly. The vendored core files are
 listed in `tools/sync_core.py`; `python tools/sync_core.py --core <path> --check`
-confirms they match core.
+confirms they match core, and `CORE_PIN.json` names the core commit they came from.
 
 **On Hermes / OpenClaw / Claude Desktop:** see docs/MOUNTING.md - the
 identity runs as a stdio MCP server with a four-tool surface and a boot

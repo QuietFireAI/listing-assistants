@@ -499,5 +499,7 @@ A *README* is the page GitHub shows first when you open a folder.
 ### Vendored core
 
 Sixteen files from the separate dispatcher-agents project, copied into
-`dispatcher/` so this repository runs on its own. CI checks that the copies
-match the originals byte for byte, so the copy can never drift.
+`dispatcher/` so this repository runs on its own. `CORE_PIN.json` names the
+exact dispatcher-agents commit they came from, and CI checks that the copies
+match that commit byte for byte, so the copy can never drift. Moving to a
+newer core is a deliberate step (`tools/sync_core.py`).
