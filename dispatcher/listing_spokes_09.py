@@ -123,6 +123,21 @@ class Spoke09VendorCoordination:
                 candidates = [vid for vid, v in self.roster.items()
                               if v.get("kind") == kind
                               and (not today or self._credentials_current(vid, today))]
+                lapsed = sorted(vid for vid, v in self.roster.items()
+                                if v.get("kind") == kind and vid not in candidates)
+                if not candidates and lapsed:
+                    # tuple 2 (found 2026-10-14, tuple runs): requesters never
+                    # name a vendor, so the credential gate below was never
+                    # reached. A roster whose only vendors of this kind have
+                    # lapsed credentials was reported as "no approved vendor",
+                    # hiding the expiry the tuple says to flag.
+                    self.hub.escalate("escalation.legal_line",
+                                      {"client_context_id": ctx,
+                                       "trigger": f"roster vendor(s) {lapsed} for kind {kind!r} "
+                                                  f"have credentials expired or missing - "
+                                                  f"flagged before scheduling, nothing scheduled",
+                                       "agent": "09"})
+                    return
                 if not candidates:
                     self.hub.send(_env("09", "queue", "clarification.request",
                                        ctx, {"reason": f"no approved roster "

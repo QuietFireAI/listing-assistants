@@ -539,6 +539,15 @@ class Spoke07TransactionCoordinator:
                                              "passed with no removal on "
                                              "file - never assume waived",
                                    "agent": "07"})
+            if milestone == "earnest_money":
+                # tuple 11 (2026-10-14, tuple runs: this deadline passed with
+                # only a client-facing alert, no escalation)
+                self.hub.escalate("escalation.legal_line",
+                                  {"client_context_id": ctx,
+                                   "trigger": f"earnest money receipt not confirmed by the "
+                                             f"deadline ({entry['deadline']}) - money "
+                                             f"milestones never get benefit of the doubt",
+                                   "agent": "07"})
         for milestone, entry in due_today:
             self.hub.send(_env("07", "11", "deadline.alert", ctx,
                                {"milestone": milestone, "deadline": today}))
