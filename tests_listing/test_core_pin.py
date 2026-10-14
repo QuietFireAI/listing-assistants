@@ -122,3 +122,12 @@ def test_a_damaged_pin_is_a_message_not_a_traceback(tmp_path):
     (tmp_path / "CORE_PIN.json").write_text('{"commit": ""}', encoding="utf-8")
     r = tool("--print-pin", "--target", str(tmp_path))
     assert r.returncode == 2 and "names no commit" in r.stderr
+
+
+def test_a_sync_rewrites_a_damaged_pin(core_and_target):
+    # 2026-10-14 second review: the sync copied the files, then failed on the pin
+    core, target = core_and_target
+    (target / "CORE_PIN.json").write_text("{not json", encoding="utf-8")
+    r = tool("--core", str(core), "--target", str(target))
+    assert r.returncode == 0 and "this sync rewrites it" in r.stdout, r.stderr
+    assert json.load(open(target / "CORE_PIN.json"))["commit"] == git(core, "rev-parse", "HEAD")

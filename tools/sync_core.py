@@ -79,9 +79,9 @@ def read_pin(target):
         commit = pin["commit"]
     except (ValueError, KeyError, TypeError) as e:
         raise PinError(f"{path} is not a valid pin ({type(e).__name__}: {e}) - "
-                       f"run a sync to rewrite it") from None
+                       f"a sync (tools/sync_core.py --core <path>) rewrites it") from None
     if not isinstance(commit, str) or not commit:
-        raise PinError(f"{path} names no commit - run a sync to rewrite it")
+        raise PinError(f"{path} names no commit - a sync (tools/sync_core.py --core <path>) rewrites it")
     return pin
 
 
@@ -158,7 +158,7 @@ def _main() -> int:
     head = head if rc == 0 else None
 
     if args.check:
-        pin = read_pin(here)
+        pin = read_pin(here)                 # a damaged pin fails the check
         pinned = pin["commit"] if pin else None
         if pinned != head:
             if args.require_pin:
@@ -188,12 +188,19 @@ def _main() -> int:
               f"them first, so {PIN_FILE} names what is copied:\n{dirty}", file=sys.stderr)
         return 2
 
+    # read the pin before copying anything: a damaged pin is rewritten by this
+    # sync, never left behind next to freshly copied files (2026-10-14
+    # second review: the sync copied, then failed on the damaged pin)
+    try:
+        pin = read_pin(here) or {}
+    except PinError as e:
+        print(f"note: {e}; this sync rewrites it")
+        pin = {}
     for name, _ in drifted:
         shutil.copy2(os.path.join(src_dir, name), os.path.join(dst_dir, name))
         print(f"synced: {name}")
     if not drifted:
         print("already in sync - nothing copied")
-    pin = read_pin(here) or {}
     if pin.get("commit") != head:
         _, branch = _git(args.core, "rev-parse", "--abbrev-ref", "HEAD")
         pin = {"repo": "https://github.com/QuietFireAI/dispatcher-agents",
