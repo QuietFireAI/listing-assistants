@@ -15,6 +15,16 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Three lead-capture gaps closed (2026-10-14, found by the synthetic
+  sample run).**
+  - A lead marked as an agent shopping for a client now reaches Agent 02's
+    agent-to-agent rule. Before, Agent 01 dropped the flag and the lead
+    scored as a consumer.
+  - The same phone written with the country code (`+1 216 555 0101`) is
+    now matched as the same person as `(216) 555-0101`.
+  - The do-not-contact list is now matched whatever the number's format,
+    and on the email as well as the phone.
+
 - **The Broker Desk answers only its own page (2026-10-14).** Before, the
   desk on this computer had no check at all. A web page the broker visited
   could reach it by DNS rebinding, read it, and post actions the desk signs
@@ -247,7 +257,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1117 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1125 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

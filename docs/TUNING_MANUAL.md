@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1118 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1126 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -156,13 +156,22 @@ not match Agent 11's wire list.
 | `max_workers = 8` | `concurrent_dispatcher.py` | A module no part of the product calls; only its own tests use it |
 | Demo ruleset | `tools/run_demo.py` | The six-act demo's fair-housing rule; demo only |
 
-### Found 2026-10-14 (synthetic sample run and integration snapshot), not fixed
+### Found 2026-10-14 (synthetic sample run and integration snapshot)
+
+Fixed the same day (`tests_listing/test_tuple_gaps_2026_10_14.py`):
+- **Agent shopping.** Agent 01 now forwards `is_agent_shopping` (only a real
+  `true`) to Agent 02, so the agent-to-agent tuple fires on intake.
+- **Country code.** A phone is keyed by its digits, with a leading 1 on an
+  11-digit number dropped, so `+12165550101` and `(216) 555-0101` are one
+  person for the duplicate check.
+- **Do-not-contact list.** It is compared in the same normalized form, on
+  the phone and the email both.
+
+Not fixed:
 
 | What | Where | Effect |
 |---|---|---|
-| Agent shopping is never flagged | Agent 01 does not forward `is_agent_shopping` to Agent 02 | Agent 02's tuple "(lead is an agent shopping for a client, ...)" cannot fire on a lead that arrives through intake; the sample lead scored HOT |
-| A phone with the country code is a different person | `_contact_identifiers` compares digits | `+12165550101` does not match `(216) 555-0101`, so the duplicate check misses it |
-| The do-not-call list is compared as exact text | Agent 01 `contact in self.dnc_list` | `330-555-0190` does not match a list entry `(330) 555-0190` |
+| Agent 02's "lead demands a human" tuple is not reached from intake | Agent 01 escalates a demand for a person itself (legal line) and does not forward it | No agent sets `demands_human` on a message to Agent 02, so its tuple "(lead demands a human, hot path regardless of score)" cannot fire. Forwarding it would page you twice for one request (legal line from 01, hot lead from 02); the owner decides |
 | A second inquiry after capture starts from nothing | Agent 01 merges fields only while a capture is pending | A later inquiry that repeats no budget or timeline scores UNKNOWN |
 | The MCP server takes a host's signature and never uses it | `dispatcher/identity_mcp.py` `identity.authority` (integration snapshot 2026-10-14) | `signature_hex` is compared only with the demo string; the hub trusts only a key the server makes at each start. Without `--demo-signing` the MCP server can describe the trade and show the record, nothing else |
 

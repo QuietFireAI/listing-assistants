@@ -43,18 +43,47 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, escalation_flag=Fals
 
 
 
+def _phone_key(phone) -> str | None:
+    """A phone as its digits (7 or more). An 11-digit number starting with
+    1 is the North American country code plus a 10-digit number and is
+    keyed as the 10 digits, so +1 216 555 0101 and (216) 555-0101 are the
+    same number (2026-10-14: the synthetic sample run found them treated
+    as two people)."""
+    if not isinstance(phone, str):
+        return None
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]
+    return "phone:" + digits if len(digits) >= 7 else None
+
+
 def _contact_identifiers(payload: dict) -> list[str]:
-    """Normalized identity keys for the cross-context duplicate check:
-    phone as its digits (7 or more), email lower-cased. Nothing else."""
+    """Normalized identity keys for the cross-context duplicate check and
+    the do-not-contact check: phone as _phone_key, email lower-cased.
+    Nothing else."""
     out = []
-    phone = payload.get("phone")
-    if isinstance(phone, str):
-        digits = "".join(ch for ch in phone if ch.isdigit())
-        if len(digits) >= 7:
-            out.append("phone:" + digits)
+    key = _phone_key(payload.get("phone"))
+    if key:
+        out.append(key)
     email = payload.get("email")
     if isinstance(email, str) and "@" in email:
         out.append("email:" + email.strip().lower())
+    return out
+
+
+def _dnc_identifiers(entries) -> set[str]:
+    """The do-not-contact list in the same normalized form: an entry with
+    an @ is an email, anything else a phone."""
+    out = set()
+    for entry in entries:
+        if not isinstance(entry, str):
+            continue
+        if "@" in entry:
+            out.add("email:" + entry.strip().lower())
+        else:
+            key = _phone_key(entry)
+            if key:
+                out.add(key)
     return out
 
 class Spoke14CRMPipeline:
@@ -704,9 +733,14 @@ class Spoke01LeadCapture:
                                    "agent": "01"})
 
             # --- DNC check: the list wins over the opportunity. Still
-            # captured (source + suppression), never silently dropped. ---
+            # captured (source + suppression), never silently dropped.
+            # 2026-10-14: compared in normalized form, and on every contact
+            # the lead gave. Before, only the phone (or, with no phone, the
+            # email) was checked, as exact text: "330-555-0190" did not
+            # match a list entry "(330) 555-0190", and a listed email was
+            # missed whenever the lead also gave a phone. ---
             contact = payload.get("phone") or payload.get("email")
-            on_dnc = contact in self.dnc_list if contact else False
+            on_dnc = bool(set(_contact_identifiers(payload)) & _dnc_identifiers(self.dnc_list))
 
             # --- Property scope check ---
             interest = payload.get("property_interest", {})
@@ -849,6 +883,13 @@ class Spoke01LeadCapture:
                       "stated_urgency", "preapproval_doc"):
                 if f in payload and not recording_consent_refused:
                     captured[f] = payload[f]
+            # Agent 02's tuple "(lead is an agent shopping for a client, flag
+            # agent-to-agent; ...)" reads is_agent_shopping, which this
+            # capture never forwarded, so the tuple could not fire on a lead
+            # that arrived through intake (found by the synthetic sample run,
+            # 2026-10-14). Forwarded verbatim, never inferred here.
+            if payload.get("is_agent_shopping") is True:
+                captured["is_agent_shopping"] = True
             if low_confidence and channel == "call":
                 for f in ("timeline_days", "financing_progress",
                           "stated_urgency", "preapproval_doc"):
