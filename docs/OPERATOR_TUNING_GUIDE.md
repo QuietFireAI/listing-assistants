@@ -77,7 +77,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1088 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1097 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
@@ -192,6 +192,9 @@ python tools/run_sweeps.py --today 2026-10-21   # replay a day
 ```
 
 If the saved state does not match the audit log it runs nothing and exits 2.
+It also runs nothing and exits 2 when the install is not the one you
+attested, or there is no operator key in the log's folder (§16); it uses
+that key to check signatures too.
 
 ## 5. Client drawers (`dispatcher/client_drawer.py`)
 
@@ -314,28 +317,6 @@ run the test suite and `python tools/console.py verify`, then
 signs the new install. Until you do, the console, the Broker Desk and the
 daily clock refuse to start, because the install no longer matches what you
 attested (see §16).
-
-## 16. Boot attestation
-
-`python tools/console.py init` signs a list of the SHA-256 of every file in
-`dispatcher/`, `identity/routes.json` and `MANNERS.md` with your operator
-key, into `console-state/boot-attestation.json`. Each time the console, the
-Broker Desk or the daily clock starts, it checks the install against that
-list before writing anything. If a file changed, was added or is missing,
-or the list is not signed by your key, it stops and names the reason, and
-the audit log is left as it was. When the match holds, the chain records
-`boot.attestation` with `enforced: true`.
-
-After you have reviewed a change (an update pack, a new release),
-`python tools/console.py attest` shows what changed and signs the new
-install. MANNERS.md's own rule is the reason for this: its hash is
-registered at boot, and a change without your signature is treated as
-tainted and stops the system.
-
-The showcase desk (`tools/desk.py --showcase`, synthetic data in its own
-folder) attests whatever is installed each time it starts. Swarms started
-without a check (the test suite, the MCP server) record the hash of what
-is running with `enforced: false`, so they are never silent about it.
 
 ## 8. Human decisions on paused work (`dispatcher/hitl_protocol.py`)
 
@@ -561,3 +542,48 @@ python tools/console.py verify
 python tools/sync_core.py --core /path/to/dispatcher-agents --check
 python tools/mcp_roundtrip.py
 ```
+
+## 16. Boot attestation
+
+`python tools/console.py init` signs, with your operator key, the SHA-256
+of what the system runs and the rules it runs by: every `.py` file in
+`dispatcher/`, the programs that start it (`tools/console.py`,
+`tools/desk.py`, `tools/run_sweeps.py`, `tools/fresh_bytecode.py`),
+everything in `identity/`, `MANNERS.md`, `SWARM.md`, `docs/PLAYBOOKS.md`,
+`docs/JOB_DESCRIPTIONS.md`, and each agent folder's `SKILL.md` and
+`DECISIONS.md`. The list goes into `console-state/boot-attestation.json`
+and a `boot.attested` entry goes on the audit chain. `config/` is not
+covered: those files are your own business content, ratified through
+their `_status` line (§3).
+
+Each time the console, the Broker Desk or the daily clock starts, and
+before `console.py repair-record` writes a repair, the install is checked
+first, before any agent code is loaded and before anything is written. It
+stops and names the reason when:
+- a covered file changed, appeared or is missing;
+- the attestation is not signed by your key;
+- the audit log it is about to write was last attested with a different
+  list (an older attestation put back) or with a different key.
+
+When everything matches, the chain records `boot.attestation` with
+`enforced: true`. These programs also compile Python's bytecode into a
+private folder for each run, so only the attested source files run.
+
+After you have reviewed a change (an update pack, a new release),
+`python tools/console.py attest` names what changed, signs the new
+install, and records it on the chain. MANNERS.md's own rule is the reason
+for all of this: its hash is registered at boot, and a change without your
+signature is treated as tainted and stops the system.
+
+Exceptions, each of which records `boot.attestation` with `enforced: false`
+and the hash of what is running: the test suite; the showcase desk
+(`tools/desk.py --showcase`, synthetic data, which runs only in a folder
+it created itself and refuses any folder holding your key); and the MCP
+server on a machine with no operator key. With an operator key present,
+the MCP server checks your attestation and refuses to start on a change.
+
+Where the protection ends: this catches an unreviewed change made by
+someone who is not trying to get round it (an update copied in, an edit,
+a sync). Anyone who can write to the install can also change the checker,
+the programs that call it, or use the key file stored next to it. It is
+drift detection with your signature, not tamper resistance.

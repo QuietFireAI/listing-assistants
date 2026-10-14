@@ -157,7 +157,8 @@ class GovernedIdentity:
         self.swarm = build_swarm(self.audit_path,
                                  state_db=os.environ.get("LISTING_STATE_DB") or None,
                                  config_dir=os.environ.get("LISTING_CONFIG_DIR") or None,
-                                 verifier=verifier.verifier())
+                                 verifier=verifier.verifier(),
+                                 attestation=operator_attestation())
         self.hub = self.swarm.hub
         self.external = self.swarm.external
         self.spokes = self.swarm.spokes
@@ -375,11 +376,31 @@ async def _serve():
                          server.create_initialization_options())
 
 
+def operator_attestation():
+    """2026-10-14: when this machine has an operator key (`console init`),
+    the MCP server holds to the operator's attestation as the console does,
+    and refuses to start on a changed install. Without one (a demo, a fresh
+    clone, CI) it records boot.attestation enforced: false."""
+    from dispatcher.boot_attest import fingerprint
+    state = os.environ.get("LISTINGASSISTANTS_STATE_DIR") or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "console-state")
+    key = os.path.join(state, "operator-key.bin")
+    if not os.path.exists(key):
+        return None
+    pub = Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes()
+    return {"state_dir": state, "verify_bytes": Ed25519Verifier(pub).verify_bytes,
+            "key_fingerprint": fingerprint(pub)}
+
+
 def main():
+    from dispatcher.boot_attest import AttestationRefused
     try:
         asyncio.run(_serve())
     except ConformanceError as e:
         sys.stderr.write(f"[identity_mcp] BOOT REFUSED\n{e}\n")
+        sys.exit(2)
+    except AttestationRefused as e:
+        sys.stderr.write(f"[identity_mcp] BOOT REFUSED - install not attested\n{e}\n")
         sys.exit(2)
 
 

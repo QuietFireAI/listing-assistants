@@ -32,6 +32,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main(argv=None) -> int:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from fresh_bytecode import use_fresh_bytecode
+    use_fresh_bytecode()            # only attested source runs (2026-10-14)
     ap = argparse.ArgumentParser()
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ap.add_argument("--audit-log", default=os.path.join(root, "console-state", "console-audit.jsonl"))
@@ -70,13 +73,16 @@ def main(argv=None) -> int:
         print(json.dumps({"error": "install not attested",
                           "reason": f"no operator key at {key}: run `python tools/console.py init`"}))
         return 2
-    verifier = Ed25519Verifier(Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes())
+    from dispatcher.boot_attest import fingerprint
+    pub = Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes()
+    verifier = Ed25519Verifier(pub)
     try:
         sw = build_swarm(args.audit_log, state_db=args.state_db, config_dir=args.config_dir,
                          verifier=verifier.verifier(),
                          human_notifier=pager,       # the pager, when on, texts you from the clock too
                          # the clock starts only on what the operator attested (2026-10-14)
-                         attestation={"state_dir": state_dir, "verify_bytes": verifier.verify_bytes})
+                         attestation={"state_dir": state_dir, "verify_bytes": verifier.verify_bytes,
+                                      "key_fingerprint": fingerprint(pub)})
     except AttestationRefused as e:
         print(json.dumps({"error": "install not attested", "reason": str(e),
                           "action": "nothing was written; review the install, then run "

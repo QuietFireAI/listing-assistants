@@ -792,12 +792,20 @@ class Desk:
         self.showcase = showcase
         self.lock = threading.RLock()
         self.last_action = None
-        os.makedirs(state_dir, exist_ok=True)
         key = os.path.join(state_dir, "operator-key.bin")
+        if showcase and os.path.exists(key) and not is_showcase_folder(state_dir):
+            # 2026-10-14 review: the showcase signed and wrote into whatever
+            # folder it was given - including the broker's own
+            raise SystemExit(f"{state_dir} holds an operator key and is not a showcase "
+                             f"folder; the showcase runs only in a folder it created "
+                             f"(default showcase-state/)")
+        os.makedirs(state_dir, exist_ok=True)
         if showcase and not os.path.exists(key):
             from dispatcher.signatures import Ed25519Signer
             from dispatcher.private_file import write_private
             write_private(key, Ed25519Signer().private_key_bytes())
+            with open(os.path.join(state_dir, SHOWCASE_MARK), "w", encoding="utf-8") as f:
+                f.write("showcase desk folder - synthetic data, not your records\n")
             json.dump({"name": "Showcase Broker", "login": "showcase@example.test",
                        "note": "showcase desk - synthetic data, not your records"},
                       open(os.path.join(state_dir, "operator.json"), "w", encoding="utf-8"), indent=1)
@@ -808,12 +816,6 @@ class Desk:
             roster["_status"] = (f"RATIFIED {datetime.date.today().isoformat()} showcase copy of "
                                  f"scenes/config/vendor_panel.json - synthetic vendors")
             json.dump(roster, open(os.path.join(config_dir, "vendor_panel.json"), "w", encoding="utf-8"), indent=1)
-            # the showcase runs on synthetic data in its own folder: it
-            # attests whatever is installed each time it starts (2026-10-14);
-            # your own desk checks against what you attested
-            from dispatcher.signatures import Ed25519Signer
-            from dispatcher.boot_attest import attest
-            attest(state_dir, Ed25519Signer(private_key_bytes=open(key, "rb").read()))
         if not os.path.exists(key):
             raise SystemExit(f"no key in {state_dir}: run `python tools/console.py init` and "
                              f"`python tools/console.py onboard` first")
@@ -835,9 +837,12 @@ class Desk:
         from dispatcher.core import AuditLogBusy, AuditLogDamaged
         from dispatcher.boot_attest import AttestationRefused
         try:
+            # the showcase (synthetic data, its own folder) checks no
+            # attestation and records boot.attestation enforced: false
             self.sw, self.signer = console.build(
                 audit_path, config_dir,
-                os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
+                os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager,
+                enforce=not showcase)
         except (AuditLogDamaged, AuditLogBusy, StateIntegrityError, AttestationRefused) as e:
             # refuse to start, name why, and leave no lock behind (repair
             # plan 1.2 / owner decision D4, 2026-10-13: before this a damaged
@@ -1042,7 +1047,24 @@ def make_handler(desk, token):
     return H
 
 
+SHOWCASE_MARK = "SHOWCASE"
+
+
+def is_showcase_folder(state_dir):
+    """A folder the showcase created: its mark, or (folders made before
+    2026-10-14) the showcase operator record."""
+    if os.path.exists(os.path.join(state_dir, SHOWCASE_MARK)):
+        return True
+    try:
+        with open(os.path.join(state_dir, "operator.json"), encoding="utf-8") as f:
+            return "showcase desk" in json.load(f).get("note", "")
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def main(argv=None):
+    from fresh_bytecode import use_fresh_bytecode
+    use_fresh_bytecode()            # only attested source runs (2026-10-14)
     ap = argparse.ArgumentParser(description="The Broker Desk")
     ap.add_argument("--showcase", action="store_true",
                     help="a separate desk that replays the ten operator scenes on synthetic data")
@@ -1062,6 +1084,9 @@ def main(argv=None):
     state_dir = args.state_dir or (os.path.join(ROOT, "showcase-state") if args.showcase
                                    else console.STATE_DIR)
     if args.showcase and args.fresh and os.path.isdir(state_dir):
+        if os.path.exists(os.path.join(state_dir, "operator-key.bin")) \
+                and not is_showcase_folder(state_dir):
+            raise SystemExit(f"--fresh deletes only a showcase folder; {state_dir} is not one")
         shutil.rmtree(state_dir)
     scripts = [os.path.abspath(f) for f in (args.script or [])]
     for f in scripts:

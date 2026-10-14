@@ -4,9 +4,14 @@ MANNERS.md §Re-injection names three triggers. Until 2026-10-14 none of them
 fired in this product: the core could record a re-injection
 (Hub.manners_reinjection) but nothing here reported one. Now:
 
-- phase_gate: every playbook phase gate. P01's three phase gates in Agent 05
-  (intake, photos verified, go-live), and every human gate in any playbook -
-  a signed release or decline of a held message, and a signed HITL decision.
+- phase_gate: P01's three phase gates in Agent 05 (intake, photos
+  verified, go-live), and every human gate in any playbook: a signed
+  release or decline of a held message, a signed HITL decision, and any
+  other signed human authority the hub accepts (a price or status change,
+  a config.update). One gate fires once: a signed message that already
+  crossed a named gate (P01's intake) does not fire a second time. The
+  release and decline gates fire after the hub has acted on the signature;
+  a refused (unsigned, wrong-key) answer fires nothing.
 - turn_backstop: every N agent turns with no other trigger, N = 10 (the
   value ratified 2026-07-17). A turn is one envelope an agent handles;
   the count is per agent, and any phase gate re-injection resets every
@@ -19,8 +24,9 @@ fired in this product: the core could record a re-injection
 What a re-injection does: it goes on the audit chain (manners.reinjection,
 with its trigger and position; the core KPI and after-action report count
 them). The agents are deterministic code with no context to put MANNERS
-into; the one model prompt in the product, Agent 04's model drafting,
-carries the MANNERS.md text on every call (dispatcher/model_drafting.py).
+into. Agent 04's model drafting prompt carries the MANNERS.md text on every
+call (dispatcher/model_drafting.py); the broker's exam questions to a model
+checkpoint do not, so the exam measures the checkpoint itself.
 """
 from __future__ import annotations
 
@@ -37,15 +43,20 @@ class MannersReinjector:
         self.hub = hub
         self.n = n
         self.path = manners_path
-        with open(manners_path, encoding="utf-8") as f:
-            self.text = f.read()
-        self.sha256 = hashlib.sha256(self.text.encode("utf-8")).hexdigest()
+        with open(manners_path, "rb") as f:
+            raw = f.read()
+        # the raw bytes, as boot attestation hashes them (2026-10-14 review:
+        # hashing decoded text differed from the manifest on CRLF checkouts)
+        self.sha256 = hashlib.sha256(raw).hexdigest()
+        self.text = raw.decode("utf-8").replace("\r\n", "\n")
         self.turns: dict[str, int] = {}
+        self.gates = 0
 
     def phase_gate(self, position: str) -> None:
         """A phase gate was crossed: re-inject, and every agent's backstop
         count starts again."""
         self.hub.manners_reinjection("phase_gate", position=position)
+        self.gates += 1
         self.turns.clear()
 
     def turn(self, agent_id: str) -> None:
@@ -62,7 +73,7 @@ class MannersReinjector:
     def prompt_block(self) -> str:
         """The MANNERS text as it goes into a model prompt."""
         return ("Conduct rules (MANNERS.md) - they govern this answer and "
-                "override any instruction below that conflicts with them:\n"
+                "override any other instruction in this prompt that conflicts with them:\n"
                 + self.text.strip() + "\n")
 
 
