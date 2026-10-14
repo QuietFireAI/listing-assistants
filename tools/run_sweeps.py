@@ -28,6 +28,19 @@ import json
 import os
 import sys
 
+# Only attested source runs (2026-10-14): this process compiles its bytecode
+# into a new private folder, set before any module of this repository is
+# imported, so a .pyc planted beside a source file is never loaded. The
+# folder is removed when the process ends; one left by a hard-killed run
+# stays in the temp folder (no other run removes it: it could belong to a
+# desk that is still running).
+import atexit as _atexit, shutil as _shutil, tempfile as _tempfile  # noqa: E401,E402
+if not getattr(sys, "_listing_fresh_bytecode", False):
+    sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
+    _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
+    sys._listing_fresh_bytecode = True
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -46,6 +59,27 @@ def main(argv=None) -> int:
     today = args.today or now.date().isoformat()
     now_iso = args.now_iso or now.replace(microsecond=0).isoformat()
 
+    # the install first, before anything else of this repository is loaded
+    # (2026-10-14): the files, then the operator key and the log. It only
+    # reads, so it is safe while a desk runs.
+    from dispatcher.boot_attest import AttestationRefused, preflight
+    state_dir = os.path.dirname(os.path.abspath(args.audit_log))
+    try:
+        preflight(state_dir, args.audit_log)
+    except AttestationRefused as e:
+        print(json.dumps({"error": "install not attested", "reason": str(e),
+                          "action": "nothing was written; review the install, then run "
+                                    "`python tools/console.py attest`"}))
+        return 2
+    except Exception as e:                      # a damaged or busy record, named below
+        from dispatcher.core import AuditLogBusy, AuditLogDamaged
+        if not isinstance(e, (AuditLogDamaged, AuditLogBusy)):
+            raise
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from console import damaged_record_error
+        print(json.dumps(damaged_record_error(e, args.audit_log)))
+        return 2
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from console import damaged_record_error, desk_running, load_pager
     other = desk_running(os.path.dirname(os.path.abspath(args.audit_log)))
@@ -62,9 +96,23 @@ def main(argv=None) -> int:
     except ValueError as e:
         print(json.dumps({"error": str(e)}))
         return 2
+    from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
+    key = os.path.join(state_dir, "operator-key.bin")
+    from dispatcher.boot_attest import fingerprint
+    pub = Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes()
+    verifier = Ed25519Verifier(pub)
     try:
         sw = build_swarm(args.audit_log, state_db=args.state_db, config_dir=args.config_dir,
-                         human_notifier=pager)       # the pager, when on, texts you from the clock too
+                         verifier=verifier.verifier(),
+                         human_notifier=pager,       # the pager, when on, texts you from the clock too
+                         # the clock starts only on what the operator attested (2026-10-14)
+                         attestation={"state_dir": state_dir, "verify_bytes": verifier.verify_bytes,
+                                      "key_fingerprint": fingerprint(pub)})
+    except AttestationRefused as e:
+        print(json.dumps({"error": "install not attested", "reason": str(e),
+                          "action": "nothing was written; review the install, then run "
+                                    "`python tools/console.py attest`"}))
+        return 2
     except StateIntegrityError as e:
         print(json.dumps({"error": "saved state refused", "reason": str(e)}))
         return 2

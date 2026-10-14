@@ -51,7 +51,10 @@ flowchart TB
 - **Core parity.** Sixteen files in `dispatcher/` are vendored from
   dispatcher-agents and must stay byte-identical. The list is in
   `tools/sync_core.py`; `python tools/sync_core.py --core <checkout> --check`
-  reports any drift, and CI runs it.
+  reports any drift, and CI runs it against the core commit named in
+  `CORE_PIN.json`. A sync (`--core <checkout>` without `--check`) copies the
+  files and moves the pin; it refuses a core checkout with uncommitted
+  changes, so the pin always names what was copied.
 - **Agents.** `dispatcher/listing_spokes*.py` holds the 20 agents. They are
   deterministic Python rule engines and make no model calls. Each holds its
   hub through `HandoffGuard` (`dispatcher/handoff_guard.py`), which turns a
@@ -74,8 +77,9 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1061 passed, 1 skipped
-python tools/console.py init             # your signing key, mode 0600, stays on this machine
+python -m pytest tests_listing/          # expect: 1105 passed, 1 skipped
+python tools/console.py init             # your signing key, mode 0600, stays on this machine,
+                                         # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
 ```
@@ -188,6 +192,9 @@ python tools/run_sweeps.py --today 2026-10-21   # replay a day
 ```
 
 If the saved state does not match the audit log it runs nothing and exits 2.
+It also runs nothing and exits 2 when the install is not the one you
+attested, or there is no operator key in the log's folder (§16); it uses
+that key to check signatures too.
 
 ## 5. Client drawers (`dispatcher/client_drawer.py`)
 
@@ -305,7 +312,11 @@ Ed25519 signature over the manifest, the SHA-256 of every listed file, that
 no unlisted file is present, that no manifest path escapes `payload/`, and,
 with `--installed-version`, that the pack is strictly newer. `--dev-bypass`
 skips only the signature check, exits 3, and prints NOT VERIFIED. Afterwards,
-run the test suite and `python tools/console.py verify`.
+run the test suite and `python tools/console.py verify`, then
+`python tools/console.py attest`: it names every file the update changed and
+signs the new install. Until you do, the console, the Broker Desk and the
+daily clock refuse to start, because the install no longer matches what you
+attested (see §16).
 
 ## 8. Human decisions on paused work (`dispatcher/hitl_protocol.py`)
 
@@ -531,3 +542,66 @@ python tools/console.py verify
 python tools/sync_core.py --core /path/to/dispatcher-agents --check
 python tools/mcp_roundtrip.py
 ```
+
+## 16. Boot attestation
+
+`python tools/console.py init` signs, with your operator key, the SHA-256
+of what the system runs and the rules it runs by: every file Python can
+import under `dispatcher/` and `tools/` (`.py`, `.pyc`, `.so`, `.pyd`: the
+code and the programs that start it; a `.DS_Store` or an editor's swap file
+is not code and is not covered),
+everything in `identity/`, `MANNERS.md`, `SWARM.md`, `docs/PLAYBOOKS.md`,
+`docs/JOB_DESCRIPTIONS.md`, and each agent folder's `SKILL.md` and
+`DECISIONS.md`. The list goes into `console-state/boot-attestation.json`
+and a `boot.attested` entry goes on the audit chain. `config/` is not
+covered: those files are your own business content, ratified through
+their `_status` line (§3).
+
+Each time the console, the Broker Desk or the daily clock starts, and
+before `console.py repair-record` writes a repair, the install is checked
+first, before anything is written or any other part of the system is
+loaded: the files are compared while only the program you started and the
+checker itself have run. It stops and names the reason when:
+- a covered file changed, appeared or is missing;
+- the attestation is not signed by your key;
+- the audit log it is about to write was last attested with a different
+  list (an older attestation put back) or with a different key;
+- that log has entries from before attestation existed and was never
+  attested: after this update, run `python tools/console.py attest
+  --new-key` once (with `--audit-log` for a log kept elsewhere). Taking an
+  old log is recorded on the chain as `boot.key_changed`, so whichever key
+  takes it, it is never silent.
+
+When everything matches, the chain records `boot.attestation` with
+`enforced: true`. These programs also compile Python's bytecode into a
+private folder for each run (removed when it ends; one left by a
+hard-killed run stays in the system's temp folder, since no other run can
+tell it from a desk still running), so a stale or planted `.pyc` beside a
+source file is never loaded.
+
+After you have reviewed a change (an update pack, a new release),
+`python tools/console.py attest` names what changed, signs the new
+install, and records it on the chain. It refuses a log last attested with
+a different key. If you replaced your key (a new machine, a lost key),
+`python tools/console.py attest --new-key` takes the log over and records
+`boot.key_changed` on the chain, so the change of key is never silent. MANNERS.md's own rule is the reason
+for all of this: its hash is registered at boot, and a change without your
+signature is treated as tainted and stops the system.
+
+Exceptions, each of which records `boot.attestation` with `enforced: false`
+and the hash of what is running: the test suite; the showcase desk
+(`tools/desk.py --showcase`, synthetic data, which runs only in a folder
+it created itself and refuses any folder holding your key); and the MCP
+server on a machine with no operator key. With an operator key present (in
+`console-state/`, or wherever `LISTINGASSISTANTS_STATE_DIR` points), the MCP
+server checks your attestation and refuses to start on a change; pointing
+that variable at a folder without a key turns its check off. It writes
+only to its own temporary log.
+
+Where the protection ends: this catches an unreviewed change made by
+someone who is not trying to get round it (an update copied in, an edit,
+a sync). Anyone who can write to the install can also change the checker,
+the programs that call it, or use the key file stored next to it, and
+anyone who can run `attest --new-key` can take the log over (visibly, on
+the chain). It is drift detection with your signature, not tamper
+resistance.

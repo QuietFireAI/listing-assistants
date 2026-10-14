@@ -123,6 +123,40 @@ def load_roster(config_dir: str):
     return roster, verdict, problems
 
 
+def _human_gates(hub) -> None:
+    """Human gates re-inject MANNERS (dispatcher/manners_reinjection.py): a
+    signed release or decline of a held message, and any other signed human
+    authority the hub accepts. The HITL decision gate fires in
+    dispatcher/hitl_protocol.py."""
+    release, decline, send = hub.release_disclosure, hub.decline_disclosure, hub.send
+    from .hub import is_authority
+
+    def send_and_gate(env):
+        before = hub.manners.gates
+        res = send(env)
+        if (env.from_agent == "human" and is_authority(env.intent, hub.routes.signed_intents)
+                and isinstance(res, dict) and res.get("status") == "ack"
+                and hub.manners.gates == before):     # not already a named gate (P01 intake)
+            hub.manners.phase_gate(f"signed {env.intent} on {env.client_context_id}")
+        return res
+
+    def release_disclosure(auth):
+        res = release(auth)
+        if isinstance(res, dict) and res.get("status") != "reject":
+            hub.manners.phase_gate(f"human release of {auth.payload.get('held_envelope_id')}")
+        return res
+
+    def decline_disclosure(auth):
+        res = decline(auth)
+        if isinstance(res, dict) and res.get("status") == "declined":
+            hub.manners.phase_gate(f"human decline of {auth.payload.get('held_envelope_id')}")
+        return res
+
+    hub.release_disclosure = release_disclosure
+    hub.decline_disclosure = decline_disclosure
+    hub.send = send_and_gate
+
+
 def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 config_dir: Optional[str] = None,
                 verifier: Optional[Callable] = None,
@@ -133,7 +167,20 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 decision_adapter: Any = None,
                 model_client: Any = None,
                 model_name: Optional[str] = None,
-                checkpoints_dir: Optional[str] = None) -> Swarm:
+                checkpoints_dir: Optional[str] = None,
+                attestation: Optional[dict] = None) -> Swarm:
+    """attestation: {"state_dir": ..., "verify_bytes": callable,
+    "key_fingerprint": ...} makes this swarm refuse to start
+    (boot_attest.AttestationRefused) unless what is installed is what the
+    operator's key attested and the log agrees - the console, the Broker
+    Desk and the daily clock pass it. None records the running hash with
+    enforced: false. Checked first: before any agent module is imported and
+    before anything is written (owner decision 2026-10-14)."""
+    from . import boot_attest
+    attested = None
+    if attestation is not None:
+        attested = boot_attest.check(attestation["state_dir"], attestation["verify_bytes"],
+                                     attestation["key_fingerprint"], audit_path=audit_path)
     from .core import Routes, AuditLog
     from .hub import Hub
     from .hitl_protocol import HITLManager
@@ -184,6 +231,28 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     hub.register("external", lambda env: external.append(
         {"intent": env.intent, "ctx": env.client_context_id, "payload": env.payload}))
     hub.register("human", human_sink or (lambda env: None))
+
+    # Boot attestation on the chain: what is running, and whether it was
+    # checked against the operator's signed manifest (MANNERS.md
+    # §Re-injection: the file's hash is registered at boot).
+    if attested is not None:
+        hub.audit.append("boot.attestation", {"enforced": True, "matches": True, **attested})
+    else:
+        manifest = boot_attest.current_manifest()
+        hub.audit.append("boot.attestation", {
+            "enforced": False, "files": len(manifest),
+            "manifest_sha256": boot_attest.manifest_sha256(manifest),
+            "manners_sha256": manifest.get("MANNERS.md"),
+            "reason": "this process does not check a signed manifest (the tests, the "
+                      "showcase desk, the MCP server without an operator key); the hash "
+                      "of what is running is recorded"})
+
+    # MANNERS re-injection (dispatcher/manners_reinjection.py): phase gates,
+    # the human gates below, and the turn backstop counted in
+    # handoff_guard.register.
+    from .manners_reinjection import MannersReinjector, default_manners_path
+    hub.manners = MannersReinjector(hub, default_manners_path())
+    _human_gates(hub)
 
     from .client_drawer import ClientDrawerManager
     drawers = ClientDrawerManager(drawers_root)

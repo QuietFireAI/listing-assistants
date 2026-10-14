@@ -65,11 +65,16 @@ def test_spoke_10_has_no_untupled_subject_mode():
     assert '== "subject"' not in open(m.__file__, encoding="utf-8").read()
 
 
-def test_console_does_not_load_a_draft_vendor_roster(tmp_path):
+def test_console_does_not_load_a_draft_vendor_roster(tmp_path, monkeypatch):
     """Was: tools/console.py loaded config/vendor_panel.json (PROPOSED DRAFT)
     with no status check and swallowed read errors."""
     import importlib.util
+    import sys
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(root, "tests_listing"))
+    from console_state import init_state
+    init_state(tmp_path / "cs")
+    monkeypatch.setenv("LISTINGASSISTANTS_STATE_DIR", str(tmp_path / "cs"))
     spec = importlib.util.spec_from_file_location("console_mod", os.path.join(root, "tools", "console.py"))
     console = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(console)

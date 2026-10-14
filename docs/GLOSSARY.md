@@ -183,7 +183,11 @@ text file that GitHub shows as a formatted page.
 
 Two files that apply to every agent. `MANNERS.md` sets how every agent
 behaves in every situation: never do harm, always be truthful, never claim
-done without checking, ask when unsure. `SWARM.md` holds the decisions that
+done without checking, ask when unsure. Its rules are put back in front of
+the agents at the three phase gates of a new listing (P01), at each signed
+decision of yours the system accepts, and every 10 messages an agent
+handles; the system will not start if the file changed since you
+signed the install (`console.py attest`). `SWARM.md` holds the decisions that
 apply to the whole team and the counts of agents, routes and playbooks.
 
 ## Your authority
@@ -499,5 +503,7 @@ A *README* is the page GitHub shows first when you open a folder.
 ### Vendored core
 
 Sixteen files from the separate dispatcher-agents project, copied into
-`dispatcher/` so this repository runs on its own. CI checks that the copies
-match the originals byte for byte, so the copy can never drift.
+`dispatcher/` so this repository runs on its own. `CORE_PIN.json` names the
+exact dispatcher-agents commit they came from, and CI checks that the copies
+match that commit byte for byte, so the copy can never drift. Moving to a
+newer core is a deliberate step (`tools/sync_core.py`).

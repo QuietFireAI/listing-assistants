@@ -21,8 +21,9 @@ Every page attempt is on the audit chain (pager.sent / pager.failed) without
 the credentials.
 
 The core dispatcher/notifier.py (a vendored dispatcher-agents file) reads its
-Twilio settings from environment variables and formats pages with the
-client's reason text; this module is the console's own, narrower sender.
+Twilio settings from environment variables and, since 2026-10-14, also sends
+only the queue and context; this module is the console's own sender, set up
+with `python tools/console.py pager`.
 """
 from __future__ import annotations
 

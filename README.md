@@ -367,7 +367,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1061 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1105 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -457,7 +457,8 @@ desk's tests on Windows as well as Linux.
 python tools/run_demo.py                 # one listing, six acts, on the real hub
 python tools/desk.py --showcase          # the Broker Desk, replaying the operator scenes
 python tools/mcp_roundtrip.py            # live stdio round trip of the MCP server
-python tools/console.py init             # create your signing key
+python tools/console.py init             # create your signing key and attest this install
+python tools/console.py attest           # after reviewing a change: sign the new install
 python tools/console.py onboard          # who you are, asked once
 python tools/console.py session scenes/scene01_signature.jsonl --config-dir scenes/config
 python tools/console.py verify           # walk the audit chain
@@ -490,7 +491,8 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 ## Layout
 
 - `dispatcher/` - vendored dispatcher-agents core (the 16 files listed in
-  `tools/sync_core.py`, kept identical by `--check` in CI), the 20
+  `tools/sync_core.py`, kept identical by `--check` in CI against the core
+  commit named in `CORE_PIN.json`), the 20
   `listing_spokes*.py` agents, `handoff_guard.py`, `lead_rubric.py`,
   `config_status.py`, and the modules above.
 - `identity/routes.json` - the closed track.
@@ -516,7 +518,9 @@ configuration templates, and the generated docs (`tools/gen_job_descriptions.py`
 rebuilds docs/JOB_DESCRIPTIONS.md; a test fails when it drifts). The
 dispatcher core in `dispatcher/` is vendored from
 [dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents) and
-must stay byte-identical (`tools/sync_core.py --check`, run in CI).
+must stay byte-identical to the core commit named in `CORE_PIN.json`
+(`tools/sync_core.py --check`, run in CI; on `main` the pinned commit must
+also be on core's `main`).
 
 ## License
 

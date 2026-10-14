@@ -59,13 +59,43 @@ import threading
 import time
 import urllib.parse
 
+# Only attested source runs (2026-10-14): this process compiles its bytecode
+# into a new private folder, set before any module of this repository is
+# imported, so a .pyc planted beside a source file is never loaded. The
+# folder is removed when the process ends; one left by a hard-killed run
+# stays in the temp folder (no other run removes it: it could belong to a
+# desk that is still running).
+import atexit as _atexit, shutil as _shutil, tempfile as _tempfile  # noqa: E401,E402
+if not getattr(sys, "_listing_fresh_bytecode", False):
+    sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
+    _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
+    sys._listing_fresh_bytecode = True
+
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TOOLS)
 sys.path.insert(0, ROOT)
 sys.path.insert(0, TOOLS)
 
-import console  # noqa: E402
-from gen_diagrams import PHRASE, phrase  # noqa: E402
+class _LazyModule:
+    """console.py is imported on first use, not when the desk is loaded, so
+    main() checks the install (2026-10-14) before console's code runs."""
+    __slots__ = ("_name",)
+
+    def __init__(self, name):
+        object.__setattr__(self, "_name", name)
+
+    def _module(self):
+        import importlib
+        return importlib.import_module(object.__getattribute__(self, "_name"))
+
+    def __getattr__(self, attr):
+        return getattr(self._module(), attr)
+
+    def __setattr__(self, attr, value):
+        setattr(self._module(), attr, value)
+
+
+console = _LazyModule("console")
 
 PAGE = os.path.join(TOOLS, "desk.html")
 # The broker's page, as a product: README, manual and the page itself name
@@ -229,6 +259,7 @@ NAMES = agent_names()
 
 
 def words(intent):
+    from gen_diagrams import phrase      # on first use, after main()'s check
     try:
         return phrase(intent)
     except KeyError:
@@ -792,12 +823,20 @@ class Desk:
         self.showcase = showcase
         self.lock = threading.RLock()
         self.last_action = None
-        os.makedirs(state_dir, exist_ok=True)
         key = os.path.join(state_dir, "operator-key.bin")
+        if showcase and os.path.exists(key) and not is_showcase_folder(state_dir):
+            # 2026-10-14 review: the showcase signed and wrote into whatever
+            # folder it was given - including the broker's own
+            raise SystemExit(f"{state_dir} holds an operator key and is not a showcase "
+                             f"folder; the showcase runs only in a folder it created "
+                             f"(default showcase-state/)")
+        os.makedirs(state_dir, exist_ok=True)
         if showcase and not os.path.exists(key):
             from dispatcher.signatures import Ed25519Signer
             from dispatcher.private_file import write_private
             write_private(key, Ed25519Signer().private_key_bytes())
+            with open(os.path.join(state_dir, SHOWCASE_MARK), "w", encoding="utf-8") as f:
+                f.write("showcase desk folder - synthetic data, not your records\n")
             json.dump({"name": "Showcase Broker", "login": "showcase@example.test",
                        "note": "showcase desk - synthetic data, not your records"},
                       open(os.path.join(state_dir, "operator.json"), "w", encoding="utf-8"), indent=1)
@@ -827,15 +866,23 @@ class Desk:
         self.operator = console._operator()
         audit_path = os.path.join(state_dir, "console-audit.jsonl")
         from dispatcher.core import AuditLogBusy, AuditLogDamaged
+        from dispatcher.boot_attest import AttestationRefused
         try:
+            # the showcase (synthetic data, its own folder) checks no
+            # attestation and records boot.attestation enforced: false
             self.sw, self.signer = console.build(
                 audit_path, config_dir,
-                os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager)
-        except (AuditLogDamaged, AuditLogBusy, StateIntegrityError) as e:
+                os.path.join(state_dir, "swarm-state.sqlite"), None, self.pager,
+                enforce=not showcase)
+        except (AuditLogDamaged, AuditLogBusy, StateIntegrityError, AttestationRefused) as e:
             # refuse to start, name why, and leave no lock behind (repair
             # plan 1.2 / owner decision D4, 2026-10-13: before this a damaged
             # record stopped the desk with a raw traceback)
             os.remove(self.lockfile)
+            if isinstance(e, AttestationRefused):
+                raise SystemExit(json.dumps({"error": "install not attested", "reason": str(e),
+                                             "action": "nothing was written; review the install, "
+                                                       "then run `python tools/console.py attest`"}))
             if isinstance(e, (AuditLogDamaged, AuditLogBusy)):
                 raise SystemExit(json.dumps(console.damaged_record_error(e, audit_path)))
             raise SystemExit(json.dumps({"error": "saved state refused", "reason": str(e),
@@ -1031,6 +1078,21 @@ def make_handler(desk, token):
     return H
 
 
+SHOWCASE_MARK = "SHOWCASE"
+
+
+def is_showcase_folder(state_dir):
+    """A folder the showcase created: its mark, or (folders made before
+    2026-10-14) the showcase operator record."""
+    if os.path.exists(os.path.join(state_dir, SHOWCASE_MARK)):
+        return True
+    try:
+        with open(os.path.join(state_dir, "operator.json"), encoding="utf-8") as f:
+            return "showcase desk" in json.load(f).get("note", "")
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="The Broker Desk")
     ap.add_argument("--showcase", action="store_true",
@@ -1048,10 +1110,36 @@ def main(argv=None):
     ap.add_argument("--fresh", action="store_true",
                     help="with --showcase: start the showcase from scene 1 on empty state")
     args = ap.parse_args(argv)
+    # console.STATE_DIR's rule, computed here so console.py is not loaded
+    # before the install check below (2026-10-14)
     state_dir = args.state_dir or (os.path.join(ROOT, "showcase-state") if args.showcase
-                                   else console.STATE_DIR)
+                                   else os.environ.get("LISTINGASSISTANTS_STATE_DIR")
+                                   or os.path.join(ROOT, "console-state"))
     if args.showcase and args.fresh and os.path.isdir(state_dir):
+        if not is_showcase_folder(state_dir):
+            # 2026-10-14 review: it deleted any folder without an operator key
+            raise SystemExit(f"--fresh deletes only a showcase folder; {state_dir} is not one")
         shutil.rmtree(state_dir)
+    if not args.showcase and os.path.exists(os.path.join(state_dir, "operator-key.bin")):
+        # the install first, before the desk loads anything else of this
+        # repository (2026-10-14); a folder with no key gets the desk's own
+        # "run init" message below
+        from dispatcher.boot_attest import AttestationRefused, preflight
+        try:
+            preflight(state_dir, os.path.join(state_dir, "console-audit.jsonl"))
+        except AttestationRefused as e:
+            raise SystemExit(json.dumps({"error": "install not attested", "reason": str(e),
+                                         "action": "nothing was written; review the install, "
+                                                   "then run `python tools/console.py attest`"}))
+        except Exception as e:
+            # a damaged or busy record is named, as the desk always did
+            # (owner decision D4); 2026-10-14 third review: this check
+            # read the log first and let the error through as a traceback
+            from dispatcher.core import AuditLogBusy, AuditLogDamaged
+            if not isinstance(e, (AuditLogDamaged, AuditLogBusy)):
+                raise
+            raise SystemExit(json.dumps(console.damaged_record_error(
+                e, os.path.join(state_dir, "console-audit.jsonl"))))
     scripts = [os.path.abspath(f) for f in (args.script or [])]
     for f in scripts:
         if not os.path.isfile(f):

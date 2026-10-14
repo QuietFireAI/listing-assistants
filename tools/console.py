@@ -63,6 +63,19 @@ import json
 import os
 import sys
 
+# Only attested source runs (2026-10-14): this process compiles its bytecode
+# into a new private folder, set before any module of this repository is
+# imported, so a .pyc planted beside a source file is never loaded. The
+# folder is removed when the process ends; one left by a hard-killed run
+# stays in the temp folder (no other run removes it: it could belong to a
+# desk that is still running).
+import atexit as _atexit, shutil as _shutil, tempfile as _tempfile  # noqa: E401,E402
+if not getattr(sys, "_listing_fresh_bytecode", False):
+    sys.pycache_prefix = _tempfile.mkdtemp(prefix="listing-pyc-")
+    _atexit.register(_shutil.rmtree, sys.pycache_prefix, True)
+    sys._listing_fresh_bytecode = True
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # LISTINGASSISTANTS_STATE_DIR moves the whole console state (key, operator,
@@ -99,20 +112,31 @@ def _notify_human(queue, record, pager):
     return {"status": "shown", "channel": "screen"}
 
 
-def build(audit_path, config_dir=None, state_db=None, model=None, pager=None):
+def build(audit_path, config_dir=None, state_db=None, model=None, pager=None, enforce=True):
     """The console's swarm: dispatcher/swarm.py with this operator's key.
     Returns (swarm, signer). State is restored from state_db (default
     console-state/swarm-state.sqlite) when the audit chain vouches for it."""
     from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
     from dispatcher.swarm import build_swarm
-    if os.path.exists(KEY_PATH):
-        signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
-    else:
-        signer = Ed25519Signer()
+    from dispatcher.boot_attest import AttestationRefused
+    if not os.path.exists(KEY_PATH):
+        # 2026-10-14: the install is attested with the operator key, so
+        # there is nothing to check it against without one
+        raise AttestationRefused(f"no operator key at {KEY_PATH}: run "
+                                 f"`python tools/console.py init` first")
+    signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
     verifier = Ed25519Verifier(signer.public_key_bytes())
+    from dispatcher.boot_attest import fingerprint
     sw = build_swarm(
         audit_path, state_db=state_db, config_dir=config_dir,
         verifier=verifier.verifier(),
+        # refuse to start unless the install is what this key attested and
+        # the log agrees (MANNERS.md §Re-injection; owner decision
+        # 2026-10-14). enforce=False only for the showcase desk.
+        attestation=({"state_dir": os.path.dirname(KEY_PATH),
+                      "verify_bytes": verifier.verify_bytes,
+                      "key_fingerprint": fingerprint(signer.public_key_bytes())}
+                     if enforce else None),
         # every human-queue landing prints as it happens; with the pager on it
         # also texts you, and the hub records what the notifier says happened
         human_notifier=lambda queue, record: _notify_human(queue, record, pager),
@@ -190,9 +214,13 @@ def cmd_init(_args):
     signer = Ed25519Signer()
     # private from the first byte, on Linux, macOS and Windows alike
     write_private(KEY_PATH, signer.private_key_bytes())
+    # the install you just set up is the one you attest (2026-10-14)
+    from dispatcher.boot_attest import attest
+    att = attest(STATE_DIR, signer, audit_path=AUDIT_PATH)
     _p({"initialized": STATE_DIR,
         "operator_key": "generated, private: " + is_private(KEY_PATH)[1],
         "audit_log": AUDIT_PATH,
+        "attested": {"files": att["files"], "file": att["path"]},
         "note": "this key signs YOUR authority actions - it stays on "
                 "this machine"})
     return 0
@@ -490,6 +518,7 @@ def damaged_record_error(e, audit_path):
 def cmd_session(args):
     from dispatcher.core import AuditLogBusy, AuditLogDamaged
     from dispatcher.state_snapshot import StateIntegrityError
+    from dispatcher.boot_attest import AttestationRefused
     folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
     other = desk_running(folder)
     if other:
@@ -524,6 +553,11 @@ def cmd_session(args):
         return 2
     except (AuditLogDamaged, AuditLogBusy) as e:
         _p(damaged_record_error(e, args.audit_log or AUDIT_PATH))
+        return 2
+    except AttestationRefused as e:
+        _p({"error": "install not attested", "reason": str(e),
+            "action": "nothing was written; review the install, then run "
+                      "`python tools/console.py attest`"})
         return 2
     hub, spokes, external = sw.hub, sw.spokes, sw.external
     operator = _operator()
@@ -605,6 +639,7 @@ def cmd_repair_record(args):
         r = AuditLog.check_file(path)
         _p({"chain": r})
         return 0 if r["ok"] else 1
+    # a repair writes to the chain: main() checked the install first
     try:
         rec = AuditLog.repair_torn_tail(path)
     except (AuditLogDamaged, AuditLogBusy, ValueError) as e:
@@ -630,10 +665,45 @@ def cmd_repair_record(args):
     return 0
 
 
+def cmd_attest(args):
+    """Sign what is installed now, after you have reviewed a change (an
+    offline update, a core sync). Names what changed since the last
+    attestation. The console, the Broker Desk and the daily clock refuse to
+    start until the install matches what you attested (2026-10-14)."""
+    from dispatcher.signatures import Ed25519Signer
+    from dispatcher.boot_attest import attest
+    if not os.path.exists(KEY_PATH):
+        _p({"error": f"no operator key at {KEY_PATH}: run `python tools/console.py init` first"})
+        return 2
+    signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
+    from dispatcher.core import AuditLogBusy, AuditLogDamaged
+    from dispatcher.boot_attest import AttestationRefused
+    try:
+        result = attest(STATE_DIR, signer, audit_path=args.audit_log or AUDIT_PATH,
+                        new_key=args.new_key)
+    except AttestationRefused as e:
+        _p({"error": "not attested", "reason": str(e)})
+        return 2
+    except (AuditLogDamaged, AuditLogBusy) as e:
+        _p({**damaged_record_error(e, args.audit_log or AUDIT_PATH),
+            "attested": False, "note": "nothing was signed; the record must take the entry first"})
+        return 2
+    _p({"attested": result,
+        "note": "you signed what is installed now; the console, the Broker Desk and "
+                "the daily clock start only while it stays exactly this"})
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init")
+    at = sub.add_parser("attest", help="sign what is installed now, after reviewing a change")
+    at.add_argument("--audit-log", default=None,
+                    help="the audit log this attestation is recorded on (default: the console's)")
+    at.add_argument("--new-key", action="store_true",
+                    help="you replaced your key: take over a log attested with the old one "
+                         "(recorded on the chain as boot.key_changed)")
     o = sub.add_parser("onboard")
     o.add_argument("--name", default=None)
     o.add_argument("--login", default=None)
@@ -671,8 +741,37 @@ def main():
     rr.add_argument("--audit-log", default=None)
     rr.add_argument("--check", action="store_true", help="check only; change nothing")
     args = ap.parse_args()
+    if args.cmd == "session":
+        # a running desk holds this state: refuse first, as cmd_session does
+        folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
+        other = desk_running(folder)
+        if other:
+            _p({"error": f"the Broker Desk is running on {folder} (pid {other}) - stop it, or "
+                         f"do this from the desk; two processes on the same state would fork it"})
+            return 2
+    if args.cmd == "session" or (args.cmd == "repair-record" and not args.check):
+        # the install first, before anything else of this repository is
+        # loaded (2026-10-14); a repair does not read the damaged log for it
+        from dispatcher.boot_attest import AttestationRefused, preflight
+        try:
+            preflight(STATE_DIR, (args.audit_log or AUDIT_PATH) if args.cmd == "session" else None)
+        except AttestationRefused as e:
+            if args.cmd == "repair-record":
+                _p({"repaired": False, "changed": "nothing", "refused": f"install not attested: {e}"})
+            else:
+                _p({"error": "install not attested", "reason": str(e),
+                    "action": "nothing was written; review the install, then run "
+                              "`python tools/console.py attest`"})
+            return 2
+        except Exception as e:
+            from dispatcher.core import AuditLogBusy, AuditLogDamaged
+            if not isinstance(e, (AuditLogDamaged, AuditLogBusy)):
+                raise
+            _p(damaged_record_error(e, args.audit_log or AUDIT_PATH))
+            return 2
     try:
-        return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
+        return {"init": cmd_init, "attest": cmd_attest, "onboard": cmd_onboard,
+                "session": cmd_session,
                 "verify": cmd_verify, "pager": cmd_pager,
                 "repair-record": cmd_repair_record}[args.cmd](args)
     except EOFError:

@@ -8,6 +8,7 @@ ever sees it, per hub.send()'s pipeline order).
 """
 from __future__ import annotations
 
+from .manners_reinjection import phase_gate  # noqa: E402  (MANNERS phase gates, 2026-10-14)
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
 from .drawer_filing import file_record
@@ -220,6 +221,7 @@ class Spoke05MLSListingManagement:
             # is not a fresh signature per step; it's execution of the
             # already-authorized deal, same as the playbook specifies.
             if ctx in self.go_live_authorized:
+                phase_gate(self.hub, f"P01 phase 3 (go-live) on {ctx}")
                 record = self.mls_records.setdefault(ctx, {})
                 record["status"] = "active"
                 self.hub.ingest_spoke_trace(
@@ -270,6 +272,7 @@ class Spoke05MLSListingManagement:
             # from the per-field updates below.
             if "new_listing" in change:
                 package = change["new_listing"]
+                phase_gate(self.hub, f"P01 phase 1 (signed intake) on {ctx}")
                 self.property_data[ctx] = package
                 if package.get("occupancy") == "vacant":   # P20 (J3)
                     self._set_occupancy(ctx, env, "vacant", None, change.get("today"))
@@ -479,6 +482,7 @@ class Spoke05MLSListingManagement:
                                    {"reason": "photo deliverable failed "
                                              "open-verification"}))
                 return
+            phase_gate(self.hub, f"P01 phase 2 (photos verified) on {ctx}")
             self.hub.ingest_spoke_trace(
                 "05", env.envelope_id,
                 thought="photo deliverable verified present-and-opens - "
