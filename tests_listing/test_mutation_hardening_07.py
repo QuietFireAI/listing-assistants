@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 07 (transaction coordinator), deadline engine.
+"""Mutation-hardening - spoke 07 (transaction coordinator), deadline engine.
 
 Closes the 13 spoke-07 true gaps from the clean sweep. Same discipline:
 positive + negative case per decision, each verified to KILL its mutation.
@@ -221,7 +221,7 @@ def test_07_closing_artifact_issues_transaction_closed_with_flags(tmp_path):
 
 def test_07_signed_docs_only_defaults_false_when_absent(tmp_path):
     """When signed_docs_only is ABSENT, the payload default is False (374).
-    Flip the default to True and this fails — the key-absent path is the
+    Flip the default to True and this fails - the key-absent path is the
     only way to exercise the default."""
     s = spoke(str(tmp_path))
     s.timelines["cl-2"] = {"closing": {"deadline": "2026-09-01",

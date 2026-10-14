@@ -1,4 +1,4 @@
-# Tuning Manual — ListingAssistants
+# Tuning Manual - ListingAssistants
 
 > **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
 
@@ -15,7 +15,7 @@
 
 Every numeric/timing parameter in this codebase that a human might
 reasonably want to retune, in one place. Compiled by a direct code sweep
-(constructor signatures + inline threshold comparisons), not from memory —
+(constructor signatures + inline threshold comparisons), not from memory -
 if a parameter existed and wasn't listed here on the first pass, that was
 a real gap, not an intentional omission.
 
@@ -37,13 +37,13 @@ deployment wires up the swarm), e.g.:
 Spoke02LeadQualification(hub, hot_lead_sla_seconds=180)
 ```
 
-No source-code edits required for anything in this table — that's the
+No source-code edits required for anything in this table - that's the
 point of exposing them as constructor parameters instead of hardcoding
 them inline.
 
 ---
 
-## TOP OF LIST — Deliberate placeholders & unratified configs (read before deployment)
+## TOP OF LIST - Deliberate placeholders & unratified configs (read before deployment)
 
 Re-swept 2026-10-14 from the code and from what the swarm writes when it
 starts: every placeholder is in this table, and every stand-in or unarmed
@@ -58,8 +58,8 @@ dispatcher-agents `docs/TUNING_MANUAL.md`.
 | Disclosure warning lead (J4) | `Spoke08DocumentCollection.DISCLOSURE_LEAD_DAYS` | **3 days** | Warned once on the legal line. |
 | `loop_threshold=20` | core `dispatcher/hub.py` | **RATIFIED as deliberate placeholder (owner, 2026-07-17)** | No empirical basis existed to pick a better number; revisit after production traffic. |
 | MANNERS `N=10` | `dispatcher/manners_reinjection.py` `BACKSTOP_N` | **RATIFIED (2026-07-17); wired in this product 2026-10-14** | Every 10 envelopes an agent handles with no other re-injection, the turn backstop fires (`manners.reinjection`, trigger `turn_backstop`). The core still counts nothing itself (D7); this product does. Counts live in the process; a restart starts them at 0. |
-| `config/authority_signers.json` | this repo | **UNRATIFIED — fails closed** | Template for identity-provider logins with MFA. No identity provider is connected in this build, so leave it unratified; the hub checks the key's signature and records that the login binding is off. |
-| `config/vendor_panel.json` | this repo | **UNRATIFIED — fails closed** | Template in Agent 09's format (`vendors: vendor_id -> {kind, license_expiry, insurance_expiry, regulated}`); needs your actual vendors. Same fail-closed rule. The operator scenes use `scenes/config/vendor_panel.json`, a synthetic roster you ratify by hand. |
+| `config/authority_signers.json` | this repo | **UNRATIFIED - fails closed** | Template for identity-provider logins with MFA. No identity provider is connected in this build, so leave it unratified; the hub checks the key's signature and records that the login binding is off. |
+| `config/vendor_panel.json` | this repo | **UNRATIFIED - fails closed** | Template in Agent 09's format (`vendors: vendor_id -> {kind, license_expiry, insurance_expiry, regulated}`); needs your actual vendors. Same fail-closed rule. The operator scenes use `scenes/config/vendor_panel.json`, a synthetic roster you ratify by hand. |
 | External adapters (`vendor.schedule`, `client.message.send`, `campaign.publish`) | the `external` destination on the closed track | **NOT WIRED** | Held until your signed release, then queued to `external`; tracked in the adapter table below until connected to real providers. |
 | `approved_by` fields | `config/message_templates.json` | **RATIFIED 2026-07-18** (owner blanket sign-off in `_status`) | No code reads this file yet; Agent 11 sends template ids and variables, and wording is the deployment's adapter's job. |
 
@@ -94,6 +94,77 @@ entries of the audit log every time the swarm starts.
 Ratification path for the config files: review content → edit → change
 `_status` to `RATIFIED` with date + sign-off → load. Fail-closed until
 then is the invariant, not an inconvenience.
+
+### Fixed in code (swept 2026-10-14)
+
+A code sweep of every named value, default argument and numeric comparison
+in `dispatcher/` and `tools/` found these fixed values. None of them is a
+constructor argument or a signed setting. Changing one means editing the
+source, after which every install must be attested again
+(`python tools/console.py attest`).
+
+**Trigger phrase lists.** These lists are how an agent recognizes a
+message that must go to you. A message is matched by lower-case substring
+(Agent 14's list by whole word), so a phrase not on the list is not
+recognized. The synthetic sample run of
+2026-10-14 showed this: "Please wire the earnest money instructions" did
+not match Agent 11's wire list.
+
+| Agent | List | Phrases | What a match does |
+|---|---|---|---|
+| 01 | `_LEGAL_LINE_WORDS` (`listing_spokes.py`) | 8: what should i offer, should i list at, negotiate, contract language, legal opinion, is this legal, represent me in, counter their offer | Legal-line escalation; the lead is not captured |
+| 01 | `_DEMANDS_HUMAN_WORDS` | 11: speak to a human, talk to a human, talk to a person, speak to a person, get me a person, real person, speak to someone, human agent, not a robot, let me talk to someone, human now | Legal-line escalation; capture continues |
+| 14 | `_SECRET_WORDS` (`listing_spokes.py`, whole words, not substrings) | 6: code, combo, combination, password, pin, passcode | An access record (P19) whose values contain one is rejected whole; access secrets never ride a message |
+| 03 | `_LEGAL_LINE_WORDS` (`listing_spokes_03.py`) | 5: what should i offer, should i list at, negotiate, contract terms, legal opinion. Not the same list as Agent 01's | Legal-line escalation |
+| 04 | `_SUPERLATIVE_WORDS` | 6: best block, best in town, best neighborhood, safest, most desirable, top school | In the requested language: declined in the copy |
+| 04 | `_PROTECTED_CLASS_REQUEST_WORDS` | 6: school quality, school rating, neighborhood demographics, family-friendly, great schools, school district rating | In the requested language: refused in the copy, which still goes to compliance review |
+| 06 | `_ACCESS_REQUEST_WORDS` | 6: let them in, access code, lockbox combo, gate code, just let, combo for the | Legal-line escalation; no access is given |
+| 07, 08 | `_WIRE_WORDS` | 6: wire instructions, wiring details, wire transfer, updated wire, routing number, account number for closing | Legal-line escalation; Agent 08 also quarantines the document |
+| 11 | `_WIRE_WORDS` | 5: the same without "account number for closing" | Legal-line escalation |
+| 10 | `_OPINION_WORDS` | 4: what number would you go with, your opinion, what would you price it, the number you'd go with | Refusal, then escalation on repeat (`opinion_press_threshold`) |
+| 10 | `_APPRAISAL_SUBSTITUTION_WORDS` | 4: is this worth, what's it actually worth, give me a value, instead of an appraisal | The data package carries a not-an-appraisal note and compliance (17) is told |
+| 11 | `_ADVICE_WORDS` | 6: what would you do, should i offer, what's it worth, negotiate, legal opinion, pricing strategy | Legal-line escalation; the client gets a hand-off note and the thread waits for you |
+| 13 | `_PROTECTED_CLASS_WORDS` | 10: school quality, school rating, demographics, families with, no children, race, religion, national origin, ethnic, families only | Legal-line escalation |
+| 13 | `_SELLER_POSITION_WORDS` | 4: what would the seller take, seller's bottom line, what will they accept, seller's minimum | Legal-line escalation; nothing about the other party is shared |
+| 13 | `_PRICE_OPINION_WORDS` | 4: is this a good price, good deal, worth the price, should i pay | Legal-line escalation |
+| 15 | `_TRUST_ESCROW_WORDS` | 5: earnest money, trust account, escrow, wire the funds, disbursement | Legal-line escalation; trust and escrow accounting is out of scope |
+| 16 | `_NEW_BUSINESS_WORDS` | 4: thinking of selling, looking to buy again, want to list, ready to move | A new lead to Agent 02 under a new context |
+| 16 | `_PRICING_WORDS` | 3: what's my house worth, what is my house worth, what would it sell for now | Legal-line escalation |
+| 16 | `_INCENTIVE_WORDS` | 4: gift card, referral bonus, pay you for, reward for referring | Legal-line escalation |
+| 20 | `_PRICING_LEGAL_WORDS` | 5: the price is, we can offer, contract terms, legal advice, guarantee | A drafted public reply containing one is never published; legal-line escalation |
+| Hermes seam | `WIRE_PHRASES`, `FAIR_HOUSING_PHRASES`, `PRICE_PHRASES` (`hermes_seam.py`) | 4, 11 and 3 phrases | Score a model draft; a score of 0.5 or more quarantines a correction (below) |
+
+**Other fixed values.**
+
+| Value | Where | What it does |
+|---|---|---|
+| `CHANNEL_RANK = {"call": 3, "text": 2, "web_form": 1}` | `listing_spokes.py` | Agent 01's tuple order (live call > text > web form) when the same field arrives twice |
+| Tier oscillation: the last 3 tiers | `listing_spokes_02.py` | A tier that returns to the one it just left (A, B, A) goes to you (Agent 02 tuple) |
+| `VALID_MLS_FIELDS`, `VALID_STATUSES`, ended statuses | `listing_spokes_05.py` | The MLS fields Agent 05 records and the statuses it accepts |
+| `DOC_MILESTONE_MAP` | `listing_spokes_08.py` | Which document type completes which transaction milestone |
+| `_DEFAULT_TRANSACTION_MILESTONES` | `listing_spokes_07.py` | Agent 07's milestones; the same content as `config/transaction_milestones.json` (section above) |
+| `confidence_threshold = 0.45` | `decision_adapter.py` | The default of `decision_engine.confidence_floor` (Parameters of the wired modules) |
+| Policy quarantine at 0.5 | `hermes_seam.py` `HermesLearningLoop` | A broker correction scoring 0.5 or more on the phrase screen is quarantined, not learned |
+| Brokerage directives: 5 | `hermes_seam.py` `format_curriculum_prompt` | How many of your brokerage directives go into the model's prompt |
+| `DEFAULT_HERMES_SYSTEM_PROMPT` | `hermes_seam.py` | The system prompt of every model draft |
+| `GOLDEN_BROKER_EXAM`: 4 questions | `model_checkpoint_manager.py` | Fair housing, wire defense, pricing boundary, NAR settlement; a checkpoint must pass all four |
+| Local model hosts `localhost`, `127.0.0.1`, `::1` | `model_drafting.py` | Any other host is refused without `--allow-remote-model` |
+| Pager `api_base` default `https://api.twilio.com`; numbers 8 to 16 characters with a leading `+` | `pager.py` | Where pages go; the number format check |
+| Desk addresses `127.0.0.1`, `localhost`, `[::1]` | `tools/desk.py` `LOCAL_NAMES` | The only addresses the desk on this computer answers (2026-10-14) |
+| Desk display limits: 30 items per tally, 25 activity lines, 160 characters per shortened value | `tools/desk.py` | What the page shows; the record keeps everything |
+| `log_root = "logs"` | `readable_logger.py` | Where `restore_point.py` and `show_logs.py` write and read their readable log |
+| `max_workers = 8` | `concurrent_dispatcher.py` | A module no part of the product calls; only its own tests use it |
+| Demo ruleset | `tools/run_demo.py` | The six-act demo's fair-housing rule; demo only |
+
+### Found 2026-10-14 (synthetic sample run and integration snapshot), not fixed
+
+| What | Where | Effect |
+|---|---|---|
+| Agent shopping is never flagged | Agent 01 does not forward `is_agent_shopping` to Agent 02 | Agent 02's tuple "(lead is an agent shopping for a client, ...)" cannot fire on a lead that arrives through intake; the sample lead scored HOT |
+| A phone with the country code is a different person | `_contact_identifiers` compares digits | `+12165550101` does not match `(216) 555-0101`, so the duplicate check misses it |
+| The do-not-call list is compared as exact text | Agent 01 `contact in self.dnc_list` | `330-555-0190` does not match a list entry `(330) 555-0190` |
+| A second inquiry after capture starts from nothing | Agent 01 merges fields only while a capture is pending | A later inquiry that repeats no budget or timeline scores UNKNOWN |
+| The MCP server takes a host's signature and never uses it | `dispatcher/identity_mcp.py` `identity.authority` (integration snapshot 2026-10-14) | `signature_hex` is compared only with the demo string; the hub trusts only a key the server makes at each start. Without `--demo-signing` the MCP server can describe the trade and show the record, nothing else |
 
 ---
 
@@ -138,7 +209,7 @@ rule, not just a number, and deserves its own look.
 | 09 (Vendor Coordination) | `roster` | `{}` (empty) | Approved-vendor list (id -> kind/license/insurance/regulated). **Empty by default means every single vendor request is refused** (tuple 6: not on approved list) until this is populated - this agent does nothing useful out of the box. |
 | 11 (Client Communication) | `exempt_alert_classes` | `set()` (empty) | Alert classes exempt from the quiet-hours gate (e.g. a genuinely time-critical alert type that should wake the human instead of queuing) - none configured means nothing is exempt, everything queues during quiet hours |
 
-## Per-message defaults (not agent-level config — legitimately vary by caller/platform)
+## Per-message defaults (not agent-level config - legitimately vary by caller/platform)
 
 These aren't retuned at agent construction time; each caller can override
 them per envelope. The values below are just the fallback when a caller
@@ -152,11 +223,11 @@ doesn't specify one.
 | 19 (Prospecting) | `rank_threshold` (in `discovery.feed` payload) | `0.5` | `listing_spokes_19.py` `discovery.feed` branch | Minimum rank-basis-strength before a rank is included rather than presented unranked |
 
 To change the *fallback* value for any of these (not a one-off
-override), edit the source line directly — there's no single agent-level
+override), edit the source line directly - there's no single agent-level
 constructor knob for these, by design, since different platforms may
 legitimately warrant different defaults.
 
-## Ratified as deliberate placeholders (owner, 2026-07-17) — core, not this repo
+## Ratified as deliberate placeholders (owner, 2026-07-17) - core, not this repo
 
 These two live in **dispatcher-agents** (the shared core, not this repo),
 which is why they weren't caught in a sweep of this repository alone before.
@@ -174,23 +245,23 @@ now the second one. Revisit when real after-action/fade-rate data exists.
 | `dispatcher-agents/dispatcher/hub.py` `Hub.__init__` | `loop_threshold` | `20` | Max envelopes per `(client_context_id, intent)` pair before the hub suspends the loop into `clarification.request`, treating it as a possible runaway |
 | `MANNERS.md` (this repo) §Re-injection | backstop `N` | `10` | Agent turns (envelopes handled) allowed with no other re-injection before the turn backstop fires. Wired 2026-10-14 in `dispatcher/manners_reinjection.py` |
 
-## Ratified 2026-07-17 (owner decisions #1, #3, #4, #6 — this session)
+## Ratified 2026-07-17 (owner decisions #1, #3, #4, #6 - this session)
 
 | Agent | Parameter | Value | Controls |
 |---|---|---|---|
 | 15 (Financial Tracking) | `commission_rate` | `0.08` | DEFAULT rate used ONLY when a close carries `sale_price` but no explicit `commission_amount`. Explicit amount always wins; computed amounts are labeled `computed_at_default_rate_*`, never presented as recorded figures. Owner-ratified starting point (decision #1); revisit against real closings |
-| 04 (Listing Description) | `config/description_cut_priority.json` | `["adjectives", "unattributed_facts"]` | Cut order when remarks exceed `mls_char_limit` (first entry cut first). Attributions never cut — structurally absent from the cut classes (decision #3). File finally exists; tuple 11 always named it |
-| 04 (Listing Description) | photo/data contradiction detection | symmetric set difference | When `photo_detected_features` is present, ANY feature in the data sheet not in the photos, or in the photos not in the data sheet, halts the asset into clarification (decision #4, delegated). A caller-supplied `photo_data_contradictions` flag also halts; neither path suppresses the other. Not a numeric knob — documented here so its behavior is known outside the source |
-| dispatcher-agents `SignerRegistry.check` | `effective` date enforcement | temporal, fail-closed | A signer entry with no effective date, an unparseable one, or a future-dated one DENIES (decision #8 answer: the field was schema-present, enforcement-absent — `check()` never read it). `today` defaults to the real system date; tests pass it explicitly |
+| 04 (Listing Description) | `config/description_cut_priority.json` | `["adjectives", "unattributed_facts"]` | Cut order when remarks exceed `mls_char_limit` (first entry cut first). Attributions never cut - structurally absent from the cut classes (decision #3). File finally exists; tuple 11 always named it |
+| 04 (Listing Description) | photo/data contradiction detection | symmetric set difference | When `photo_detected_features` is present, ANY feature in the data sheet not in the photos, or in the photos not in the data sheet, halts the asset into clarification (decision #4, delegated). A caller-supplied `photo_data_contradictions` flag also halts; neither path suppresses the other. Not a numeric knob - documented here so its behavior is known outside the source |
+| dispatcher-agents `SignerRegistry.check` | `effective` date enforcement | temporal, fail-closed | A signer entry with no effective date, an unparseable one, or a future-dated one DENIES (decision #8 answer: the field was schema-present, enforcement-absent - `check()` never read it). `today` defaults to the real system date; tests pass it explicitly |
 
 ### Added 2026-07-18 (owner decisions #2 refinement, #7)
 
 | Agent | Parameter | Value | Controls |
 |---|---|---|---|
-| 13 (Buyer Search & Match) | `max_matches_per_buyer_per_day` | `5` | Individual match pings per buyer per day. Beyond it, matches join a ranked end-of-day digest (`flush_match_digest`, sweep-called): ranked by stated-criteria-met desc, ties newest-first. Nothing silently dropped — every match logs to 14 individually (decision #7) |
-| 06 (Showing Scheduler) | protected-deadline bump tier gate | `HOT` only | A protected-deadline claim only earns a HITL bump OFFER when `lead_tier` (relayed by 13 from 14's CRM records, where 02 logged it — never client-writable) is HOT. Not hot or unknown: plain conflict sequencing, no offer (decision #2). The bump itself still executes only on the human's signed `confirm_protected_bump` |
+| 13 (Buyer Search & Match) | `max_matches_per_buyer_per_day` | `5` | Individual match pings per buyer per day. Beyond it, matches join a ranked end-of-day digest (`flush_match_digest`, sweep-called): ranked by stated-criteria-met desc, ties newest-first. Nothing silently dropped - every match logs to 14 individually (decision #7) |
+| 06 (Showing Scheduler) | protected-deadline bump tier gate | `HOT` only | A protected-deadline claim only earns a HITL bump OFFER when `lead_tier` (relayed by 13 from 14's CRM records, where 02 logged it - never client-writable) is HOT. Not hot or unknown: plain conflict sequencing, no offer (decision #2). The bump itself still executes only on the human's signed `confirm_protected_bump` |
 
-## External adapters — NOT YET WIRED (owner decision #6: tracked here until clean)
+## External adapters - NOT YET WIRED (owner decision #6: tracked here until clean)
 
 Three intents route to the virtual destination `external`. The swarm
 (`dispatcher/swarm.py`) registers a stand-in handler that keeps each
@@ -220,7 +291,7 @@ with these dark is a swarm that talks to itself.
   The console does not use it: its pages go through `dispatcher/pager.py`
   with the details you give `python tools/console.py pager`.
 
-## Config files (separate from code — business content, not tuning knobs)
+## Config files (separate from code - business content, not tuning knobs)
 
 <!-- diagram:config-tunman - drawn in tools/doc_diagrams.py; edit it there, not here -->
 ```mermaid
@@ -244,9 +315,9 @@ can't be guessed by code: `vendor_panel.json`, `authority_signers.json`,
 `cadence_settings.json`, `message_templates.json`, `milestone_map.json`,
 `transaction_milestones.json`. Five of the six now have proposed draft
 content grounded in what the code actually implements or the playbooks
-already ratified — review, edit, and change `_status` to `RATIFIED` when
+already ratified - review, edit, and change `_status` to `RATIFIED` when
 approved. `vendor_panel.json` and `authority_signers.json` remain
-genuinely empty — they need your actual vendor relationships and IdP
+genuinely empty - they need your actual vendor relationships and IdP
 logins, which no amount of drafting on my end can substitute for.
 
 `cadence_settings.json` (2026-07-17): now covers all 15 tunables in the
@@ -280,13 +351,13 @@ Since 2026-10-11 this repository is the single source for the config files
 here only.
 
 If you add a new agent or a new threshold, add it to this table in the
-same commit — that's the whole point of keeping this centralized instead
+same commit - that's the whole point of keeping this centralized instead
 of scattered across code comments. A parameter not in this table is a
 parameter nobody outside the source code knows exists.
 
 ---
 
-## ABSOLUTE SIGNAL — disclosure gate (added 2026-08-01)
+## ABSOLUTE SIGNAL - disclosure gate (added 2026-08-01)
 
 <!-- diagram:audience-tunman - drawn in tools/doc_diagrams.py; edit it there, not here -->
 ```mermaid

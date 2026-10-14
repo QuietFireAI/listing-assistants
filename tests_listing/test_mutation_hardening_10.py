@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 10 (market data), remaining gap.
+"""Mutation-hardening - spoke 10 (market data), remaining gap.
 
 Closes 10:130 (appraisal-substitution-smell detection). Kill-verified.
 """

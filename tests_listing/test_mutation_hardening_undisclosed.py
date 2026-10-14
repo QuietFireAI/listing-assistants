@@ -1,11 +1,11 @@
-"""Mutation-hardening — gaps the Fable 5 CrossPol found that my sweep missed.
+"""Mutation-hardening - gaps the Fable 5 CrossPol found that my sweep missed.
 
 None of these are in the original 105-mutation contract; my sweep never covered
 them (06:83/06:333 because the 06 legal/fail-closed lines weren't in scope,
 11:139 likewise). Fable surfaced all three as full-suite survivors. Each closed
 here is kill-verified against its exact mutation.
 
-  06:83   _access_request_hit — lockbox/access-word legal-line detection (w in low)
+  06:83   _access_request_hit - lockbox/access-word legal-line detection (w in low)
   06:333  protected_deadline fail-closed default (False)
   11:139  _send_client_message returns False on unresolved template variables
 """
@@ -84,7 +84,7 @@ def test_06_unprotected_conflict_sequences_not_bumps(tmp_path):
     request WITHOUT the flag must produce a plain sequencing clarification
     and NEVER a held bump. Observability via pending_bumps (the tier-gate
     fallback ALSO emits 'calendar conflict' text, so asserting on the text
-    gives a false kill — assert the bump state instead, per Fable's trace).
+    gives a false kill - assert the bump state instead, per Fable's trace).
     Kills the 333 default False -> True flip."""
     s = Spoke06ShowingScheduler(make_hub(str(tmp_path)))
     s.hub.on_turn_start()

@@ -55,14 +55,14 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P01 — New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01--new-listing-onboarding)
-- [P02 — Price Adjustment](../docs/PLAY-BY-PLAY.md#p02--price-adjustment)
-- [P03 — Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03--under-contract-transition)
-- [P04 — Open House Cycle](../docs/PLAY-BY-PLAY.md#p04--open-house-cycle)
-- [P05 — Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05--expiredwithdrawn-wind-down)
-- [P08 — Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08--offer-to-acceptance)
-- [P09 — Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09--contract-to-close-the-deadline-engine)
-- [P20 — Vacant Property Watch](../docs/PLAY-BY-PLAY.md#p20--vacant-property-watch)
+- [P01 - New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01---new-listing-onboarding)
+- [P02 - Price Adjustment](../docs/PLAY-BY-PLAY.md#p02---price-adjustment)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
+- [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P20 - Vacant Property Watch](../docs/PLAY-BY-PLAY.md#p20---vacant-property-watch)
 
 ## The rules it follows
 

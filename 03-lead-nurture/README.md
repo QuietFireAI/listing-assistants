@@ -53,9 +53,9 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P09 — Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09--contract-to-close-the-deadline-engine)
-- [P10 — Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10--close--post-close-handoff)
-- [P21 — Lead Rescore Cycle](../docs/PLAY-BY-PLAY.md#p21--lead-rescore-cycle)
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
+- [P21 - Lead Rescore Cycle](../docs/PLAY-BY-PLAY.md#p21---lead-rescore-cycle)
 
 ## The rules it follows
 

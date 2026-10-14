@@ -3,7 +3,7 @@
 > **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
 
 This identity ships a generic MCP wrapper (`dispatcher/identity_mcp.py`)
-that exposes it as a standard **stdio MCP server** — so it mounts
+that exposes it as a standard **stdio MCP server** - so it mounts
 identically on Hermes, OpenClaw, and Claude Desktop with zero per-host
 code. The host's agent gets exactly four tools; it pushes intents at the
 front door and the governed hub does all routing, signing, sealing, and
@@ -11,7 +11,7 @@ logging behind them. The host never routes inside the identity.
 
 The server runs a **boot conformance gate**: it refuses to start unless
 the closed track, the signer gate, and the audit chain are intact. The
-governance guarantee travels with the server — it cannot be silently
+governance guarantee travels with the server - it cannot be silently
 mounted broken.
 
 ## The four tools
@@ -31,14 +31,14 @@ flowchart LR
 *The host never routes inside the swarm; it pushes requests at the front door. There is no release tool: releasing a held message needs your own signature (see FINANCIAL_CAPABILITY.md).*
 <!-- /diagram:mcp-mount -->
 
-- `identity.describe` — read-only: the closed track (legal intents),
+- `identity.describe` - read-only: the closed track (legal intents),
   playbooks, and governance guarantees. Call first.
-- `identity.submit` — push ONE intent at the front door; the hub
+- `identity.submit` - push ONE intent at the front door; the hub
   validates against the closed track, runs the playbook, enforces gates,
   returns result or refusal-with-reason.
-- `identity.authority` — the signed-money lane; unsigned authority is
+- `identity.authority` - the signed-money lane; unsigned authority is
   rejected and the rejection is returned so you can see the gate work.
-- `identity.audit` — hash-chain verification (entries, chain_verified,
+- `identity.audit` - hash-chain verification (entries, chain_verified,
   dead letters) so the host can prove tamper-evidence itself.
 
 ## Prerequisites
@@ -54,7 +54,7 @@ pip install mcp                   # the MCP SDK (stdio server/client)
 python3 tools/mcp_roundtrip.py
 ```
 Spawns the server over stdio and calls all four tools through the real
-MCP protocol — the exact transport the hosts use. You should see the
+MCP protocol - the exact transport the hosts use. You should see the
 closed surface, a gated submit, unsigned money rejected, signed money
 executed, and the chain verified.
 
@@ -75,8 +75,8 @@ mcp_servers:
 ```
 
 Then in a Hermes session: `/reload-mcp`, and the four `identity.*` tools
-are available. (Hermes can also consume the identity as a SKILL.md tap —
-`hermes skills tap add QuietFireAI/listing-assistants` — but the MCP mount
+are available. (Hermes can also consume the identity as a SKILL.md tap -
+`hermes skills tap add QuietFireAI/listing-assistants` - but the MCP mount
 is what carries the governed runtime, not just the instructions.)
 
 ## OpenClaw
@@ -138,7 +138,7 @@ their own key, is not built yet; until then, signed actions go through
 Both Hermes and OpenClaw extend agents by letting the host LLM decide
 when to call a tool. Exposing this identity's 20 agents (plus the dispatcher) as separate
 free tools would hand routing back to the host and dissolve the closed
-track — the identity would become a toolbox wearing the name, not a
+track - the identity would become a toolbox wearing the name, not a
 governed system. The four-tool front door is the fix: the host can only
 submit intents; the hub enforces the track, the signatures, the $0.00
 rule, and the sealed custody internally. **The MCP shell is the open

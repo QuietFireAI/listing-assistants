@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 09 (vendor coordination).
+"""Mutation-hardening - spoke 09 (vendor coordination).
 
 Closes the 4 spoke-09 gaps: 71, 180, 238, 314. Each kill-verified.
 """

@@ -44,16 +44,16 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P01 — New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01--new-listing-onboarding)
-- [P02 — Price Adjustment](../docs/PLAY-BY-PLAY.md#p02--price-adjustment)
-- [P03 — Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03--under-contract-transition)
-- [P04 — Open House Cycle](../docs/PLAY-BY-PLAY.md#p04--open-house-cycle)
-- [P05 — Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05--expiredwithdrawn-wind-down)
-- [P08 — Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08--offer-to-acceptance)
-- [P12 — Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12--geographic-farm-campaign)
-- [P15 — CMA / Listing Appointment Prep](../docs/PLAY-BY-PLAY.md#p15--cma--listing-appointment-prep)
-- [P23 — Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23--price-review-evidence)
-- [P24 — Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24--prospecting-outreach-probation-mode)
+- [P01 - New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01---new-listing-onboarding)
+- [P02 - Price Adjustment](../docs/PLAY-BY-PLAY.md#p02---price-adjustment)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
+- [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
+- [P12 - Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12---geographic-farm-campaign)
+- [P15 - CMA / Listing Appointment Prep](../docs/PLAY-BY-PLAY.md#p15---cma--listing-appointment-prep)
+- [P23 - Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23---price-review-evidence)
+- [P24 - Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24---prospecting-outreach-probation-mode)
 
 ## The rules it follows
 

@@ -446,7 +446,7 @@ BLOCKS = {
                 "one recorded test run, numbered in order. The yellow notes are "
                 "holds waiting for you.*"),
     "config-tunman": ("docs/TUNING_MANUAL.md", r"^## Config files \(separate from code .*$", CONFIG_FLOW, None),
-    "audience-tunman": ("docs/TUNING_MANUAL.md", r"^## ABSOLUTE SIGNAL — disclosure gate \(added 2026-08-01\)$", AUDIENCE, AUDIENCE_CAPTION),
+    "audience-tunman": ("docs/TUNING_MANUAL.md", r"^## ABSOLUTE SIGNAL - disclosure gate \(added 2026-08-01\)$", AUDIENCE, AUDIENCE_CAPTION),
     "success": ("docs/WHAT_SUCCESS_MEANS.md", r"^## The listing, from signature to sold sign$", SUCCESS, None),
     "map-success": ("docs/WHAT_SUCCESS_MEANS.md", r"^## The question this document answers$", PLAYBOOK_MAP, PLAYBOOK_MAP_CAPTION),
     "roadmap": ("docs/ROADMAP.md", r"^# ListingAssistants Roadmap$", ROADMAP, None),
