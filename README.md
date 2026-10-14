@@ -367,7 +367,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1034 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1061 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -439,7 +439,7 @@ python tools/desk.py --config-dir scenes/config --script scenes/scene04_new_list
 ```
 
 Every part and button is explained, with pictures, in
-[docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md); fourteen tests to run
+[docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md); fifteen tests to run
 it end to end are in [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md).
 
 A held message waits for your answer: **Send** or **Don't send**, each a
@@ -482,7 +482,7 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 6. [docs/TUNING_MANUAL.md](docs/TUNING_MANUAL.md) - every number you can turn
 7. [docs/AGENT_USER_MANUAL.md](docs/AGENT_USER_MANUAL.md) - a broker's day with the system
 8. [docs/BROKER_DESK_MANUAL.md](docs/BROKER_DESK_MANUAL.md) - the Broker Desk, part by part and button by button, with pictures
-9. [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md) - fourteen desk tests, each with what you should see
+9. [docs/BROKER_DESK_TESTING_GUIDE.md](docs/BROKER_DESK_TESTING_GUIDE.md) - fifteen desk tests, each with what you should see
 10. [docs/OPERATOR_TUNING_GUIDE.md](docs/OPERATOR_TUNING_GUIDE.md) - setup, storage, updates, drawers, the decision engine and model drafting
 11. [docs/OPERATOR_TESTING_MANUAL.md](docs/OPERATOR_TESTING_MANUAL.md) - ten filmable operator scenes (`scenes/`), each checked by the suite
 12. [docs/FINANCIAL_CAPABILITY.md](docs/FINANCIAL_CAPABILITY.md) - the financial locks and the security reviewer's risk list

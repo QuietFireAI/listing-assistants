@@ -219,16 +219,29 @@ class HumanReadableLogger:
         else:
             chain = audit_log.verify_chain()
             kinds: dict[str, int] = {}
-            for e in audit_log.read():
+            # an unreadable line stops read(): then the counts are not
+            # computed, never shown as 0 (2026-10-13 reviews: this raised)
+            from .core import AuditLogDamaged
+            try:
+                entries = audit_log.read()
+            except AuditLogDamaged:     # an unreadable line; a busy lock is not that
+                entries = None
+            for e in entries or []:
                 kinds[e.get("kind", "?")] = kinds.get(e.get("kind", "?"), 0) + 1
             if chain["ok"]:
                 chain_line = f"- **Audit chain:** verified, {chain['entries']} entries, no break."
             else:
-                chain_line = f"- **Audit chain:** BROKEN at line {chain['break_at']}."
-            data = {"chain": chain, "integrity_violations": kinds.get("integrity.violation", 0),
-                    "rejects": kinds.get("reject", 0)}
-            chain_line += (f" integrity.violation entries: {data['integrity_violations']};"
-                           f" reject entries: {data['rejects']}.")
+                chain_line = (f"- **Audit chain:** BROKEN at line {chain['break_at']}"
+                              f" ({chain.get('reason', 'see the check')}).")
+            if entries is None:
+                data = {"chain": chain, "integrity_violations": None, "rejects": None}
+                chain_line += (" integrity.violation and reject entries: not computed"
+                               " (a line cannot be read).")
+            else:
+                data = {"chain": chain, "integrity_violations": kinds.get("integrity.violation", 0),
+                        "rejects": kinds.get("reject", 0)}
+                chain_line += (f" integrity.violation entries: {data['integrity_violations']};"
+                               f" reject entries: {data['rejects']}.")
         return {"data": data, "lines": [
             chain_line,
             "- **Cross-drawer access:** not computed (ClientDrawerManager refuses at the call site; "

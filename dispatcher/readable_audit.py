@@ -63,7 +63,19 @@ def describe(kind: str, rec: dict) -> Optional[tuple[str, str, Optional[str], Op
         return ("ALERT", f"Hub refused message {str(rec.get('envelope_id'))[:8]}: {rec.get('reason')}",
                 ctx, None)
     if kind == "escalation.raised":
-        return ("ALERT", f"Paged you ({rec.get('queue')})", ctx, None)
+        # "Raised", not "Paged you": raising is not reaching you. Whether a
+        # person was reached is its own line - pager.sent, or
+        # human.notify_failed below (repair plan 1.1, 2026-10-13).
+        return ("ALERT", f"Raised for you ({rec.get('queue')})", ctx, None)
+    if kind == "human.notify_failed":
+        why = (rec.get("error") or rec.get("notifier_http_status")
+               or rec.get("notifier_error") or rec.get("notifier_status"))
+        return ("ALERT", f"Could not reach you about {rec.get('queue')} ({why}) - "
+                         f"it is waiting on your queue", ctx, None)
+    if kind == "audit.tail_quarantined":
+        return ("SYSTEM", f"Record repaired: a write cut off at line {rec.get('line')} "
+                          f"({rec.get('bytes')} bytes) was moved to {rec.get('side_file')}; "
+                          f"{rec.get('complete_entries')} complete entries kept", None, None)
     if kind == "absolute_signal.hold":
         return ("HOLD", f"Outbound {rec.get('intent')} to {rec.get('audience')} held for your signed release",
                 ctx, None)
@@ -118,8 +130,8 @@ class ReadableAuditLog(AuditLog):
         self.mirror_errors: list[str] = []
         super().__init__(path)
 
-    def append(self, kind: str, record: dict) -> None:
-        super().append(kind, record)
+    def append(self, kind: str, record: dict) -> str:
+        entry_hash = super().append(kind, record)
         try:
             d = describe(kind, record)
             if d is not None:
@@ -127,6 +139,7 @@ class ReadableAuditLog(AuditLog):
                 self.readable.log_event(cat, msg, client_context_id=ctx, agent_id=agent)
         except Exception as e:  # the view failing must not touch the chain; counted, reported
             self.mirror_errors.append(f"{kind}: {type(e).__name__}: {e}")
+        return entry_hash      # the hub links a notification to its escalation by it
 
 
 def events_from_chain(audit: AuditLog, date_str: str) -> list[dict]:

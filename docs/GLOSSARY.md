@@ -17,7 +17,7 @@ so other pages can point straight to it.
 
 **Your authority:** [signing key](#signing-key) · [signature](#signature) · [signed authority message](#signed-authority-message) · [ratify](#ratify) · [signer registry](#signer-registry) · [hold](#hold) · [release](#release) · [don't send](#dont-send) · [paused thread](#paused-thread) · [HITL](#hitl) · [counterparty](#counterparty) · [disclosure](#disclosure) · [consent on record](#consent-on-record)
 
-**The record:** [audit log](#audit-log) · [hash](#hash) · [hash-chained](#hash-chained) · [check the record](#check-the-record) · [readable log](#readable-log) · [client drawer](#client-drawer) · [saved state](#saved-state) · [integrity violation](#integrity-violation) · [dead letter](#dead-letter) · [confidence label](#confidence-label)
+**The record:** [audit log](#audit-log) · [hash](#hash) · [hash-chained](#hash-chained) · [check the record](#check-the-record) · [record repair](#record-repair) · [readable log](#readable-log) · [client drawer](#client-drawer) · [saved state](#saved-state) · [integrity violation](#integrity-violation) · [dead letter](#dead-letter) · [confidence label](#confidence-label)
 
 **Connections and optional engines:** [adapter](#adapter) · [JEV decision adapter](#jev-decision-adapter) · [model drafting](#model-drafting) · [MCP server](#mcp-server) · [pillars](#pillars) · [pager](#pager)
 
@@ -148,7 +148,10 @@ hub like everything else. You start it with `python tools/run_sweeps.py`
 A waiting list for something only you can handle. Each queue has a name the
 Broker Desk shows: a question for you, a hot lead to call, a legal-line
 question, an upset client, a message refused as unsigned or tampered, a
-message that could not be delivered.
+message that could not be delivered. The record says you were notified about
+a queue item only when it was put on your screen or a text page to you went
+through; when a page fails, it says nobody was reached, and the item waits on
+its queue.
 
 ## Decisions made ahead of time
 
@@ -306,7 +309,35 @@ names the first line that was changed.
 Recomputing every link in the audit log to confirm nothing was changed
 (`verify_chain()` in the code; **Check the record** on the Broker Desk;
 `python tools/console.py verify` in the console). The answer is "intact" or
-the line where the chain breaks.
+the line where the chain breaks, with the reason: a line that was changed,
+deleted or moved, or a line that cannot be read at all. Nothing starts on a
+record with an unreadable line - not the desk, a console session or the
+daily clock; each one names the first line where the record breaks (which
+may be an edited line before the unreadable one) and stops before writing
+anything. The same holds while they run: before each write, the record
+file's size and time are compared with what this program last wrote, and
+if another program damaged, cut back, edited or replaced it in the
+meantime, nothing more is written and the problem is named (a line, or
+that entries this program wrote are gone). Programs on one record take turns
+through a lock file next to it (`console-audit.jsonl.lock`), so two of
+them never write at the same moment. An edit made to look untouched (same
+size, same time) is not seen at that moment; **Check the record** still
+finds it.
+
+### Record repair
+
+What you do when a write to the audit log was cut off part-way, for example
+by a crash or a power cut: the last line is incomplete, and the desk,
+console and daily clock refuse to start and say so. Stop anything using the
+folder, then run `python tools/console.py repair-record`. It moves the
+incomplete line to a side file next to the log (its name starts with the
+log's name and contains `.torn-`), keeps every complete entry exactly as it
+was, and adds an entry saying what it did, so the repair is on the record
+too. It repairs only that case: if any earlier line is damaged or the chain
+breaks, it refuses and changes nothing. `repair-record --check` only checks.
+The repair cannot tell a crash from someone cutting the log back on
+purpose; the anchor a console session prints at its end (entries and head
+hash) is what shows whether earlier entries are gone.
 
 ### Readable log
 
@@ -398,7 +429,9 @@ Optional text-message alerts to your phone when something lands in a queue,
 while a console session, the Broker Desk or the daily clock is running,
 using your own Twilio account (`python tools/console.py pager`). A page
 carries only the queue name and the client context id, never client
-details.
+details. Each page is on the record as sent or failed; a failed page is also
+recorded as "Could not reach you about ..." - the item is still on its queue,
+and nothing claims you were told.
 
 ## Running and testing it
 

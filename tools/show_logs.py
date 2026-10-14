@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -52,7 +53,14 @@ def main():
                 return 1
             print(f"\n[INFO] No console audit log yet ({path}); run a console session first.\n")
             return 0
-        report = write_eod(AuditLog(path), logger, args.date)
+        from dispatcher.core import AuditLogBusy, AuditLogDamaged
+        try:
+            report = write_eod(AuditLog(path), logger, args.date)
+        except (AuditLogDamaged, AuditLogBusy) as e:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from console import damaged_record_error
+            print(json.dumps(damaged_record_error(e, path)))
+            return 2
         print("\n" + "=" * 80)
         print(f"  END-OF-DAY (EOD) OPERATIONS DOSSIER: {report['date']}")
         print("=" * 80)

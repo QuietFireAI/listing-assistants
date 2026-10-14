@@ -61,7 +61,7 @@ end-to-end test.
   open. Typeface: Manrope (SIL OFL 1.1, bundled; `THIRD_PARTY_NOTICES.md`).
 - **The Broker Desk has its own manual and testing guide.**
   `docs/BROKER_DESK_MANUAL.md` explains every part and button of the page
-  with real screenshots; `docs/BROKER_DESK_TESTING_GUIDE.md` is fourteen tests,
+  with real screenshots; `docs/BROKER_DESK_TESTING_GUIDE.md` is fifteen tests,
   each with what you should see. `tests_listing/test_desk_manual.py` fails if
   a button, title, step, flag, picture or link they name stops existing.
 - **Test scripts on your own desk.** `python tools/desk.py --script FILE`
@@ -200,7 +200,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1034 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1061 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

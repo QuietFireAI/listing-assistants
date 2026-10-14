@@ -2,10 +2,10 @@
 
 > **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
 
-Fourteen tests, in order, each with what to do and exactly what you should see.
+Fifteen tests, in order, each with what to do and exactly what you should see.
 Together they cover the desk end to end: the showcase (what the client video
 records), your own live desk, test scripts, Send and Don't send, the lock,
-restarts, a tablet, and Windows. Allow about 45 minutes.
+restarts, a tablet, Windows, and a cut-off record. Allow about 50 minutes.
 
 The user's manual explains every part of the page:
 [BROKER_DESK_MANUAL.md](BROKER_DESK_MANUAL.md). Record your results in the
@@ -26,8 +26,8 @@ pip install -r requirements.txt
 python -m pytest tests_listing/ -q
 ```
 
-**Expect:** `1034 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1035 passed` on Windows, after 5 to 8 minutes.
+**Expect:** `1061 passed, 1 skipped` on Linux or macOS (the skipped test runs
+only on Windows); `1062 passed` on Windows, after 5 to 8 minutes.
 
 ## T2 - The showcase plays through
 
@@ -269,6 +269,35 @@ On a held message, tap **Send** once. **Expect:** "What would go out" opens
 by itself, and the button reads "Tap again to sign and send". Wait five
 seconds without tapping: the button goes back to **Send**.
 
+## T15 - A cut-off record
+
+With the test folder from T6 (same `LISTINGASSISTANTS_STATE_DIR`) and the
+desk stopped, cut off the record's last write the way a crash would - this
+adds half a line to the end of the test log:
+
+```bash
+python -c "open('test-state/console-audit.jsonl','ab').write(b'{half')"
+python tools/desk.py
+```
+
+**Expect:** the desk does not start. It prints `the record (audit log) is
+damaged - nothing was started or written`, the line number, `"cut_off_last_write":
+true`, and an action naming `python tools/console.py repair-record`. No
+`desk.lock` is left in `test-state`.
+
+```bash
+python tools/console.py repair-record --check
+python tools/console.py repair-record
+python tools/desk.py
+```
+
+**Expect:** `--check` prints `"ok": false` with `"torn_tail": true` and
+changes nothing. The repair prints `"repaired": true`, the side file's name
+(it contains `.torn-`) and `"chain": {"ok": true, ...}`; the side file holds
+`{half`. The desk starts, **Check the record** says the record is intact,
+and What just happened shows "Record repaired: a write cut off at line N
+(5 bytes) was moved to ...".
+
 ---
 
 ## When a test does not match
@@ -296,3 +325,4 @@ window the desk runs in. Keep the state folder as it is (do not delete or
 | T12 A tablet | | |
 | T13 Windows only | | |
 | T14 What you open stays open | | |
+| T15 A cut-off record | | |

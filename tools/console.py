@@ -80,6 +80,25 @@ def _p(obj):
 STATE_DB = os.path.join(STATE_DIR, "swarm-state.sqlite")
 
 
+def _notify_human(queue, record, pager):
+    """The console's human_notifier. Prints the landing, then reports to the
+    hub what happened (repair plan 1.1, owner decision D3, 2026-10-13):
+      pager on  -> the pager's own result: {"status": "sent"} records
+                   human.notified; {"status": "failed", ...} records
+                   human.notify_failed, because the channel you chose to be
+                   reached on did not reach you.
+      pager off -> {"status": "shown", "channel": "screen"}: printed on the
+                   session's screen; under the Broker Desk the item is on the
+                   desk's queue list. "shown" means put in front of you, not
+                   that anyone read it - only the pager reaches you away
+                   from the screen.
+    Before this the lambda returned a tuple, which the hub could not read."""
+    _p({"HUMAN_QUEUE": queue, "record": record})
+    if pager:
+        return pager(queue, record)
+    return {"status": "shown", "channel": "screen"}
+
+
 def build(audit_path, config_dir=None, state_db=None, model=None, pager=None):
     """The console's swarm: dispatcher/swarm.py with this operator's key.
     Returns (swarm, signer). State is restored from state_db (default
@@ -94,9 +113,9 @@ def build(audit_path, config_dir=None, state_db=None, model=None, pager=None):
     sw = build_swarm(
         audit_path, state_db=state_db, config_dir=config_dir,
         verifier=verifier.verifier(),
-        # every human-queue landing prints as it happens (the pager, on screen)
-        human_notifier=lambda queue, record: (_p({"HUMAN_QUEUE": queue, "record": record}),
-                                              pager(queue, record) if pager else None),
+        # every human-queue landing prints as it happens; with the pager on it
+        # also texts you, and the hub records what the notifier says happened
+        human_notifier=lambda queue, record: _notify_human(queue, record, pager),
         human_sink=lambda env: _p({"DELIVERED_TO_HUMAN": env.intent,
                                    "ctx": env.client_context_id, "payload": env.payload}),
         model_client=(model or {}).get("client"), model_name=(model or {}).get("name"))
@@ -440,7 +459,36 @@ def apply_action(sw, signer, operator, a, external=None):
     return r, error
 
 
+def damaged_record_error(e, audit_path):
+    """What every entry point prints when the audit record cannot be used
+    (dispatcher.core.AuditLogDamaged; repair plan 1.2, owner decision D4).
+    Nothing was written. A write cut off at the end is repaired by a person
+    with `console.py repair-record`; anything else is for a person to look at.
+    Also covers AuditLogBusy (third review): another program held the
+    record's lock for longer than the wait."""
+    from dispatcher.core import AuditLogBusy
+    if isinstance(e, AuditLogBusy):
+        return {"error": "the record (audit log) is in use by another program - nothing was done",
+                "file": audit_path, "reason": str(e),
+                "action": "wait a moment and try again; if it stays busy, stop the other program "
+                          "using this folder (a desk, a console session or the daily clock)"}
+    out = {"error": "the record (audit log) is damaged - nothing was started or written",
+           "file": audit_path, "line": e.line, "reason": e.reason,
+           "cut_off_last_write": e.torn_tail}
+    if e.torn_tail:
+        out["action"] = ("the last write was cut off part-way (a crash or power loss). "
+                         "Stop anything else using this folder, then run: python tools/console.py "
+                         f"repair-record --audit-log \"{audit_path}\" - it moves the partial line "
+                         "to a side file, keeps every complete entry, and records the repair")
+    else:
+        out["action"] = ("a line before the end is damaged or was edited - this is not a "
+                         "cut-off write and is not repaired automatically. Keep a copy of the "
+                         "file and have someone look at that line before running again")
+    return out
+
+
 def cmd_session(args):
+    from dispatcher.core import AuditLogBusy, AuditLogDamaged
     from dispatcher.state_snapshot import StateIntegrityError
     folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
     other = desk_running(folder)
@@ -474,6 +522,9 @@ def cmd_session(args):
             "action": "nothing was restored or changed; move the state file aside "
                       "yourself after checking it, or run with --no-state"})
         return 2
+    except (AuditLogDamaged, AuditLogBusy) as e:
+        _p(damaged_record_error(e, args.audit_log or AUDIT_PATH))
+        return 2
     hub, spokes, external = sw.hub, sw.spokes, sw.external
     operator = _operator()
     if operator is None:
@@ -491,7 +542,15 @@ def cmd_session(args):
             errors += 1
             continue
         do = a.get("do")
-        r, err = apply_action(sw, signer, operator, a, external)
+        try:
+            r, err = apply_action(sw, signer, operator, a, external)
+        except (AuditLogDamaged, AuditLogBusy) as e:
+            # the record changed or broke under this session, or stayed busy: stop here,
+            # write nothing more (no state save either), and say where
+            _p({**damaged_record_error(e, args.audit_log or AUDIT_PATH),
+                "script_line": lineno, "do": do,
+                "stopped": "the session stopped at this script line; earlier lines were done"})
+            return 2
         if err:
             errors += 1
         _p({"line": lineno, "do": do, "result": r})
@@ -506,12 +565,69 @@ def cmd_session(args):
 
 def cmd_verify(args):
     from dispatcher.core import AuditLog
-    log = AuditLog(args.audit_log or AUDIT_PATH)
-    r = {"chain": log.verify_chain(), "anchor": log.anchor()}
-    if args.anchor:
-        r["anchor_check"] = log.verify_anchor(json.loads(args.anchor))
+    path = args.audit_log or AUDIT_PATH
+    # check_file reads only and names the first bad line; it never raises on
+    # damage (2026-10-13: a cut-off last line used to crash verify itself)
+    from dispatcher.core import AuditLogBusy
+    try:
+        r = {"chain": AuditLog.check_file(path)}
+    except AuditLogBusy as e:
+        _p(damaged_record_error(e, path))
+        return 2
+    if r["chain"]["ok"]:
+        log = AuditLog(path)
+        r["anchor"] = log.anchor()
+        if args.anchor:
+            r["anchor_check"] = log.verify_anchor(json.loads(args.anchor))
+    elif r["chain"].get("torn_tail"):
+        r["action"] = f"the last write was cut off - run: python tools/console.py repair-record --audit-log \"{path}\""
     _p(r)
     return 0 if r["chain"]["ok"] else 1
+
+
+def cmd_repair_record(args):
+    """Repairs a write cut off at the end of the record, and nothing else
+    (owner decision D4: a person runs this; nothing repairs on its own).
+    The partial line goes to <log>.torn-<UTC time>-<sha12> next to the log,
+    every complete entry stays, and an audit.tail_quarantined entry records
+    the repair on the chain. Any other damage is refused, unchanged."""
+    from dispatcher.core import AuditLog, AuditLogBusy, AuditLogDamaged
+    path = args.audit_log or AUDIT_PATH
+    folder = os.path.dirname(os.path.abspath(path))
+    other = desk_running(folder)
+    if other:
+        _p({"error": f"the Broker Desk is running on {folder} (pid {other}) - stop it first"})
+        return 2
+    if not os.path.exists(path):
+        _p({"error": f"{path}: no such file"})
+        return 2
+    if args.check:
+        r = AuditLog.check_file(path)
+        _p({"chain": r})
+        return 0 if r["ok"] else 1
+    try:
+        rec = AuditLog.repair_torn_tail(path)
+    except (AuditLogDamaged, AuditLogBusy, ValueError) as e:
+        _p({"repaired": False, "refused": str(e), "changed": "nothing"})
+        return 2
+    except OSError as e:     # e.g. Windows: another program holds the record open
+        _p({"repaired": False, "changed": "nothing",
+            "refused": f"the repaired record could not replace the old one ({e!r}); "
+                       f"stop every program using this folder and run this again"})
+        return 2
+    out = {"repaired": True, **rec, "chain": AuditLog.check_file(path)}
+    # the plain-language log is a view the swarm writes as it appends; the
+    # repair is not a swarm append, so it is written to the view here
+    try:
+        from dispatcher.readable_audit import describe
+        from dispatcher.readable_logger import HumanReadableLogger
+        cat, msg, _, _ = describe("audit.tail_quarantined", rec)
+        HumanReadableLogger(log_root=os.path.join(folder, "readable"),
+                            drawers_root=None).log_event(cat, msg)
+    except Exception as e:   # the view failing never undoes the repair; said, not hidden
+        out["readable_log_error"] = f"{type(e).__name__}: {e}"
+    _p(out)
+    return 0
 
 
 def main():
@@ -550,10 +666,15 @@ def main():
     v.add_argument("--audit-log", default=None)
     v.add_argument("--anchor", default=None,
                    help="a previously printed anchor JSON to verify against")
+    rr = sub.add_parser("repair-record",
+                        help="repair a write cut off at the end of the record (nothing else)")
+    rr.add_argument("--audit-log", default=None)
+    rr.add_argument("--check", action="store_true", help="check only; change nothing")
     args = ap.parse_args()
     try:
         return {"init": cmd_init, "onboard": cmd_onboard, "session": cmd_session,
-                "verify": cmd_verify, "pager": cmd_pager}[args.cmd](args)
+                "verify": cmd_verify, "pager": cmd_pager,
+                "repair-record": cmd_repair_record}[args.cmd](args)
     except EOFError:
         # onboard and pager ask questions; with no terminal attached there
         # is nobody to answer them
