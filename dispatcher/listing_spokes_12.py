@@ -78,10 +78,16 @@ class Spoke12MarketingCampaign:
 
     def _publish_approved(self, ctx: str, campaign, source: str):
         self.published[ctx] = {"content": campaign, "verdict_locked": True}
-        self.hub.send(_env("12", "external", "campaign.publish", ctx,
-                           {"content": campaign, "source": source}))
+        res = self.hub.send(_env("12", "external", "campaign.publish", ctx,
+                                 {"content": campaign, "source": source}))
+        # 2026-10-14 (tuple runs): the hub holds a campaign.publish for the
+        # broker's signed release (counterparty audience), yet the record said
+        # "campaign_published" before anything left. The log now names what
+        # happened, the same fix the retraction got on 2026-10-12.
+        held = isinstance(res, dict) and res.get("status") == "held"
         self.hub.send(_env("12", "14", "interaction.log", ctx,
-                           {"kind": "campaign_published", "source": source}))
+                           {"kind": "campaign_publish_held" if held else "campaign_published",
+                            "source": source}))
 
     def _check_awaiting_ccp(self, ctx: str):
         """Called whenever the CCP gate might have just cleared (MLS
