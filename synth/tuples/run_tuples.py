@@ -18,7 +18,10 @@ A spec line:
    "lines": [<console session actions>], "expect": [<checks>],
    "status": optional "NOT BUILT" | "NOT REACHABLE" (with "why"), "note": "..."}
 
-route "intake": every line is an entry the product takes from outside (an
+route "fault": a {"do": "fault"} line injects one failure no product entry
+can produce (synth/tuples/fault_harness.py; the harness's own observations
+are read as entries of kind "harness.*"). route "intake": every line is an
+entry the product takes from outside (an
 inquiry, a vendor event, a client reply, a mention, a feed, a broker
 authorization or setting, the daily clock, the broker's release / decline /
 decide). route "stand-in": at least one line sends as an agent to stand in
@@ -54,6 +57,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 CONSOLE = os.path.join(ROOT, "tools", "console.py")
+HARNESS = os.path.join(HERE, "fault_harness.py")
 CONFIG = os.path.join(HERE, "config")
 SETUP = os.path.join(HERE, "setup.jsonl")
 
@@ -162,8 +166,13 @@ def run_one(spec, template, workdir):
         f.write("\n".join(session_lines(spec)) + "\n")
     env = _env()
     env["LISTINGASSISTANTS_STATE_DIR"] = state
-    r = subprocess.run([sys.executable, CONSOLE, "session", script, "--config-dir", CONFIG],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
+    # a spec with a fault line runs through the fault harness (same build,
+    # same apply_action, one injected failure); every other spec through the
+    # console, exactly as a broker runs it
+    faulted = any(a.get("do") == "fault" for a in spec.get("lines", []))
+    cmd = ([sys.executable, HARNESS, script, "--config-dir", CONFIG] if faulted else
+           [sys.executable, CONSOLE, "session", script, "--config-dir", CONFIG])
+    r = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
     last = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
     try:
         summary = json.loads(last)
@@ -173,6 +182,9 @@ def run_one(spec, template, workdir):
         return {"id": spec["id"], "result": "ERROR",
                 "why": (r.stdout[-1500:] + r.stderr[-1500:]).strip()}
     entries = [json.loads(ln) for ln in open(os.path.join(state, "console-audit.jsonl"), encoding="utf-8")]
+    hpath = os.path.join(state, "harness.jsonl")
+    if os.path.exists(hpath):   # the harness's own observations, kind "harness.*"
+        entries += [json.loads(ln) for ln in open(hpath, encoding="utf-8")]
     idx = ctx_index(entries)
     failed = []
     for c in spec.get("expect", []):
