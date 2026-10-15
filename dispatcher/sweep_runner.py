@@ -28,7 +28,7 @@ from __future__ import annotations
 
 
 def run_daily_sweeps(hub, spokes: dict, today: str,
-                     now_iso: str | None = None) -> list[dict]:
+                     now_iso: str | None = None, live: bool = False) -> list[dict]:
     """spokes: {"01": spoke01, "06": spoke06, ...} - whichever subset is
     deployed; it names which agents receive a tick. today: ISO date from
     the deployment's scheduler. now_iso: ISO datetime for intra-day checks
@@ -41,8 +41,24 @@ def run_daily_sweeps(hub, spokes: dict, today: str,
     themselves and their per-check error guard live in dispatcher/clock.py.
     A tick the hub does not ack is a sweep error, declared on the audit log."""
     from .clock import CHECKS, send_tick
+    from .escalation_watch import check_unacknowledged, clock_skew
     now_iso = now_iso or f"{today}T23:59:59"
     results: list[dict] = []
+    # Clock skew (Agent 00 tuple, owner decision 2026-10-14: 1 minute). Only
+    # a live run reads the wall clock; a scripted sweep (a console line with
+    # its own date, a replay) is not compared. Skewed: nothing time-triggered
+    # runs, and you are asked.
+    if live:
+        skew = clock_skew(hub)
+        if not skew["ok"]:
+            hub.audit.append("clock.skew_hold", {"today": today, **skew})
+            hub.queue_and_notify("clarification.request", {
+                "reason": f"clock skew {skew['skew_s']}s: the audit log has entries "
+                          f"stamped {skew['newest_log_time']}, this clock reads "
+                          f"{skew['this_clock']} - every time-triggered check is held "
+                          f"until the clocks agree",
+                "client_context_id": "clock", **skew})
+            return [{"agent": "00", "sweep": "clock_skew", "result": "held", **skew}]
     for agent in CHECKS:
         if agent not in spokes or not any(c[4] for c in CHECKS[agent]):
             continue
@@ -55,6 +71,9 @@ def run_daily_sweeps(hub, spokes: dict, today: str,
             continue
         results.extend(out["results"])
 
+    # unanswered escalations: re-alert at 30 min, page the owner at 60
+    results.append({"agent": "00", "sweep": "unacknowledged_escalations",
+                    "result": check_unacknowledged(hub)})
     hub.audit.append("sweep.completed",
                      {"today": today, "sweeps_run": len(results),
                       "errors": sum(1 for r in results if r.get("error"))})

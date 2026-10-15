@@ -8,6 +8,9 @@ nonzero if any check errored so the scheduler's own alerting fires.
 
 Deployment (any ONE of these):
   cron:     0 7 * * *  cd /path/to/listing-assistants && python tools/run_sweeps.py
+            */5 * * * *  cd /path/to/listing-assistants && python tools/run_sweeps.py --watch
+            (the second re-alerts an escalation nobody has marked done at 30
+            minutes and pages you at 60; once a day is too slow for that)
   systemd:  a timer unit invoking the same command
   console:  {"do": "sweep", "today": "..."} inside a session script
 
@@ -52,6 +55,8 @@ def main(argv=None) -> int:
     ap.add_argument("--config-dir", default=None)
     ap.add_argument("--today", default=None, help="ISO date override")
     ap.add_argument("--now-iso", default=None, help="ISO datetime override")
+    ap.add_argument("--watch", action="store_true",
+                    help="only re-alert unanswered escalations (run every few minutes)")
     args = ap.parse_args(argv)
     if os.name != "nt":
         # private by default (2026-10-14, integration snapshot finding 2):
@@ -129,7 +134,15 @@ def main(argv=None) -> int:
         pager.audit = sw.hub.audit
     hub, spokes = sw.hub, sw.spokes
     try:
-        results = run_daily_sweeps(hub, spokes, today=today, now_iso=now_iso)
+        if args.watch:
+            from dispatcher.escalation_watch import check_unacknowledged
+            results = [{"agent": "00", "sweep": "unacknowledged_escalations",
+                        "result": check_unacknowledged(hub)}]
+        else:
+            # a run on this machine's own clock is checked for skew; a run
+            # with --today / --now-iso is a replay and is not
+            results = run_daily_sweeps(hub, spokes, today=today, now_iso=now_iso,
+                                       live=not (args.today or args.now_iso))
         sw.save_state()
     except (AuditLogDamaged, AuditLogBusy) as e:      # broke or changed while the clock ran
         print(json.dumps(damaged_record_error(e, args.audit_log)))

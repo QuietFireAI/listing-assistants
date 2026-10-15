@@ -242,6 +242,14 @@ class Spoke07TransactionCoordinator:
                 self.hub.send(_env("07", "14", "interaction.log", ctx,
                                    {"kind": "timeline_loaded",
                                     "milestones": list(milestones)}))
+                # the calendar holds every contractual date from the start
+                # (2026-10-15): it heard of a deadline only on its due day,
+                # too late to weigh an instruction against it (Agent 18
+                # tuple 3) or to block the day for you
+                for m, d in milestones.items():
+                    if d:
+                        self.hub.send(_env("07", "18", "deadline.alert", ctx,
+                                           {"milestone": m, "deadline": d, "tracked": True}))
                 # job component: request required documents from 08 for
                 # every document-bearing milestone, as they come due
                 sent_date = payload.get("today")  # test/caller supplies today

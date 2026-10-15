@@ -24,6 +24,10 @@ A session script is JSON Lines; each line is one action:
   {"do": "send", "from": "20", "to": "01", "intent": "lead.signal",
    "ctx": "lead-1", "payload": {...}}                               # spoke/external traffic
   {"do": "sweep", "today": "2026-07-19"}                            # run the clock layer
+  {"do": "sweep", "clock": "live"}                                  # the clock layer on the wall clock, skew checked
+  {"do": "watch"}                                                   # re-alert unanswered escalations now
+  {"do": "reload_identity"}                                         # re-read identity/routes.json; refused while work is open ("force": true overrides)
+  {"do": "ack", "queue": "escalation.legal_line", "ctx": "T1"}      # mark that client's items in the queue done
   {"do": "show", "what": "queues"}     # or "held", "external", "briefing", "eod", "anchor"
   {"do": "release", "ctx": "L1", "intent": "campaign.publish"}      # signed release of held outbound
   {"do": "decline", "ctx": "L1", "intent": "campaign.publish", "reason": "wrong photos"}  # signed: never send it
@@ -448,8 +452,28 @@ def apply_action(sw, signer, operator, a, external=None):
         if isinstance(r, dict) and r.get("error"):
             error = True
     elif do == "sweep":
-        r = run_daily_sweeps(hub, spokes, today=a["today"],
-                             now_iso=a.get("now_iso"))
+        if a.get("clock") == "live":
+            # the wall clock, as tools/run_sweeps.py reads it; skew is checked
+            now = datetime.datetime.now().replace(microsecond=0)
+            r = run_daily_sweeps(hub, spokes, today=a.get("today") or now.date().isoformat(),
+                                 now_iso=now.isoformat(), live=True)
+        else:
+            r = run_daily_sweeps(hub, spokes, today=a["today"],
+                                 now_iso=a.get("now_iso"))
+    elif do == "reload_identity":
+        from dispatcher.identity_reload import reload_identity
+        r = reload_identity(sw, force=bool(a.get("force")), by=(operator or {}).get("login"))
+    elif do == "watch":
+        from dispatcher.escalation_watch import check_unacknowledged
+        r = check_unacknowledged(hub)
+    elif do == "ack":
+        from dispatcher.escalation_watch import acknowledge
+        if not a.get("queue") or not a.get("ctx"):
+            r = {"error": "ack needs queue and ctx"}
+            error = True
+        else:
+            r = {"acknowledged": acknowledge(hub, a["queue"], a["ctx"],
+                                             (operator or {}).get("login"))}
     elif do == "show":
         what = a.get("what")
         if what == "queues":

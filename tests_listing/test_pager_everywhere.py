@@ -89,7 +89,7 @@ def test_the_daily_clock_pages_when_the_pager_is_on(tmp_path, texts, monkeypatch
     init_state(state)                          # the clock checks the attested install
     import dispatcher.sweep_runner as sr
 
-    def fake_sweeps(hub, spokes, today, now_iso):
+    def fake_sweeps(hub, spokes, today, now_iso, live=False):   # live: skew check (2026-10-15)
         hub.queue_and_notify("escalation.hot_lead", {"client_context_id": "C7"})
         return []
     monkeypatch.setattr(sr, "run_daily_sweeps", fake_sweeps)

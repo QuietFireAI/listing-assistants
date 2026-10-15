@@ -967,7 +967,8 @@ class Desk:
             if kind == "sweep":
                 day = body.get("today") or datetime.date.today().isoformat()
                 r, _ = console.apply_action(self.sw, self.signer, self.operator,
-                                            {"do": "sweep", "today": day})
+                                            {"do": "sweep", "today": day} if body.get("today")
+                                            else {"do": "sweep", "clock": "live"})
                 return self._done(f"Ran today's checks ({day})", r)
             if kind == "verify":
                 r = self.sw.hub.audit.verify_chain()

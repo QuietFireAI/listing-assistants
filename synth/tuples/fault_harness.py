@@ -29,6 +29,9 @@ Fault lines:
                                                    pre-filled sequence), straight to the hub
   {"do": "fault", "type": "send_twice", "line": {<a send line>}}
                                                    the same envelope (same id) sent twice
+  {"do": "fault", "type": "inject_wait", "ctx": ..., "waiting_on": ...}
+                                                   a briefing item whose source envelope
+                                                   is not on the log
   {"do": "fault", "type": "advance_clock", "minutes": N}
                                                    the wall clock moves N minutes forward
 """
@@ -111,6 +114,14 @@ def apply_fault(h: Harness, sw, f: dict) -> dict:
         first, second = hub.send(env), hub.send(env)
         h.note("send_twice", envelope_id=env.envelope_id, first=first, second=second)
         return {"injected": t, "first": first, "second": second}
+    if t == "inject_wait":
+        # a briefing item whose source envelope is not on the log, as a wait
+        # restored from saved state after its envelope was lost would be
+        w = {"agent": f.get("agent", "07"), "ctx": f["ctx"], "waiting_on": f["waiting_on"],
+             "since": f.get("since"), "wait_id": None, "reason": None,
+             "source_envelope_id": f.get("source_envelope_id", "missing-envelope")}
+        sw.spokes["18"].waiting[f"{w['agent']}:{w['ctx']}:{w['waiting_on']}"] = w
+        return {"injected": t}
     if t == "advance_clock":
         h.clock_offset += 60.0 * float(f["minutes"])
         return {"injected": t, "offset_minutes": h.clock_offset / 60}

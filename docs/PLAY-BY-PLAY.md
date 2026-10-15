@@ -278,6 +278,7 @@ sequenceDiagram
     A05->>A14: reports the listing's status
     A05->>A06: shares the listing details
     B->>A07: your signed settings
+    A07->>A18: warns that a deadline is near (x4)
     A07->>A08: asks for a document
     A08->>A11: asks for a message to the client
     A07->>A08: asks for a document
@@ -424,10 +425,10 @@ sequenceDiagram
     actor B as You (broker)
     participant A17 as 17 Compliance and Fair Housing
     participant A07 as 07 Transaction Coordinator
+    participant A18 as 18 Calendar and Task Management
     participant A08 as 08 Document Collection
     participant A11 as 11 Client Communication
     participant A09 as 09 Vendor Coordination
-    participant A18 as 18 Calendar and Task Management
     participant K as Daily clock
     participant A01 as 01 Lead Capture
     participant A03 as 03 Lead Nurture
@@ -439,6 +440,7 @@ sequenceDiagram
     participant X as Outside world
     B->>A17: your signed settings
     B->>A07: your signed settings
+    A07->>A18: warns that a deadline is near (x2)
     A07->>A08: asks for a document
     A08->>A11: asks for a message to the client
     A11->>B: asks you - client messages are not being sent - no consent on record...
@@ -504,6 +506,7 @@ sequenceDiagram
     autonumber
     actor B as You (broker)
     participant A07 as 07 Transaction Coordinator
+    participant A18 as 18 Calendar and Task Management
     participant A08 as 08 Document Collection
     participant A16 as 16 After-Close and Referral
     participant A14 as 14 CRM and Pipeline
@@ -516,8 +519,8 @@ sequenceDiagram
     participant A13 as 13 Buyer Search and Match
     participant A11 as 11 Client Communication
     participant A17 as 17 Compliance and Fair Housing
-    participant A18 as 18 Calendar and Task Management
     B->>A07: your signed settings
+    A07->>A18: warns that a deadline is near
     A08->>A07: reports where a document stands
     A07->>A16: reports the deal closed
     A07->>A14: reports the deal closed
