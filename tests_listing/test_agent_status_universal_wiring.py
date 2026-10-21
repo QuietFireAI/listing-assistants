@@ -141,7 +141,9 @@ def test_agent16_referral_reward_review_wait(tmp_path):
     hub.on_turn_start()
     reply = Envelope(from_agent="11", to_agent="16", intent="lead.reply",
                     client_context_id="p-005",
-                    payload={"message": "what's the reward for referring",
+                    # 2026-10-14: no incentive phrase in the message; "reward for
+                    # referring" now goes to the legal line first (Agent 16 tuple 5)
+                    payload={"message": "is there a referral fee",
                             "mentions_referral_reward": True},
                     provenance={"source": "spoke-11", "captured_at": "runtime",
                                 "verbatim_available": True})

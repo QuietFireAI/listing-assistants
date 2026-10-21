@@ -23,6 +23,14 @@ _PROTECTED_CLASS_REQUEST_WORDS = ("school quality", "school rating",
                                  "great schools", "school district rating")
 
 
+def _state_of(address) -> str | None:
+    """The two-letter state at the end of a US address ("..., Testville, OH"
+    or "..., OH 44101"); None when there is none."""
+    import re
+    m = re.search(r",\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$", str(address or ""))
+    return m.group(1) if m else None
+
+
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
                     client_context_id=ctx, payload=payload,
@@ -64,6 +72,7 @@ class Spoke04ListingDescription:
                  cut_priority_config: str | None = None):
         self.hub = guard(hub, "04")   # handoff rule (audit TU-2)
         self.drafts: dict[str, dict] = {}  # ctx -> draft asset pending verdict
+        self.draft_states: dict[str, str | None] = {}  # ctx -> listing state sent to 17 (2026-10-14)
         self.mls_char_limit = mls_char_limit
         # "rules" (default): facts-only draft. "model": the broker signed a
         # switch to model-written remarks (dispatcher/model_drafting.py gates
@@ -408,8 +417,13 @@ class Spoke04ListingDescription:
             self.hub.send(_env("04", "18", "agent.status", ctx,
                                {"waiting_on": "compliance_review",
                                 "since": env.payload.get("today")}))
+            # the listing's state goes with the review so state rules apply
+            # (owner decision 2026-10-14; it never went before)
+            self.draft_states[ctx] = _state_of(data.get("address"))
             self.hub.send(_env("04", "17", "content.review", ctx,
-                               {"draft": draft}, in_reply_to=env.envelope_id))
+                               {"draft": draft, "content_type": "listing_description",
+                                "state": self.draft_states[ctx]},
+                               in_reply_to=env.envelope_id))
             return
 
         if env.intent == "content.verdict":
@@ -530,7 +544,8 @@ class Spoke04ListingDescription:
                             f"negotiation, resubmitting",
                     result=f"removed={removed}")
                 self.hub.send(_env("04", "17", "content.review", ctx,
-                                   {"draft": draft}))
+                                   {"draft": draft, "content_type": "listing_description",
+                                    "state": self.draft_states.get(ctx)}))
                 return
 
             self.hub.ingest_spoke_trace(

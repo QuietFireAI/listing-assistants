@@ -133,10 +133,22 @@ def test_referral_reward_mention_gated_through_17(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     Spoke16AfterCloseReferral(hub)
     hub.on_turn_start()
-    hub.send(lead_reply("n-003", {"message": "what's the reward for referring someone",
+    hub.send(lead_reply("n-003", {"message": "is there a referral fee for sending someone",
                                   "mentions_referral_reward": True}))
     review = persisted(hub, "content.review")
     assert review and review[0]["to_agent"] == "17"
+
+
+def test_a_gift_idea_goes_to_the_legal_line_even_with_the_referral_label(tmp_path):
+    # 2026-10-14: the referral label now comes from Agent 11's phrase tagger;
+    # a gift or incentive idea (tuple 5) is checked first
+    hub, signer = make_hub(str(tmp_path))
+    Spoke16AfterCloseReferral(hub)
+    hub.on_turn_start()
+    hub.send(lead_reply("n-004", {"message": "what's the reward for referring someone",
+                                  "mentions_referral_reward": True}))
+    assert not persisted(hub, "content.review")
+    assert any(e["client_context_id"] == "n-004" for e in hub.queues.get("escalation.legal_line", []))
 
 
 def test_pricing_question_escalates(tmp_path):

@@ -113,6 +113,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
     B->>A12: you sign the release
@@ -184,6 +185,7 @@ sequenceDiagram
     participant A12 as 12 Marketing Campaign
     participant A11 as 11 Client Communication
     participant A14 as 14 CRM and Pipeline
+    participant A06 as 06 Showing Scheduler
     participant A13 as 13 Buyer Search and Match
     participant A10 as 10 Market Data
     participant X as Outside world
@@ -204,6 +206,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
     B->>A10: asks for market data
@@ -240,6 +243,7 @@ sequenceDiagram
     participant A12 as 12 Marketing Campaign
     participant A11 as 11 Client Communication
     participant A14 as 14 CRM and Pipeline
+    participant A06 as 06 Showing Scheduler
     participant A13 as 13 Buyer Search and Match
     participant A10 as 10 Market Data
     participant A08 as 08 Document Collection
@@ -262,6 +266,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
     A11->>A08: passes on a document the client sent
@@ -271,6 +276,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     B->>A07: your signed settings
     A07->>A08: asks for a document
     A08->>A11: asks for a message to the client
@@ -311,6 +317,7 @@ sequenceDiagram
     participant A12 as 12 Marketing Campaign
     participant A11 as 11 Client Communication
     participant A14 as 14 CRM and Pipeline
+    participant A06 as 06 Showing Scheduler
     participant A13 as 13 Buyer Search and Match
     participant A10 as 10 Market Data
     participant A02 as 02 Lead Qualification
@@ -334,6 +341,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
     B->>A02: your signed settings
@@ -368,6 +376,7 @@ sequenceDiagram
     participant A12 as 12 Marketing Campaign
     participant A11 as 11 Client Communication
     participant A14 as 14 CRM and Pipeline
+    participant A06 as 06 Showing Scheduler
     participant A13 as 13 Buyer Search and Match
     participant A10 as 10 Market Data
     participant A07 as 07 Transaction Coordinator
@@ -389,6 +398,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
     B->>A07: your signed settings
@@ -556,6 +566,7 @@ sequenceDiagram
     participant A12 as 12 Marketing Campaign
     participant A11 as 11 Client Communication
     participant A14 as 14 CRM and Pipeline
+    participant A06 as 06 Showing Scheduler
     participant A13 as 13 Buyer Search and Match
     participant A10 as 10 Market Data
     participant X as Outside world
@@ -576,6 +587,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
     B->>A09: you sign the release
@@ -587,6 +599,7 @@ sequenceDiagram
     A05->>A12: reports the listing's status
     Note over A12: Held - the marketing waits for your signed release
     A05->>A14: reports the listing's status
+    A05->>A06: shares the listing details
     B->>A12: you sign the release
     A12->>X: publishes the marketing
 ```

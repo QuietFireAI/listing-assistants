@@ -26,8 +26,8 @@ pip install -r requirements.txt
 python -m pytest tests_listing/ -q
 ```
 
-**Expect:** `1147 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1147 passed, 1 skipped` on Windows (there, the skipped test is
+**Expect:** `1178 passed, 1 skipped` on Linux or macOS (the skipped test runs
+only on Windows); `1178 passed, 1 skipped` on Windows (there, the skipped test is
 the Linux / macOS file-permission check), after 5 to 10 minutes.
 
 ## T2 - The showcase plays through
@@ -176,11 +176,11 @@ python tools/desk.py --config-dir scenes/config --script scenes/scene04_new_list
 ```
 
 **Expect:** still **LIVE · your records**; the bar reads "TEST SCRIPT ·
-SCENE04_NEW_LISTING.JSONL", step 0 of 11; **Vendor roster: loaded**.
+SCENE04_NEW_LISTING.JSONL", step 0 of 13; **Vendor roster: loaded**.
 
 Press **Next** until the bar turns red.
 **Expect:** "Your move: press Send on the held vendor booking for S4", step
-4 of 11; the Book a vendor card for S4 outlined.
+6 of 13; the Book a vendor card for S4 outlined.
 
 ![A test script waiting for you](images/desk-manual/16-test-script.png)
 
@@ -190,13 +190,13 @@ Without pressing Send, stop the desk (Ctrl+C) and start it again with the
 same command as T8.
 
 **Expect:** the bar is back at "Your move: press Send on the held vendor
-booking for S4", step 4 of 11 - not step 0. The S4 listing card shows once,
+booking for S4", step 6 of 13 - not step 0. The S4 listing card shows once,
 not twice.
 
 Now press **Send** twice, then **Next** until the bar turns red again
 ("press Send on the held marketing for S4"), and **Send** twice.
 
-**Expect at the end:** the bar reads "TEST SCRIPT COMPLETE" over "All 11 lines
+**Expect at the end:** the bar reads "TEST SCRIPT COMPLETE" over "All 13 lines
 played. Check the record to finish."; S4's
 track green from Signed to Marketed; the recap reads **2 of 2 sent on your
 signature** and **✓ Record intact**. The listing

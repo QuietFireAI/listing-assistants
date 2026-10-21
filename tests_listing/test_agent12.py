@@ -87,7 +87,7 @@ def release_all_held(hub, signer):
 
 def test_asset_without_mls_confirmation_holds_ccp_gate(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(asset_release("m-001", {"draft": {"facts": []}}))
     assert not persisted(hub, "campaign.publish")
@@ -95,7 +95,7 @@ def test_asset_without_mls_confirmation_holds_ccp_gate(tmp_path):
 
 def test_asset_with_mls_confirmed_publishes(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(status_update("m-002", "active"))
     hub.send(asset_release("m-002", {"draft": {"facts": []}}))
@@ -106,7 +106,7 @@ def test_asset_with_mls_confirmed_publishes(tmp_path):
 
 def test_exempt_status_with_disclosure_clears_gate(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-003", {"exempt_status": {"exempt": True,
                                                         "disclosure_on_file": True}}))
@@ -117,7 +117,7 @@ def test_exempt_status_with_disclosure_clears_gate(tmp_path):
 
 def test_exempt_without_disclosure_still_holds(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-004", {"exempt_status": {"exempt": True,
                                                         "disclosure_on_file": False}}))
@@ -127,7 +127,7 @@ def test_exempt_without_disclosure_still_holds(tmp_path):
 
 def test_asset_referencing_unconfirmed_data_pulled(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(status_update("m-005", "active"))
     hub.send(asset_release("m-005", {"draft": {}, "references_unconfirmed_data": True}))
@@ -138,7 +138,7 @@ def test_asset_referencing_unconfirmed_data_pulled(tmp_path):
 
 def test_demographic_targeting_refused_outright(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-006", {"new_campaign": {"targeting_demographic": True}}))
     assert hub.queues["escalation.legal_line"]
@@ -147,7 +147,7 @@ def test_demographic_targeting_refused_outright(tmp_path):
 
 def test_trending_topic_requires_human_approval_first(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-007", {"new_campaign": {"trending_topic_tie_in": True}}))
     clar = persisted(hub, "clarification.request")
@@ -156,7 +156,7 @@ def test_trending_topic_requires_human_approval_first(tmp_path):
 
 def test_approved_verdict_publishes_only_with_ccp_clear(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(status_update("m-008", "active"))
     hub.send(config_update(signer, "m-008", {"new_campaign": {"body": "newsletter text"}}))
@@ -168,7 +168,7 @@ def test_approved_verdict_publishes_only_with_ccp_clear(tmp_path):
 
 def test_approved_verdict_without_ccp_gate_holds(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-009", {"new_campaign": {"body": "newsletter text"}}))
     hub.send(verdict("m-009", {"verdict": "approved"}))
@@ -177,7 +177,7 @@ def test_approved_verdict_without_ccp_gate_holds(tmp_path):
 
 def test_flagged_verdict_never_publishes(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(status_update("m-010", "active"))
     hub.send(config_update(signer, "m-010", {"new_campaign": {"body": "text"}}))
@@ -187,7 +187,7 @@ def test_flagged_verdict_never_publishes(tmp_path):
 
 def test_verbal_budget_change_ignored_signed_stands(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    spoke = Spoke12MarketingCampaign(hub)
+    spoke = Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-011", {"signed_budget": 500}))
     hub.send(config_update(signer, "m-011", {"budget_change_verbal": 800}))
@@ -196,7 +196,7 @@ def test_verbal_budget_change_ignored_signed_stands(tmp_path):
 
 def test_conflicting_engagement_sources_reports_both_named(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(platform_event("m-012", {"platform": "facebook", "engagement_value": 40}))
     hub.send(platform_event("m-012", {"platform": "ad_manager", "engagement_value": 65}))
@@ -208,7 +208,7 @@ def test_conflicting_engagement_sources_reports_both_named(tmp_path):
 
 def test_engagement_spike_feeds_behavioral_signal_to_03(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(platform_event("m-013", {"platform": "facebook", "engagement_value": 80,
                                       "spike_threshold": 50}))
@@ -218,7 +218,7 @@ def test_engagement_spike_feeds_behavioral_signal_to_03(tmp_path):
 
 def test_platform_rejection_logged_never_tweaks_targeting(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(platform_event("m-014", {"event_kind": "rejection",
                                       "raw_rejection": "policy violation XYZ"}))
@@ -230,7 +230,7 @@ def test_platform_rejection_logged_never_tweaks_targeting(tmp_path):
 
 def test_stale_asset_correction_unlocks_verdict_for_reentry(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    spoke = Spoke12MarketingCampaign(hub)
+    spoke = Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(status_update("m-015", "active"))
     hub.send(config_update(signer, "m-015", {"new_campaign": {"body": "x"}}))
@@ -251,7 +251,7 @@ def test_stale_asset_retraction_actually_pulls_it_down(tmp_path):
     """Was: only 'correct' existed - no path ever actually retracted a
     stale asset, despite the tuple offering it as a real choice."""
     hub, signer = make_hub(str(tmp_path))
-    spoke = Spoke12MarketingCampaign(hub)
+    spoke = Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(status_update("m-016", "active"))
     hub.send(config_update(signer, "m-016", {"new_campaign": {"body": "x"}}))
@@ -276,7 +276,7 @@ def test_REGRESSION_approved_campaign_publishes_once_gate_clears_later(tmp_path)
     popped from tracking and never stored anywhere else - it would never
     publish even after MLS confirmation arrived later."""
     hub, signer = make_hub(str(tmp_path))
-    spoke = Spoke12MarketingCampaign(hub)
+    spoke = Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-016", {"new_campaign": {"body": "newsletter"}}))
     hub.send(verdict("m-016", {"verdict": "approved"}))
@@ -292,7 +292,7 @@ def test_REGRESSION_approved_campaign_publishes_once_gate_clears_later(tmp_path)
 
 def test_REGRESSION_asset_from_04_publishes_once_gate_clears_later(tmp_path):
     hub, signer = make_hub(str(tmp_path))
-    spoke = Spoke12MarketingCampaign(hub)
+    spoke = Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(asset_release("m-017", {"draft": {"facts": []}}))
     assert not persisted(hub, "campaign.publish")
@@ -309,7 +309,7 @@ def test_REGRESSION_platform_truncation_goes_back_through_17(tmp_path):
     """tuple 1 was listed as 'implemented' in the docstring but had zero
     actual code - found on re-review."""
     hub, signer = make_hub(str(tmp_path))
-    Spoke12MarketingCampaign(hub)
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(platform_event("m-018", {"event_kind": "truncated",
                                       "truncated_content": "cut off text..."}))

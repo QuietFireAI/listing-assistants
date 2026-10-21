@@ -204,6 +204,18 @@ class Spoke11ClientCommunication:
     def _send_client_message(self, ctx: str, template: str, variables: dict,
                              hour: int, alert_class: str | None = None,
                              env: Envelope | None = None):
+        # P14 hold, every send (2026-10-14): only scheduled touches were held,
+        # so a client who wrote angrily and also asked a pricing question got
+        # the automatic hand-off note. The opt-out confirmation still goes.
+        if ctx in self.complaint_hold and template != "opt_out_confirmed":
+            self.hub.ingest_spoke_trace(
+                "11", env.envelope_id if env else "internal",
+                thought=f"complaint hold open for {ctx!r} - {template!r} not sent; "
+                        f"the response to this client is the human's",
+                result="held: complaint_hold")
+            self.hub.send(_env("11", "14", "interaction.log", ctx,
+                               {"kind": "touch_held_complaint_hold", "template": template}))
+            return False
         # tuple 8: unresolved template variable -> does not send
         unresolved = [k for k, v in variables.items() if v is None]
         if unresolved:
@@ -377,6 +389,29 @@ class Spoke11ClientCommunication:
             message = str(payload.get("message", ""))
             low = message.lower()
 
+            # Tags (owner decision 2026-10-14): set here from the client's
+            # words (dispatcher/message_tags.py), or honored when an upstream
+            # classifier sent the label. Any adverse message goes to the
+            # human at once, before and whatever else it asks: the complaint
+            # escalation and the outbound hold come first, and the other
+            # rules below (wire, access, advice) still run.
+            from .message_tags import tag_message, ADVERSE, FORWARDED
+            tags = tag_message(message, payload)
+            angry = "angry" in tags
+            negative = "negative_tone" in tags
+            if angry or negative:
+                self.complaint_hold.add(ctx)  # P14 step 2: outbound hold
+                self.hub.escalate("escalation.complaint",
+                                  {"client_context_id": ctx,
+                                   "trigger": "angry client contact" if angry
+                                   else "negative-tone reply",
+                                   "verbatim": message,
+                                   "tags": {k: v for k, v in tags.items() if k in ADVERSE}})
+                self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                   {"kind": "complaint_received", "verbatim": message,
+                                    "routed_to": "escalation.complaint"}))
+            forward = {k: True for k in FORWARDED if k in tags}
+
             # wire fraud line - checked first, any channel
             if self._wire_hit(payload):
                 self.hub.escalate("escalation.legal_line",
@@ -427,7 +462,8 @@ class Spoke11ClientCommunication:
                                   {"client_context_id": ctx,
                                    "trigger": advice_hit, "agent": "11"})
                 self._route_lead_reply(ctx, payload.get("owning_agent"),
-                                       {"message": message, "split": "routine_only"}, env)
+                                       {"message": message, "split": "routine_only",
+                                        **forward}, env)
                 return
 
             # tuple 6: pricing/strategy question -> legal line, template ack
@@ -446,35 +482,19 @@ class Spoke11ClientCommunication:
             # tuple 2, amended 2026-10-12 (owner decision): an angry client
             # goes to the human at once and is logged; no message is sent to
             # the client (the acknowledgement was removed - P14: the entire
-            # response is human).
-            if payload.get("angry"):
-                self.complaint_hold.add(ctx)  # P14 step 2: outbound hold
-                self.hub.escalate("escalation.complaint",
-                                  {"client_context_id": ctx,
-                                   "trigger": "angry client contact",
-                                   "verbatim": message})
-                self.hub.send(_env("11", "14", "interaction.log", ctx,
-                                   {"kind": "complaint_received", "verbatim": message,
-                                    "routed_to": "escalation.complaint"}))
+            # response is human). The escalation and log happen at the top
+            # of this branch since 2026-10-14.
+            if angry:
                 return
 
             # tuple 10: negative tone -> route P14 complaint intake, never
-            # freestyle de-escalation. Fixed 2026-07-16: this never actually
-            # escalated via the real escalation.complaint queue at all -
-            # it only tagged a lead.reply and sent it to the owning
-            # BUSINESS agent (e.g. 13), which has no relationship to P14's
-            # actual mechanism (verbatim to the priority queue + outbound
-            # hold, human owns the entire response). Checked the ratified
-            # playbook directly rather than guess: P14 step 1 is
-            # escalation.complaint, step 2 is the hold - both now real.
-            if payload.get("negative_tone"):
-                self.complaint_hold.add(ctx)
-                self.hub.escalate("escalation.complaint",
-                                  {"client_context_id": ctx,
-                                   "trigger": "negative-tone reply",
-                                   "verbatim": message})
+            # freestyle de-escalation. P14 step 1 (escalation.complaint,
+            # verbatim) and step 2 (the hold) happen at the top of this
+            # branch; the reply also goes to the owning agent marked for P14.
+            if negative:
                 self._route_lead_reply(ctx, payload.get("owning_agent"),
-                                       {"message": message, "route": "P14_complaint_intake"}, env)
+                                       {"message": message, "route": "P14_complaint_intake",
+                                        **forward}, env)
                 return
 
             # tuple 11: contact-channel change -> honor, record, confirm once
@@ -531,7 +551,10 @@ class Spoke11ClientCommunication:
                     # showings of one property by two buyers could not
                     # conflict
                     "listing_id": payload.get("listing_id") or payload.get("requested_listing_id"),
-                    "protected_deadline": payload.get("protected_deadline", False)}
+                    "protected_deadline": payload.get("protected_deadline", False),
+                    # when the client wrote: Agent 06 measures notice from it
+                    # (2026-10-14)
+                    "sent_at": payload.get("sent_at")}
                 self.hub.send(_env("11", "14", "record.request", ctx, {}))
                 return
 
@@ -562,7 +585,7 @@ class Spoke11ClientCommunication:
             # swarm-wide "routed by content" convention this agent
             # implements for real)
             self._route_lead_reply(ctx, payload.get("owning_agent"),
-                                   {"message": message}, env)
+                                   {"message": message, **forward}, env)
             return
 
         if env.intent == "record.response":
@@ -595,6 +618,7 @@ class Spoke11ClientCommunication:
                                {"requested_time": pending["requested_time"],
                                 "listing_id": pending.get("listing_id"),
                                 "protected_deadline": pending.get("protected_deadline", False),
+                                "sent_at": pending.get("sent_at"),
                                 "lead_tier": tier,
                                 "buyer_agreement_on_file": buyer_agreement,
                                 "requester_identity_verified": identity_verified}))

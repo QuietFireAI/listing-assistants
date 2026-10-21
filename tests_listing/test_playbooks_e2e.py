@@ -42,6 +42,9 @@ RULESET = {"prohibited_phrases": [
     "state_rules": {}}
 
 
+BROKERAGE_ID = "Synth Realty, Testville OH"
+
+
 def build_swarm(tmp_path):
     signer = Ed25519Signer()
     verifier = Ed25519Verifier(signer.public_key_bytes())
@@ -67,12 +70,13 @@ def build_swarm(tmp_path):
                                      "regulated": False}}),
         "10": Spoke10MarketData(hub),
         "11": Spoke11ClientCommunication(hub),
-        "12": Spoke12MarketingCampaign(hub),
+        # every ad carries the brokerage identification (owner decision 2026-10-14)
+        "12": Spoke12MarketingCampaign(hub, brokerage_identification=BROKERAGE_ID),
         "13": Spoke13BuyerSearchMatch(hub),
         "14": Spoke14CRMPipeline(hub),
         "15": Spoke15FinancialTracking(hub),
         "16": Spoke16AfterCloseReferral(hub),
-        "17": Spoke17ComplianceFairHousing(hub),
+        "17": Spoke17ComplianceFairHousing(hub, brokerage_identification=BROKERAGE_ID),
         "18": Spoke18CalendarTask(hub),
     }
     hub.on_turn_start()

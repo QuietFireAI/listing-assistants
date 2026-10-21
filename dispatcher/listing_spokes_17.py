@@ -24,6 +24,13 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
                                 "verbatim_available": True})
 
 
+# What each submitter sends for review (owner decision 2026-10-14). A
+# submitter may name the type itself ("content_type"); otherwise this map.
+_CONTENT_TYPE_BY_AGENT = {"03": "nurture_sequence", "04": "listing_description",
+                          "12": "advertising", "13": "buyer_criteria",
+                          "16": "client_message", "20": "social_reply"}
+
+
 class Spoke17ComplianceFairHousing:
     """DECISIONS.md tuples implemented directly:
       1. ruleset silent on the construction -> flag as uncovered, never
@@ -54,7 +61,8 @@ class Spoke17ComplianceFairHousing:
 
     # TUNABLE (owner-ratified 2026-07-16): sla_days=1,
     # near_miss_pattern_threshold=3. See docs/TUNING_MANUAL.md to change.
-    def __init__(self, hub, sla_days: int = 1, near_miss_pattern_threshold: int = 3):
+    def __init__(self, hub, sla_days: int = 1, near_miss_pattern_threshold: int = 3,
+                 brokerage_identification: str | None = None):
         self.near_miss_pattern_threshold = near_miss_pattern_threshold
         self.hub = guard(hub, "17")   # handoff rule (audit TU-2)
         self.ruleset: dict | None = None  # fails closed until signed config.update
@@ -63,6 +71,8 @@ class Spoke17ComplianceFairHousing:
         self.near_miss_counts: dict[str, int] = {}  # submitting_agent -> count
         self.pending_reviews: dict[str, dict] = {}  # ctx -> {submitted_at, agent}
         self.sla_days = sla_days
+        # the text every ad must carry (tuple 7; signed setting, 2026-10-14)
+        self.brokerage_identification: str | None = brokerage_identification
         register_spoke(hub, "17", self)
 
     def _find_prohibited(self, text: str) -> list[dict]:
@@ -111,6 +121,27 @@ class Spoke17ComplianceFairHousing:
         payload = env.payload
 
         if env.intent == "config.update":
+            if "brokerage_identification" in payload:
+                text = payload["brokerage_identification"]
+                if not isinstance(text, str) or not text.strip():
+                    self.hub.send(_env("17", "queue", "clarification.request", ctx,
+                                       {"reason": "brokerage_identification rejected; nothing "
+                                                  "changed - it must be the text every ad carries"}))
+                    return
+                self.brokerage_identification = text.strip()
+                self.hub.ingest_spoke_trace("17", env.envelope_id,
+                                            thought="broker-signed brokerage identification set",
+                                            result="brokerage identification set")
+                return
+            if "preapprove_template_class" in payload:
+                # tuple 5: verdicts are per-item. Reachable since 2026-10-14
+                # as a signed request from the broker; refused, never stored
+                self.hub.send(_env("17", "queue", "clarification.request", ctx,
+                                   {"reason": "template-class pre-approval refused - "
+                                              "verdicts are per-item; send each piece of "
+                                              "content for its own review",
+                                    "template_class": payload["preapprove_template_class"]}))
+                return
             if "ruleset" in payload and "version" in payload:
                 # Shape validation, added 2026-07-18 (was: any dict
                 # adopted wholesale). Same discipline as 02's rubric
@@ -129,6 +160,11 @@ class Spoke17ComplianceFairHousing:
                         if not isinstance(r, dict) or not r.get("phrase")                                 or not r.get("rule_id"):
                             problems.append(f"prohibited_phrases[{i}] missing "
                                             f"phrase/rule_id")
+                    for key in ("covers", "states_reviewed"):
+                        v = rs.get(key)
+                        if v is not None and (not isinstance(v, list) or not v or
+                                              not all(isinstance(x, str) and x for x in v)):
+                            problems.append(f"{key} must be a non-empty list of names")
                     sr = rs.get("state_rules", {})
                     if not isinstance(sr, dict):
                         problems.append("state_rules is not a dict")
@@ -205,7 +241,7 @@ class Spoke17ComplianceFairHousing:
             is_resubmission_of_flagged = bool(prior and prior.get("verdict") == "flagged")
 
             findings = self._find_prohibited(text)
-            findings += self._check_state_rules(text, payload.get("state"))
+            findings += self._check_state_rules(text, payload.get("state"))  # tuple 4
             self.pending_reviews[ctx] = {"submitted_at": payload.get("today"),
                                         "agent": submitting_agent}
             self.hub.send(_env("17", "18", "agent.status", ctx,
@@ -220,35 +256,55 @@ class Spoke17ComplianceFairHousing:
                                              "human notified",
                                    "agent": "17"})
 
+            # What the content is and where (owner decision 2026-10-14):
+            # the type comes from the submitter, or from which agent sent it;
+            # the state from the listing address. No submitter sent either
+            # before, so tuples 1, 4, 7 and 9 could not fire.
+            content_type = payload.get("content_type") or _CONTENT_TYPE_BY_AGENT.get(submitting_agent)
+            state = payload.get("state")
+
             # tuple 7: missing brokerage ID on advertising -> block, no
-            # format-constraint exceptions
-            if payload.get("content_type") == "advertising" and \
-                    not payload.get("brokerage_id_present"):
-                findings.append({"reason": "brokerage identification "
-                                          "missing - blocked, no format "
-                                          "exceptions"})
+            # format-constraint exceptions. Checked here against the signed
+            # setting, never taken from the submitter's word.
+            if content_type == "advertising":
+                if not self.brokerage_identification:
+                    findings.append({"reason": "no brokerage identification on file "
+                                              "to check this ad against - blocked, "
+                                              "no format exceptions"})
+                elif self.brokerage_identification.lower() not in text.lower():
+                    findings.append({"reason": "brokerage identification "
+                                              "missing - blocked, no format "
+                                              "exceptions"})
 
             # tuple 1: ruleset silent on the construction -> flag as
-            # uncovered, never approve by omission
-            if payload.get("uncovered_construction"):
-                findings.append({"reason": "ruleset does not address this "
-                                          "construction - flagged as "
-                                          "uncovered, never approved by "
-                                          "omission",
+            # uncovered, never approve by omission. A ruleset that lists the
+            # content types it covers ("covers") flags any other type.
+            covers = self.ruleset.get("covers")
+            if payload.get("uncovered_construction") or (
+                    covers is not None and content_type not in covers):
+                findings.append({"reason": f"ruleset does not address this "
+                                          f"construction ({content_type!r}) - "
+                                          f"flagged as uncovered, never "
+                                          f"approved by omission",
                                  "uncovered": True})
 
             # tuple 9: state-specific rule uncertainty -> block + human
-            # counsel flag
-            if payload.get("state_rule_uncertain"):
+            # counsel flag. A ruleset that lists the states counsel has
+            # reviewed ("states_reviewed") makes any other state, or an
+            # unknown one, uncertain.
+            reviewed = self.ruleset.get("states_reviewed")
+            if payload.get("state_rule_uncertain") or (
+                    reviewed is not None and state not in reviewed):
                 findings.append({"reason": "state-specific rule uncertainty "
                                           "- blocked, human counsel flag; "
                                           "training-level knowledge never "
                                           "clears a legal gate"})
                 self.hub.escalate("escalation.legal_line",
                                   {"client_context_id": ctx,
-                                   "trigger": "state-specific rule "
-                                             "uncertainty on submitted "
-                                             "content",
+                                   "trigger": f"state-specific rule "
+                                             f"uncertainty on submitted "
+                                             f"content (state {state!r} not "
+                                             f"reviewed by counsel)",
                                    "agent": "17"})
 
             verdict = "flagged" if findings else "approved"
