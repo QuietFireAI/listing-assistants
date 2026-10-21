@@ -13,7 +13,7 @@ after-action report and show the playbook's own evidence. The table is
 | Tuple | Agent | Route | Result | Tuple text | Detail |
 |---|---|---|---|---|---|
 | P01 | PLAYBOOK | intake | PASS | P01 New Listing Onboarding: start to end |  |
-| P02 | PLAYBOOK | intake | PASS | P02 Price Adjustment: start to end |  |
+| P02 | PLAYBOOK | intake | PASS | P02 Price Adjustment: start to end | B1 (budget 445,000) is matched only once the price drops to 440,000; B2, matched at 450,000, is told of the change, not matched twice; the ad carries no price, so you are not asked about it |
 | P03 | PLAYBOOK | intake | PASS | P03 Under-Contract Transition: start to end |  |
 | P04 | PLAYBOOK | intake | PASS | P04 Open House Cycle: start to end | the walk-in arrives as an inquiry and runs P11 on its own client |
 | P05 | PLAYBOOK | intake | PASS | P05 Expired/Withdrawn Wind-down: start to end |  |

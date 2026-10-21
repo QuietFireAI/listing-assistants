@@ -216,8 +216,9 @@ sequenceDiagram
     B->>A05: your signed listing or price change
     A05->>A11: reports the listing's status
     A05->>A12: reports the listing's status
-    A12->>B: asks you - listing changed (price) while marketing is live - check t...
     A05->>A14: reports the listing's status
+    A05->>A13: shares the listing details
+    A05->>A10: shares the listing details
 ```
 
 *One recorded run of this playbook's test (`test_p02_price_adjustment`), read top to bottom. Left out to keep it readable: each agent logging the step in the CRM (14), telling the calendar (18) what it is waiting on, and CRM look-ups.*

@@ -25,6 +25,18 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN):
                                 "verbatim_available": True})
 
 
+
+def _mentions_amount(content, amount) -> bool:
+    """Whether ad content shows a dollar amount, written plain or with
+    commas (450000, 450,000, $450,000)."""
+    try:
+        n = int(amount)
+    except (TypeError, ValueError):
+        return False
+    import json as _json
+    text = _json.dumps(content, default=str)
+    return str(n) in text or f"{n:,}" in text
+
 class Spoke12MarketingCampaign:
     """DECISIONS.md tuples implemented directly:
       1. platform-forced truncation -> that's an edit, back through 17
@@ -111,9 +123,11 @@ class Spoke12MarketingCampaign:
                                               "and Agent 17; the held ad then publishes"}))
             return
         campaign = self._with_brokerage_id(campaign)
-        self.published[ctx] = {"content": campaign, "verdict_locked": True}
-        res = self.hub.send(_env("12", "external", "campaign.publish", ctx,
-                                 {"content": campaign, "source": source}))
+        publish = _env("12", "external", "campaign.publish", ctx,
+                       {"content": campaign, "source": source})
+        self.published[ctx] = {"content": campaign, "verdict_locked": True,
+                               "envelope_id": publish.envelope_id}
+        res = self.hub.send(publish)
         # 2026-10-14 (tuple runs): the hub holds a campaign.publish for the
         # broker's signed release (counterparty audience), yet the record said
         # "campaign_published" before anything left. The log now names what
@@ -175,18 +189,25 @@ class Spoke12MarketingCampaign:
                 # playbook runs 2026-10-20): Agent 05 sends {"price": ...}
                 # after a signed price change, and this handler read the
                 # missing status as "not active" and halted every live ad.
-                # A price change keeps the listing marketed; 12 cannot see
-                # what a live ad says, so when something is published the
-                # broker is asked to check it for the old price.
+                # A price change keeps the listing marketed. Walkthrough
+                # 2026-10-21: the broker is asked only when the ad itself
+                # shows the old price, and told whether that ad is live or
+                # still held for release.
+                fields = sorted(k for k in payload if not k.startswith("prior_"))
                 self.hub.send(_env("12", "14", "interaction.log", ctx,
-                                   {"kind": "listing_change_received",
-                                    "fields": sorted(payload)}))
-                if ctx in self.published:
+                                   {"kind": "listing_change_received", "fields": fields}))
+                prior = payload.get("prior_price")
+                pub = self.published.get(ctx)
+                if pub is not None and prior is not None and _mentions_amount(pub.get("content"), prior):
+                    state = (self.hub.outbound_state(pub["envelope_id"])
+                             if pub.get("envelope_id") else "sent")
+                    where = "held for your release" if state == "held" else "live"
                     self.hub.send(_env("12", "queue", "clarification.request", ctx,
-                                       {"reason": f"listing changed ({', '.join(sorted(payload))}) while "
-                                                  f"marketing is live - check the live ads for the old "
-                                                  f"value; nothing was halted or changed",
-                                        "change": dict(payload), "agent": "12"}))
+                                       {"reason": f"the ad for this listing ({where}) shows the old "
+                                                  f"price {prior}; the price is now "
+                                                  f"{payload.get('price')}. Nothing was changed: "
+                                                  f"decline or replace the ad",
+                                        "agent": "12"}))
                 return
             # P05 step 1b / P03 step 1b, ratified but ZERO code until
             # 2026-07-18 (found by the first end-to-end P05 run): this

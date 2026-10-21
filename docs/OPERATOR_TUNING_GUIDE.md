@@ -74,7 +74,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1288 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1291 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once

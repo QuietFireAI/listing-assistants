@@ -32,6 +32,7 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
                                 "verbatim_available": True})
 
 
+
 class Spoke13BuyerSearchMatch:
     """DECISIONS.md tuples implemented directly:
       1. client feedback contradicts stated criteria -> ask via 11, never
@@ -114,6 +115,16 @@ class Spoke13BuyerSearchMatch:
                                              "a criterion",
                                     "budget": budget, "price": price}))
                 return
+            # P02 walkthrough (2026-10-21): over the stated budget with no
+            # area conflict to present, it is not a match. Before, it fell
+            # through and was sent as a new match - silently relaxing the
+            # budget, which tuple 6 forbids.
+            self.hub.ingest_spoke_trace(
+                "13", env.envelope_id,
+                thought=f"{listing.get('listing_id')!r} at {price} is over the stated "
+                        f"budget {budget} - not a match",
+                result="no match: over budget")
+            return
 
         # tuple 9: data anomaly -> flag before presenting, never present
         # suspect data as inventory
@@ -154,6 +165,31 @@ class Spoke13BuyerSearchMatch:
                                          "own listing - disclosure rules "
                                          "to human before showing motion",
                                "agent": "13"})
+            return
+
+        # P02 walkthrough (2026-10-21): Agent 05 now sends a listing again
+        # when its price changes. A buyer already matched to it gets the
+        # change, not a second "new match"; the same listing arriving again
+        # unchanged sends nothing.
+        lid = listing.get("listing_id")
+        if any(m.get("listing_id") == lid for m in self.match_history.get(ctx, [])):
+            changed = listing.get("changed_field")
+            if changed:
+                self.hub.send(_env("13", "11", "client.message.request", ctx,
+                                   {"template": "listing_update", "listing_id": lid,
+                                    "changed_field": changed,
+                                    "value": listing.get(changed),
+                                    "prior_value": listing.get(f"prior_{changed}")},
+                                   confidence=SOURCE_VERIFIED))
+                self.hub.send(_env("13", "14", "interaction.log", ctx,
+                                   {"kind": "matched_listing_changed", "listing_id": lid,
+                                    "changed_field": changed}))
+            else:
+                self.hub.ingest_spoke_trace(
+                    "13", env.envelope_id,
+                    thought=f"{lid!r} already matched for this buyer and unchanged - "
+                            f"nothing sent",
+                    result="no repeat match")
             return
 
         match_record = {"listing_id": listing.get("listing_id"),

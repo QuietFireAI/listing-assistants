@@ -39,7 +39,8 @@
    ],
    "conflicts_with": [
     "P05"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P01 run reviewed and signed)"
   },
   "P02": {
    "name": "Price Adjustment",

@@ -484,7 +484,10 @@ class Spoke05MLSListingManagement:
                                             "agreement_price": agreement_price}))
                     return
                 record = self.mls_records.setdefault(ctx, {})
+                prior_price = record.get("price")
                 record["price"] = new_price
+                if ctx in self.property_data:
+                    self.property_data[ctx]["price"] = new_price
                 self._record_authorization(ctx, "price", new_price,
                                            authorizing_identity)
                 self.hub.ingest_spoke_trace(
@@ -496,9 +499,18 @@ class Spoke05MLSListingManagement:
                 self.hub.send(_env("05", "11", "status.update", ctx,
                                    {"price": new_price}))
                 self.hub.send(_env("05", "12", "status.update", ctx,
-                                   {"price": new_price}))
+                                   {"price": new_price, "prior_price": prior_price}))
                 self.hub.send(_env("05", "14", "status.update", ctx,
                                    {"price": new_price}))
+                # P02 walkthrough (2026-10-21): buyer matching (13) and market
+                # data (10) get the new price, as they got the listing at
+                # go-live; before this they kept the old price, so a buyer
+                # the lower price now fits was never matched
+                if record.get("status") == "active" and ctx in self.property_data:
+                    for to in ("13", "10"):
+                        self.hub.send(_env("05", to, "listing.data", ctx,
+                                           {**self.property_data[ctx], "changed_field": "price",
+                                            "prior_price": prior_price}))
                 return
 
             # Every other MLS field (owner decision 2026-10-14): a signed
