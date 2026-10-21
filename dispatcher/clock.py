@@ -33,7 +33,7 @@ CHECKS: dict[str, list[tuple]] = {
     "03": [("nurture_touches", "send_due_touches", "active_sequences", ("ctx", "today", "now_iso"), True),
            ("rescore_cadence", "rescore_cadence", "rescore_pool", ("ctx", "today"), True)],
     "05": [("vacant_watch", "check_vacant_watch", "vacant_watch", ("ctx", "today"), True)],
-    "06": [("showing_feedback", "request_showing_feedback", "confirmed_showings", ("ctx", "today"), True),
+    "06": [("showing_feedback", "clock_showing_feedback", "confirmed_showings", ("ctx", "today"), True),
            ("seller_weekly_report", "weekly_seller_reports", None, ("today",), True)],
     "07": [("deadlines", "check_deadlines", "timelines", ("ctx", "today"), True),
            ("vendor_holdups", "check_vendor_holdups", "timelines", ("ctx", "today"), True)],

@@ -176,6 +176,13 @@ class Spoke17ComplianceFairHousing:
 
             # fail closed: no ruleset active, cannot clear anything
             if self.ruleset is None:
+                # Tracked since 2026-10-14 (tuple runs): a review answered in
+                # the same call never waits, so the only reviews that do wait
+                # (no ruleset) were never recorded and the SLA check (tuple
+                # 3) could never fire. Submitters send no date; the daily
+                # check starts the clock on the first day it sees the review.
+                self.pending_reviews[ctx] = {"submitted_at": payload.get("today"),
+                                             "agent": submitting_agent}
                 self.hub.send(_env("17", "queue", "clarification.request", ctx,
                                    {"reason": "no ruleset active - cannot "
                                              "issue any verdict without "
@@ -299,7 +306,8 @@ class Spoke17ComplianceFairHousing:
             return "not_pending"
         submitted = pending.get("submitted_at")
         if not submitted:
-            return "not_pending"
+            pending["submitted_at"] = today   # first day the clock saw it
+            return "within_sla"
         elapsed_days = (datetime.date.fromisoformat(today) -
                         datetime.date.fromisoformat(submitted)).days
         if elapsed_days > self.sla_days:
@@ -307,6 +315,8 @@ class Spoke17ComplianceFairHousing:
                                {"reason": f"SLA breach: {elapsed_days} day(s) "
                                          f"elapsed, threshold "
                                          f"{self.sla_days} day(s) - alerting, "
-                                         f"never rushing verdict quality"}))
+                                         f"never rushing verdict quality",
+                                "submitting_agent": pending.get("agent"),
+                                "no_ruleset_active": self.ruleset is None}))
             return "breached"
         return "within_sla"

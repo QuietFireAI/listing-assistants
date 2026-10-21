@@ -374,6 +374,24 @@ class Spoke11ClientCommunication:
                                    "agent": "11"})
                 return
 
+            # access is the line (Agent 06 tuples 3 and 6). 2026-10-14 (tuple
+            # runs): a client asking to "just let them in" or for a lockbox
+            # combination reached nobody with that meaning - Agent 06 checks
+            # its own showing requests, but a client's words come here and
+            # were never forwarded. Same phrase list as Agent 06.
+            from .listing_spokes_06 import _ACCESS_REQUEST_WORDS
+            access = next((w for w in _ACCESS_REQUEST_WORDS if w in low), None)
+            if access:
+                self.hub.escalate("escalation.legal_line",
+                                  {"client_context_id": ctx,
+                                   "trigger": f"client message asks for property access "
+                                             f"({access!r}) - never granted or transmitted "
+                                             f"by an agent: {message!r}",
+                                   "agent": "11"})
+                self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                   {"kind": "access_request_refused", "verbatim": message}))
+                return
+
             # tuple 5: "what would you do" -> legal line, verbatim
             if "what would you do" in low:
                 self.hub.escalate("escalation.legal_line",

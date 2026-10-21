@@ -163,8 +163,13 @@ class Spoke19Prospecting:
                 rep_status = "unknown"
 
             # tuple 8: DNC suppression
+            # Normalized since 2026-10-14 (tuple runs), the same fix Agent 01
+            # got the same day: exact text missed "330-555-0190" against a
+            # list entry "(330) 555-0190".
+            from .listing_spokes import _dnc_identifiers
             contact = payload.get("owner_contact")
-            on_dnc = contact in self.dnc_list if contact else False
+            on_dnc = bool(contact) and (contact in self.dnc_list or bool(
+                _dnc_identifiers([contact]) & _dnc_identifiers(self.dnc_list)))
 
             record = {"listing_id": listing_id, "zip_code": zip_code,
                      "source": source, "retrieval_timestamp": payload.get("today"),
