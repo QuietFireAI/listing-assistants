@@ -388,8 +388,8 @@ def cmd_onboard(args):
     if not os.path.exists(KEY_PATH):
         _p({"error": "run `python tools/console.py init` first - there is no key to bind"})
         return 1
-    name = args.name or input("Your name (broker of record): ").strip()
-    login = args.login or input("Your login (email you sign as): ").strip()
+    name = (args.name or input("Your name (broker of record): ")).strip()
+    login = (args.login or input("Your login (email you sign as): ")).strip()
     if not name or not login or "@" not in login:
         _p({"error": "a name and an email-style login are both required; nothing saved"})
         return 1

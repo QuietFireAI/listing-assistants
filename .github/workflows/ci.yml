@@ -39,8 +39,8 @@ jobs:
       LA_LOGIN: ci@example.test
       LA_NO_SHORTCUTS: "1"
     steps:
-      - name: install with the one line, from this commit
-        shell: pwsh
+      - name: install with the one line, from this commit (Windows PowerShell 5.1, what brokers have)
+        shell: powershell
         run: iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
       - name: the installed copy runs on its own Python and plays the playbooks
         shell: pwsh

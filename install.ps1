@@ -113,8 +113,8 @@ $console = Join-Path $App "tools\console.py"
 if (-not (Test-Path (Join-Path $State "operator-key.bin"))) {
     & $Py $console init
     if ($LASTEXITCODE -ne 0) { Fail "console init did not finish" }
-    $name = if ($env:LA_NAME) { $env:LA_NAME } else { Read-Host "Your name (broker of record)" }
-    $login = if ($env:LA_LOGIN) { $env:LA_LOGIN } else { Read-Host "Your login (the email you sign as)" }
+    $name = $(if ($env:LA_NAME) { $env:LA_NAME } else { Read-Host "Your name (broker of record)" }).Trim()
+    $login = $(if ($env:LA_LOGIN) { $env:LA_LOGIN } else { Read-Host "Your login (the email you sign as)" }).Trim()
     & $Py $console onboard --name $name --login $login
     if ($LASTEXITCODE -ne 0) { Fail "onboarding did not finish" }
 } else {
