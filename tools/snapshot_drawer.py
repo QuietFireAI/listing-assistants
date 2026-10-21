@@ -28,6 +28,8 @@ from dispatcher.hitl_protocol import HITLManager
 
 
 def main():
+    if os.name != "nt":
+        os.umask(0o077)     # what this writes about clients is readable only by this account
     parser = argparse.ArgumentParser(description="Capture forensic snapshot of a client drawer.")
     parser.add_argument("client_id", help="Client context ID to snapshot (e.g. ctx-listing-742)")
     parser.add_argument("--wait-id", help="Specific wait ID if known", default=None)

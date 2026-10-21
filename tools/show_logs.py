@@ -30,6 +30,8 @@ STATE_DIR = os.path.join(ROOT, "console-state")
 
 
 def main():
+    if os.name != "nt":
+        os.umask(0o077)     # what this writes about clients is readable only by this account
     parser = argparse.ArgumentParser(description="View human-readable operational logs and EOD ledger.")
     parser.add_argument("--tail", type=int, default=25, help="Number of recent log lines to display (default: 25)")
     parser.add_argument("--client", help="Filter logs by client context ID")

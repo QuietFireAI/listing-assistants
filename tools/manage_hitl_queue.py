@@ -47,6 +47,8 @@ def list_pending(drawers_root: str, client: str | None) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    if os.name != "nt":
+        os.umask(0o077)     # what this writes about clients is readable only by this account
     parser = argparse.ArgumentParser(description="List pending HITL wait-states recorded in client drawers.")
     parser.add_argument("--list", action="store_true", help="List pending human decisions (default)")
     parser.add_argument("--client", help="Filter by client context ID")

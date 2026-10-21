@@ -53,6 +53,10 @@ def main(argv=None) -> int:
     ap.add_argument("--today", default=None, help="ISO date override")
     ap.add_argument("--now-iso", default=None, help="ISO datetime override")
     args = ap.parse_args(argv)
+    if os.name != "nt":
+        # private by default (2026-10-14, integration snapshot finding 2):
+        # the record, drawers and state are readable only by this account
+        os.umask(0o077)
 
     # The single wall-clock read.
     now = datetime.datetime.now()
@@ -87,6 +91,8 @@ def main(argv=None) -> int:
         print(json.dumps({"error": f"the Broker Desk is running on this state (pid {other}); "
                                    f"use its 'Run today's checks' button, or stop it first"}))
         return 2
+    from dispatcher.private_file import tighten_tree
+    tighten_tree(state_dir)                 # a folder an earlier version left readable
     from dispatcher.sweep_runner import run_daily_sweeps
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError

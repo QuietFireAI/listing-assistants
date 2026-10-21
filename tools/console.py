@@ -741,6 +741,10 @@ def main():
     rr.add_argument("--audit-log", default=None)
     rr.add_argument("--check", action="store_true", help="check only; change nothing")
     args = ap.parse_args()
+    if os.name != "nt":
+        # private by default (2026-10-14, integration snapshot finding 2):
+        # the record, drawers and state are readable only by this account
+        os.umask(0o077)
     if args.cmd == "session":
         # a running desk holds this state: refuse first, as cmd_session does
         folder = os.path.dirname(os.path.abspath(args.audit_log or AUDIT_PATH))
@@ -769,6 +773,11 @@ def main():
                 raise
             _p(damaged_record_error(e, args.audit_log or AUDIT_PATH))
             return 2
+    # a state folder an earlier version left readable to others
+    from dispatcher.private_file import tighten_tree
+    tighten_tree(STATE_DIR)
+    if getattr(args, "audit_log", None):
+        tighten_tree(os.path.dirname(os.path.abspath(args.audit_log)))
     try:
         return {"init": cmd_init, "attest": cmd_attest, "onboard": cmd_onboard,
                 "session": cmd_session,

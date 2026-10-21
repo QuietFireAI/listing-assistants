@@ -41,6 +41,8 @@ def _exam_str(ck: dict) -> str:
 
 
 def main(argv=None) -> int:
+    if os.name != "nt":
+        os.umask(0o077)     # what this writes about clients is readable only by this account
     parser = argparse.ArgumentParser(description="Manage the model checkpoint manifest.")
     parser.add_argument("--list", action="store_true", help="List checkpoints and the active pointer.")
     parser.add_argument("--snapshot", action="store_true", help="Record today's restore point.")

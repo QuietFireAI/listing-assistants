@@ -18,6 +18,16 @@ error is raised - a readable secret is never left behind.
 
 is_private() answers the same question for an existing file on either
 system; the tests use it.
+
+private_by_default() and tighten_tree() (added 2026-10-14, integration
+snapshot finding 2): everything else the product writes - the record,
+client drawers, readable logs, the state store - was created with the
+system default (0644 files, 0755 folders on Linux), readable by every
+account on the machine. Each program that writes client data now sets a
+private umask (0o077) before it writes anything, and tightens a state
+folder an earlier version left readable. Linux / macOS only: on Windows,
+files under your user folder inherit permissions that keep other standard
+accounts out, and umask does not apply.
 """
 from __future__ import annotations
 
@@ -141,3 +151,35 @@ def write_private(path: str, data: bytes, exclusive: bool = False) -> None:
         except OSError:
             pass
         raise
+
+
+def private_by_default() -> None:
+    """New files and folders this process creates are readable only by its
+    user (umask 0o077). Linux / macOS; nothing to do on Windows."""
+    if not WINDOWS:
+        os.umask(0o077)
+
+
+def tighten_tree(root: str) -> int:
+    """Removes group and other permissions from `root` and everything under
+    it (files and folders an earlier version created readable). Symbolic
+    links are not followed. Returns how many entries were changed.
+    Linux / macOS; nothing to do on Windows."""
+    if WINDOWS or not os.path.isdir(root):
+        return 0
+    import stat
+    changed = 0
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        for name in [None, *dirnames, *filenames]:
+            path = dirpath if name is None else os.path.join(dirpath, name)
+            try:
+                st = os.lstat(path)
+            except OSError:
+                continue
+            if stat.S_ISLNK(st.st_mode):
+                continue
+            mode = stat.S_IMODE(st.st_mode)
+            if mode & 0o077:
+                os.chmod(path, mode & ~0o077)
+                changed += 1
+    return changed
