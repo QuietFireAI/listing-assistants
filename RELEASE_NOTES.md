@@ -15,6 +15,17 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Windows install in one line, and the playbook show (2026-10-21, owner
+  decisions).** `install.ps1`: paste one PowerShell line; no admin, a
+  private Python 3.12, everything in `%LOCALAPPDATA%\ListingAssistants`,
+  your records kept on reinstall, desktop shortcuts for your Desk and for
+  the playbook show. CI runs the installer on a Windows machine from each
+  commit. `python tools\desk.py --playbooks` plays all 24 playbooks on the
+  desk, each in a fresh office, stopping at your moves, with each run's
+  after-action report. The desk's new **Outbox** lists what would have gone
+  out, marked not sent (no outside connections yet); the recap now says
+  "released on your signature", not "sent".
+
 - **Playbooks signed (2026-10-21).** You signed 22 of the 24 playbooks:
   P01 to P15 and P18 to P24 (each carries its own `ratified` line in
   `identity/playbooks.json`; P06 after it was changed to start at the
@@ -346,7 +357,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1310 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1312 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

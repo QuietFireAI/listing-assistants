@@ -11,3 +11,4 @@ dashboard.html
 *.safetensors
 *.pt
 showcase-state/
+playbook-show/

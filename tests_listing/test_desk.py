@@ -362,3 +362,42 @@ def test_release_hold_signs_the_release_and_the_client_can_be_messaged_again(tmp
         assert "no messages are held" in d.act({"action": "release_hold", "ctx": "H1"})["error"]
     finally:
         d.close()
+
+
+def test_the_playbook_show_plays_all_24_each_to_its_end(tmp_path):
+    """Owner request 2026-10-21: the 24 playbooks on the desk, for the video."""
+    d = desk_mod.Desk(str(tmp_path / "pbs"), playbooks=True)
+    try:
+        s = d.state()
+        assert s["mode"] == "playbooks" and s["showcase"]["kind"] == "playbooks"
+        assert s["showcase"]["title"].startswith("P01 ") and s["showcase"]["purpose"]
+        steps, presses, errors = press_through(d)
+        assert errors == [] and presses == 13
+        offices = os.path.join(d.state_dir, "offices")
+        assert sorted(os.listdir(offices)) == [f"P{i:02d}" for i in range(1, 25)]
+        for pb in sorted(os.listdir(offices)):
+            log = [json.loads(x) for x in open(os.path.join(offices, pb, "console-audit.jsonl"),
+                                                 encoding="utf-8")]
+            done = [e for e in log if e.get("kind") == "playbook.completed" and e.get("playbook") == pb]
+            assert done and done[0]["outcome"] == "completed", pb
+        last = d.state()
+        assert last["showcase"]["done"] and last["showcase"]["report"]["playbook"] == "P24"
+        assert "# After-Action - P24" in last["showcase"]["report"]["text"]
+        assert d.sw.hub.audit.verify_chain()["ok"]
+    finally:
+        d.close()
+
+
+def test_the_outbox_lists_what_would_have_gone_out_and_says_not_sent(tmp_path):
+    d = desk_mod.Desk(str(tmp_path / "ob"), playbooks=True)
+    try:
+        press_through(d)
+        # P24's office: nothing leaves; open P01's office instead
+        d.open_office("P01", fresh=False)
+        ob = d.state()["outbox"]
+        assert ob["connected"] is False and "Not sent" in ob["note"]
+        kinds = {o["intent"] for o in ob["items"]}
+        assert {"vendor.schedule", "client.message.send"} <= kinds   # P01 releases the booking
+        assert all("not sent" not in o["what"] for o in ob["items"])   # the page adds it
+    finally:
+        d.close()

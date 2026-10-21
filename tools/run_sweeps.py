@@ -53,8 +53,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    ap.add_argument("--audit-log", default=os.path.join(root, "console-state", "console-audit.jsonl"))
-    ap.add_argument("--state-db", default=os.path.join(root, "console-state", "swarm-state.sqlite"))
+    # the same state folder the console and the desk use: LISTINGASSISTANTS_
+    # STATE_DIR when set (the Windows installer sets it, 2026-10-21)
+    state = os.environ.get("LISTINGASSISTANTS_STATE_DIR") or os.path.join(root, "console-state")
+    ap.add_argument("--audit-log", default=os.path.join(state, "console-audit.jsonl"))
+    ap.add_argument("--state-db", default=os.path.join(state, "swarm-state.sqlite"))
     ap.add_argument("--config-dir", default=None)
     ap.add_argument("--today", default=None, help="ISO date override")
     ap.add_argument("--now-iso", default=None, help="ISO datetime override")

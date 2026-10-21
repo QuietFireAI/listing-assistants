@@ -10,6 +10,42 @@
 
 ---
 
+## 0. The one-line install (recommended, 2026-10-21)
+
+Open **Windows PowerShell** and paste:
+
+```powershell
+iex (irm https://raw.githubusercontent.com/QuietFireAI/listing-assistants/main/install.ps1)
+```
+
+No admin rights and no Python of your own are needed. Everything goes into
+one folder, `%LOCALAPPDATA%\ListingAssistants`:
+
+| Folder | What it is |
+|---|---|
+| `tools\` | uv, the program that fetches Python |
+| `python\` | a private Python 3.12, used only by ListingAssistants |
+| `app\` | ListingAssistants itself |
+| `venv\` | its installed requirements |
+| `state\` | **your records**: operator key, audit log, saved state. Kept on every reinstall |
+| `playbook-show\` | the playbook show's synthetic offices |
+
+The first run asks your name and the email you sign as. When it finishes,
+two shortcuts are on your desktop:
+
+- **ListingAssistants Desk**: your Broker Desk, on your records, opens in your browser.
+- **ListingAssistants Playbook Show**: all 24 playbooks played on synthetic
+  data, one fresh office each, stopping when it is your move (docs\BROKER_DESK_MANUAL.md, section 12a).
+
+Run the same line again to update: your records and key are kept, and the
+new install is attested with your key. To remove everything, delete the
+folder and the two shortcuts. Nothing reaches the outside world yet: client
+messages, vendor bookings and ads stop in the desk's Outbox, marked not sent.
+
+The steps below are the manual install, for developers.
+
+---
+
 ## 1. Prerequisites (2 Minutes)
 
 Before installing ListingAssistants, ensure the machine has Python installed:
@@ -77,7 +113,7 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `1310 passed, 1 skipped` (CI runs this on Windows on every push;
+Expected: `1312 passed, 1 skipped` (CI runs this on Windows on every push;
 the skipped test checks Linux / macOS file permissions). It takes
 several minutes on Windows - every audit-log write is flushed to disk - where
 Linux takes about two minutes. The suite runs every agent's rules and all 24

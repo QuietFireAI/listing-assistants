@@ -24,6 +24,61 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/test_desk.py -q
+  windows-installer:
+    # The one-line installer, run for real on a Windows machine (owner
+    # decision 2026-10-21): a private Python through uv, the app from this
+    # exact commit, the operator key and onboarding, the launchers. Then the
+    # installed copy plays all 24 playbooks on the desk, the desk starts on
+    # the installed records, and a second run keeps those records.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      LA_HOME: ${{ github.workspace }}\..\LA
+      LA_REF: ${{ github.sha }}
+      LA_NAME: CI Broker
+      LA_LOGIN: ci@example.test
+      LA_NO_SHORTCUTS: "1"
+    steps:
+      - name: install with the one line, from this commit
+        shell: pwsh
+        run: iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
+      - name: the installed copy runs on its own Python and plays the playbooks
+        shell: pwsh
+        run: |
+          $py = Join-Path $env:LA_HOME "venv\Scripts\python.exe"
+          $base = & $py -c "import sys; print(sys.base_prefix)"
+          Write-Host "base Python: $base"
+          if (-not $base.StartsWith((Join-Path $env:LA_HOME "python"))) { throw "not the private Python: $base" }
+          Set-Location (Join-Path $env:LA_HOME "app")
+          & $py -m pytest tests_listing/test_desk.py -k "playbook_show or outbox" -q -p no:cacheprovider
+          if ($LASTEXITCODE -ne 0) { throw "the playbook show failed in the installed copy" }
+      - name: the desk starts on the installed records and answers
+        shell: pwsh
+        run: |
+          $py = Join-Path $env:LA_HOME "venv\Scripts\python.exe"
+          $env:LISTINGASSISTANTS_STATE_DIR = Join-Path $env:LA_HOME "state"
+          $desk = Join-Path $env:LA_HOME "app\tools\desk.py"
+          $p = Start-Process -FilePath $py -ArgumentList "`"$desk`"" -PassThru -NoNewWindow
+          $state = $null
+          for ($i = 0; $i -lt 60 -and -not $state; $i++) {
+            Start-Sleep -Seconds 1
+            try { $state = Invoke-RestMethod http://127.0.0.1:8765/api/state } catch {}
+          }
+          Stop-Process -Id $p.Id -Force
+          if (-not $state) { throw "the desk did not answer in 60 s" }
+          Write-Host "mode: $($state.mode)  operator: $($state.operator.login)"
+          if ($state.mode -ne "live" -or $state.operator.login -ne "ci@example.test") { throw "wrong desk" }
+          $lock = Join-Path $env:LISTINGASSISTANTS_STATE_DIR "desk.lock"
+          if (Test-Path $lock) { Remove-Item $lock }   # the hard stop left it behind
+      - name: a second run keeps your records and attests the new install
+        shell: pwsh
+        run: |
+          $key = Join-Path $env:LA_HOME "state\operator-key.bin"
+          $before = (Get-FileHash $key).Hash
+          iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
+          if ((Get-FileHash $key).Hash -ne $before) { throw "the reinstall replaced your key" }
+          $op = Get-Content (Join-Path $env:LA_HOME "state\operator.json") | ConvertFrom-Json
+          if ($op.login -ne "ci@example.test") { throw "the reinstall lost who you are" }
   windows-full-suite:
     # The whole suite on Windows, a gate since run 38321234628 (1003 passed
     # then; today's count is in QUICKSTART_WINDOWS.md, held by test_doc_counts).
