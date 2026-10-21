@@ -16,8 +16,8 @@ end-to-end test.
 ## Changes in this release
 
 - **Playbooks signed (2026-10-21).** You signed P01 to P05, P07 to P13, P15,
-  P18, P19 and P21 to P24 (each carries its own `ratified` line in
-  `identity/playbooks.json`); P06, P14, P16, P17 and P20 are not signed yet.
+  P14, P18 to P24 (each carries its own `ratified` line in
+  `identity/playbooks.json`); P06, P16 and P17 are not signed yet.
   With the signing: a nurture touch Agent 11 did not send is reported back
   to Agent 03 and tried again (P11); a **Release hold** button on the Broker
   Desk for a client held after a complaint (P14); the vacant-property check

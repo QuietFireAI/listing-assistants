@@ -320,13 +320,13 @@ def test_a_tracker_failure_never_blocks_the_hub(tmp_path, monkeypatch):
 
 def test_a_playbook_signed_on_its_own_runs_ratified(tmp_path):
     table = json.load(open(os.path.join(ROOT, "identity", "playbooks.json")))
-    # P16 is one the owner held on 2026-10-21; P20 is still unsigned too
+    # P16 is one the owner held on 2026-10-21; P17 is still unsigned too
     table["playbooks"]["P16"]["ratified"] = "RATIFIED 2026-10-21 Jeff Phillips (walkthrough)"
     path = tmp_path / "t.json"
     path.write_text(json.dumps(table))
     sw, _ = _swarm(tmp_path)
     rt = run_tracker.RunTracker(sw, table_path=str(path))
-    assert rt.table.status_for("P16") == "RATIFIED" and rt.table.status_for("P20") == "PROPOSED"
+    assert rt.table.status_for("P16") == "RATIFIED" and rt.table.status_for("P17") == "PROPOSED"
     assert "P16" in [e for e in _kinds(sw, "playbook.table")][-1]["ratified_playbooks"]
 
 
