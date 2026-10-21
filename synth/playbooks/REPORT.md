@@ -17,7 +17,7 @@ after-action report and show the playbook's own evidence. The table is
 | P03 | PLAYBOOK | intake | PASS | P03 Under-Contract Transition: start to end |  |
 | P04 | PLAYBOOK | intake | PASS | P04 Open House Cycle: start to end | the walk-in arrives as an inquiry and runs P11 on its own client |
 | P05 | PLAYBOOK | intake | PASS | P05 Expired/Withdrawn Wind-down: start to end |  |
-| P06 | PLAYBOOK | intake | PASS | P06 New Buyer Onboarding: start to end | the run starts when you record the signed buyer agreement; the first match comes from a listing of ours going live |
+| P06 | PLAYBOOK | intake | PASS | P06 New Buyer Onboarding: start to end | owner change 2026-10-21: the run starts at the buyer's first criteria, so the wait for the signed agreement is inside it; our listing goes live, the match is held (no agreement), you record the agreement, and the next clock run sends the first match |
 | P07 | PLAYBOOK | intake | PASS | P07 Tour Day Coordination: start to end | feedback is asked for the day after the showing, which also tells Agent 18 the showing happened |
 | P08 | PLAYBOOK | intake | PASS | P08 Offer-to-Acceptance: start to end |  |
 | P09 | PLAYBOOK | intake | PASS | P09 Contract-to-Close: start to end | the settlement statement arrives from the title company through Agent 11, from a sender you listed; the inspection never got its report, so the close waits for you and continues on your decision |

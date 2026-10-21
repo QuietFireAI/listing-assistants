@@ -217,10 +217,10 @@
     {
      "intent": "config.update",
      "from": "human",
-     "to": "14",
-     "eq": {
-      "buyer_agreement_on_file": true
-     }
+     "to": "13",
+     "has": [
+      "buyer_criteria"
+     ]
     }
    ],
    "ends": [

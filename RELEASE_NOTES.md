@@ -17,7 +17,9 @@ end-to-end test.
 
 - **Playbooks signed (2026-10-21).** You signed P01 to P05, P07 to P13, P15,
   P14, P18 to P24 (each carries its own `ratified` line in
-  `identity/playbooks.json`); P06, P16 and P17 are not signed yet.
+  `identity/playbooks.json`); P06 (changed to start at the buyer's first
+  criteria), P16 and P17 are not signed yet. The tuple map's placements are
+  accepted.
   With the signing: a nurture touch Agent 11 did not send is reported back
   to Agent 03 and tried again (P11); a **Release hold** button on the Broker
   Desk for a client held after a complaint (P14); the vacant-property check

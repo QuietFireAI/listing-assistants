@@ -2,7 +2,7 @@
 
 <!-- written by tools/gen_tuple_map.py from synth/tuples/TUPLE_MAP.json, the tuple specs and identity/playbooks.json; edit those, not this page -->
 
-**PROPOSED 2026-10-21 - every tuple read and placed by hand by Claude for the owner's review; the owner's corrections are made here.**
+**ACCEPTED 2026-10-21 by Jeff Phillips as placed (every tuple read and placed by hand by Claude; the owner's corrections are made here).**
 
 A tuple is one rule for one hard case: the situation, what the agent does, and what it must never do. There are 273 (269 in force, 4 retired). Each is sorted below by what it protects (category) and how bad a failure would be (tier).
 

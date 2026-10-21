@@ -153,7 +153,7 @@ Listing reaches expiration date (07/05 tracked) or seller withdrawal confirmed b
 **Agents touched (from step tables):** 10, 11, 13, 14, 17
 
 ### Trigger
-Signed written buyer agreement filed (08) and recorded (14).
+The buyer's first criteria, signed by you to Agent 13 (owner change 2026-10-21; before, the run started at the recorded buyer agreement). Getting the signed written buyer agreement filed (08) and recorded (14) is now inside the run: matches wait for it, you are told once, and the daily clock sends the held matches once it is recorded.
 
 ### HITL gates
 (none listed beyond swarm-wide gates)

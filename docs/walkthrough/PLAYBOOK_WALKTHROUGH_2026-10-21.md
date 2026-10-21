@@ -4,8 +4,13 @@ P01 signed 2026-10-21. P02 signed 2026-10-21.
 ## Signing round, 2026-10-21 (after the decisions)
 - Signed: P03, P04, P05, P07, P08, P09, P10, P11, P12, P13, P15, P18, P19, P21,
   P22, P23, P24. P02 re-confirmed after decision 3 changed its start.
-- Held by you: P06 (you want a change, not yet named), P16 and P17 (let them
-  run on real mornings and evenings first).
+- Held by you: P16 and P17 (let them run on real mornings and evenings first).
+- P06, your change: the run starts at the buyer's first criteria (was: at the
+  signed agreement), so the wait for the agreement is inside the run and its
+  after-action report. The session now shows it: criteria, our listing goes
+  live, the match is held, you record the agreement, the next clock run sends
+  the first match. Not signed yet: waiting for you.
+- Tuple map: you accepted every placement as I made it.
 - P11, signed with "fix the retry gap next": done. Agent 11 now tells Agent 03
   when a nurture touch did not go out (complaint hold, no consent, opt-out,
   quiet hours, unresolved variable; new route 11 -> 03
