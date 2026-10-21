@@ -37,6 +37,8 @@ function Step($text) { Write-Host ""; Write-Host "== $text" -ForegroundColor Cya
 function Fail($text) { Write-Host ""; Write-Host "INSTALL STOPPED: $text" -ForegroundColor Red; throw $text }
 
 $LaHome = if ($env:LA_HOME) { $env:LA_HOME } else { Join-Path $env:LOCALAPPDATA "ListingAssistants" }
+# a full path with no ".." in it, so paths compare as Python reports them
+$LaHome = [System.IO.Path]::GetFullPath($LaHome)
 $Ref = if ($env:LA_REF) { $env:LA_REF } else { "main" }
 $Tools = Join-Path $LaHome "tools"
 $PyDir = Join-Path $LaHome "python"
@@ -99,7 +101,9 @@ if ($LASTEXITCODE -ne 0) { Fail "uv could not make the environment in $Venv" }
 & $Uv pip install --python $Py -r (Join-Path $App "requirements.txt")
 if ($LASTEXITCODE -ne 0) { Fail "the requirements did not install" }
 $base = & $Py -c "import sys; print(sys.base_prefix)"
-if (-not $base.StartsWith($PyDir)) { Fail "the environment is not on the private Python (it uses $base)" }
+if (-not $base.StartsWith($PyDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Fail "the environment is not on the private Python (it uses $base, expected under $PyDir)"
+}
 Say "Python: $base"
 
 # --- 4. your key, who you are, the attestation ----------------------------------------

@@ -45,10 +45,11 @@ jobs:
       - name: the installed copy runs on its own Python and plays the playbooks
         shell: pwsh
         run: |
-          $py = Join-Path $env:LA_HOME "venv\Scripts\python.exe"
+          $home_ = [System.IO.Path]::GetFullPath($env:LA_HOME)
+          $py = Join-Path $home_ "venv\Scripts\python.exe"
           $base = & $py -c "import sys; print(sys.base_prefix)"
           Write-Host "base Python: $base"
-          if (-not $base.StartsWith((Join-Path $env:LA_HOME "python"))) { throw "not the private Python: $base" }
+          if (-not $base.StartsWith((Join-Path $home_ "python"), [System.StringComparison]::OrdinalIgnoreCase)) { throw "not the private Python: $base" }
           Set-Location (Join-Path $env:LA_HOME "app")
           & $py -m pytest tests_listing/test_desk.py -k "playbook_show or outbox" -q -p no:cacheprovider
           if ($LASTEXITCODE -ne 0) { throw "the playbook show failed in the installed copy" }
