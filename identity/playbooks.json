@@ -86,7 +86,8 @@
    ],
    "conflicts_with": [
     "P05"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P02 run reviewed and signed)"
   },
   "P03": {
    "name": "Under-Contract Transition",
@@ -221,10 +222,10 @@
     {
      "intent": "config.update",
      "from": "human",
-     "to": "13",
-     "has": [
-      "buyer_criteria"
-     ]
+     "to": "14",
+     "eq": {
+      "buyer_agreement_on_file": true
+     }
     }
    ],
    "ends": [
@@ -266,13 +267,8 @@
      "from": "06",
      "to": "14",
      "eq": {
-      "kind": "showing_feedback"
+      "kind": "feedback_received"
      }
-    },
-    {
-     "intent": "showing.feedback_response",
-     "from": "11",
-     "to": "06"
     }
    ]
   },
@@ -489,9 +485,11 @@
    ],
    "ends": [
     {
-     "audit": "desk.acknowledged",
+     "intent": "interaction.log",
+     "from": "11",
+     "to": "14",
      "eq": {
-      "title": "escalation.complaint"
+      "kind": "complaint_hold_released"
      }
     }
    ],
@@ -737,7 +735,7 @@
      "from": "06",
      "to": "14",
      "eq": {
-      "kind": "showing_feedback"
+      "kind": "feedback_received"
      }
     }
    ],

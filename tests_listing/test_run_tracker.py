@@ -57,9 +57,10 @@ def _kinds(sw, kind, ctx=None):
 
 def _comp(ctx, **extra):
     return _env("human", "10", "data.request", ctx,
-                {"mode": "comp", "license_scope": "internal",
-                 "comps": [{"id": f"c{i}", "age_days": 2, "source": "mls",
-                            "retrieved": "2026-10-14"} for i in range(6)], **extra})
+                {"mode": "comp", "license_scope": "internal", "today": "2026-10-15",
+                 "comps": [{"address": f"{i + 1} Synth Ln", "sold_price": 440000 + i * 5000,
+                            "source": "MLS-SYN", "retrieval_date": "2026-10-12"}
+                           for i in range(6)], **extra})
 
 
 def _listing(sw, signer, ctx, live=True):

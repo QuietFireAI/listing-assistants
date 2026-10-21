@@ -205,7 +205,7 @@ Specified above, not yet in the code (checked against `dispatcher/hub.py`,
 **Type:** Intake / front-of-funnel
 **Summary:** Front-of-funnel intake. Use when handling inbound calls, web forms, or texts from prospects to capture name, contact info, property interest, timeline, budget, and pre-approval status into a structured lead object.
 **Sends:** agent.status, client.message.request, interaction.log, lead.captured, record.request
-**Receives:** clock.tick, lead.inbound, lead.signal, record.response
+**Receives:** clock.tick, lead.inbound, lead.signal, listing.data, record.response
 **Predeliberated tuples:** 16 (see 01-lead-capture/DECISIONS.md)
 **Picture:** who it works with, in [01-lead-capture](../01-lead-capture/README.md)
 

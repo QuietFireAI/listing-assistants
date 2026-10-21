@@ -522,9 +522,12 @@ class Spoke06ShowingScheduler:
             self.hub.send(_env("06", "18", "agent.status", ctx,
                                {"waiting_on": "showing_feedback",
                                 "resolved": True}))
+            # P07 walkthrough (2026-10-21): Agent 11 forwards the client's
+            # words as "message"; this read only "response", so every
+            # feedback was logged empty
             self.hub.send(_env("06", "14", "interaction.log", ctx,
                                {"kind": "feedback_received",
-                                "response": env.payload.get("response")}))
+                                "response": env.payload.get("response") or env.payload.get("message")}))
             return
 
         if env.intent == "showing.no_show":

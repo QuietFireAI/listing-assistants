@@ -621,6 +621,10 @@ class Spoke01LeadCapture:
         # configured yet = everything is out of scope until set (fail closed,
         # same discipline as freight's service_scope).
         self.brokerage_scope = brokerage_scope or set()
+        # the brokerage's own listings, as Agent 05 records them (P04
+        # walkthrough 2026-10-21): kept apart from the signed scope, so a
+        # signed scope that replaces the set never drops a listing we hold
+        self.own_listings: set[str] = set()
         # phone/email already on the do-not-call/do-not-contact list
         self.dnc_list = dnc_list or set()
         self.record_response_timeout_days = record_response_timeout_days
@@ -654,6 +658,11 @@ class Spoke01LeadCapture:
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
             from .clock import handle_tick
             return handle_tick(self, "01", env)
+        if env.intent == "listing.data" and env.from_agent == "05":
+            for k in ("listing_id", "address"):
+                if env.payload.get(k):
+                    self.own_listings.add(env.payload[k])
+            return
         if env.intent == "config.update" and ("brokerage_scope" in env.payload
                                               or "dnc_add" in env.payload):
             # Broker-signed (config.update is signature-gated at the hub).
@@ -760,7 +769,8 @@ class Spoke01LeadCapture:
             interest = payload.get("property_interest", {})
             addr_or_listing = interest.get("address") or interest.get("listing_id")
             out_of_scope = (addr_or_listing is not None
-                           and addr_or_listing not in self.brokerage_scope)
+                           and addr_or_listing not in self.brokerage_scope
+                           and addr_or_listing not in self.own_listings)
             if out_of_scope:
                 self.hub.ingest_spoke_trace(
                     "01", env.envelope_id,

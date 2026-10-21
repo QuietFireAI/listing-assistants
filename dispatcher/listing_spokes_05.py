@@ -111,6 +111,13 @@ class Spoke05MLSListingManagement:
                             "occupancy": self.occupancy.get(ctx),
                             "state": _state_of(self.property_data.get(ctx, {}).get("address")),
                             "facts_for": "showings"}))
+        # P04 walkthrough (2026-10-21): Agent 01 learns the brokerage's own
+        # listings, so an inquiry about one is not "outside our scope"
+        self.hub.send(_env("05", "01", "listing.data", ctx,
+                           {"listing_id": ctx,
+                            "address": self.property_data.get(ctx, {}).get("address"),
+                            "status": self.mls_records.get(ctx, {}).get("status"),
+                            "facts_for": "scope"}))
 
     def _set_occupancy(self, ctx: str, env: Envelope, occupancy, interval, today):
         if occupancy not in ("vacant", "occupied") or (

@@ -224,19 +224,38 @@ class Spoke12MarketingCampaign:
             if ctx in self.published:
                 halted = self.published.pop(ctx)
                 self.approved_awaiting_ccp.pop(ctx, None)
+                # P03/P05 walkthrough (2026-10-21): an ad still held for your
+                # release never went out, so there is nothing on a platform
+                # to halt; but released after this, it would publish an ad
+                # for a listing that is no longer active. You are asked to
+                # decline it, and no halt message is sent for it.
+                held = bool(halted.get("envelope_id")) and \
+                    self.hub.outbound_state(halted["envelope_id"]) == "held"
                 self.hub.ingest_spoke_trace(
                     "12", env.envelope_id,
-                    thought=f"status.update {new_status!r} consumed - "
-                            f"halting ALL marketing for this context; a "
-                            f"live ad for a {new_status} listing is a "
-                            f"compliance exposure and a seller wound",
-                    result="marketing_halted")
-                self.hub.send(_env("12", "external", "campaign.publish", ctx,
-                                   {"action": "halt",
-                                    "reason": f"listing_status_{new_status}"}))
+                    thought=(f"status.update {new_status!r} consumed - the ad is still held "
+                             f"for the broker, never published; asking for it to be declined"
+                             if held else
+                             f"status.update {new_status!r} consumed - "
+                             f"halting ALL marketing for this context; a "
+                             f"live ad for a {new_status} listing is a "
+                             f"compliance exposure and a seller wound"),
+                    result="held ad flagged" if held else "marketing_halted")
+                if not held:
+                    self.hub.send(_env("12", "external", "campaign.publish", ctx,
+                                       {"action": "halt",
+                                        "reason": f"listing_status_{new_status}"}))
                 self.hub.send(_env("12", "14", "interaction.log", ctx,
-                                   {"kind": "marketing_halted",
-                                    "status": new_status}))
+                                   {"kind": "marketing_halted", "status": new_status,
+                                    "ad": "held, never published" if held else "live, halt sent"}))
+                if held:
+                    self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                       {"reason": f"the listing is now {new_status}; its ad is "
+                                                  f"still held for your release. Decline it: "
+                                                  f"released, it would publish an ad for a "
+                                                  f"{new_status} listing",
+                                        "held_envelope_id": halted["envelope_id"],
+                                        "agent": "12"}))
             else:
                 self.approved_awaiting_ccp.pop(ctx, None)
                 self.hub.ingest_spoke_trace(

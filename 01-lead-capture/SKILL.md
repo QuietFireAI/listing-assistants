@@ -91,6 +91,7 @@ Dispatcher returns an `ack`.
 | OUT | → 18 Calendar & Task | Wait-state signal (dedupe pending) | `agent.status` |
 | IN | ← Clock (through the hub) | Daily tick: dedupe answer overdue | `clock.tick` |
 | IN | ← Broker (signed) | Settings: brokerage scope, do-not-contact additions | `config.update` |
+| IN | ← 05 MLS & Listing Management | The brokerage's own listings, so an inquiry about one is in scope (added 2026-10-21, P04 walkthrough) | `listing.data` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

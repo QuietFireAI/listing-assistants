@@ -25,6 +25,7 @@ flowchart LR
         O06["06 Showing Scheduler"]
         O10["10 Market Data"]
         O13["13 Buyer Search and Match"]
+        O01["01 Lead Capture"]
         O09["09 Vendor Coordination"]
         O14["14 CRM and Pipeline"]
         O11["11 Client Communication"]
@@ -42,6 +43,7 @@ flowchart LR
     A05 -- "shares the listing details<br/>answers with the listing's status" --> O06
     A05 -- "shares the listing details" --> O10
     A05 -- "shares the listing details" --> O13
+    A05 -- "shares the listing details" --> O01
     A05 -- "asks to book a vendor" --> O09
     A05 -- "logs it in the CRM<br/>reports the listing's status" --> O14
     A05 -- "reports the listing's status" --> O11

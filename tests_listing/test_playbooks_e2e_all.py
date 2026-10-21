@@ -38,6 +38,13 @@ def full_swarm(tmp_path):
     return hub, signer, spokes, external
 
 
+def _comps(n, retrieved):
+    """Comparables with the provenance Agent 10 keeps (source and retrieval
+    date); 2026-10-21: the e2e comps lacked it and were all dropped."""
+    return [{"address": f"{i + 1} Comp Ln", "sold_price": 440000 + i * 5000,
+             "source": "MLS-SYN", "retrieval_date": retrieved} for i in range(n)]
+
+
 def clean(hub):
     assert hub.queues["dead.letter"] == [], hub.queues["dead.letter"]
     assert hub.audit.verify_chain()["ok"]
@@ -72,12 +79,13 @@ def test_p02_price_adjustment(tmp_path):
     _new_listing(hub, signer, ctx)
     # Phase A: human requests decision support from 10
     hub.send(spoke_env("human", "10", "data.request", ctx,
-                       {"mode": "comp", "license_scope": "internal",
-                        "comps": [{"id": f"c{i}", "age_days": 3,
-                                   "source": "mls", "retrieved": "2026-07-02"}
-                                  for i in range(6)]}))
+                       {"mode": "comp", "license_scope": "internal", "today": "2026-07-02",
+                        "comps": _comps(6, "2026-07-01")}))
     pkgs = persisted(hub, "data.package")
     assert pkgs, "A2: comp package never delivered"
+    # 2026-10-21: the comps here had no provenance field Agent 10 reads, so
+    # every one was dropped and an empty package passed this test
+    assert pkgs[-1]["payload"]["comp_count"] == 6
     assert "opinion" not in str(pkgs[-1]["payload"]).lower() or \
         pkgs[-1]["payload"].get("opinion") is None
     # Phase B: signed price change
@@ -458,13 +466,11 @@ def test_p15_cma_prep(tmp_path):
     ctx = "p15"
     # thin comps (3 < comp_minimum 5)
     hub.send(spoke_env("human", "10", "data.request", ctx,
-                       {"mode": "comp", "license_scope": "internal",
-                        "comps": [{"id": f"c{i}", "age_days": 2,
-                                   "source": "mls",
-                                   "retrieved": "2026-07-15"}
-                                  for i in range(3)]}))
+                       {"mode": "comp", "license_scope": "internal", "today": "2026-07-15",
+                        "comps": _comps(3, "2026-07-14")}))
     pkgs = [e for e in persisted(hub, "data.package")]
     assert pkgs, "package never delivered"
+    assert pkgs[-1]["payload"]["comp_count"] == 3, "three real comps, reported thin"
     assert pkgs[-1]["payload"].get("thin") or \
         "thin" in str(pkgs[-1]["payload"]).lower(), \
         "3: thin comps must be reported thin"
@@ -660,13 +666,11 @@ def test_p23_price_review_evidence(tmp_path):
     # 1b/2a: evidence to human
     hub.send(spoke_env("human", "10", "data.request", ctx,
                        {"mode": "comp", "license_scope": "internal",
-                        "deliver_to": "human",
-                        "comps": [{"id": f"c{i}", "age_days": 4,
-                                   "source": "mls",
-                                   "retrieved": "2026-07-16"}
-                                  for i in range(6)]}))
+                        "deliver_to": "human", "today": "2026-07-16",
+                        "comps": _comps(6, "2026-07-15")}))
     pkgs = [e for e in persisted(hub, "data.package")]
     assert pkgs, "2a: package never delivered"
+    assert pkgs[-1]["payload"]["comp_count"] == 6
     assert "recommended_price" not in str(pkgs[-1]["payload"]) and \
         "suggested_price" not in str(pkgs[-1]["payload"]), \
         "the swarm must produce no number"

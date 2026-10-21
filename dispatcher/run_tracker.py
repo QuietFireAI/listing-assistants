@@ -501,6 +501,10 @@ class RunTracker:
                 self._halt_on_track(rid, env, res)
                 continue
             single = self.table.playbooks[run["playbook"]].get("single_message")
+            # a message held for your release has not happened yet: it ends
+            # the run when you release it (P12 walkthrough 2026-10-21)
+            if status == "held":
+                continue
             if (single and first) or (not first and self.table.ends_on(run["playbook"], env)):
                 self._end(rid, "completed", None)
 
