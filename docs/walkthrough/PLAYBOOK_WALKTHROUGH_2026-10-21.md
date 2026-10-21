@@ -9,7 +9,7 @@ P01 signed 2026-10-21. P02 signed 2026-10-21.
   signed agreement), so the wait for the agreement is inside the run and its
   after-action report. The session now shows it: criteria, our listing goes
   live, the match is held, you record the agreement, the next clock run sends
-  the first match. Not signed yet: waiting for you.
+  the first match. Signed by you after the change.
 - Tuple map: you accepted every placement as I made it.
 - P11, signed with "fix the retry gap next": done. Agent 11 now tells Agent 03
   when a nurture touch did not go out (complaint hold, no consent, opt-out,
