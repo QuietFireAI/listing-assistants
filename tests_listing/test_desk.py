@@ -76,7 +76,7 @@ def played(tmp_path_factory):
 def test_showcase_plays_all_ten_scenes_with_your_presses(played):
     d, steps, presses, errors = played
     assert errors == []
-    assert presses == 5          # the scenes' release and decide lines
+    assert presses == 6          # the scenes' release and decide lines (scene 7's close decision added 2026-10-21)
     assert d.state()["showcase"]["done"]
 
 

@@ -15,6 +15,7 @@ flowchart LR
         I05["05 MLS and Listing Management"]
         IB(["You (broker)"])
         I19["19 Prospecting"]
+        I18["18 Calendar and Task Management"]
     end
     A10(("10 Market Data"))
     subgraph OUT["Talks to"]
@@ -24,15 +25,18 @@ flowchart LR
         O14["14 CRM and Pipeline"]
         OB(["You (broker)"])
         O17["17 Compliance and Fair Housing"]
+        O18["18 Calendar and Task Management"]
     end
     I05 -- "shares the listing details" --> A10
     IB -- "asks for market data<br/>your signed settings" --> A10
     I19 -- "asks for market data" --> A10
+    I18 -- "asks for its part of the morning briefing" --> A10
     A10 -- "delivers the market data" --> OB
     A10 -- "delivers the market data" --> O19
     A10 -- "logs it in the CRM" --> O14
     A10 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
     A10 -- "sends it for a compliance check" --> O17
+    A10 -- "delivers a report" --> O18
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
@@ -50,8 +54,11 @@ Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs
 - [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
 - [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
 - [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
 - [P12 - Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12---geographic-farm-campaign)
 - [P15 - CMA / Listing Appointment Prep](../docs/PLAY-BY-PLAY.md#p15---cma--listing-appointment-prep)
+- [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
 - [P23 - Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23---price-review-evidence)
 - [P24 - Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24---prospecting-outreach-probation-mode)
 

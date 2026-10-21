@@ -105,7 +105,9 @@ def test_13_match_record_flags_expired_preapproval(tmp_path):
     s.hub.on_turn_start()
     s._match_one("pf-1", {"listing_id": "L1", "price": 400000, "area": "north"},
                  env("10", "x", "pf-1", {}))
-    rec = s.match_history["pf-1"][0]
+    # no Agent 14 here, so the match waits for the buyer agreement
+    # (decision 4, 2026-10-21); the record it will be sent with is the same
+    rec = s.held_matches["pf-1"][0]["match"]
     assert rec["unverified_financing"] is True, \
         "expired preapproval must mark the match record"
 
@@ -115,7 +117,7 @@ def test_13_match_record_flags_expired_preapproval(tmp_path):
     s2.hub.on_turn_start()
     s2._match_one("pf-2", {"listing_id": "L2", "price": 400000, "area": "north"},
                   env("10", "x", "pf-2", {}))
-    assert s2.match_history["pf-2"][0]["unverified_financing"] is False
+    assert s2.held_matches["pf-2"][0]["match"]["unverified_financing"] is False
 
 
 # ------------------------------------------------------------ 209

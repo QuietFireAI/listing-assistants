@@ -59,7 +59,7 @@ finding: capture it, do not work around it.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1291 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1300 passed, 1 skipped
 python tools/console.py init             # generates YOUR signing key
 python tools/console.py onboard          # your name and login, asked once
 ```
@@ -215,10 +215,15 @@ The console prints each line's result as `{"line": N, ...}`; a page
 8. Clock run for 2026-10-22: no repeat alerts - **once** means once.
 9. The title company named as the expected sender of the settlement
    statement (signed).
-10. The settlement statement arrives by email; 07 closes the transaction to
-    14, 15 and 16 with the sale price and close date.
-11. The client's entry on 16's past-client list (signed).
-12. Clock run for 2026-12-02: `{"agent": "16", "sweep":
+10. The settlement statement arrives by email. The inspection and the
+    financing contingency were never marked done, so 07 does not close: a
+    decision page names them ("these milestones are still open:
+    financing_contingency, inspection") and 18 shows the close waiting.
+11. Your decision: `continue`. 07 records the two as waived by you and closes
+    the transaction to 14, 15 and 16 with the sale price and close date.
+    (Cancel leaves the transaction open.)
+12. The client's entry on 16's past-client list (signed).
+13. Clock run for 2026-12-02: `{"agent": "16", "sweep":
     "post_close_milestones", "result": "sent:30"}` - the 30-day check-in, from
     the clock, with nobody asking, and it reaches the client because the
     consent is on record. Two legal-line pages: the inspection report and

@@ -26,6 +26,7 @@ from dispatcher.listing_spokes_07 import Spoke07TransactionCoordinator
 from dispatcher.listing_spokes_08 import Spoke08DocumentCollection
 from dispatcher.listing_spokes_09 import Spoke09VendorCoordination
 from dispatcher.listing_spokes_10 import Spoke10MarketData
+from dispatcher.listing_spokes_19 import Spoke19Prospecting
 from dispatcher.listing_spokes_11 import Spoke11ClientCommunication
 from dispatcher.listing_spokes_12 import Spoke12MarketingCampaign
 from dispatcher.listing_spokes_13 import Spoke13BuyerSearchMatch
@@ -78,6 +79,8 @@ def build_swarm(tmp_path):
         "16": Spoke16AfterCloseReferral(hub),
         "17": Spoke17ComplianceFairHousing(hub, brokerage_identification=BROKERAGE_ID),
         "18": Spoke18CalendarTask(hub),
+        # the morning briefing asks 19 for prospects waiting (decision 8, 2026-10-21)
+        "19": Spoke19Prospecting(hub),
     }
     hub.on_turn_start()
     return hub, signer, spokes, external_seen

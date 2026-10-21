@@ -5,9 +5,9 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 
 | Result | Tuples |
 |---|---|
-| PASS | 247 |
+| PASS | 245 |
 | VARIANCE | 2 |
-| NOT REACHABLE | 15 |
+| NOT REACHABLE | 17 |
 | NOT BUILT | 5 |
 | RETIRED | 4 |
 
@@ -17,7 +17,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 00-02 | 00 | intake | PASS | (signature invalid on authority intent, reject + integrity.violation; notify human out-of-band) |  |
 | 00-03 | 00 | none | NOT BUILT | (two signed config.update conflict, apply neither; human) | Declared in 00-dispatcher/DECISIONS.md (code status): the hub does not compare two signed config.update instructions. |
 | 00-04 | 00 | fault | PASS | (audit log unwritable or queue overflow, stop accepting envelopes entirely; fail closed, loudly) | Harness: from the fault on, every human-queue append fails (T2 hot-lead escalation is the first). The hub halts, alerts out of band, and refuses T3. Fail closed since 2026-10-15 (core hub-fail-closed). |
-| 00-05 | 00 | intake | PASS | (two playbooks match a situation, deploy neither; clarification with both named) | the held request waits on your choice; nothing reaches Agent 10 until you choose |
+| 00-05 | 00 | none | NOT REACHABLE | (two playbooks match a situation, deploy neither; clarification with both named) | No message starts two playbooks in the table since the owner's comps decision of 2026-10-21 (a comparables request is P23 on a live listing of ours, P15 otherwise). The hold, the choice and cancel are tested with a table where two playbooks share a start: tests_listing/test_run_tracker.py (test_two_matches_run_neither_and_you_choose and the two after it). |
 | 00-06 | 00 | intake | PASS | (two playbooks claim the same spoke segment, class decides; equal class = holder keeps, FIFO behind; every siding event logged) | four starts wait on a full queue; released by class (P05 class 2, P01 class 3, P24 class 4), the two class-3 starts for Agent 05 wait on the siding behind the withdrawal in arrival order; the listing's own setup raises two questions of its own, so three are marked done |
 | 00-07 | 00 | fault | PASS | (an envelope arrives with sequence pre-filled, reject; sequence is hub-stamped at persist, a pre-filled sequence is a forgery signal) | Harness: an envelope built with a sequence already set, straight to the hub. |
 | 00-08 | 00 | none | NOT REACHABLE | (spoke acks but its trace is absent, result tainted at ingestion; integrity queue; the ack stands, the CONTENT is quarantined) | The product's 20 agents always write a trace. The taint gate fires on an empty model trace (Agent 04 drafting with a served model), which this runner does not have. |
@@ -67,8 +67,8 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 03-03 | 03 | none | RETIRED | (sequence content contains expired market data, regenerate before send, or skip the touch) - RETIRED 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data | Retired 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data. |
 | 03-04 | 03 | stand-in | PASS | (two sequences eligible for one lead, run neither until the human picks; never stack sequences) | Stand-in: Agent 02 only ever assigns default_drip, so a second eligible sequence does not arise from intake; the runner sends it as Agent 02. |
 | 03-05 | 03 | intake | PASS | (engagement spike detected, rescore via 02; never convert a signal into direct outreach yourself) | An engagement spike of 80 on a nurtured lead. The tuple: re-score through 02, never outreach. The last check expects the re-score to land on a real tier (the lead's stored inputs), not UNKNOWN. |
-| 03-06 | 03 | intake | PASS | (contact replies STOP or equivalent, suppression across ALL channels immediately; confirmation only if channel rules allow) |  |
-| 03-07 | 03 | intake | PASS | (sequence step lands on a legal holiday or outside contact hours, shift to next legal window; never send anyway) | Contact hours only: the daily clock flags no legal holidays (no holiday calendar exists, DECISIONS.md code status). |
+| 03-06 | 03 | intake | PASS | (contact replies STOP or equivalent, suppression across ALL channels immediately; confirmation only if channel rules allow) | The inquiry arrives at 22:00, outside contact hours, so the day-0 touch waits for the clock (owner decision 7, 2026-10-21); the STOP comes first and no touch ever goes. |
+| 03-07 | 03 | intake | PASS | (sequence step lands on a legal holiday or outside contact hours, shift to next legal window; never send anyway) | The inquiry arrives at 22:00: the day-0 touch, due at once since owner decision 7 (2026-10-21), is held outside contact hours, and the 22:00 clock run holds it again. Contact hours only: the daily clock flags no legal holidays (no holiday calendar exists, DECISIONS.md code status). |
 | 03-08 | 03 | intake | PASS | (engagement spike mid-sequence, pause sequence + lead.rescored to 02; never keep dripping on a hot signal) |  |
 | 03-09 | 03 | none | RETIRED | (nurture content references a listing that changed status, pull the step; stale property claims are fabrications) - RETIRED 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data | Retired 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data. |
 | 03-10 | 03 | stand-in | PASS | (two sequences would target one context, one sequence per context, newest signed instruction wins; overlap logged) | Stand-in: a signed reassignment to a different sequence does not arise from intake (Agent 02 only assigns default_drip). |
@@ -272,7 +272,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 20-04 | 20 | intake | PASS | (praise post detected, log only; no auto-engagement) |  |
 | 20-05 | 20 | intake | PASS | (question arrives via DM vs public, both route to 01; channel recorded in provenance) | Both reach Agent 01. The channel rides in the payload, not in the envelope provenance as the tuple words it. |
 | 20-06 | 20 | none | RETIRED | (EXPANSION DEFERRED BY OWNER - social phase is later; existing tuples stand; lead.signal handoff rules in P11 remain the only active surface, ) | Owner deferral note (social expansion later), not a decision; nothing to run. |
-| SW-01 | SWARM | intake | PASS | (two playbooks match one trigger, run neither; clarification.request naming both) | the held request waits on your choice; nothing reaches Agent 10 until you choose |
+| SW-01 | SWARM | none | NOT REACHABLE | (two playbooks match one trigger, run neither; clarification.request naming both) | No message starts two playbooks in the table since the owner's comps decision of 2026-10-21 (a comparables request is P23 on a live listing of ours, P15 otherwise). The hold, the choice and cancel are tested with a table where two playbooks share a start: tests_listing/test_run_tracker.py (test_two_matches_run_neither_and_you_choose and the two after it). |
 | SW-02 | SWARM | stand-in | PASS | (a playbook step conflicts with an agent's legal line, halt playbook; integrity.violation - spec defect, never a judgment call) | Agent 06 is stood in for, sending a client message itself; the closed track refuses it (only Agent 11 sends to clients) |
 | SW-03 | SWARM | intake | PASS | (workload exceeds capacity, priority order: escalations > active-transaction deadlines > client-facing requests > internal/marketing > discovery; ties go to the older item) | released in priority order: the withdrawal (class 2) before the new listings (class 3) before prospecting (class 4); within a class the older first; the listing's own setup raises two questions of its own, so three are marked done |
 | SW-04 | SWARM | intake | PASS | (signed human instruction conflicts with a playbook, signed human wins; deviation logged in the after-action report) | P18 says send the weekly report; you cancelled this week's; your decision stands and the report lists it |

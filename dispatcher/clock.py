@@ -39,14 +39,15 @@ CHECKS: dict[str, list[tuple]] = {
            ("vendor_holdups", "check_vendor_holdups", "timelines", ("ctx", "today"), True)],
     "08": [("chase_timeout", "check_chase_timeout", "pending_requests", ("ctx", "doc_type"), True),
            ("disclosure_deadline", "check_disclosure_deadlines", "pending_requests", ("ctx", "today"), True)],
-    "13": [("match_digest_flush", "flush_match_digest", "matches_today", ("ctx",), True)],
-    "14": [("eod_report", "generate_report", None, ("eod",), False),
+    "13": [("held_match_recheck", "recheck_held_matches", "held_matches", ("ctx",), True),
+           ("match_digest_flush", "flush_match_digest", "matches_today", ("ctx",), True)],
+    "14": [("eod_report", "generate_report", None, ("eod", "today"), False),
            ("date_triggers", "check_client_dates", "client_dates", ("ctx", "today"), True),
            ("access_custody", "check_access_custody", "access_grants", ("ctx", "today"), True)],
     "16": [("post_close_milestones", "check_post_close_milestones", "closed_transactions", ("ctx", "today"), True)],
     "17": [("review_sla", "check_sla", "pending_reviews", ("ctx", "today"), True)],
     "18": [("showing_no_show", "check_showing_no_show", "showings", ("ctx", "now_iso"), True),
-           ("morning_briefing", "generate_briefing", None, ("morning",), True)],
+           ("morning_briefing", "generate_briefing", None, ("morning", "today"), True)],
 }
 
 TICK_INTENT = "clock.tick"

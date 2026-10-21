@@ -11,6 +11,7 @@ import os
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
 from .drawer_filing import file_record
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -130,6 +131,8 @@ class Spoke07TransactionCoordinator:
             self._load_transaction_milestone_config() or
             self._DEFAULT_TRANSACTION_MILESTONES)
         self.timelines: dict[str, dict] = {}  # ctx -> {milestone: {deadline, satisfied, artifact}}
+        # closings held because milestones were still open (2026-10-21)
+        self.pending_closings: dict[str, dict] = {}
         self.offer_status: dict[str, dict] = {}  # ctx -> {stage, response_deadline}
         # tracks outstanding vendor.request per (ctx, milestone) -> date sent,
         # cleared on the matching deliverable.release. 07 is cc'd on 09's
@@ -138,6 +141,7 @@ class Spoke07TransactionCoordinator:
         # timer to HITL, independent of and faster than deadline expiry.
         self.vendor_requests_pending: dict[str, dict[str, str]] = {}
         register_spoke(hub, "07", self)
+        register_resumer(hub, "07", self._resume)
 
     def kind_to_milestone(self, vendor_kind: str) -> str | None:
         """Reverse lookup, genuinely derived from transaction_milestone_config
@@ -169,6 +173,38 @@ class Spoke07TransactionCoordinator:
                                    "agent": "07"})
                 return True
         return False
+
+    def _close(self, ctx: str, closed_payload: dict, source_id: str):
+        self.hub.ingest_spoke_trace(
+            "07", source_id,
+            thought="closing artifact on file - executing "
+                    "transaction.closed to 16/14/15, triggering P10",
+            result="transaction.closed issued")
+        for to in ("16", "14", "15"):
+            self.hub.send(_env("07", to, "transaction.closed", ctx, closed_payload))
+
+    def _resume(self, ws, decision_payload: dict):
+        """Your decision on a closing held for open milestones."""
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        held = self.pending_closings.get(ctx)
+        if held is None or d == "other":
+            return "nothing held" if held is None else "decision not continue/cancel"
+        self.pending_closings.pop(ctx)
+        if d == "cancel":
+            self.hub.send(_env("07", "14", "interaction.log", ctx,
+                               {"kind": "closing_left_open", "open_milestones": held["open"]}))
+            return "closing left open"
+        for m in held["open"]:
+            entry = self.timelines.get(ctx, {}).get(m)
+            if entry is not None:
+                entry["satisfied"] = True
+                entry["artifact"] = "waived by the broker"
+        self.hub.send(_env("07", "14", "interaction.log", ctx,
+                           {"kind": "milestones_waived_at_closing",
+                            "milestones": held["open"], "by": "broker decision"}))
+        self._close(ctx, held["payload"], ws.wait_id)
+        return f"closed; {held['open']} recorded as waived by you"
 
     def handle(self, env: Envelope):
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
@@ -449,17 +485,28 @@ class Spoke07TransactionCoordinator:
                                   "sale_price": payload.get("sale_price"),
                                   "signed_docs_only":
                                       payload.get("signed_docs_only", False)}
-                self.hub.ingest_spoke_trace(
-                    "07", env.envelope_id,
-                    thought="closing artifact on file - executing "
-                            "transaction.closed to 16/14/15, triggering P10",
-                    result="transaction.closed issued")
-                self.hub.send(_env("07", "16", "transaction.closed", ctx,
-                                   closed_payload))
-                self.hub.send(_env("07", "14", "transaction.closed", ctx,
-                                   closed_payload))
-                self.hub.send(_env("07", "15", "transaction.closed", ctx,
-                                   closed_payload))
+                # owner decision 2026-10-21 (P09 walkthrough): milestones still
+                # open at closing are named to the broker and the close waits.
+                # Continue closes it, the open ones recorded as waived by the
+                # broker; cancel leaves the deal open.
+                still_open = sorted(m for m, e in self.timelines.get(ctx, {}).items()
+                                    if m != "closing" and not e.get("satisfied"))
+                if still_open:
+                    self.pending_closings[ctx] = {"payload": closed_payload,
+                                                  "open": still_open}
+                    self.hub.ingest_spoke_trace(
+                        "07", env.envelope_id,
+                        thought=f"settlement statement on file but {still_open} still open - "
+                                f"closing held for the broker",
+                        result="held: open milestones at closing")
+                    hold_for_human(self.hub, "07", ctx, "transaction.closed",
+                                   f"the settlement statement is on file, but these milestones "
+                                   f"are still open: {', '.join(still_open)}. Continue = close "
+                                   f"the deal, the open ones recorded as waived by you; cancel = "
+                                   f"leave it open.",
+                                   {"open_milestones": still_open})
+                    return
+                self._close(ctx, closed_payload, env.envelope_id)
                 return
 
             if entry is not None and payload.get("artifact_on_file"):

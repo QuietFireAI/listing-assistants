@@ -24,6 +24,11 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
                                 "verbatim_available": True})
 
 
+def _local_now_iso() -> str:
+    import datetime
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
 _LEGAL_LINE_WORDS = ("what should i offer", "should i list at",
                     "negotiate", "contract terms", "legal opinion")
 
@@ -86,6 +91,12 @@ class Spoke03LeadNurture:
     # TUNABLE (added 2026-07-17): legal_contact_hours=(8, 21) - matches
     # Agent 11's quiet_hours convention (24h clock, wraps if start>end).
     # See docs/TUNING_MANUAL.md to change.
+    # NOW (added 2026-10-21, owner decision 7): the time of day used to send
+    # the day-0 touch at once when Compliance clears the sequence, if the
+    # start message carried no now_iso: this computer's local clock. Not a
+    # tuning value. A class attribute, not saved state, so a test can fix it.
+    NOW = staticmethod(_local_now_iso)
+
     def __init__(self, hub, frequency_cap_per_week: int = 3,
                  legal_contact_hours: tuple[int, int] = (8, 21)):
         self.hub = guard(hub, "03")   # handoff rule (audit TU-2)
@@ -207,6 +218,22 @@ class Spoke03LeadNurture:
             seq["sent"].append(i)
             sent_now.append(i)
         return f"sent:{sent_now}" if sent_now else "none_due"
+
+    def _send_day0(self, ctx: str, seq: dict, envelope_id: str):
+        """Owner decision 7 (2026-10-21): the day-0 touch goes at once when
+        Compliance clears the sequence, not on the next day's clock run -
+        but only inside legal contact hours. Outside them it is held and
+        the clock check sends it in the next window. Only touches due on
+        the start day go now; later touches stay on the clock."""
+        now_iso = seq.get("started_at") or type(self).NOW()
+        today = seq.get("started_on") or now_iso[:10]
+        result = self.send_due_touches(ctx, today, now_iso)
+        self.hub.ingest_spoke_trace(
+            "03", envelope_id,
+            thought=f"sequence cleared for ctx={ctx!r}: day-0 touch at once, inside "
+                    f"contact hours {self.legal_contact_hours} (time used: {now_iso})",
+            result=f"day 0: {result}")
+        return result
 
     def send_scheduled_touch(self, ctx: str, content: dict, today_week: str,
                              hour: int | None = None, is_legal_holiday: bool = False):
@@ -423,6 +450,7 @@ class Spoke03LeadNurture:
                                           # that will be sent, fixed at start
                                           "touches": [dict(t) for t in definition["touches"]],
                                           "started_on": env.payload.get("today"),
+                                          "started_at": env.payload.get("now_iso"),
                                           "sent": []}
             self.hub.send(_env("03", "18", "agent.status", ctx,
                                {"waiting_on": "compliance_review",
@@ -580,6 +608,8 @@ class Spoke03LeadNurture:
                     thought=f"compliance approved sequence content for "
                             f"ctx={ctx!r} - cleared to send",
                     result="sequence cleared")
+                if seq:
+                    self._send_day0(ctx, seq, env.envelope_id)
                 return
             if verdict == "flagged":
                 if seq:

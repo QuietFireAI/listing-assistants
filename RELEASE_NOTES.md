@@ -15,6 +15,19 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Owner playbook walkthrough (2026-10-21).** P01 and P02 signed. Ten
+  decisions applied (`docs/walkthrough/PLAYBOOK_WALKTHROUGH_2026-10-21.md`):
+  a comparables request starts P23 on a live listing and P15 otherwise;
+  buyer matches wait for the signed buyer agreement; stated criteria
+  exclude, numbers are minimums; a close with open milestones waits for
+  you, naming them; the day-0 nurture touch goes at once inside contact
+  hours; the morning briefing carries overnight leads, yesterday's books,
+  prospects waiting and market changes; the end-of-day books run on the
+  evening clock (`run_sweeps.py --evening`) with Agent 15's figures; each
+  prospect reaches you once, with its comps. Farm campaigns outside the
+  Clear Cooperation hold: confirmed. Found on the way: Agent 01 forwarded a
+  lead before logging its consent, which blocked an immediate touch.
+
 - **One product (owner decisions 2026-10-20).** The dispatcher core is
   part of this repository and no longer copied from dispatcher-agents
   (`dispatcher/CORE_ORIGIN.md`); the pillars are built in
@@ -32,7 +45,7 @@ end-to-end test.
   any missing tuple it found. All 24 playbooks run start to end through the
   console (`python synth/tuples/run_tuples.py --set playbooks`). Found and
   fixed on the way: a price change halted every live ad (Agent 12); a farm
-  campaign could never publish (Agent 12, owner to confirm the rule); there
+  campaign could never publish (Agent 12, rule confirmed 2026-10-21); there
   was no way to schedule an open house (Agent 06, P04 built). Settings:
   `docs/TUNING_MANUAL.md`, "Ratified 2026-10-15".
 
@@ -315,7 +328,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1291 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1300 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

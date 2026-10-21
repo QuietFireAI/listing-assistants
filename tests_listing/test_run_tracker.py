@@ -19,12 +19,27 @@ from dispatcher import run_tracker                                     # noqa: E
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def _swarm(tmp_path, state_db=False, signer=None):
+def _swarm(tmp_path, state_db=False, signer=None, table=None):
     signer = signer or Ed25519Signer()
     sw = build_swarm(os.path.join(str(tmp_path), "audit.jsonl"),
                      state_db=os.path.join(str(tmp_path), "state.db") if state_db else None,
-                     verifier=Ed25519Verifier(signer.public_key_bytes()).verifier())
+                     verifier=Ed25519Verifier(signer.public_key_bytes()).verifier(),
+                     playbook_table=table)
     return sw, signer
+
+
+def _two_match_table(tmp_path):
+    """The signed table has no message that starts two playbooks since the
+    owner's comps decision (2026-10-21). For the two-match hold, a table
+    where a comparables request starts P02, P15 and P23 again."""
+    t = json.load(open(os.path.join(ROOT, "identity", "playbooks.json")))
+    comp = {"intent": "data.request", "from": "human", "to": "10", "eq": {"mode": "comp"}}
+    for pid in ("P02", "P15", "P23"):
+        t["playbooks"][pid]["starts"] = t["playbooks"][pid]["starts"][:1] if pid == "P02" else []
+        t["playbooks"][pid]["starts"].append(dict(comp))
+    path = os.path.join(str(tmp_path), "two-match-table.json")
+    open(path, "w").write(json.dumps(t))
+    return path
 
 
 def _env(frm, to, intent, ctx, payload):
@@ -118,7 +133,7 @@ def test_an_unsigned_authority_starts_nothing_the_hub_refuses_it(tmp_path):
 
 # ------------------------------------------------------------------ two matches
 def test_two_matches_run_neither_and_you_choose(tmp_path):
-    sw, signer = _swarm(tmp_path)
+    sw, signer = _swarm(tmp_path, table=_two_match_table(tmp_path))
     res = sw.hub.send(_comp("A1"))
     assert res["status"] == "held" and res["candidates"] == ["P02", "P15", "P23"]
     assert not [e for e in _kinds(sw, "envelope.persisted", "A1") if e["intent"] == "data.request"]
@@ -130,7 +145,7 @@ def test_two_matches_run_neither_and_you_choose(tmp_path):
 
 
 def test_a_choice_outside_the_matches_is_held_again_and_cancel_drops(tmp_path):
-    sw, signer = _swarm(tmp_path)
+    sw, signer = _swarm(tmp_path, table=_two_match_table(tmp_path))
     sw.hub.send(_comp("A1"))
     out = _decide(sw, signer, "A1", "continue", {"playbook": "P99"})
     assert "held again" in out["handler_result"] and sw.runs.runs == {}
@@ -230,14 +245,17 @@ def test_a_full_queue_holds_new_starts_and_releases_them_by_class(tmp_path):
         [e for e in _kinds(sw, "escalation.raised") if e["queue"] == "escalation.queue_full"]) == 1
     _ack(sw, "Q0")
     [rel] = _kinds(sw, "playbook.waiting_released")
-    # P15 and P23 are class 3, P24 class 4: the two class-3 first, older first
-    assert rel["order"][0].startswith("P15:A1") and rel["order"][1].startswith("P23:A2") \
+    # neither A1 nor A2 is a live listing of ours, so both comps requests are
+    # P15 (class 3); prospecting P24 is class 4: the two class-3 first, older
+    # first
+    assert rel["order"][0].startswith("P15:A1") and rel["order"][1].startswith("P15:A2") \
         and rel["order"][2].startswith("P24:P1")
-    # P15 and P23 both go to Agent 10: the later one waited on the siding
+    # both P15 starts go to Agent 10: the later one waited on the siding
+    # behind the earlier (equal class, arrival order)
     holds = _kinds(sw, "siding.hold")
-    assert [h["run"].split(":")[0] for h in holds] == ["P23"] and holds[0]["sided_by"].startswith("P15")
+    assert [h["run"] for h in holds] == [rel["order"][1]] and holds[0]["sided_by"] == rel["order"][0]
     assert _kinds(sw, "siding.resume")
-    assert {r["playbook"] for r in sw.runs.runs.values()} == {"P15", "P23", "P24"}
+    assert sorted(r["playbook"] for r in sw.runs.runs.values()) == ["P15", "P15", "P24"]
 
 
 # ------------------------------------------------------------------- legal line
@@ -269,12 +287,13 @@ def test_an_unlisted_crossing_in_a_run_is_proposed_as_a_tuple(tmp_path):
 # ------------------------------------------------------------------- restarts
 def test_runs_and_a_held_choice_survive_a_restart(tmp_path):
     signer = Ed25519Signer()
-    sw, _ = _swarm(tmp_path, state_db=True, signer=signer)
+    table = _two_match_table(tmp_path)
+    sw, _ = _swarm(tmp_path, state_db=True, signer=signer, table=table)
     _listing(sw, signer, "L1", live=False)
     sw.hub.send(_comp("A1"))
     sw.save_state()
     sw.close()
-    sw2, _ = _swarm(tmp_path, state_db=True, signer=signer)
+    sw2, _ = _swarm(tmp_path, state_db=True, signer=signer, table=table)
     assert sw2.runs.open_runs() == ["P01-L1-1"]
     out = _decide(sw2, signer, "A1", "continue", {"playbook": "P15"})
     assert out["handler_result"].startswith("P15 started")
@@ -307,3 +326,14 @@ def test_a_playbook_signed_on_its_own_runs_ratified(tmp_path):
     rt = run_tracker.RunTracker(sw, table_path=str(path))
     assert rt.table.status_for("P15") == "RATIFIED" and rt.table.status_for("P23") == "PROPOSED"
     assert "P15" in [e for e in _kinds(sw, "playbook.table")][-1]["ratified_playbooks"]
+
+
+
+def test_a_comparables_request_is_p23_on_a_live_listing_and_p15_otherwise(tmp_path):
+    """Owner decision 2026-10-21 (comps): no hold; the listing decides."""
+    sw, signer = _live_listing_with_open_house(tmp_path)
+    sw.hub.send(_comp("L1"))
+    sw.hub.send(_comp("A9"))
+    by_ctx = {r["ctx"]: r["playbook"] for r in sw.runs.runs.values() if r["playbook"] in ("P15", "P23", "P02")}
+    assert by_ctx == {"L1": "P23", "A9": "P15"}
+    assert not _kinds(sw, "playbook.ambiguous")

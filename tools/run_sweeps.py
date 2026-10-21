@@ -8,6 +8,9 @@ nonzero if any check errored so the scheduler's own alerting fires.
 
 Deployment (any ONE of these):
   cron:     0 7 * * *  cd /path/to/listing-assistants && python tools/run_sweeps.py
+            0 18 * * * cd /path/to/listing-assistants && python tools/run_sweeps.py --evening
+            (the evening clock: Agent 14's end-of-day books, with Agent 15's
+            figures for the day, owner decision 9, 2026-10-21)
             */5 * * * *  cd /path/to/listing-assistants && python tools/run_sweeps.py --watch
             (the second re-alerts an escalation nobody has marked done at 30
             minutes and pages you at 60; once a day is too slow for that)
@@ -55,6 +58,8 @@ def main(argv=None) -> int:
     ap.add_argument("--config-dir", default=None)
     ap.add_argument("--today", default=None, help="ISO date override")
     ap.add_argument("--now-iso", default=None, help="ISO datetime override")
+    ap.add_argument("--evening", action="store_true",
+                    help="the evening clock: end-of-day books (14) with the day's figures (15)")
     ap.add_argument("--watch", action="store_true",
                     help="only re-alert unanswered escalations (run every few minutes)")
     args = ap.parse_args(argv)
@@ -98,7 +103,7 @@ def main(argv=None) -> int:
         return 2
     from dispatcher.private_file import tighten_tree
     tighten_tree(state_dir)                 # a folder an earlier version left readable
-    from dispatcher.sweep_runner import run_daily_sweeps
+    from dispatcher.sweep_runner import run_daily_sweeps, run_evening_sweep
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError
     from dispatcher.core import AuditLogBusy, AuditLogDamaged
@@ -138,6 +143,8 @@ def main(argv=None) -> int:
             from dispatcher.escalation_watch import check_unacknowledged
             results = [{"agent": "00", "sweep": "unacknowledged_escalations",
                         "result": check_unacknowledged(hub)}]
+        elif args.evening:
+            results = run_evening_sweep(hub, spokes, today=today, now_iso=now_iso)
         else:
             # a run on this machine's own clock is checked for skew; a run
             # with --today / --now-iso is a replay and is not

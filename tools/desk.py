@@ -729,6 +729,8 @@ class Showcase:
                         f"{a['to']} {NAMES.get(a['to'], '')} ({a.get('intent')}, {a.get('ctx')})")
             who = "From outside" if frm == "external" else f"{frm} {NAMES.get(frm, '')}"
             return f"{who}: {words(a.get('intent'))} ({a.get('ctx')})"
+        if do == "sweep" and a.get("evening"):
+            return f"The evening clock runs the end-of-day books for {a.get('today')}"
         if do == "sweep":
             return f"The daily clock runs for {a.get('today')}"
         if do == "show" and a.get("what") == "briefing":

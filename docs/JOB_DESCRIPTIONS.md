@@ -471,8 +471,8 @@ broker.
 
 **Type:** Data gathering (merged: CMA data + neighborhood & market research)
 **Summary:** Market data assembly with no opinions. Use for comp packages (recent sales, actives, expireds), buyer neighborhood packages (schools, crime, walkability, commute, amenities, HOA, flood zone, tax history), and farm-area macro trends.
-**Sends:** compliance.notice, data.package, interaction.log
-**Receives:** data.request, listing.data
+**Sends:** compliance.notice, data.package, interaction.log, report.package
+**Receives:** briefing.request, data.request, listing.data
 **Predeliberated tuples:** 11 (see 10-market-data/DECISIONS.md)
 **Picture:** who it works with, in [10-market-data](../10-market-data/README.md)
 
@@ -597,7 +597,7 @@ filtering is steering, and steering is a fair housing violation.
 **Type:** System of record
 **Summary:** System of record. Use for contact database maintenance, interaction logging, pipeline stage management, date trigger emission (birthdays, anniversaries, holidays), referral source tracking, and pipeline reports.
 **Sends:** date.trigger, record.response, report.package
-**Receives:** clock.tick, interaction.log, record.request, status.update, transaction.closed
+**Receives:** briefing.request, clock.tick, interaction.log, record.request, status.update, transaction.closed
 **Predeliberated tuples:** 14 (see 14-crm-pipeline/DECISIONS.md)
 **Picture:** who it works with, in [14-crm-pipeline](../14-crm-pipeline/README.md)
 
@@ -635,7 +635,7 @@ Reports go to the broker only. Conflicting facts are flagged on the new entry
 **Type:** Financial records
 **Summary:** Financial tracking. Use for commissions per transaction, marketing spend, lead source ROI, expense categorization, P&L summaries, pending commission payments, and tax-relevant expense flags.
 **Sends:** agent.status, record.request, report.package
-**Receives:** record.response, report.package, transaction.closed
+**Receives:** briefing.request, record.response, report.package, transaction.closed
 **Predeliberated tuples:** 10 (see 15-financial-tracking/DECISIONS.md)
 **Picture:** who it works with, in [15-financial-tracking](../15-financial-tracking/README.md)
 
@@ -734,8 +734,8 @@ Advertising without brokerage identification is caught from the submitter's
 
 **Type:** Personal assistant to the licensed agent
 **Summary:** Personal assistant to the licensed agent. Use for calendar and to-do management, daily priorities, morning briefings, end-of-day summaries, and time blocking.
-**Sends:** interaction.log, report.package, showing.no_show
-**Receives:** agent.status, calendar.event, clock.tick, deadline.alert
+**Sends:** briefing.request, interaction.log, report.package, showing.no_show
+**Receives:** agent.status, calendar.event, clock.tick, deadline.alert, report.package
 **Predeliberated tuples:** 9 (see 18-calendar-task/DECISIONS.md)
 **Picture:** who it works with, in [18-calendar-task](../18-calendar-task/README.md)
 
@@ -753,7 +753,10 @@ summaries; blocks time for prospecting, showings, and admin work.
 
 How the code does it today (checked 2026-10-12): the daily clock produces the
 morning briefing (calendar days, open waits, unresolved decisions, tracked
-deadlines) and checks showings for no-shows; the end-of-day report is Agent 14's.
+deadlines, and since 2026-10-21 the sections it asks 14, 15, 19 and 10 for:
+overnight leads, yesterday's books, prospects waiting, market changes) and
+checks showings for no-shows; the end-of-day report is Agent 14's, with Agent
+15's figures, on the evening clock.
 A protected block moves only on the broker's signed `move_protected_block`.
 To-do lists, time-blocking rules and recurring-task tracking are not yet in the
 code (nothing in the swarm reports a recurring task as completed).
@@ -762,8 +765,8 @@ code (nothing in the swarm reports a recurring task as completed).
 
 **Type:** Opportunity discovery (new)
 **Summary:** Prospecting discovery with zero outreach. Use for monitoring predefined zip codes for new listings and flagging expired and FSBO opportunities into the human review queue.
-**Sends:** agent.status, data.request, interaction.log, prospect.opportunity
-**Receives:** data.package, discovery.feed
+**Sends:** agent.status, data.request, interaction.log, prospect.opportunity, report.package
+**Receives:** briefing.request, data.package, discovery.feed
 **Predeliberated tuples:** 10 (see 19-prospecting/DECISIONS.md)
 **Picture:** who it works with, in [19-prospecting](../19-prospecting/README.md)
 

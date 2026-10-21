@@ -45,6 +45,22 @@ def lead_reply(ctx, payload):
                                 "verbatim_available": True})
 
 
+def answering_14(hub, on_file=True):
+    """A stand-in Agent 14 that answers 13's record.request with the buyer
+    agreement state (owner decision 4, 2026-10-21: matches wait for it)."""
+    state = {"on_file": on_file}
+
+    def handle(env):
+        if env.intent == "record.request":
+            hub.send(Envelope(from_agent="14", to_agent="13", intent="record.response",
+                              client_context_id=env.client_context_id,
+                              payload={"buyer_agreement_on_file": state["on_file"]},
+                              provenance={"source": "spoke-14", "captured_at": "runtime",
+                                          "verbatim_available": True}))
+    hub.register("14", handle)
+    return state
+
+
 def persisted(hub, intent=None):
     events = [e for e in hub.audit.read() if e["kind"] == "envelope.persisted"]
     return [e for e in events if intent is None or e["intent"] == intent]
@@ -153,6 +169,7 @@ def test_missing_hard_criterion_holds_without_standing_preference(tmp_path):
 def test_missing_hard_criterion_delivers_unknown_with_standing_preference(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke13BuyerSearchMatch(hub)
+    answering_14(hub)
     hub.on_turn_start()
     hub.send(config_update(signer, "b-010", {"buyer_criteria": [
         {"field": "garage", "value": True, "hard": True}]}))
@@ -177,6 +194,7 @@ def test_colleague_listing_escalates_before_showing_motion(tmp_path):
 def test_clean_match_delivers_via_11(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke13BuyerSearchMatch(hub)
+    answering_14(hub)
     hub.on_turn_start()
     hub.send(config_update(signer, "b-012", {"buyer_criteria": [
         {"field": "budget", "value": 500000, "hard": True}]}))
@@ -252,6 +270,7 @@ def test_showing_request_escalates_when_no_agreement_on_file(tmp_path):
 def test_preapproval_expiry_notifies_and_marks_matches(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke13BuyerSearchMatch(hub)
+    answering_14(hub)
     hub.on_turn_start()
     hub.send(config_update(signer, "b-018", {"buyer_criteria": [
         {"field": "budget", "value": 500000, "hard": True}]}))
@@ -280,19 +299,25 @@ def test_13_has_no_neighborhood_data_path(tmp_path):
 def test_overload_batches_into_ranked_digest_nothing_dropped(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke13BuyerSearchMatch(hub)
-    for a in ("11", "14", "18"):
+    for a in ("11", "18"):
         hub.register(a, lambda env: None)
+    answering_14(hub)
     hub.on_turn_start()
     ctx = "b-ovl"
     hub.send(config_update(signer, ctx, {"buyer_criteria": [
         {"field": "budget", "value": 500000},
-        {"field": "area", "value": "north"}]}))
-    # 8 matches same day: 5 ping individually, 3 defer to digest
+        {"field": "area", "value": "north"},
+        {"field": "beds", "value": 3}]}))
+    # 8 matches same day: 5 ping individually, 3 defer to digest. Since
+    # decision 5 (2026-10-21) a criterion the listing fails excludes it, so
+    # every listing is north; the odd ones do not say how many beds (unknown
+    # counts unmet in the rank).
     for i in range(8):
-        hub.send(listing_data(ctx, {
-            "listing_id": f"L{i}", "price": 400000 + i * 10000,
-            "area": "north" if i % 2 == 0 else "south",
-            "today": "2026-07-18"}))
+        listing = {"listing_id": f"L{i}", "price": 400000 + i * 10000,
+                   "area": "north", "today": "2026-07-18"}
+        if i % 2 == 0:
+            listing["beds"] = 3 + i % 4
+        hub.send(listing_data(ctx, listing))
     pings = [e for e in persisted(hub, "client.message.request")
              if e["payload"].get("template") == "new_match"]
     assert len(pings) == 5
@@ -306,8 +331,8 @@ def test_overload_batches_into_ranked_digest_nothing_dropped(tmp_path):
                if e["payload"].get("template") == "match_digest"]
     assert len(digests) == 1
     ids = [m["listing_id"] for m in digests[0]["payload"]["matches"]]
-    # overflow = L5(south,1 met), L6(north,2 met), L7(south,1 met)
-    # rank: L6 first (2 met), then L7 over L5 (tie, newest first)
+    # overflow = L5(beds unknown, 2 met), L6(3 met), L7(beds unknown, 2 met)
+    # rank: L6 first (3 met), then L7 over L5 (tie, newest first)
     assert ids == ["L6", "L7", "L5"]
     assert digests[0]["payload"]["rank_basis"] == "stated_criteria_met"
     # flush twice never re-sends
@@ -317,8 +342,9 @@ def test_overload_batches_into_ranked_digest_nothing_dropped(tmp_path):
 def test_overload_counter_resets_on_new_day(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke13BuyerSearchMatch(hub)
-    for a in ("11", "14", "18"):
+    for a in ("11", "18"):
         hub.register(a, lambda env: None)
+    answering_14(hub)
     hub.on_turn_start()
     ctx = "b-day"
     hub.send(config_update(signer, ctx, {"buyer_criteria": [
@@ -332,3 +358,55 @@ def test_overload_counter_resets_on_new_day(tmp_path):
     assert spoke.matches_today[ctx]["day"] == "2026-07-19"
     assert spoke.matches_today[ctx]["count"] == 1
     assert spoke.matches_today[ctx]["overflow"] == []
+
+
+# --------- owner decision 4 (2026-10-21): matches wait for the buyer agreement
+def test_a_match_is_held_until_the_buyer_agreement_is_on_file(tmp_path):
+    hub, signer = make_hub(str(tmp_path))
+    spoke = Spoke13BuyerSearchMatch(hub)
+    for a in ("11", "18"):
+        hub.register(a, lambda env: None)
+    fourteen = answering_14(hub, on_file=False)
+    hub.on_turn_start()
+    ctx = "b-agr"
+    hub.send(config_update(signer, ctx, {"buyer_criteria": [{"field": "budget", "value": 500000}]}))
+    hub.send(listing_data(ctx, {"listing_id": "H1", "price": 400000, "today": "2026-10-21"}))
+    hub.send(listing_data(ctx, {"listing_id": "H2", "price": 410000, "today": "2026-10-21"}))
+    new = [e for e in persisted(hub, "client.message.request")
+           if e["payload"].get("template") == "new_match"]
+    assert new == [] and spoke.match_history.get(ctx, []) == []
+    held = [e for e in persisted(hub, "interaction.log")
+            if e["payload"].get("kind") == "match_held_no_buyer_agreement"]
+    assert [e["payload"]["listing_id"] for e in held] == ["H1", "H2"]
+    asks = [e for e in persisted(hub, "clarification.request") if e["client_context_id"] == ctx]
+    assert len(asks) == 1, "the broker is told once, not once per match"
+    assert "no signed buyer agreement" in asks[0]["payload"]["reason"]
+    assert asks[0]["payload"]["held_listings"] == ["H1"]
+
+    assert spoke.recheck_held_matches(ctx) == "asked:2 held"   # still not on file
+    assert spoke.held_matches[ctx]
+    fourteen["on_file"] = True
+    spoke.recheck_held_matches(ctx)
+    new = [e["payload"]["match"]["listing_id"] for e in persisted(hub, "client.message.request")
+           if e["payload"].get("template") == "new_match"]
+    assert new == ["H1", "H2"] and not spoke.held_matches.get(ctx)
+    assert spoke.recheck_held_matches(ctx) == "nothing_held"
+
+
+# --------- owner decision 5 (2026-10-21): criteria exclude; numbers are minimums
+def test_stated_criteria_exclude_and_numbers_are_minimums(tmp_path):
+    hub, signer = make_hub(str(tmp_path))
+    spoke = Spoke13BuyerSearchMatch(hub)
+    for a in ("11", "18"):
+        hub.register(a, lambda env: None)
+    answering_14(hub)
+    hub.on_turn_start()
+    ctx = "b-min"
+    hub.send(config_update(signer, ctx, {"buyer_criteria": [
+        {"field": "beds", "value": 3}, {"field": "area", "value": "north"},
+        {"field": "garage", "value": True}]}))
+    for lid, extra in (("M1", {"beds": 2}), ("M2", {"beds": 4}), ("M3", {"beds": 3, "area": "south"}),
+                       ("M4", {"beds": 3, "garage": False}), ("M5", {"beds": 3, "garage": True})):
+        hub.send(listing_data(ctx, {"listing_id": lid, "area": "north", **extra}))
+    got = [m["listing_id"] for m in spoke.match_history.get(ctx, [])]
+    assert got == ["M2", "M5"], got

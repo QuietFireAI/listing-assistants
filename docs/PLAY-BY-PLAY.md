@@ -456,6 +456,9 @@ sequenceDiagram
     participant A13 as 13 Buyer Search and Match
     participant A14 as 14 CRM and Pipeline
     participant A16 as 16 After-Close and Referral
+    participant A15 as 15 Financial Tracking
+    participant A19 as 19 Prospecting
+    participant A10 as 10 Market Data
     participant X as Outside world
     B->>A17: your signed settings
     B->>A07: your signed settings
@@ -487,6 +490,14 @@ sequenceDiagram
     K->>A16: the daily clock runs
     K->>A17: the daily clock runs
     K->>A18: the daily clock runs
+    A18->>A14: asks for its part of the morning briefing
+    A14->>A18: delivers a report
+    A18->>A15: asks for its part of the morning briefing
+    A15->>A18: delivers a report
+    A18->>A19: asks for its part of the morning briefing
+    A19->>A18: delivers a report
+    A18->>A10: asks for its part of the morning briefing
+    A10->>A18: delivers a report
     A18->>B: delivers a report
 ```
 
@@ -538,6 +549,8 @@ sequenceDiagram
     participant A13 as 13 Buyer Search and Match
     participant A11 as 11 Client Communication
     participant A17 as 17 Compliance and Fair Housing
+    participant A19 as 19 Prospecting
+    participant A10 as 10 Market Data
     B->>A07: your signed settings
     A07->>A18: warns that a deadline is near
     A08->>A07: reports where a document stands
@@ -558,6 +571,14 @@ sequenceDiagram
     A11->>B: asks you - client messages are not being sent - no consent on record...
     K->>A17: the daily clock runs
     K->>A18: the daily clock runs
+    A18->>A14: asks for its part of the morning briefing
+    A14->>A18: delivers a report
+    A18->>A15: asks for its part of the morning briefing
+    A15->>A18: delivers a report
+    A18->>A19: asks for its part of the morning briefing
+    A19->>A18: delivers a report
+    A18->>A10: asks for its part of the morning briefing
+    A10->>A18: delivers a report
     A18->>B: delivers a report
 ```
 
@@ -715,9 +736,11 @@ kitchen is not a criteria change.
 sequenceDiagram
     autonumber
     actor B as You (broker)
+    participant A14 as 14 CRM and Pipeline
     participant A13 as 13 Buyer Search and Match
     participant A05 as 05 MLS and Listing Management
     participant A11 as 11 Client Communication
+    B->>A14: your signed settings
     B->>A13: your signed settings
     A05->>A13: shares the listing details
     A13->>A11: asks for a message to the client
@@ -837,12 +860,10 @@ sequenceDiagram
     participant X as Outside world
     B->>A19: your signed settings (x3)
     X->>A19: public records come in
-    A19->>B: brings a possible prospect
     A19->>A10: asks for market data
     A10->>A19: delivers the market data
     A19->>B: brings a possible prospect
     X->>A19: public records come in
-    A19->>B: brings a possible prospect
     A19->>A10: asks for market data
     A10->>A19: delivers the market data
     A19->>B: brings a possible prospect
@@ -875,7 +896,6 @@ sequenceDiagram
     B->>A17: your signed settings
     B->>A19: your signed settings (x2)
     X->>A19: public records come in
-    A19->>B: brings a possible prospect
     A19->>A10: asks for market data
     A10->>A19: delivers the market data
     A19->>B: brings a possible prospect
@@ -911,8 +931,20 @@ sequenceDiagram
     actor B as You (broker)
     participant A18 as 18 Calendar and Task Management
     participant A14 as 14 CRM and Pipeline
+    participant A15 as 15 Financial Tracking
+    participant A19 as 19 Prospecting
+    participant A10 as 10 Market Data
+    A18->>A14: asks for its part of the morning briefing
+    A14->>A18: delivers a report
+    A18->>A15: asks for its part of the morning briefing
+    A15->>A18: delivers a report
+    A18->>A19: asks for its part of the morning briefing
+    A19->>A18: delivers a report
+    A18->>A10: asks for its part of the morning briefing
+    A10->>A18: delivers a report
     A18->>B: delivers a report
-    A14->>B: delivers a report
+    A14->>A15: delivers a report
+    A15->>B: delivers a report
 ```
 
 *One recorded run of this playbook's test (`test_p16_morning_operations`), read top to bottom. Left out to keep it readable: each agent logging the step in the CRM (14), telling the calendar (18) what it is waiting on, and CRM look-ups.*
@@ -933,7 +965,9 @@ sequenceDiagram
     autonumber
     actor B as You (broker)
     participant A14 as 14 CRM and Pipeline
-    A14->>B: delivers a report
+    participant A15 as 15 Financial Tracking
+    A14->>A15: delivers a report
+    A15->>B: delivers a report
 ```
 
 *One recorded run of this playbook's test (`test_p17_end_of_day_books`), read top to bottom. Left out to keep it readable: each agent logging the step in the CRM (14), telling the calendar (18) what it is waiting on, and CRM look-ups.*

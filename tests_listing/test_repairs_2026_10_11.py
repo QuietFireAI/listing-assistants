@@ -184,6 +184,7 @@ def test_scope_replaces_and_dnc_only_adds(tmp_path):
 def test_new_listing_is_matched_against_every_buyer(tmp_path):
     sw, s = _swarm(tmp_path)
     for b in ("B-1", "B-2"):
+        sw.hub.send(_signed(s, "14", b, {"buyer_agreement_on_file": True}))   # decision 4, 2026-10-21
         sw.hub.send(_signed(s, "13", b, {"buyer_criteria": [{"field": "budget", "value": 500000}]}))
     sw.hub.send(_env("05", "13", "listing.data", "L-9", {"price": 450000, "today": "2026-10-12"}))
     m = [e for e in _persisted(sw, "client.message.request") if e["payload"].get("template") == "new_match"]
@@ -242,7 +243,8 @@ def test_nurture_sends_due_touches_once_each_after_clearance(tmp_path):
     sw.hub.send(_signed(s, "03", "x", {"nurture_sequences": {"default_drip": {"touches": [
         {"day": 0, "text": "hello"}, {"day": 3, "text": "listings"}]}}}))
     sw.hub.send(_env("02", "03", "lead.nurture", "W-1",
-                     {"tier": "WARM", "consent": {"email": "yes"}, "today": "2026-10-12"}))
+                     {"tier": "WARM", "consent": {"email": "yes"}, "today": "2026-10-12",
+                      "now_iso": "2026-10-12T23:00:00"}))   # outside hours: day 0 waits for the clock
     n = sw.spokes["03"]
     assert n.active_sequences["W-1"]["compliance_status"] == "cleared"
     assert n.send_due_touches("W-1", "2026-10-12", "2026-10-12T10:00:00") == "sent:[0]"
@@ -281,8 +283,11 @@ def test_opportunity_comps_reach_the_broker(tmp_path):
     sw.hub.send(_signed(s, "19", "x", {"zip_codes": ["44811"]}))
     sw.hub.send(_env("external", "19", "discovery.feed", "O-1",
                      {"listing_id": "M-1", "zip_code": "44811", "source": "mls", "status": "new"}))
-    ups = [e for e in _persisted(sw, "prospect.opportunity") if e["payload"].get("update") == "market_context"]
-    assert ups and ups[0]["payload"]["market_context"]["package_type"] == "comp"
+    # since 2026-10-21 (P24 walkthrough) the comps ride on the one message
+    # that reaches you, not on a second "update" after it
+    ops = [e for e in _persisted(sw, "prospect.opportunity") if e["to_agent"] == "human"]
+    assert len(ops) == 1 and "update" not in ops[0]["payload"]
+    assert ops[0]["payload"]["market_context"]["package_type"] == "comp"
 
 
 def test_job_descriptions_match_their_sources():

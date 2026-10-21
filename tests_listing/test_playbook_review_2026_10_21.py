@@ -107,6 +107,7 @@ def test_a_released_booking_takes_the_delivery_as_before(tmp_path):
 # ------------------------------------------------------------------- P02
 def _buyer(sw, signer_fn, ctx, budget):
     signer_fn("14", "config.update", ctx, {"consent_record": {"email": "yes"}})
+    signer_fn("14", "config.update", ctx, {"buyer_agreement_on_file": True})   # decision 4
     signer_fn("13", "config.update", ctx, {"buyer_criteria": [{"field": "budget", "value": budget}],
                                            "today": "2026-10-15"})
 
@@ -172,3 +173,149 @@ def test_an_ad_showing_the_old_price_is_flagged_with_where_it_is(tmp_path):
     [q] = [e for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"
            and e["intent"] == "clarification.request" and "old price" in str(e["payload"])]
     assert "held for your release" in q["payload"]["reason"] and "450000" in q["payload"]["reason"]
+
+
+# ------------------------------------------------- decision 7 (nurture day 0)
+def _nurture(tmp_path, now_iso=None):
+    signer = Ed25519Signer()
+    sw = build_swarm(os.path.join(str(tmp_path), "audit.jsonl"),
+                     verifier=Ed25519Verifier(signer.public_key_bytes()).verifier())
+    for to, payload in (("17", {"ruleset": {"prohibited_phrases": [], "state_rules": {}},
+                                "version": "r1"}),
+                        ("03", {"nurture_sequences": {"default_drip": {"touches": [
+                            {"day": 0, "text": "hello"}, {"day": 3, "text": "listings"}]}}})):
+        e = _env("human", to, "config.update", "x", payload)
+        signer.sign(e)
+        sw.hub.send(e)
+    start = {"tier": "WARM", "consent": {"email": "yes"}, "today": "2026-10-21"}
+    if now_iso:
+        start["now_iso"] = now_iso
+    sw.hub.send(_env("02", "03", "lead.nurture", "W-1", start))
+    return sw
+
+
+def _touches(sw):
+    return [e["payload"]["content"]["text"] for e in sw.hub.audit.read()
+            if e["kind"] == "envelope.persisted" and e["intent"] == "client.message.request"
+            and e["payload"].get("template") == "sequence_touch"]
+
+
+def test_the_day_0_touch_goes_at_once_when_compliance_clears_it(tmp_path):
+    sw = _nurture(tmp_path, "2026-10-21T10:15:00")
+    assert sw.spokes["03"].active_sequences["W-1"]["compliance_status"] == "cleared"
+    assert _touches(sw) == ["hello"], "day 0 at once, day 3 stays on the clock"
+    assert sw.spokes["03"].send_due_touches("W-1", "2026-10-21", "2026-10-21T15:00:00") == "none_due"
+
+
+def test_outside_contact_hours_the_day_0_touch_waits_for_the_next_window(tmp_path):
+    sw = _nurture(tmp_path, "2026-10-21T22:30:00")
+    assert _touches(sw) == []
+    assert sw.spokes["03"].send_due_touches("W-1", "2026-10-22", "2026-10-22T09:00:00") == "sent:[0]"
+    assert _touches(sw) == ["hello"]
+
+
+def test_with_no_time_on_the_start_this_computers_clock_decides(tmp_path, monkeypatch):
+    from dispatcher.listing_spokes_03 import Spoke03LeadNurture
+    monkeypatch.setattr(Spoke03LeadNurture, "NOW", staticmethod(lambda: "2026-10-21T06:00:00"))
+    assert _touches(_nurture(tmp_path / "early")) == []
+    monkeypatch.setattr(Spoke03LeadNurture, "NOW", staticmethod(lambda: "2026-10-21T12:00:00"))
+    assert _touches(_nurture(tmp_path / "noon")) == ["hello"]
+
+
+# ------------------------------------- decisions 8 and 9 (morning brief, evening books)
+def _desk(tmp_path):
+    signer = Ed25519Signer()
+    sw = build_swarm(os.path.join(str(tmp_path), "audit.jsonl"),
+                     verifier=Ed25519Verifier(signer.public_key_bytes()).verifier())
+
+    def signed(to, ctx, payload):
+        e = _env("human", to, "config.update", ctx, payload)
+        signer.sign(e)
+        return sw.hub.send(e)
+    return sw, signed
+
+
+def _to_human(sw, ctx):
+    return [e["payload"] for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+            and e["intent"] == "report.package" and e["to_agent"] == "human"
+            and e["client_context_id"] == ctx]
+
+
+def test_the_morning_briefing_carries_all_four_sections_each_reported_once(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, signed = _desk(tmp_path)
+    sw.hub.send(_env("external", "01", "lead.inbound", "N1",
+                     {"channel": "web_form", "today": "2026-10-20", "name": "N One",
+                      "consent": {"email": "yes"}, "phone": "(216) 555-0111"}))
+    sw.hub.send(_env("07", "15", "transaction.closed", "C1",
+                     {"sale_price": 400000, "commission_amount": 12000, "signed_docs_only": True,
+                      "close_date": "2026-10-20"}))
+    signed("15", "C1", {"add_expense": {"amount": 250, "categories": ["marketing"],
+                                        "receipt_on_file": True, "date": "2026-10-20"}})
+    signed("15", "C1", {"add_expense": {"amount": 99, "categories": ["marketing"],
+                                        "date": "2026-10-19"}})
+    signed("19", "x", {"zip_codes": ["44811"]})
+    sw.hub.send(_env("external", "19", "discovery.feed", "O1",
+                     {"listing_id": "M-1", "zip_code": "44811", "source": "mls", "status": "new"}))
+    sw.hub.send(_env("05", "10", "listing.data", "L1",
+                     {"listing_id": "L1", "changed_field": "price", "price": 440000,
+                      "prior_price": 450000, "today": "2026-10-20"}))
+
+    send_tick(sw.hub, "18", "2026-10-21", checks=["morning_briefing"])
+    [brief] = [p for p in _to_human(sw, "briefing") if p.get("briefing_type") == "morning"]
+    s = brief["sections"]
+    assert brief["sections_missing"] == []
+    assert [x["context"] for x in s["overnight_leads"]["leads"]] == ["N1"]
+    books = s["yesterdays_books"]
+    assert books["date"] == "2026-10-20" and books["commission_total"] == 12000
+    assert books["expense_total"] == 250, "the 2026-10-19 expense is not yesterday's"
+    assert [p["listing_id"] for p in s["prospects_waiting"]["prospects"]] == ["M-1"]
+    [chg] = s["market_changes"]["changes"]
+    assert (chg["change"], chg["value"], chg["prior_value"]) == ("price", 440000, 450000)
+
+    signed("19", "x", {"prospects_handled": ["M-1"]})
+    send_tick(sw.hub, "18", "2026-10-22", checks=["morning_briefing"])
+    second = [p for p in _to_human(sw, "briefing") if p.get("briefing_type") == "morning"][-1]["sections"]
+    assert second["overnight_leads"]["count"] == 0, "a lead is reported once"
+    assert second["market_changes"]["count"] == 0
+    assert second["prospects_waiting"]["count"] == 0
+    assert second["yesterdays_books"]["commission_total"] == 0
+
+
+def test_a_section_nobody_answers_is_named_missing(tmp_path):
+    from dispatcher.clock import send_tick
+    sw, _ = _desk(tmp_path)
+    sw.hub.handlers["19"] = lambda env: None      # 19 receives the ask and never answers
+    send_tick(sw.hub, "18", "2026-10-21", checks=["morning_briefing"])
+    [brief] = _to_human(sw, "briefing")
+    assert brief["sections"]["prospects_waiting"] is None
+    assert brief["sections_missing"] == [{"agent": "19", "section": "prospects_waiting",
+                                          "missing_source": "no answer to the briefing request"}]
+
+
+def test_a_section_sent_when_no_briefing_is_built_is_not_used(tmp_path):
+    sw, _ = _desk(tmp_path)
+    sw.hub.send(_env("19", "18", "report.package", "briefing",
+                     {"section": "prospects_waiting", "data": {"count": 99}}))
+    assert sw.spokes["18"]._sections is None
+    assert not _to_human(sw, "briefing")
+
+
+def test_the_evening_clock_sends_the_books_with_the_days_figures_once(tmp_path):
+    from dispatcher.sweep_runner import run_evening_sweep
+    sw, signed = _desk(tmp_path)
+    sw.hub.send(_env("07", "15", "transaction.closed", "C1",
+                     {"sale_price": 400000, "commission_amount": 12000, "signed_docs_only": True,
+                      "close_date": "2026-10-21"}))
+    signed("15", "C1", {"add_expense": {"amount": 250, "categories": ["marketing"],
+                                        "date": "2026-10-21"}})
+    out = run_evening_sweep(sw.hub, sw.spokes, today="2026-10-21")
+    assert [r["sweep"] for r in out] == ["eod_report"] and not out[0].get("error")
+    [books] = _to_human(sw, "eod-report")
+    assert books["report_type"] == "eod_books" and books["crm"]["report_type"] == "eod"
+    f = books["figures"]
+    assert (f["date"], f["commission_total"], f["expense_total"], f["expenses_unverified"]) == \
+        ("2026-10-21", 12000, 250, 1)
+    to_15 = [e for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+             and e["intent"] == "report.package" and e["from_agent"] == "14"]
+    assert [e["to_agent"] for e in to_15] == ["15"], "14's books go to 15, not straight to you"

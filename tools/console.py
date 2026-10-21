@@ -25,6 +25,7 @@ A session script is JSON Lines; each line is one action:
    "ctx": "lead-1", "payload": {...}}                               # spoke/external traffic
   {"do": "sweep", "today": "2026-07-19"}                            # run the clock layer
   {"do": "sweep", "clock": "live"}                                  # the clock layer on the wall clock, skew checked
+  {"do": "sweep", "today": "2026-07-19", "evening": true}           # the evening clock: end-of-day books (14 + 15's figures)
   {"do": "watch"}                                                   # re-alert unanswered escalations now
   {"do": "reload_identity"}                                         # re-read identity/routes.json; refused while work is open ("force": true overrides)
   {"do": "ack", "queue": "escalation.legal_line", "ctx": "T1"}      # mark that client's items in the queue done
@@ -458,6 +459,10 @@ def apply_action(sw, signer, operator, a, external=None):
         r = decide(sw, signer, a)
         if isinstance(r, dict) and r.get("error"):
             error = True
+    elif do == "sweep" and a.get("evening"):
+        # owner decision 9 (2026-10-21): the evening clock - end-of-day books
+        from dispatcher.sweep_runner import run_evening_sweep
+        r = run_evening_sweep(hub, spokes, today=a["today"], now_iso=a.get("now_iso"))
     elif do == "sweep":
         if a.get("clock") == "live":
             # the wall clock, as tools/run_sweeps.py reads it; skew is checked

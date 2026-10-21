@@ -15,6 +15,7 @@ flowchart LR
         I10["10 Market Data"]
         IB(["You (broker)"])
         IX[/"Outside world"/]
+        I18["18 Calendar and Task Management"]
     end
     A19(("19 Prospecting"))
     subgraph OUT["Talks to"]
@@ -29,12 +30,13 @@ flowchart LR
     I10 -- "delivers the market data" --> A19
     IB -- "your signed settings" --> A19
     IX -- "public records come in" --> A19
+    I18 -- "asks for its part of the morning briefing" --> A19
     A19 -- "asks for market data" --> O10
     A19 -- "brings a possible prospect" --> OB
     A19 -- "brings a possible prospect" --> O13
     A19 -- "logs it in the CRM" --> O14
     A19 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
-    A19 -- "reports what it is waiting on" --> O18
+    A19 -- "reports what it is waiting on<br/>delivers a report" --> O18
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
@@ -47,7 +49,10 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
 - [P12 - Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12---geographic-farm-campaign)
+- [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
 - [P24 - Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24---prospecting-outreach-probation-mode)
 
 ## The rules it follows

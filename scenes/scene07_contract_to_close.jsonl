@@ -8,5 +8,6 @@
 {"do": "sweep", "today": "2026-10-22"}
 {"do": "config", "to": "08", "ctx": "S7", "payload": {"expected_senders": {"closing_settlement_statement": ["title@example.test"]}}}
 {"do": "send", "from": "external", "to": "11", "intent": "client.reply", "ctx": "S7", "payload": {"message": "Final settlement statement attached", "document_attached": true, "doc_type": "closing_settlement_statement", "submitting_party": "title@example.test", "content_hash": "sha256-settlement-synthetic", "opens_correctly": true, "sale_price": 405000, "signed": true, "today": "2026-11-01"}}
+{"do": "decide", "ctx": "S7", "agent": "07", "decision": "continue"}
 {"do": "config", "to": "16", "ctx": "S7", "payload": {"client_list_entry": {"name": "Synthetic Seller"}}}
 {"do": "sweep", "today": "2026-12-02"}

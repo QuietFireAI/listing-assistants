@@ -283,7 +283,10 @@ def test_REGRESSION_frequency_cap_actually_enforced_now(tmp_path):
     spoke = with_sequences(Spoke03LeadNurture(hub, frequency_cap_per_week=2))
     hub.on_turn_start()
     ctx = "touch-001"
-    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
+    # started at 23:00, outside contact hours: the day-0 touch is held at
+    # clearance (decision 7, 2026-10-21), so this test sees only its own sends
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a",
+                              "now_iso": "2026-08-05T23:00:00"}))
     verdict = Envelope(from_agent="17", to_agent="03", intent="content.verdict",
                       client_context_id=ctx, payload={"verdict": "approved"},
                       provenance={"source": "spoke-17", "captured_at": "runtime",
@@ -377,7 +380,10 @@ def test_touch_held_outside_legal_contact_hours(tmp_path):
     spoke = with_sequences(Spoke03LeadNurture(hub, legal_contact_hours=(8, 21)))
     hub.on_turn_start()
     ctx = "hours-001"
-    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
+    # started at 23:00, outside contact hours: the day-0 touch is held at
+    # clearance (decision 7, 2026-10-21), so this test sees only its own sends
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a",
+                              "now_iso": "2026-08-05T23:00:00"}))
     verdict = Envelope(from_agent="17", to_agent="03", intent="content.verdict",
                       client_context_id=ctx, payload={"verdict": "approved"},
                       provenance={"source": "spoke-17", "captured_at": "runtime",
@@ -394,7 +400,10 @@ def test_touch_held_on_legal_holiday(tmp_path):
     spoke = with_sequences(Spoke03LeadNurture(hub))
     hub.on_turn_start()
     ctx = "hours-002"
-    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
+    # started at 23:00, outside contact hours: the day-0 touch is held at
+    # clearance (decision 7, 2026-10-21), so this test sees only its own sends
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a",
+                              "now_iso": "2026-08-05T23:00:00"}))
     verdict = Envelope(from_agent="17", to_agent="03", intent="content.verdict",
                       client_context_id=ctx, payload={"verdict": "approved"},
                       provenance={"source": "spoke-17", "captured_at": "runtime",

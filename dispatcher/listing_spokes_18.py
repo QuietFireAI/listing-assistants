@@ -90,6 +90,7 @@ class Spoke18CalendarTask:
     def __init__(self, hub, max_events_per_day: int = 8,
                  no_show_grace_minutes: int = 60):
         self.hub = guard(hub, "18")   # handoff rule (audit TU-2)
+        self._sections = None   # set only while a morning briefing is being built
         self.calendar: dict[str, list[dict]] = {}  # day -> events
         self.protected_blocks: dict[str, dict] = {}  # event_id -> {day, source: "07"}
         self.deadline_sources: dict[str, dict[str, dict[str, str]]] = {}  # ctx -> {milestone: {source: date}}
@@ -119,6 +120,21 @@ class Spoke18CalendarTask:
             return handle_tick(self, "18", env)
         ctx = env.client_context_id
         payload = env.payload
+
+        if env.intent == "report.package":
+            # owner decision 8 (2026-10-21): a briefing section, accepted only
+            # from the agent that owns it and only while a briefing is built
+            name = payload.get("section")
+            owner = dict((n, a) for a, n in self.BRIEF_SECTIONS).get(name)
+            if self._sections is None or owner != env.from_agent:
+                self.hub.ingest_spoke_trace(
+                    "18", env.envelope_id,
+                    thought=f"briefing section {name!r} from {env.from_agent} arrived "
+                            f"with no briefing being built for it from that agent - not used",
+                    result="ignored: unrequested section")
+                return
+            self._sections[name] = payload.get("data")
+            return
 
         if env.intent == "agent.status":
             # Any post-showing signal from 06 (feedback wait opened OR
@@ -434,7 +450,13 @@ class Spoke18CalendarTask:
             return "surfaced"
         return "on_schedule"
 
-    def generate_briefing(self, briefing_type: str = "morning"):
+    # owner decision 8 (2026-10-21): the morning briefing's four sections,
+    # each asked of the agent that owns the facts (briefing.request) and
+    # answered through the hub (report.package)
+    BRIEF_SECTIONS = (("14", "overnight_leads"), ("15", "yesterdays_books"),
+                      ("19", "prospects_waiting"), ("10", "market_changes"))
+
+    def generate_briefing(self, briefing_type: str = "morning", today: str | None = None):
         """Job component: briefings built ONLY from logged envelopes and
         calendar records - a briefing never contains a status the system
         cannot source. This is where the agent.status tracking actually
@@ -449,8 +471,25 @@ class Spoke18CalendarTask:
                  "missing_source": w.get("source_envelope_id") or "none recorded"}
                 for w in self.waiting.values()
                 if w.get("source_envelope_id") not in on_log]
+        sections, missing = {}, []
+        if briefing_type == "morning":
+            self._sections = {}
+            for agent, name in self.BRIEF_SECTIONS:
+                self.hub.send(_env("18", agent, "briefing.request", "briefing",
+                                   {"section": name, "today": today}))
+            got, self._sections = self._sections, None
+            for agent, name in self.BRIEF_SECTIONS:
+                if name in got:
+                    sections[name] = got[name]
+                else:   # stated, never left out quietly
+                    sections[name] = None
+                    missing.append({"agent": agent, "section": name,
+                                    "missing_source": "no answer to the briefing request"})
         briefing = {
             "briefing_type": briefing_type,
+            "today": today,
+            "sections": sections,
+            "sections_missing": missing,
             "gaps": gaps,
             "calendar_days": {d: [e["event_id"] for e in events]
                              for d, events in self.calendar.items()},

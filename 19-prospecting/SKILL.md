@@ -71,7 +71,9 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← Broker (signed) | Settings: `zip_codes`, `approved_sources`, `dnc_entries`, `known_client_contexts`; `farm_data_request`, `bulk_outreach_instruction` | `config.update` |
+| IN | ← Broker (signed) | Settings: `zip_codes`, `approved_sources`, `dnc_entries`, `known_client_contexts`, `prospects_handled` (listing ids you dealt with; they leave the briefing); `farm_data_request`, `bulk_outreach_instruction` | `config.update` |
+| IN | ← 18 Calendar & Task | Morning briefing: ask for this agent's section (owner decision 8, 2026-10-21) | `briefing.request` |
+| OUT | → 18 Calendar & Task | Prospects waiting: recorded prospects you have not marked handled | `report.package` |
 | OUT | → human review queue | Opportunities | `prospect.opportunity` |
 | OUT | → 13 Buyer Search & Match | Buyer-matching opportunities | `prospect.opportunity` |
 | OUT | → 10 Market Data | Market context for opportunity records (requested automatically for every recorded opportunity, amended 2026-10-11; the package reaches the broker on the opportunity record) | `data.request` |

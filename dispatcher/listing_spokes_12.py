@@ -78,7 +78,7 @@ class Spoke12MarketingCampaign:
         # names no listing. The Clear Cooperation gate is about publicly
         # marketing a property, so it does not hold these; until this date a
         # farm campaign waited forever for an MLS confirmation that no farm
-        # ever gets. OWNER TO CONFIRM (docs/TUNING_MANUAL.md).
+        # ever gets. Confirmed by the owner 2026-10-21 (docs/TUNING_MANUAL.md).
         self.farm_campaigns: set[str] = set()
         self.approved_assets: dict[str, dict] = {}  # ctx -> asset from 04
         self.pending_review: dict[str, dict] = {}  # ctx -> content awaiting 17

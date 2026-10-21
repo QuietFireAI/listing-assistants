@@ -53,6 +53,10 @@ class Spoke19Prospecting:
         self.dnc_list: set[str] = set()
         self.known_client_contexts: set[str] = set()  # for tuple 3 matching
         self.opportunities: dict[str, dict] = {}  # listing_id -> record
+        # owner decision 8 (2026-10-21): prospects you marked handled (signed
+        # config.update {"prospects_handled": [listing ids]}) leave the
+        # morning briefing's "prospects waiting" section
+        self.prospects_handled: set[str] = set()
         register_spoke(hub, "19", self)
 
     def request_market_context(self, listing_id: str):
@@ -85,6 +89,15 @@ class Spoke19Prospecting:
                 return
             if "known_client_contexts" in payload:
                 self.known_client_contexts.update(payload["known_client_contexts"])
+                return
+            if "prospects_handled" in payload:
+                ids = payload["prospects_handled"]
+                if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
+                    self.hub.send(_env("19", "queue", "clarification.request", ctx,
+                                       {"reason": "prospects_handled must be a list of "
+                                                  "listing ids; nothing changed"}))
+                    return
+                self.prospects_handled.update(ids)
                 return
             if "bulk_outreach_instruction" in payload:
                 # tuple 5: this handler only reachable via a signed
@@ -240,19 +253,43 @@ class Spoke19Prospecting:
                                              f"{matching_ctx!r} - flagged, "
                                              f"no outreach implication"}))
 
+            # owner decision 7c (2026-10-11): comps for every recorded
+            # opportunity, requested automatically - internal enrichment,
+            # never characterized, never sent to the property owner.
+            # Owner decision 2026-10-21 (P24 walkthrough): requested BEFORE
+            # the prospect goes to you, so it reaches you once, with the
+            # comps on it (Agent 10 answers inside this request); a package
+            # that comes back later still reaches you as an update.
+            record["surfaced"] = False
+            self.request_market_context(listing_id)
+            record["surfaced"] = True
+            out = {k: v for k, v in record.items() if k != "surfaced"}
+            if "market_context" not in out:
+                out["market_context"] = None
             self.hub.send(_env("19", "human", "prospect.opportunity", ctx,
-                               record, confidence=SOURCE_VERIFIED))
+                               out, confidence=SOURCE_VERIFIED))
             if payload.get("buyer_profile_match_ctx"):
                 self.hub.send(_env("19", "13", "prospect.opportunity",
-                                   payload["buyer_profile_match_ctx"], record,
+                                   payload["buyer_profile_match_ctx"], out,
                                    confidence=SOURCE_VERIFIED))
             self.hub.send(_env("19", "14", "interaction.log", ctx,
                                {"kind": "opportunity_discovered",
                                 "listing_id": listing_id}))
-            # owner decision 7c (2026-10-11): comps for every recorded
-            # opportunity, requested automatically - internal enrichment,
-            # never characterized, never sent to the property owner
-            self.request_market_context(listing_id)
+            return
+
+        if env.intent == "briefing.request":
+            # owner decision 8 (2026-10-21): prospects waiting, for 18
+            waiting = [{k: r.get(k) for k in ("listing_id", "zip_code", "source",
+                                              "status_at_retrieval", "dnc_status",
+                                              "retrieval_timestamp")}
+                       for lid, r in self.opportunities.items()
+                       if lid not in self.prospects_handled]
+            self.hub.send(_env("19", "18", "report.package", ctx,
+                               {"section": "prospects_waiting",
+                                "data": {"count": len(waiting), "prospects": waiting,
+                                         "basis": "recorded prospects you have not "
+                                                  "marked handled"}},
+                               confidence=SOURCE_VERIFIED))
             return
 
         if env.intent == "data.package":
@@ -269,9 +306,11 @@ class Spoke19Prospecting:
             record = self.opportunities.get(ctx)
             if record is not None:
                 record["market_context"] = payload
-                self.hub.send(_env("19", "human", "prospect.opportunity", ctx,
-                                   {**record, "update": "market_context"},
-                                   confidence=SOURCE_VERIFIED))
+                if record.get("surfaced", True):   # late package: an update
+                    self.hub.send(_env("19", "human", "prospect.opportunity", ctx,
+                                       {**{k: v for k, v in record.items() if k != "surfaced"},
+                                        "update": "market_context"},
+                                       confidence=SOURCE_VERIFIED))
             else:
                 self.hub.ingest_spoke_trace(
                     "19", env.envelope_id,

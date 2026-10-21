@@ -118,9 +118,16 @@ def _one_of(want, got) -> bool:
     return got in (want if isinstance(want, list) else [want])
 
 
-def env_matches(p: dict, env: Envelope) -> bool:
+def env_matches(p: dict, env: Envelope, listing_live=None) -> bool:
+    """listing_live(ctx) -> bool answers the "listing" test: "live" when the
+    message's client is one of the brokerage's listings and active on the
+    MLS record, "not_live" otherwise (owner decision 2026-10-21, comps)."""
     if "intent" not in p or p["intent"] != env.intent:
         return False
+    if "listing" in p:
+        live = bool(listing_live and listing_live(env.client_context_id))
+        if (p["listing"] == "live") != live:
+            return False
     if not _one_of(p.get("from"), env.from_agent) or not _one_of(p.get("to"), env.to_agent):
         return False
     return _tests_pass(p, env.payload if isinstance(env.payload, dict) else {})
@@ -146,6 +153,7 @@ class PlaybookTable:
         self.status = "RATIFIED" if self.ratified else "PROPOSED"
         self.playbooks: dict = data.get("playbooks", {})
         self.problems = self._check(routes, classes)
+        self.listing_live = None   # set by the tracker: ctx -> active listing of ours?
 
     def status_for(self, pid: str) -> str:
         """The owner signs the playbooks one at a time (walkthrough
@@ -192,14 +200,14 @@ class PlaybookTable:
 
     def starts_for(self, env: Envelope) -> list[str]:
         return sorted(pid for pid, pb in self.playbooks.items()
-                      if any(env_matches(p, env) for p in pb.get("starts", [])))
+                      if any(env_matches(p, env, self.listing_live) for p in pb.get("starts", [])))
 
     def starts_for_audit(self, kind: str, rec: dict) -> list[str]:
         return sorted(pid for pid, pb in self.playbooks.items()
                       if any(audit_matches(p, kind, rec) for p in pb.get("starts", [])))
 
     def ends_on(self, pid: str, env: Envelope) -> bool:
-        return any(env_matches(p, env) for p in self.playbooks[pid].get("ends", []))
+        return any(env_matches(p, env, self.listing_live) for p in self.playbooks[pid].get("ends", []))
 
     def ends_on_audit(self, pid: str, kind: str, rec: dict) -> bool:
         return any(audit_matches(p, kind, rec) for p in self.playbooks[pid].get("ends", []))
@@ -249,6 +257,9 @@ class RunTracker:
                 "problems": self.table.problems})
             self.table = None
             return
+        spoke05 = getattr(sw, "spokes", {}).get("05")
+        self.table.listing_live = (lambda ctx: (getattr(spoke05, "mls_records", {}).get(ctx) or {})
+                                   .get("status") == "active") if spoke05 is not None else None
         self.hub.audit.append("playbook.table", {
             "path": os.path.relpath(table_path, ROOT), "status": self.table.status,
             "status_line": self.table.status_line, "sha256": self.table.sha256,

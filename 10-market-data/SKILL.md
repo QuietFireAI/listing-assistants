@@ -79,6 +79,8 @@ Dispatcher returns an `ack`.
 | OUT | → 17 Compliance | Data-derived compliance concern (e.g. steering-adjacent pattern, appraisal-substitution request) | `compliance.notice` |
 | OUT | → HITL queue | Opinion pressed after refusal | `escalation.legal_line` |
 | OUT | → HITL queue | Unrecognized request mode | `clarification.request` |
+| IN | ← 18 Calendar & Task | Morning briefing: ask for this agent's section (owner decision 8, 2026-10-21) | `briefing.request` |
+| OUT | → 18 Calendar & Task | Market changes since the last briefing: each listing-data entry received (new listing, price or status change), reported once, never characterized | `report.package` |
 | IN | ← Broker (signed) | No settings; a signed setting sent here is held as unrecognized | `config.update` |
 
 This agent has no other edges. If a task appears to require any other

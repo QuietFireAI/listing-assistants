@@ -172,7 +172,8 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 model_client: Any = None,
                 model_name: Optional[str] = None,
                 checkpoints_dir: Optional[str] = None,
-                attestation: Optional[dict] = None) -> Swarm:
+                attestation: Optional[dict] = None,
+                playbook_table: Optional[str] = None) -> Swarm:
     """attestation: {"state_dir": ..., "verify_bytes": callable,
     "key_fingerprint": ...} makes this swarm refuse to start
     (boot_attest.AttestationRefused) unless what is installed is what the
@@ -308,8 +309,8 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     # the playbook run tracker (dispatcher/run_tracker.py, owner decision
     # 2026-10-15): wraps hub.send last, so it sees every message, nested ones
     # included; it changes nothing an agent does
-    from .run_tracker import RunTracker
-    sw.runs = RunTracker(sw)
+    from .run_tracker import RunTracker, TABLE_PATH
+    sw.runs = RunTracker(sw, table_path=playbook_table or TABLE_PATH)
     if state_db is None:
         hub.audit.append("state.ephemeral", {
             "reason": "no state store configured - agent state lives in this process only"})

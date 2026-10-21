@@ -637,6 +637,8 @@ def test_p22_buyer_feedback_match_refresh(tmp_path):
     """Feedback logged, criteria pulled, refreshed match delivered."""
     hub, signer, spokes, external = full_swarm(str(tmp_path))
     bctx = "p22"
+    hub.send(signed(signer, "14", "config.update", bctx,
+                    {"buyer_agreement_on_file": True}))   # decision 4, 2026-10-21
     hub.send(signed(signer, "13", "config.update", bctx,
                     {"buyer_criteria": [{"field": "area", "value": "north"}]}))
     # 1b: structured feedback logged
@@ -708,10 +710,12 @@ def test_p24_prospecting_outreach_probation(tmp_path):
     to_human = [e for e in persisted(hub, "prospect.opportunity")
                 if e["to_agent"] == "human" and "update" not in e["payload"]]
     assert len(to_human) == 2, "every prospect must reach the human"
-    # owner decision 7c: each recorded prospect's comps follow as an update
-    updates = [e for e in persisted(hub, "prospect.opportunity")
-               if e["to_agent"] == "human" and e["payload"].get("update") == "market_context"]
-    assert sorted(u["payload"]["listing_id"] for u in updates) == ["L-a", "L-b"]
+    # owner decision 7c: each recorded prospect's comps are requested; since
+    # 2026-10-21 (P24 walkthrough) they ride on the one message to you
+    assert sorted(e["payload"]["listing_id"] for e in to_human
+                  if e["payload"].get("market_context")) == ["L-a", "L-b"]
+    assert not [e for e in persisted(hub, "prospect.opportunity")
+                if e["to_agent"] == "human" and e["payload"].get("update")]
     suppressed = [e for e in persisted(hub, "interaction.log")
                   if e["payload"].get("kind") == "suppressed_by_rule"]
     assert suppressed, "the DNC miss must go in the books as suppressed"

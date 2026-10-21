@@ -67,9 +67,11 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | IN | ← 07 via 00 | Transaction closed - commission kickoff | `transaction.closed` |
-| IN | ← 14 CRM & Pipeline | Requested records: milestones, referral attribution, marketing spend (routed; 14 does not send these yet - 15 asks with `record.request`) | `report.package` (`in_reply_to`) |
+| IN | ← 14 CRM & Pipeline | The end-of-day books on the evening clock (owner decision 9, 2026-10-21); marketing spend and referral attribution (routed; 14 does not send these yet - 15 asks with `record.request`) | `report.package` |
 | OUT | → 14 CRM & Pipeline | Record queries | `record.request` |
-| OUT | → human only via 00 | P&L, ROI, commission reports | `report.package` |
+| OUT | → human only via 00 | P&L, ROI, commission reports; the end-of-day books (14's report with the day's figures added, owner decision 9, 2026-10-21) | `report.package` |
+| IN | ← 18 Calendar & Task | Morning briefing: ask for this agent's section (owner decision 8, 2026-10-21) | `briefing.request` |
+| OUT | → 18 Calendar & Task | Yesterday's books: commissions and expenses recorded the day before, with totals, unsigned and unverified counts | `report.package` |
 | OUT | → HITL queue | Commission language question or dispute, commission figure conflicts, disbursement instruction, trust/escrow request | `escalation.legal_line` |
 | IN | ← 14 CRM & Pipeline | Record query response | `record.response` (`in_reply_to`) |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |

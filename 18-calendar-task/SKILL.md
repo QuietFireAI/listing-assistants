@@ -30,7 +30,10 @@ summaries; blocks time for prospecting, showings, and admin work.
 
 How the code does it today (checked 2026-10-12): the daily clock produces the
 morning briefing (calendar days, open waits, unresolved decisions, tracked
-deadlines) and checks showings for no-shows; the end-of-day report is Agent 14's.
+deadlines, and since 2026-10-21 the sections it asks 14, 15, 19 and 10 for:
+overnight leads, yesterday's books, prospects waiting, market changes) and
+checks showings for no-shows; the end-of-day report is Agent 14's, with Agent
+15's figures, on the evening clock.
 A protected block moves only on the broker's signed `move_protected_block`.
 To-do lists, time-blocking rules and recurring-task tracking are not yet in the
 code (nothing in the swarm reports a recurring task as completed).
@@ -63,7 +66,9 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | IN | ← 06 / 09 (`calendar.event`), 07 (`deadline.alert`) | Events and deadline blocks | `calendar.event` / `deadline.alert` |
-| OUT | → human | Briefings and summaries | `report.package` |
+| OUT | → human | Briefings and summaries; the morning briefing carries four sections (overnight leads, yesterday's books, prospects waiting, market changes - owner decision 8, 2026-10-21), a section with no answer is named as missing | `report.package` |
+| OUT | → 14, 15, 19, 10 | Morning briefing: ask each for its section | `briefing.request` |
+| IN | ← 14, 15, 19, 10 | A briefing section, used only while a briefing is being built and only from the agent that owns it | `report.package` |
 | OUT | → 14 CRM & Pipeline | Schedule logs | `interaction.log` |
 | IN | ← every agent with a wait state | Wait-state signal, started or cleared | `agent.status` |
 | OUT | → 06 Showing Scheduler | No-show detected by calendar (missed slot, no confirmation) | `showing.no_show` |

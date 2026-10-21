@@ -78,3 +78,27 @@ def run_daily_sweeps(hub, spokes: dict, today: str,
                      {"today": today, "sweeps_run": len(results),
                       "errors": sum(1 for r in results if r.get("error"))})
     return results
+
+
+def run_evening_sweep(hub, spokes: dict, today: str, now_iso: str | None = None) -> list[dict]:
+    """Owner decision 9 (2026-10-21): the evening clock. Agent 14 runs the
+    end-of-day books and sends them to Agent 15, which adds the day's
+    figures and sends you one report. Same tick, same guard and the same
+    audit trail as the daily clock."""
+    from .clock import send_tick
+    results: list[dict] = []
+    if "14" not in spokes:
+        return [{"agent": "14", "sweep": "eod_report", "result": None,
+                 "error": "Agent 14 is not running - no end-of-day books"}]
+    out = send_tick(hub, "14", today, now_iso or f"{today}T18:00:00", checks=["eod_report"])
+    status = out["hub"].get("status")
+    if status != "ack":
+        err = f"clock.tick to 14 not acked: {status} {out['hub'].get('reason', '')}".strip()
+        hub.audit.append("sweep.error", {"agent": "14", "sweep": "clock.tick", "error": err})
+        results.append({"agent": "14", "sweep": "clock.tick", "result": None, "error": err})
+    else:
+        results.extend(out["results"])
+    hub.audit.append("sweep.completed",
+                     {"today": today, "evening": True, "sweeps_run": len(results),
+                      "errors": sum(1 for r in results if r.get("error"))})
+    return results

@@ -1,6 +1,43 @@
 # Walkthrough notes (P03 onward), for the owner's single review
 P01 signed 2026-10-21. P02 signed 2026-10-21.
 
+## Your decisions, applied 2026-10-21 (for the single review)
+1. Sign P03 to P24 after these are applied: waiting for you.
+2. Farm campaigns stay outside the Clear Cooperation hold: confirmed in the
+   tuning manual and in Agent 12's code note.
+3. Comparables: P23 on a live listing of ours (05's MLS record says active),
+   P15 otherwise; P02 starts only from your signed price change.
+   **P02 changed after you signed it** (it no longer starts on a comparables
+   request). The change is your decision 3, but the signature covers the old
+   start list: re-confirm P02 in the review.
+4. Matches wait for the buyer agreement: 13 asks 14 before any match goes out;
+   held matches are logged, you are told once per buyer, and the daily clock
+   releases them once the agreement is recorded.
+5. Criteria exclude; numbers are minimums; true/false and text must be equal
+   (exact text). A field the listing does not carry stays unknown.
+6. The close waits for you when milestones are open, naming them; continue
+   records them as waived by you, cancel leaves the deal open. Scene 7 of the
+   operator manual now has your continue line.
+7. The day-0 nurture touch goes when Compliance clears the sequence, inside
+   contact hours; outside them the clock sends it in the next window. The time
+   used is the start message's time, else this computer's clock.
+   FOUND WHILE APPLYING: Agent 01 forwarded a lead to scoring before logging it
+   (and its consent) to 14, so the at-once touch reached 11 before the consent
+   was on record and was blocked. 01 now logs first, then forwards.
+   STILL OPEN (not changed): when 11 blocks a touch (no consent), 03 still
+   counts it as sent and never tries it again.
+8. The morning briefing has four sections: overnight leads (14, each once),
+   yesterday's books (15), prospects waiting (19, until you mark them handled
+   with a signed `prospects_handled`, new), market changes (10, each once). A
+   section with no answer is named as missing. P16 now starts at 18's first ask.
+9. End-of-day books on the evening clock (`run_sweeps.py --evening`, or the
+   console's evening sweep): 14's books go to 15, which adds the day's
+   commissions and expenses and sends you one report. Any other 14 report (a
+   listing's activity) still comes straight to you. P17 now starts at 14's
+   report to 15 and ends at 15's report to you.
+10. P24: each prospect reaches you once, with its comps on it. The P08 review
+    item stays.
+
 ## P03 Under-Contract Transition
 - Run: contract filed via a client reply (11 -> 08 -> 07), signed status pending,
   marketing halted, seller told, timeline loaded (P03 ends, P09 starts).

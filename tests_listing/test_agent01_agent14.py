@@ -526,8 +526,9 @@ def test_generate_report_traces_to_stored_records_only(tmp_path):
     report = crm.generate_report()
     assert report["traced_to_entries"] is True
     assert report["total_interactions"] > 0
+    # the end-of-day books go to 15, which adds the day's figures (decision 9, 2026-10-21)
     rp = persisted(hub, "report.package")
-    assert rp and rp[0]["to_agent"] == "human"
+    assert rp and rp[0]["to_agent"] == "15"
 
 
 # ------------------------------- THE FIX: tuples 1 & 8, conflict flagging

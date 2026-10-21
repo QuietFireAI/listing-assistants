@@ -1,7 +1,7 @@
 {
  "_status": "PROPOSED 2026-10-20 - written from docs/PLAYBOOKS.md (triggers, agents, HITL gates) by Claude for the owner's review; runs carry table PROPOSED until the owner ratifies this file",
  "_what": "The dispatcher's playbook table (owner decision 2026-10-15: run tracker). Agents keep doing the work; the dispatcher matches each message against these starts and ends, tracks one run per playbook and client, holds when two playbooks match one start or when a new run conflicts with one already open on the same client, and writes an after-action report when a run ends. Priority classes are in identity/priority.json.",
- "_patterns": "A pattern matches a message on the hub: intent, from and to (an agent id or a list), and optional payload tests - has (keys that must be present and not null), eq (key: value), ne (key: value it must not have), in (key: [values]), prefix (key: text the value starts with); a key may name a nested field with dots (offer_status.stage). A pattern with audit instead of intent matches an audit-log entry of that kind, with the same tests on the entry. A human message may name the playbook it starts with payload.playbook. single_message: the run starts and ends on one message. supersedes: starting this playbook ends an open run of the named one on the same client (a hand-off, not a conflict). conflicts_with: a new run of this playbook while one of these is open on the same client holds both for your decision.",
+ "_patterns": "A pattern matches a message on the hub: intent, from and to (an agent id or a list), and optional payload tests - has (keys that must be present and not null), eq (key: value), ne (key: value it must not have), in (key: [values]), prefix (key: text the value starts with); a key may name a nested field with dots (offer_status.stage). A pattern with audit instead of intent matches an audit-log entry of that kind, with the same tests on the entry. A human message may name the playbook it starts with payload.playbook. single_message: the run starts and ends on one message. supersedes: starting this playbook ends an open run of the named one on the same client (a hand-off, not a conflict). conflicts_with: a new run of this playbook while one of these is open on the same client holds both for your decision. listing: \"live\" when the message's client is one of the brokerage's listings, active on the MLS record; \"not_live\" otherwise (owner decision 2026-10-21: a comparables request is P23 on a live listing, P15 otherwise; P02 starts only from a signed price change).",
  "playbooks": {
   "P01": {
    "name": "New Listing Onboarding",
@@ -60,14 +60,6 @@
      "to": "05",
      "eq": {
       "field": "price"
-     }
-    },
-    {
-     "intent": "data.request",
-     "from": "human",
-     "to": "10",
-     "eq": {
-      "mode": "comp"
      }
     }
    ],
@@ -514,7 +506,8 @@
      "to": "10",
      "eq": {
       "mode": "comp"
-     }
+     },
+     "listing": "not_live"
     }
    ],
    "ends": [
@@ -537,12 +530,9 @@
    ],
    "starts": [
     {
-     "intent": "report.package",
+     "intent": "briefing.request",
      "from": "18",
-     "to": "human",
-     "eq": {
-      "briefing_type": "morning"
-     }
+     "to": "14"
     }
    ],
    "ends": [
@@ -554,8 +544,7 @@
       "briefing_type": "morning"
      }
     }
-   ],
-   "single_message": true
+   ]
   },
   "P17": {
    "name": "End-of-Day Books",
@@ -569,7 +558,7 @@
     {
      "intent": "report.package",
      "from": "14",
-     "to": "human",
+     "to": "15",
      "eq": {
       "report_type": "eod"
      }
@@ -578,14 +567,13 @@
    "ends": [
     {
      "intent": "report.package",
-     "from": "14",
+     "from": "15",
      "to": "human",
      "eq": {
-      "report_type": "eod"
+      "report_type": "eod_books"
      }
     }
-   ],
-   "single_message": true
+   ]
   },
   "P18": {
    "name": "Seller Weekly Report",
@@ -772,7 +760,8 @@
      "to": "10",
      "eq": {
       "mode": "comp"
-     }
+     },
+     "listing": "live"
     }
    ],
    "ends": [

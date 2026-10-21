@@ -30,7 +30,9 @@ ROUND = [
     # instruction against a deadline (2026-10-15)
     "00-10", "00-11", "00-14", "18-02", "18-03",
     # the playbook run tracker (2026-10-20)
-    "00-05", "00-06", "00-12", "00-15", "SW-01", "SW-02", "SW-03", "SW-04", "SW-12", "SW-14",
+    "00-06", "00-12", "00-15", "SW-02", "SW-03", "SW-04", "SW-12", "SW-14",
+    # the owner's playbook walkthrough (2026-10-21)
+    "09-12",
 ]
 
 
