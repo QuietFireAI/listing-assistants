@@ -141,6 +141,18 @@ class TableError(ValueError):
     """The playbook table cannot be used as written."""
 
 
+def _shown_path(path: str) -> str:
+    """The table's path for the log: relative to the install when it is inside
+    it, else absolute. On Windows a table on another drive than the install
+    made os.path.relpath raise (found by Windows CI 2026-10-21)."""
+    full = os.path.abspath(path)
+    try:
+        rel = os.path.relpath(full, ROOT)
+    except ValueError:
+        return full
+    return full if rel.startswith("..") else rel
+
+
 class PlaybookTable:
     def __init__(self, path: str, routes, classes: dict):
         from .config_status import is_ratified
@@ -261,7 +273,7 @@ class RunTracker:
         self.table.listing_live = (lambda ctx: (getattr(spoke05, "mls_records", {}).get(ctx) or {})
                                    .get("status") == "active") if spoke05 is not None else None
         self.hub.audit.append("playbook.table", {
-            "path": os.path.relpath(table_path, ROOT), "status": self.table.status,
+            "path": _shown_path(table_path), "status": self.table.status,
             "status_line": self.table.status_line, "sha256": self.table.sha256,
             "ratified_playbooks": sorted(p for p in self.table.playbooks
                                          if self.table.status_for(p) == "RATIFIED"),

@@ -339,3 +339,12 @@ def test_a_comparables_request_is_p23_on_a_live_listing_and_p15_otherwise(tmp_pa
     by_ctx = {r["ctx"]: r["playbook"] for r in sw.runs.runs.values() if r["playbook"] in ("P15", "P23", "P02")}
     assert by_ctx == {"L1": "P23", "A9": "P15"}
     assert not _kinds(sw, "playbook.ambiguous")
+
+
+def test_a_table_path_on_another_drive_is_logged_whole(monkeypatch):
+    """Windows CI 2026-10-21: a table on another drive than the install made
+    os.path.relpath raise ValueError and the tracker never started."""
+    def other_drive(path, start=None):
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
+    monkeypatch.setattr(run_tracker.os.path, "relpath", other_drive)
+    assert run_tracker._shown_path("/elsewhere/t.json") == os.path.abspath("/elsewhere/t.json")
