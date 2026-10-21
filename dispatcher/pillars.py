@@ -1,26 +1,27 @@
-"""Six-pillar wiring - the detection tier running IN the runtime.
+"""Pillar wiring (five pillars since 2026-10-20) - the detection tier running IN the runtime.
 
-Every pillar is imported from its own package (never vendored, never
-re-implemented: repackaging drift is defect class P4). Each binds to a
-named seam:
+Every pillar is imported from its own package in dispatcher/pillar_lib/
+(owner decision 2026-10-20: one product, the pillars folded in from their
+repositories at the commits the suite last passed; see
+dispatcher/pillar_lib/README.md). They are never re-implemented here.
+Each binds to a named seam:
 
   before-turn              -> Hub.on_turn_start (turn entry)
   open-mind                -> analysis.analyze_reflections (hub thought-vs-action)
   agent-open-mind          -> Hub.ingest_spoke_trace taint gate (spoke entry)
   pre-response-selfcheck   -> exit gate on outbound deliveries
   sleep-marks              -> territory transfer (crew change)
-  splitvantage             -> second opinion on drift-flagged reflections
 
-Two pillars (pre-response-selfcheck, splitvantage) need model callables to
-run their full check; that is deployment configuration. UNARMED IS AUDITED,
-never silent: a gate that is off says so on the log.
+One pillar (pre-response-selfcheck) needs a reviewer model to run its
+check; that is deployment configuration. UNARMED IS AUDITED, never
+silent: a gate that is off says so on the log. splitvantage, the sixth,
+was removed by owner decision 2026-10-20.
 """
 from __future__ import annotations
 
-from before_turn import BEFORE_TURN_QUESTIONS
-from splitvantage import analyze_diff
-from sleep_marks.marker import SleepMark
-from pre_response_selfcheck.reader_shift import ReaderShift
+from .pillar_lib.before_turn import BEFORE_TURN_QUESTIONS
+from .pillar_lib.sleep_marks.marker import SleepMark
+from .pillar_lib.pre_response_selfcheck.reader_shift import ReaderShift
 
 
 # ------------------------------------------------------------- before-turn
@@ -89,18 +90,3 @@ def restore_sleepmark(hub, mark: dict) -> dict:
                      {"context_summary": mark.get("context_summary"),
                       "open_questions": mark.get("open_questions", [])})
     return mark
-
-
-# ------------------------------------------------------------- splitvantage
-def second_opinion(hub, prompt: str, out_a: dict, out_b: dict,
-                   envelope_id: str | None = None) -> dict:
-    """CrossPol on a drift-flagged decision: two models' outputs on the same
-    prompt, structurally diffed by the pillar. Caller supplies the outputs
-    ({model, response, thinking}); the runtime never calls model APIs itself."""
-    diff = analyze_diff(out_a, out_b, prompt)
-    rec = {"envelope_id": envelope_id,
-           "models": [out_a.get("model"), out_b.get("model")],
-           "uncertainty_delta": diff.get("uncertainty_delta"),
-           "notes": diff.get("notes")}
-    hub.audit.append("splitvantage.review", rec)
-    return diff

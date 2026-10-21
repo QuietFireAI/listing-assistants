@@ -458,17 +458,14 @@ def test_two_properties_same_person_one_context(tmp_path):
         [{"listing_id": "L100"}, {"listing_id": "L200"}]
 
 
-def test_all_six_pillars_fire_on_listing_traffic(tmp_path):
+def test_all_five_pillars_fire_on_listing_traffic(tmp_path):
     from dispatcher.analysis import analyze_reflections, score_spoke_traces
     from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
     from dispatcher.territory import build_transfer, receive_transfer, confirm_release
 
     def stub_selfcheck(prompt): return "PASS"
-    def stub_model_a(prompt): return {"model": "a", "response": "maybe", "thinking": "uncertain"}
-    def stub_model_b(prompt): return {"model": "b", "response": "Fine.", "thinking": ""}
 
-    hub = make_hub(str(tmp_path), selfcheck_model=stub_selfcheck,
-                   crosspol_models=(stub_model_a, stub_model_b))
+    hub = make_hub(str(tmp_path), selfcheck_model=stub_selfcheck)
     Spoke14CRMPipeline(hub)
     Spoke01LeadCapture(hub)
     hub.on_turn_start()
@@ -491,7 +488,7 @@ def test_all_six_pillars_fire_on_listing_traffic(tmp_path):
     events = hub.audit.read()
     pillar_events = {k: sum(1 for e in events if e["kind"] == k) for k in
                      ("beforeturn.check", "openmind.drift", "agentopenmind.tainted",
-                      "selfcheck.verdict", "sleepmark.captured", "splitvantage.review")}
+                      "selfcheck.verdict", "sleepmark.captured")}
     assert all(v > 0 for v in pillar_events.values()), \
         f"a pillar did not fire on listing's own traffic: {pillar_events}"
 

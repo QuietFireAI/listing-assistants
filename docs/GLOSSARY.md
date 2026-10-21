@@ -419,13 +419,12 @@ or the audit chain is broken. Details: [MOUNTING.md](MOUNTING.md).
 
 ### Pillars
 
-Six add-on self-check packages from QuietFire (before-turn, open-mind,
-agent-open-mind, pre-response-selfcheck, sleep-marks, splitvantage), each
-watching a different point in the hub, such as a last read of outgoing text
-before it leaves. A pillar is *armed* when it is installed and has what it
-needs to run; one that is not says *UNARMED* on the audit log rather than
-staying silent. The swarm routes correctly without them, and the build
-checks that too.
+Five self-checks from QuietFire (before-turn, open-mind, agent-open-mind,
+pre-response-selfcheck, sleep-marks), built into the product in
+`dispatcher/pillar_lib/`, each watching a different point in the hub, such
+as a last read of outgoing text before it leaves. A pillar is *armed* when
+it has what it needs to run. pre-response-selfcheck needs a reviewer model;
+without one, it says *UNARMED* on the audit log rather than staying silent.
 
 ### Pager
 

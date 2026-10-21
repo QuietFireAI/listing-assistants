@@ -74,15 +74,15 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1169 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1217 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
 python tools/console.py verify           # audit chain check
 ```
 
-The six pillar packages are pinned to exact commits in `requirements.txt`.
-To move one forward, change its hash, run the suite, and commit both.
+The five pillars are part of the code (`dispatcher/pillar_lib/`), so the
+install pulls nothing from git.
 
 ## 3. Ratify your configuration
 
@@ -444,8 +444,6 @@ print(seam.ingestor.export_reference_records("/srv/listingassistants/reference.j
   screen; its policy check is a phrase screen, not a compliance review.
   Exports carry a `thought_origin` field so template-made thoughts can be
   filtered out of any training set.
-- The learning loop refuses to collect anything when the open-mind or
-  agent-open-mind pillar is not installed.
 
 **In the running swarm** Agent 04 can have a locally served model write the
 listing remarks (`dispatcher/model_drafting.py`). It does so only when all

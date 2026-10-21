@@ -32,9 +32,9 @@ def text(name):
 
 
 # the docs give the counts for the documented install (requirements.txt); some
-# test modules skip themselves without these, so the count differs there
-INSTALL = ["before_turn", "splitvantage", "sleep_marks", "pre_response_selfcheck",
-           "open_mind", "agent_open_mind", "mcp", "cryptography"]
+# test modules skip themselves without these, so the count differs there (the
+# pillars are part of the code since 2026-10-20, so they are not listed)
+INSTALL = ["mcp", "cryptography"]
 
 
 def test_the_documented_test_counts_match_the_suite():

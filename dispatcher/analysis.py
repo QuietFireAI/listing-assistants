@@ -20,7 +20,7 @@ of truth; these modules add events, they never self-report outside it.
 """
 from __future__ import annotations
 
-from open_mind.comparator import Comparator, DriftResult   # pillar source
+from .pillar_lib.open_mind.comparator import Comparator, DriftResult   # pillar source
 
 
 # ------------------------------------------------------------- open-mind tier
@@ -42,12 +42,6 @@ def analyze_reflections(hub, drift_threshold: float = 0.4) -> list[dict]:
             "flagged": dr.drift_score >= drift_threshold,
         }
         hub.audit.append("openmind.drift", rec)
-        if rec["flagged"] and getattr(hub, "crosspol_models", None):
-            from .pillars import second_opinion
-            ma, mb = hub.crosspol_models
-            prompt = art["thought"]
-            second_opinion(hub, prompt, ma(prompt), mb(prompt),
-                           envelope_id=art["envelope_id"])
         results.append(rec)
     return results
 
@@ -66,7 +60,7 @@ def score_spoke_traces(hub, drift_threshold: float = 0.4) -> list[dict]:
     for trace in hub.spoke_traces:
         thought = (trace.get("thought") or "").strip()
         base = {"agent": trace["agent"], "envelope_id": trace["envelope_id"]}
-        from agent_open_mind import taint_check
+        from .pillar_lib.agent_open_mind import taint_check
         if taint_check(trace)["tainted"]:
             rec = {**base, "tainted": True,
                    "reason": "absent thought trace - tainted result, held for review"}

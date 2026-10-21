@@ -42,7 +42,7 @@ in plain language (every one, with more detail: [docs/GLOSSARY.md](docs/GLOSSARY
 | [Audit log (the record)](docs/GLOSSARY.md#audit-log) | The running record of everything the swarm does. It is [hash-chained](docs/GLOSSARY.md#hash-chained): each entry carries a fingerprint of the one before, so any edit shows. |
 | [Client context](docs/GLOSSARY.md#client-context) | The short id of the client or file a message belongs to, such as `S4`. |
 | [Daily clock](docs/GLOSSARY.md#daily-clock) | The once-a-day run that wakes every agent for its scheduled checks: deadlines, re-scores, weekly reports. |
-| [Pillars](docs/GLOSSARY.md#pillars) | Six QuietFire self-check add-ons, installed with everything else. One that is not installed says *UNARMED* on the record. |
+| [Pillars](docs/GLOSSARY.md#pillars) | Five QuietFire self-checks built into the product. One needs a reviewer model; without one, it says *UNARMED* on the record. |
 | [Test, suite and CI](docs/GLOSSARY.md#test-and-suite) | A test runs one part and checks the result; the suite is all of them; [CI](docs/GLOSSARY.md#ci) runs the suite on GitHub after every change. |
 
 ## What it does
@@ -191,10 +191,11 @@ flowchart TD
   Agents 07 and 08 load their config files only when the file's status
   records a ratification date; otherwise they keep their ratified defaults
   and log which file they skipped.
-- **Pillars declare themselves.** The six QuietFire pillar packages
-  (open-mind, agent-open-mind, before-turn, pre-response-selfcheck,
-  sleep-marks, splitvantage) install from `requirements.txt`. A pillar that
-  is not installed is declared UNARMED on the audit log.
+- **Pillars are built in.** The five QuietFire pillars (open-mind,
+  agent-open-mind, before-turn, pre-response-selfcheck, sleep-marks) are
+  part of the product, in `dispatcher/pillar_lib/` (folded in 2026-10-20).
+  pre-response-selfcheck needs a reviewer model and declares itself UNARMED
+  on the audit log when none is configured.
 
 ## The 24 playbooks
 
@@ -354,10 +355,10 @@ Operator tools, not part of the message path:
 - **One process at a time.** Run one console session or one clock run at a
   time against the same state file; the hub's lock serializes work inside a
   process, not across processes.
-- **Pillars are pinned.** The six pillar packages install from exact commits
-  in `requirements.txt` (the ones this suite passed against). pip-audit
-  cannot check git installs; moving a pillar forward means changing its hash
-  and re-running the suite.
+- **Pillars are part of the code.** The five pillars live in
+  `dispatcher/pillar_lib/` and are tested with everything else; nothing is
+  installed from git. `dispatcher/pillar_lib/README.md` names the commit
+  each came from.
 
 ## Install and verify
 
@@ -367,7 +368,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1169 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1217 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

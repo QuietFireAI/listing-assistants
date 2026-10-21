@@ -84,13 +84,11 @@ class Hub:
                  human_notifier: Optional[Callable[[str, dict], None]] = None,
                  loop_threshold: int = 20,
                  selfcheck_model=None,
-                 crosspol_models: tuple | None = None,
                  signer_registry=None):
         # selfcheck_model: reviewer callable for the pre-response-selfcheck
-        # exit gate on every outbound delivery. crosspol_models: pair of
-        # callables (prompt -> {model,response,thinking}) for splitvantage
-        # second opinions on drift-flagged reflections. Both are deployment
-        # config; UNARMED IS AUDITED AT BOOT, once, never silently off.
+        # exit gate on every outbound delivery. Deployment config; UNARMED
+        # IS AUDITED AT BOOT, once, never silently off. (The splitvantage
+        # reviewer pair was removed by owner decision 2026-10-20.)
         # loop_threshold: max envelopes per (client_context_id, intent) before
         # the loop suspends into clarification. RATIFIED (owner, 2026-07-17):
         # 20 stands as a deliberate placeholder - no empirical basis existed
@@ -106,7 +104,6 @@ class Hub:
         self.loop_threshold = loop_threshold
         self.loop_counts: dict[tuple, int] = {}
         self.selfcheck_model = selfcheck_model
-        self.crosspol_models = crosspol_models
         # signer_registry: SignerRegistry armed from the identity's ratified
         # config/authority_signers.json (login-based signer decision,
         # 2026-07-11). None = UNARMED IS AUDITED per authority envelope -
@@ -134,10 +131,6 @@ class Hub:
             self.audit.append("notifier.unarmed",
                               {"scope": "boot", "reason": "no human_notifier "
                                "configured - escalations reach no person, declared not silent"})
-        if crosspol_models is None:
-            self.audit.append("splitvantage.unarmed",
-                              {"scope": "boot", "reason": "no reviewer pair "
-                               "configured - second opinion off, declared not silent"})
         # JEV key declaration at boot (declared not silent). The hub itself
         # never calls JEV; an identity's decision adapter does, under that
         # identity's own rules (listing-assistants: only on the broker's
@@ -206,18 +199,10 @@ class Hub:
                  "open_holds": {q: len(v) for q, v in self.queues.items() if v}}
         self.audit.append("turn.start", {"read_prior_state": True,
                                          "open_holds": state["open_holds"]})
-        try:
-            from .pillars import before_turn_check
-        except ImportError:
-            # Core-only install (no [pillars] extra). UNARMED IS AUDITED,
-            # never a crash and never silent - the zero-dependency core
-            # routes; the detection tier declares itself absent.
-            self.audit.append("beforeturn.unarmed",
-                              {"reason": "pillar packages not installed - "
-                                         "turn-entry check off, declared "
-                                         "not silent"})
-        else:
-            before_turn_check(self)
+        # the pillars are part of the product (dispatcher/pillar_lib/,
+        # 2026-10-20): there is no install without them, so no unarmed path
+        from .pillars import before_turn_check
+        before_turn_check(self)
         return state
 
     def _reflect(self, envelope_id: str, thought: str, action: str) -> None:
@@ -233,26 +218,9 @@ class Hub:
         results; hub centrality makes this the monitoring point."""
         rec = {"agent": agent_id, "envelope_id": envelope_id,
                "thought": thought, "result": result}
-        try:
-            from agent_open_mind import taint_check   # pillar = single source
-        except ImportError:
-            # Same unarmed discipline as before-turn: pillar absent is
-            # DECLARED on the audit log, once per hub, never silent - and
-            # never a per-message crash. Before this fix, a missing
-            # agent_open_mind package raised ModuleNotFoundError inside
-            # every handler delivery, dead-lettering 100% of swarm traffic
-            # with a generic crash reason (fresh-clone verified 2026-07-17:
-            # 98 test failures, all this one line). Fail-closed must mean
-            # "held and named", not "everything dies undiagnosed".
-            if not getattr(self, "_aom_unarmed_declared", False):
-                self._aom_unarmed_declared = True
-                self.audit.append("agentopenmind.unarmed",
-                                  {"reason": "agent_open_mind package not "
-                                             "installed - taint gate off, "
-                                             "declared not silent"})
-            self.spoke_traces.append(rec)
-            self.audit.append("spoke.trace", rec)
-            return
+        # part of the product since 2026-10-20 (dispatcher/pillar_lib/);
+        # the 2026-07-17 unarmed path for a missing package is gone with it
+        from .pillar_lib.agent_open_mind import taint_check
         gate = taint_check(rec)
         if gate["tainted"]:
             # structural, at the moment of ingestion, not deferred to

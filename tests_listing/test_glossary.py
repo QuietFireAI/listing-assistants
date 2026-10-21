@@ -122,9 +122,11 @@ def test_what_the_glossary_says_matches_the_code():
 
     req = text("requirements.txt")
     for pillar in ("before-turn", "open-mind", "agent-open-mind", "pre-response-selfcheck",
-                   "sleep-marks", "splitvantage"):
-        assert f"{pillar} @ git+" in req and pillar in GLOSS, pillar
-    assert "Six add-on" in GLOSS
+                   "sleep-marks"):
+        pkg = pillar.replace("-", "_")
+        assert os.path.isdir(os.path.join(ROOT, "dispatcher", "pillar_lib", pkg)), pillar
+        assert pillar in GLOSS and f"{pillar} @ git+" not in req, pillar
+    assert "splitvantage" not in req and "Five self-checks" in GLOSS
 
     handoff = text("dispatcher/handoff_guard.py")
     assert '"handoff.failed"' in handoff and "`handoff.failed`" in GLOSS
