@@ -1,10 +1,10 @@
-"""Mutation-hardening — spoke 04 (listing description), the compliance flagship.
+"""Mutation-hardening - spoke 04 (listing description), the compliance flagship.
 
 Closes the 16 spoke-04 true gaps the clean sweep found beyond the one Fable's
 suite already covered (04:255). Same discipline as Fable's file: assert the
 DECISION with a positive AND a negative case, so the flipped operator is
 distinguished. Every test here was verified to KILL its target mutation (goes
-red when the line is flipped, green when clean) — not merely to pass.
+red when the line is flipped, green when clean) - not merely to pass.
 
 Target lines (listing_spokes_04.py:line):
   87  88  90  99  107  109  120  124  130   (attribution / adjective tags)
@@ -46,19 +46,19 @@ def facts_by_text(facts, needle):
 
 # ---------------------------------------------------------------- 04:88
 def test_04_baths_present_emitted_absent_omitted(tmp_path):
-    """`baths is not None` — a present bath count is emitted as a fact; an
+    """`baths is not None` - a present bath count is emitted as a fact; an
     absent one produces NO bath fact (not a zero, not a blank)."""
     s = spoke(str(tmp_path))
     facts, _ = s._build_facts({"beds": 3, "baths": 2})
     assert facts_by_text(facts, "bathrooms"), "present baths must be emitted"
     facts2, _ = s._build_facts({"beds": 3})   # baths absent
     assert not facts_by_text(facts2, "bathrooms"), \
-        "absent baths must NOT be emitted — a missing field does not exist"
+        "absent baths must NOT be emitted - a missing field does not exist"
 
 
 # ------------------------------------------------ 04:87/90/99/109/120/124
 def test_04_every_hard_fact_is_tagged_not_adjective(tmp_path):
-    """EVERY structurally-verifiable fact carries adjective=False — beds,
+    """EVERY structurally-verifiable fact carries adjective=False - beds,
     baths, sqft (tax and seller), and verified/per-seller features. The tag
     is what protects a hard fact from being cut before puffery. Each of the
     six sites is separately mutable, so each is asserted separately."""
@@ -152,7 +152,7 @@ def test_04_unverifiable_feature_source_decides_attribution(tmp_path):
 def test_04_free_features_are_marked_adjectives(tmp_path):
     """Free-text `features` are characterizations: adjective True,
     attribution None. This is what makes them the FIRST thing cut under the
-    MLS limit — mislabeling one as a fact would protect puffery over data."""
+    MLS limit - mislabeling one as a fact would protect puffery over data."""
     s = spoke(str(tmp_path))
     facts, _ = s._build_facts({"beds": 3, "features": ["stunning kitchen"]})
     feat = facts_by_text(facts, "stunning kitchen")
@@ -284,7 +284,7 @@ def test_04_over_limit_cuts_adjectives_before_facts(tmp_path):
 def test_04_attributed_facts_stand_over_limit_still_flags_cut(tmp_path):
     """The final branch (242): every cut class is exhausted and only
     attributed facts remain, exceeding the limit. 'Attributions are never
-    cut' outranks the field limit — they ALL survive, and cut is still True
+    cut' outranks the field limit - they ALL survive, and cut is still True
     (a cut was attempted/forced). Flip 242 True->False and this fails."""
     s = spoke(str(tmp_path), mls_char_limit=20)
     facts = [

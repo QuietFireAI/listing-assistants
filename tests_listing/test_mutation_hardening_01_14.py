@@ -1,4 +1,4 @@
-"""Mutation-hardening — shared 01/14 (dispatcher/listing_spokes.py).
+"""Mutation-hardening - shared 01/14 (dispatcher/listing_spokes.py).
 
 Gap set re-derived against the FULL suite this session (5 true survivors, not
 the 9 first estimated): 215, 253, 369, 428, 635. Each kill-verified.

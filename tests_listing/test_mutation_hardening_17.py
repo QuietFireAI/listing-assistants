@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 17 (compliance / fair housing), remaining gap.
+"""Mutation-hardening - spoke 17 (compliance / fair housing), remaining gap.
 
 Closes 17:279 (the compliance.notice intent branch that logs the notice to
 14). Kill-verified.

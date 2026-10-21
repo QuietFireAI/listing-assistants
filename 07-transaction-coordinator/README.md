@@ -53,12 +53,12 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P03 — Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03--under-contract-transition)
-- [P08 — Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08--offer-to-acceptance)
-- [P09 — Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09--contract-to-close-the-deadline-engine)
-- [P10 — Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10--close--post-close-handoff)
-- [P19 — Property Access Custody](../docs/PLAY-BY-PLAY.md#p19--property-access-custody)
-- [P20 — Vacant Property Watch](../docs/PLAY-BY-PLAY.md#p20--vacant-property-watch)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
+- [P19 - Property Access Custody](../docs/PLAY-BY-PLAY.md#p19---property-access-custody)
+- [P20 - Vacant Property Watch](../docs/PLAY-BY-PLAY.md#p20---vacant-property-watch)
 
 ## The rules it follows
 

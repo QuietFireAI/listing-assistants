@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 06 (showing scheduler).
+"""Mutation-hardening - spoke 06 (showing scheduler).
 
 Closes the 6 spoke-06 gaps: 100, 265, 274, 292, 299, 410. Each kill-verified.
 """

@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 11 (client communication).
+"""Mutation-hardening - spoke 11 (client communication).
 
 Closes the 4 spoke-11 gaps: 153, 295, 414, 415. Each kill-verified.
 """

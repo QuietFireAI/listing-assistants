@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 20 (social media monitoring), remaining gaps.
+"""Mutation-hardening - spoke 20 (social media monitoring), remaining gaps.
 
 Closes 20:97 (is_viral -> escalation priority) and 20:202 (lead.reply intent
 -> log). Each kill-verified.

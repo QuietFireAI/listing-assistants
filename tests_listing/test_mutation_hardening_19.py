@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 19 (prospecting), remaining gaps.
+"""Mutation-hardening - spoke 19 (prospecting), remaining gaps.
 
 Fable covers 19:239. This closes 19:157 (DNC suppression status) and
 19:242 / 19:245 (the two resolved flags on the data.package status). Each

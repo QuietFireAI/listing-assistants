@@ -42,7 +42,7 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P10 — Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10--close--post-close-handoff)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
 
 ## The rules it follows
 

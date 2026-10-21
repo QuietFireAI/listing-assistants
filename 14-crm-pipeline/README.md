@@ -61,20 +61,20 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
-- [P01 — New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01--new-listing-onboarding)
-- [P02 — Price Adjustment](../docs/PLAY-BY-PLAY.md#p02--price-adjustment)
-- [P03 — Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03--under-contract-transition)
-- [P04 — Open House Cycle](../docs/PLAY-BY-PLAY.md#p04--open-house-cycle)
-- [P05 — Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05--expiredwithdrawn-wind-down)
-- [P07 — Tour Day Coordination](../docs/PLAY-BY-PLAY.md#p07--tour-day-coordination)
-- [P08 — Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08--offer-to-acceptance)
-- [P09 — Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09--contract-to-close-the-deadline-engine)
-- [P10 — Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10--close--post-close-handoff)
-- [P13 — Referral & Anniversary Cycle](../docs/PLAY-BY-PLAY.md#p13--referral--anniversary-cycle)
-- [P16 — Morning Operations](../docs/PLAY-BY-PLAY.md#p16--morning-operations)
-- [P17 — End-of-Day Books](../docs/PLAY-BY-PLAY.md#p17--end-of-day-books)
-- [P18 — Seller Weekly Report](../docs/PLAY-BY-PLAY.md#p18--seller-weekly-report)
-- [P23 — Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23--price-review-evidence)
+- [P01 - New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01---new-listing-onboarding)
+- [P02 - Price Adjustment](../docs/PLAY-BY-PLAY.md#p02---price-adjustment)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
+- [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
+- [P07 - Tour Day Coordination](../docs/PLAY-BY-PLAY.md#p07---tour-day-coordination)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
+- [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
+- [P13 - Referral & Anniversary Cycle](../docs/PLAY-BY-PLAY.md#p13---referral--anniversary-cycle)
+- [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
+- [P17 - End-of-Day Books](../docs/PLAY-BY-PLAY.md#p17---end-of-day-books)
+- [P18 - Seller Weekly Report](../docs/PLAY-BY-PLAY.md#p18---seller-weekly-report)
+- [P23 - Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23---price-review-evidence)
 
 ## The rules it follows
 

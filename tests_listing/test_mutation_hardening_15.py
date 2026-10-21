@@ -1,4 +1,4 @@
-"""Mutation-hardening — spoke 15 (financial tracking), remaining gaps.
+"""Mutation-hardening - spoke 15 (financial tracking), remaining gaps.
 
 Fable covers 15:152 and 15:276. This closes 15:81 (signed_docs_only ->
 commission projection vs signed) and 15:221 (receipt_on_file -> expense

@@ -1,4 +1,4 @@
-# Security Policy — ListingAssistants
+# Security Policy - ListingAssistants
 
 ## 1. Security Architecture & Invariants
 
