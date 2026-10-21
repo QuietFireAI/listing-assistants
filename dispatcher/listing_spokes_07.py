@@ -325,7 +325,20 @@ class Spoke07TransactionCoordinator:
             timeline = self.timelines.get(ctx, {})
             entry = timeline.get(milestone)
 
-            if payload.get("contradicts_tracked_deadline"):
+            # tuple 3. Wired 2026-10-14 (plumbing): nothing set
+            # contradicts_tracked_deadline, so the tuple could not fire. A
+            # document that states a date for its milestone now carries it
+            # (stated_deadline, via 11 and 08) and 07, which owns the
+            # timeline, compares it with the tracked date.
+            stated = payload.get("stated_deadline")
+            contradicts = payload.get("contradicts_tracked_deadline") or (
+                stated is not None and entry is not None
+                and str(stated) != str(entry.get("deadline")))
+            if contradicts:
+                if entry is not None:
+                    # the artifact does not satisfy the milestone; the date
+                    # on the timeline stays as tracked until you decide
+                    entry["contradicted_by"] = payload.get("artifact_ref")
                 self.hub.ingest_spoke_trace(
                     "07", env.envelope_id,
                     thought=f"received artifact contradicts the tracked "
@@ -336,7 +349,21 @@ class Spoke07TransactionCoordinator:
                                   {"client_context_id": ctx,
                                    "trigger": f"artifact contradicts tracked "
                                              f"deadline: {milestone}",
+                                   "tracked_deadline": (entry or {}).get("deadline"),
+                                   "artifact_states": stated,
+                                   "artifact_ref": payload.get("artifact_ref"),
+                                   "doc_type": payload.get("doc_type"),
                                    "agent": "07"})
+                if stated is not None:
+                    # the calendar tracks both dates (Agent 18 tuple 6)
+                    if entry is not None and entry.get("deadline"):
+                        self.hub.send(_env("07", "18", "deadline.alert", ctx,
+                                           {"milestone": milestone,
+                                            "deadline": entry["deadline"]}))
+                    self.hub.send(_env("07", "18", "deadline.alert", ctx,
+                                       {"milestone": milestone, "deadline": stated,
+                                        "source": "artifact",
+                                        "artifact_ref": payload.get("artifact_ref")}))
                 return
 
             if milestone == "inspection" and payload.get("report_received"):

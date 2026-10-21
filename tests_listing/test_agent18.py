@@ -105,14 +105,31 @@ def test_overloaded_day_proposes_priority_never_silently_drops(tmp_path):
 
 
 def test_conflicting_deadline_sources_tracks_both_never_picks(tmp_path):
+    # 2026-10-14: sources are keyed by source. Agent 07's timeline and the
+    # date a received document states are two sources; both are kept.
     hub = make_hub(str(tmp_path))
     spoke = Spoke18CalendarTask(hub)
     hub.on_turn_start()
     hub.send(deadline_alert("cal-006", {"milestone": "closing", "deadline": "2026-09-01"}))
-    hub.send(deadline_alert("cal-006", {"milestone": "closing", "deadline": "2026-09-03"}))
-    assert spoke.deadline_sources["cal-006"]["closing"] == "2026-09-03"
+    hub.send(deadline_alert("cal-006", {"milestone": "closing", "deadline": "2026-09-03",
+                                        "source": "artifact"}))
+    assert spoke.deadline_sources["cal-006"]["closing"] == {"07": "2026-09-01",
+                                                             "artifact": "2026-09-03"}
     clar = persisted(hub, "clarification.request")
     assert any("conflicting deadline sources" in c["payload"]["reason"] for c in clar)
+    blocks = {b for b in spoke.protected_blocks if b.startswith("deadline-cal-006-closing")}
+    assert blocks == {"deadline-cal-006-closing", "deadline-cal-006-closing-artifact"}
+
+
+def test_an_amended_date_from_the_same_source_is_not_two_sources(tmp_path):
+    hub = make_hub(str(tmp_path))
+    spoke = Spoke18CalendarTask(hub)
+    hub.on_turn_start()
+    hub.send(deadline_alert("cal-007", {"milestone": "closing", "deadline": "2026-09-01"}))
+    hub.send(deadline_alert("cal-007", {"milestone": "closing", "deadline": "2026-09-03"}))
+    assert spoke.deadline_sources["cal-007"]["closing"] == {"07": "2026-09-03"}
+    clar = persisted(hub, "clarification.request")
+    assert not any("conflicting deadline sources" in c["payload"]["reason"] for c in clar)
 
 
 def test_deadline_conflicts_with_soft_calendar_item_proposes_move(tmp_path):

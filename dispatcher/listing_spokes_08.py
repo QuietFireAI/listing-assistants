@@ -485,6 +485,11 @@ class Spoke08DocumentCollection:
                           "status": "received",
                           "artifact_on_file": True,
                           "artifact_ref": payload.get("content_hash", doc_type)}
+        # 2026-10-14 (plumbing, tuple 07-03): a date the document itself
+        # states for its milestone rides along verbatim; Agent 07 owns the
+        # timeline and does the comparison
+        if payload.get("stated_deadline"):
+            status_payload["stated_deadline"] = payload["stated_deadline"]
         if doc_type == "inspection_report":
             status_payload["report_received"] = True
             status_payload["repair_requests_present"] = \

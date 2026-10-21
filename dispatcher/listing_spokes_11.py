@@ -35,7 +35,7 @@ _DOCUMENT_FIELDS = ("doc_type", "submitting_party", "opens_correctly", "open_err
                     "signature_expected", "version_conflict_key", "wrong_context",
                     "sale_price", "commission_amount", "appraised_value",
                     "contract_price", "repair_requests_present", "exception_found",
-                    "exception_text", "receipt_confirmed")
+                    "exception_text", "receipt_confirmed", "stated_deadline")
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
@@ -271,6 +271,18 @@ class Spoke11ClientCommunication:
                            {"kind": "client_touch", "template": template}))
         return True
 
+    def _consent_from_14(self, ctx: str) -> dict:
+        """Consent as Agent 14 records it now (the same in-step answer the
+        consent check before every send uses)."""
+        self.consent_seen.pop(ctx, None)
+        self._consent_check_open = ctx
+        try:
+            self.hub.send(_env("11", "14", "record.request", ctx,
+                               {"purpose": "consent_check"}))
+        finally:
+            self._consent_check_open = None
+        return self.consent_seen.pop(ctx, None) or {}
+
     # request_market_update() and the data.package -> client branch were
     # removed 2026-10-12 (owner decision J5): the request asked Agent 10 for
     # NEIGHBORHOOD data (the same steering risk as Agent 13's path removed in
@@ -477,6 +489,24 @@ class Spoke11ClientCommunication:
                                    {"kind": "channel_change",
                                     "new_channel": new_channel,
                                     "consent": {new_channel: "yes"} if new_channel else {}}))
+                # 2026-10-14 (plumbing, finding on 14-04): 14 keeps a "no"
+                # the client gave earlier until you record a reconfirmation
+                # (Agent 14 tuple 14), but the client was still told the
+                # change was made. Confirm only what 14 now records.
+                now = self._consent_from_14(ctx)
+                if new_channel and now.get(new_channel) != "yes":
+                    self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                       {"kind": "channel_change_not_confirmed",
+                                        "new_channel": new_channel,
+                                        "consent_on_record": now.get(new_channel)}))
+                    self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                       {"reason": f"client asked to be reached by {new_channel!r}, "
+                                                  f"which they opted out of earlier; the opt-out "
+                                                  f"stands and nothing was confirmed to the client. "
+                                                  f"To honor the request, record a signed "
+                                                  f"consent_record with reconfirmed_by_client: true",
+                                        "verbatim": message}))
+                    return
                 self._send_client_message(ctx, "channel_change_confirmed", {},
                                           payload.get("hour", 12), env=env)
                 return
