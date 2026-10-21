@@ -306,3 +306,36 @@ def test_lock_left_by_a_dead_desk_is_ignored_and_a_live_one_holds(tmp_path):
     finally:
         alive.kill()
         alive.wait(timeout=30)
+
+
+def test_mark_handled_signs_the_prospect_off_and_it_leaves_the_list(tmp_path):
+    """Owner request 2026-10-21: a button for Agent 19's prospects waiting."""
+    import console
+    d = desk_mod.Desk(str(tmp_path / "pros"), showcase=True)
+    try:
+        for a in ({"do": "config", "to": "19", "ctx": "setup", "payload": {"zip_codes": ["44811"]}},
+                  {"do": "send", "from": "external", "to": "19", "intent": "discovery.feed",
+                   "ctx": "O-1", "payload": {"listing_id": "M-1", "zip_code": "44811",
+                                             "source": "mls", "status": "new",
+                                             "today": "2026-10-21"}}):
+            r, err = console.apply_action(d.sw, d.signer, d.operator, a)
+            assert not err, r
+        [p] = d.state()["prospects"]
+        assert (p["id"], p["zip"], p["status"], p["comps"]) == ("M-1", "44811", "new", 0)
+        r = d.act({"action": "prospect_handled", "id": "M-1"})
+        assert r.get("status") == "ack", r
+        assert d.state()["prospects"] == []
+        signed = [e for e in d.sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+                  and e["intent"] == "config.update" and e["to_agent"] == "19"
+                  and e["payload"].get("prospects_handled") == ["M-1"]]
+        assert len(signed) == 1   # config.update is signature-gated: the hub acked it, so it verified
+        assert "already handled" in d.act({"action": "prospect_handled", "id": "M-1"})["error"]
+        assert "already handled" in d.act({"action": "prospect_handled", "id": "nope"})["error"]
+    finally:
+        d.close()
+
+
+def test_the_page_has_the_prospects_list_and_its_button():
+    page = open(os.path.join(ROOT, "tools", "desk.html"), encoding="utf-8").read()
+    assert 'id="prospects"' in page and "Mark handled" in page
+    assert 'action: "prospect_handled"' in page

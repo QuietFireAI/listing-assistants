@@ -1,0 +1,1111 @@
+{
+ "_status": "PROPOSED 2026-10-21 - every tuple read and placed by hand by Claude for the owner's review; the owner's corrections are made here",
+ "_categories": {
+  "L": "Legal line - things the system must never do on its own (price or legal opinion, fair housing, commission wording, trust and escrow, wire instructions, compliance gates); it hands them to you word for word",
+  "C": "Consent and contact - who may be contacted, how, when and how often, and who may see a client's information",
+  "T": "Truth of the record - missing, stale, unverified or contradicting facts; unknown stays unknown, nothing is made up",
+  "A": "Your authority - only what you signed changes things: signatures, identity, property access, money approvals, forgery",
+  "Y": "Choices that are yours - two of something or an unclear case; the system holds and asks, it never picks the likely one",
+  "R": "Time and reliability - deadlines, overdue escalations, the clock, outages, capacity; when something breaks it stops loudly",
+  "P": "People moments - an angry, upset or vulnerable person, a public complaint; a person answers, not a template"
+ },
+ "_tiers": {
+  "1": "a failure could cost a license, money or a lawsuit",
+  "2": "a failure could hurt a client relationship or your reputation",
+  "3": "a failure slows the work"
+ },
+ "tuples": {
+  "00-01": {
+   "category": "Y",
+   "tier": 2
+  },
+  "00-02": {
+   "category": "A",
+   "tier": 1
+  },
+  "00-03": {
+   "category": "Y",
+   "tier": 2
+  },
+  "00-04": {
+   "category": "R",
+   "tier": 1
+  },
+  "00-05": {
+   "category": "Y",
+   "tier": 3
+  },
+  "00-06": {
+   "category": "R",
+   "tier": 3
+  },
+  "00-07": {
+   "category": "A",
+   "tier": 1
+  },
+  "00-08": {
+   "category": "T",
+   "tier": 2
+  },
+  "00-09": {
+   "category": "A",
+   "tier": 1
+  },
+  "00-10": {
+   "category": "R",
+   "tier": 1
+  },
+  "00-11": {
+   "category": "R",
+   "tier": 2
+  },
+  "00-12": {
+   "category": "R",
+   "tier": 2
+  },
+  "00-13": {
+   "category": "R",
+   "tier": 1
+  },
+  "00-14": {
+   "category": "R",
+   "tier": 1
+  },
+  "00-15": {
+   "category": "Y",
+   "tier": 2
+  },
+  "00-16": {
+   "category": "R",
+   "tier": 3
+  },
+  "00-17": {
+   "category": "R",
+   "tier": 2
+  },
+  "01-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "01-02": {
+   "category": "C",
+   "tier": 1
+  },
+  "01-03": {
+   "category": "P",
+   "tier": 2
+  },
+  "01-04": {
+   "category": "T",
+   "tier": 3
+  },
+  "01-05": {
+   "category": "T",
+   "tier": 2
+  },
+  "01-06": {
+   "category": "P",
+   "tier": 2
+  },
+  "01-07": {
+   "category": "C",
+   "tier": 1
+  },
+  "01-08": {
+   "category": "C",
+   "tier": 1
+  },
+  "01-09": {
+   "category": "T",
+   "tier": 3
+  },
+  "01-10": {
+   "category": "T",
+   "tier": 2
+  },
+  "01-11": {
+   "category": "C",
+   "tier": 1
+  },
+  "01-12": {
+   "category": "T",
+   "tier": 3
+  },
+  "01-13": {
+   "category": "L",
+   "tier": 2
+  },
+  "01-14": {
+   "category": "T",
+   "tier": 2
+  },
+  "01-15": {
+   "category": "C",
+   "tier": 1
+  },
+  "01-16": {
+   "category": "R",
+   "tier": 2
+  },
+  "02-01": {
+   "category": "Y",
+   "tier": 3
+  },
+  "02-02": {
+   "category": "T",
+   "tier": 2
+  },
+  "02-03": {
+   "category": "P",
+   "tier": 2
+  },
+  "02-04": {
+   "category": "T",
+   "tier": 3
+  },
+  "02-05": {
+   "category": "Y",
+   "tier": 3
+  },
+  "02-06": {
+   "category": "Y",
+   "tier": 2
+  },
+  "02-07": {
+   "category": "T",
+   "tier": 2
+  },
+  "02-08": {
+   "category": "Y",
+   "tier": 2
+  },
+  "02-09": {
+   "category": "A",
+   "tier": 1
+  },
+  "02-10": {
+   "category": "T",
+   "tier": 2
+  },
+  "02-11": {
+   "category": "Y",
+   "tier": 2
+  },
+  "02-12": {
+   "category": "T",
+   "tier": 2
+  },
+  "02-13": {
+   "category": "Y",
+   "tier": 2
+  },
+  "02-14": {
+   "category": "A",
+   "tier": 1
+  },
+  "02-15": {
+   "category": "T",
+   "tier": 2
+  },
+  "02-16": {
+   "category": "T",
+   "tier": 3
+  },
+  "03-01": {
+   "category": "C",
+   "tier": 2
+  },
+  "03-02": {
+   "category": "C",
+   "tier": 1
+  },
+  "03-03": {
+   "category": "T",
+   "tier": 2
+  },
+  "03-04": {
+   "category": "Y",
+   "tier": 3
+  },
+  "03-05": {
+   "category": "C",
+   "tier": 2
+  },
+  "03-06": {
+   "category": "C",
+   "tier": 1
+  },
+  "03-07": {
+   "category": "C",
+   "tier": 1
+  },
+  "03-08": {
+   "category": "C",
+   "tier": 2
+  },
+  "03-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "03-10": {
+   "category": "Y",
+   "tier": 3
+  },
+  "03-11": {
+   "category": "L",
+   "tier": 2
+  },
+  "03-12": {
+   "category": "T",
+   "tier": 3
+  },
+  "03-13": {
+   "category": "T",
+   "tier": 3
+  },
+  "03-14": {
+   "category": "T",
+   "tier": 3
+  },
+  "03-15": {
+   "category": "C",
+   "tier": 2
+  },
+  "03-16": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "04-02": {
+   "category": "T",
+   "tier": 2
+  },
+  "04-03": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-04": {
+   "category": "T",
+   "tier": 3
+  },
+  "04-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-06": {
+   "category": "T",
+   "tier": 2
+  },
+  "04-07": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-08": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "04-10": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-11": {
+   "category": "T",
+   "tier": 3
+  },
+  "04-12": {
+   "category": "A",
+   "tier": 2
+  },
+  "04-13": {
+   "category": "T",
+   "tier": 2
+  },
+  "04-14": {
+   "category": "L",
+   "tier": 1
+  },
+  "04-15": {
+   "category": "L",
+   "tier": 2
+  },
+  "05-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "05-02": {
+   "category": "T",
+   "tier": 2
+  },
+  "05-03": {
+   "category": "Y",
+   "tier": 2
+  },
+  "05-04": {
+   "category": "T",
+   "tier": 2
+  },
+  "05-05": {
+   "category": "A",
+   "tier": 1
+  },
+  "05-06": {
+   "category": "A",
+   "tier": 1
+  },
+  "05-07": {
+   "category": "T",
+   "tier": 2
+  },
+  "05-08": {
+   "category": "Y",
+   "tier": 1
+  },
+  "05-09": {
+   "category": "L",
+   "tier": 1
+  },
+  "05-10": {
+   "category": "T",
+   "tier": 2
+  },
+  "05-11": {
+   "category": "L",
+   "tier": 1
+  },
+  "05-12": {
+   "category": "R",
+   "tier": 2
+  },
+  "05-13": {
+   "category": "R",
+   "tier": 3
+  },
+  "06-01": {
+   "category": "R",
+   "tier": 2
+  },
+  "06-02": {
+   "category": "A",
+   "tier": 1
+  },
+  "06-03": {
+   "category": "A",
+   "tier": 1
+  },
+  "06-04": {
+   "category": "P",
+   "tier": 3
+  },
+  "06-05": {
+   "category": "C",
+   "tier": 2
+  },
+  "06-06": {
+   "category": "A",
+   "tier": 1
+  },
+  "06-07": {
+   "category": "C",
+   "tier": 2
+  },
+  "06-08": {
+   "category": "P",
+   "tier": 3
+  },
+  "06-09": {
+   "category": "R",
+   "tier": 3
+  },
+  "06-10": {
+   "category": "C",
+   "tier": 3
+  },
+  "06-11": {
+   "category": "T",
+   "tier": 2
+  },
+  "06-12": {
+   "category": "A",
+   "tier": 2
+  },
+  "06-13": {
+   "category": "A",
+   "tier": 3
+  },
+  "07-01": {
+   "category": "Y",
+   "tier": 2
+  },
+  "07-02": {
+   "category": "T",
+   "tier": 1
+  },
+  "07-03": {
+   "category": "T",
+   "tier": 1
+  },
+  "07-04": {
+   "category": "R",
+   "tier": 1
+  },
+  "07-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "07-06": {
+   "category": "L",
+   "tier": 1
+  },
+  "07-07": {
+   "category": "L",
+   "tier": 1
+  },
+  "07-08": {
+   "category": "R",
+   "tier": 1
+  },
+  "07-09": {
+   "category": "L",
+   "tier": 1
+  },
+  "07-10": {
+   "category": "T",
+   "tier": 1
+  },
+  "07-11": {
+   "category": "R",
+   "tier": 1
+  },
+  "07-12": {
+   "category": "Y",
+   "tier": 1
+  },
+  "08-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "08-02": {
+   "category": "T",
+   "tier": 3
+  },
+  "08-03": {
+   "category": "Y",
+   "tier": 2
+  },
+  "08-04": {
+   "category": "A",
+   "tier": 1
+  },
+  "08-05": {
+   "category": "R",
+   "tier": 2
+  },
+  "08-06": {
+   "category": "T",
+   "tier": 2
+  },
+  "08-07": {
+   "category": "Y",
+   "tier": 2
+  },
+  "08-08": {
+   "category": "R",
+   "tier": 1
+  },
+  "08-09": {
+   "category": "L",
+   "tier": 1
+  },
+  "08-10": {
+   "category": "C",
+   "tier": 1
+  },
+  "08-11": {
+   "category": "L",
+   "tier": 1
+  },
+  "08-12": {
+   "category": "R",
+   "tier": 2
+  },
+  "08-13": {
+   "category": "T",
+   "tier": 2
+  },
+  "09-01": {
+   "category": "R",
+   "tier": 2
+  },
+  "09-02": {
+   "category": "A",
+   "tier": 2
+  },
+  "09-03": {
+   "category": "L",
+   "tier": 1
+  },
+  "09-04": {
+   "category": "T",
+   "tier": 2
+  },
+  "09-05": {
+   "category": "Y",
+   "tier": 3
+  },
+  "09-06": {
+   "category": "A",
+   "tier": 2
+  },
+  "09-07": {
+   "category": "A",
+   "tier": 1
+  },
+  "09-08": {
+   "category": "T",
+   "tier": 2
+  },
+  "09-09": {
+   "category": "A",
+   "tier": 1
+  },
+  "09-10": {
+   "category": "R",
+   "tier": 2
+  },
+  "09-11": {
+   "category": "A",
+   "tier": 2
+  },
+  "09-12": {
+   "category": "A",
+   "tier": 2
+  },
+  "10-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "10-02": {
+   "category": "T",
+   "tier": 2
+  },
+  "10-03": {
+   "category": "L",
+   "tier": 1
+  },
+  "10-04": {
+   "category": "T",
+   "tier": 2
+  },
+  "10-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "10-06": {
+   "category": "L",
+   "tier": 2
+  },
+  "10-07": {
+   "category": "T",
+   "tier": 2
+  },
+  "10-08": {
+   "category": "T",
+   "tier": 2
+  },
+  "10-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "10-10": {
+   "category": "L",
+   "tier": 1
+  },
+  "10-11": {
+   "category": "T",
+   "tier": 2
+  },
+  "11-01": {
+   "category": "L",
+   "tier": 1
+  },
+  "11-02": {
+   "category": "P",
+   "tier": 2
+  },
+  "11-03": {
+   "category": "Y",
+   "tier": 2
+  },
+  "11-04": {
+   "category": "C",
+   "tier": 2
+  },
+  "11-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "11-06": {
+   "category": "L",
+   "tier": 1
+  },
+  "11-07": {
+   "category": "C",
+   "tier": 1
+  },
+  "11-08": {
+   "category": "T",
+   "tier": 2
+  },
+  "11-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "11-10": {
+   "category": "P",
+   "tier": 2
+  },
+  "11-11": {
+   "category": "C",
+   "tier": 2
+  },
+  "11-12": {
+   "category": "C",
+   "tier": 1
+  },
+  "11-13": {
+   "category": "C",
+   "tier": 1
+  },
+  "11-14": {
+   "category": "P",
+   "tier": 2
+  },
+  "12-01": {
+   "category": "L",
+   "tier": 1
+  },
+  "12-02": {
+   "category": "L",
+   "tier": 2
+  },
+  "12-03": {
+   "category": "T",
+   "tier": 3
+  },
+  "12-04": {
+   "category": "L",
+   "tier": 1
+  },
+  "12-05": {
+   "category": "Y",
+   "tier": 2
+  },
+  "12-06": {
+   "category": "T",
+   "tier": 2
+  },
+  "12-07": {
+   "category": "L",
+   "tier": 1
+  },
+  "12-08": {
+   "category": "L",
+   "tier": 1
+  },
+  "12-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "12-10": {
+   "category": "A",
+   "tier": 2
+  },
+  "12-11": {
+   "category": "L",
+   "tier": 1
+  },
+  "13-01": {
+   "category": "Y",
+   "tier": 2
+  },
+  "13-02": {
+   "category": "L",
+   "tier": 1
+  },
+  "13-03": {
+   "category": "Y",
+   "tier": 3
+  },
+  "13-04": {
+   "category": "L",
+   "tier": 1
+  },
+  "13-05": {
+   "category": "L",
+   "tier": 2
+  },
+  "13-06": {
+   "category": "Y",
+   "tier": 2
+  },
+  "13-07": {
+   "category": "L",
+   "tier": 1
+  },
+  "13-08": {
+   "category": "L",
+   "tier": 1
+  },
+  "13-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "13-10": {
+   "category": "T",
+   "tier": 2
+  },
+  "13-11": {
+   "category": "L",
+   "tier": 1
+  },
+  "14-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "14-02": {
+   "category": "T",
+   "tier": 2
+  },
+  "14-03": {
+   "category": "T",
+   "tier": 2
+  },
+  "14-04": {
+   "category": "C",
+   "tier": 1
+  },
+  "14-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "14-06": {
+   "category": "T",
+   "tier": 2
+  },
+  "14-07": {
+   "category": "T",
+   "tier": 1
+  },
+  "14-08": {
+   "category": "T",
+   "tier": 2
+  },
+  "14-09": {
+   "category": "C",
+   "tier": 1
+  },
+  "14-10": {
+   "category": "L",
+   "tier": 1
+  },
+  "14-11": {
+   "category": "A",
+   "tier": 1
+  },
+  "14-12": {
+   "category": "R",
+   "tier": 2
+  },
+  "14-13": {
+   "category": "R",
+   "tier": 2
+  },
+  "14-14": {
+   "category": "C",
+   "tier": 1
+  },
+  "15-01": {
+   "category": "L",
+   "tier": 1
+  },
+  "15-02": {
+   "category": "Y",
+   "tier": 3
+  },
+  "15-03": {
+   "category": "T",
+   "tier": 3
+  },
+  "15-04": {
+   "category": "T",
+   "tier": 2
+  },
+  "15-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "15-06": {
+   "category": "T",
+   "tier": 1
+  },
+  "15-07": {
+   "category": "T",
+   "tier": 2
+  },
+  "15-08": {
+   "category": "T",
+   "tier": 2
+  },
+  "15-09": {
+   "category": "L",
+   "tier": 1
+  },
+  "15-10": {
+   "category": "T",
+   "tier": 2
+  },
+  "16-01": {
+   "category": "P",
+   "tier": 2
+  },
+  "16-02": {
+   "category": "C",
+   "tier": 1
+  },
+  "16-03": {
+   "category": "L",
+   "tier": 2
+  },
+  "16-04": {
+   "category": "C",
+   "tier": 2
+  },
+  "16-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "16-06": {
+   "category": "P",
+   "tier": 2
+  },
+  "16-07": {
+   "category": "T",
+   "tier": 3
+  },
+  "16-08": {
+   "category": "L",
+   "tier": 1
+  },
+  "16-09": {
+   "category": "C",
+   "tier": 2
+  },
+  "16-10": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-01": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-02": {
+   "category": "L",
+   "tier": 2
+  },
+  "17-03": {
+   "category": "L",
+   "tier": 2
+  },
+  "17-04": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-05": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-06": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-07": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-08": {
+   "category": "L",
+   "tier": 2
+  },
+  "17-09": {
+   "category": "L",
+   "tier": 1
+  },
+  "17-10": {
+   "category": "L",
+   "tier": 2
+  },
+  "18-01": {
+   "category": "Y",
+   "tier": 2
+  },
+  "18-02": {
+   "category": "T",
+   "tier": 2
+  },
+  "18-03": {
+   "category": "Y",
+   "tier": 1
+  },
+  "18-04": {
+   "category": "A",
+   "tier": 1
+  },
+  "18-05": {
+   "category": "Y",
+   "tier": 3
+  },
+  "18-06": {
+   "category": "Y",
+   "tier": 1
+  },
+  "18-07": {
+   "category": "R",
+   "tier": 2
+  },
+  "18-08": {
+   "category": "R",
+   "tier": 2
+  },
+  "18-09": {
+   "category": "R",
+   "tier": 1
+  },
+  "19-01": {
+   "category": "T",
+   "tier": 2
+  },
+  "19-02": {
+   "category": "L",
+   "tier": 2
+  },
+  "19-03": {
+   "category": "Y",
+   "tier": 3
+  },
+  "19-04": {
+   "category": "T",
+   "tier": 3
+  },
+  "19-05": {
+   "category": "A",
+   "tier": 1
+  },
+  "19-06": {
+   "category": "L",
+   "tier": 1
+  },
+  "19-07": {
+   "category": "L",
+   "tier": 1
+  },
+  "19-08": {
+   "category": "C",
+   "tier": 1
+  },
+  "19-09": {
+   "category": "T",
+   "tier": 2
+  },
+  "19-10": {
+   "category": "L",
+   "tier": 1
+  },
+  "20-01": {
+   "category": "P",
+   "tier": 2
+  },
+  "20-02": {
+   "category": "C",
+   "tier": 1
+  },
+  "20-03": {
+   "category": "P",
+   "tier": 1
+  },
+  "20-04": {
+   "category": "P",
+   "tier": 3
+  },
+  "20-05": {
+   "category": "T",
+   "tier": 3
+  },
+  "20-06": {
+   "category": "P",
+   "tier": 3
+  },
+  "SW-01": {
+   "category": "Y",
+   "tier": 3
+  },
+  "SW-02": {
+   "category": "L",
+   "tier": 1
+  },
+  "SW-03": {
+   "category": "R",
+   "tier": 2
+  },
+  "SW-04": {
+   "category": "A",
+   "tier": 2
+  },
+  "SW-05": {
+   "category": "T",
+   "tier": 2
+  },
+  "SW-06": {
+   "category": "R",
+   "tier": 2
+  },
+  "SW-07": {
+   "category": "R",
+   "tier": 2
+  },
+  "SW-08": {
+   "category": "L",
+   "tier": 1
+  },
+  "SW-09": {
+   "category": "Y",
+   "tier": 2
+  },
+  "SW-10": {
+   "category": "R",
+   "tier": 3
+  },
+  "SW-11": {
+   "category": "A",
+   "tier": 1
+  },
+  "SW-12": {
+   "category": "R",
+   "tier": 3
+  },
+  "SW-13": {
+   "category": "Y",
+   "tier": 2
+  },
+  "SW-14": {
+   "category": "Y",
+   "tier": 3
+  }
+ }
+}

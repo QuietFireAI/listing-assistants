@@ -15,6 +15,14 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Tuple map and a Mark handled button (2026-10-21, owner request).**
+  `docs/TUPLE_MAP.md` sorts all 273 tuples by what they protect (seven
+  categories) and how bad a failure would be (three tiers), with run status
+  and the playbooks each can fire in; the placing is in
+  `synth/tuples/TUPLE_MAP.json`, PROPOSED for your review, and a test keeps
+  the page current. The Broker Desk lists Agent 19's prospects waiting, with
+  a **Mark handled** button that signs the `prospects_handled` setting.
+
 - **Owner playbook walkthrough (2026-10-21).** P01 and P02 signed. Ten
   decisions applied (`docs/walkthrough/PLAYBOOK_WALKTHROUGH_2026-10-21.md`):
   a comparables request starts P23 on a live listing and P15 otherwise;
@@ -328,7 +336,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1300 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1305 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

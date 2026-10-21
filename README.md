@@ -186,7 +186,10 @@ flowchart TD
 - **Predeliberated decisions.** 259 decision tuples (each agent's
   `DECISIONS.md`; 3 of them marked retired) say what an agent does at each
   known crossing. A situation
-  no tuple covers stops and goes to the human.
+  no tuple covers stops and goes to the human. `docs/TUPLE_MAP.md` sorts
+  every tuple by what it protects (legal line, consent and contact, truth
+  of the record, your authority, choices that are yours, time and
+  reliability, people moments) and by how bad a failure would be.
 - **Drafts stay drafts.** Configuration files ship as proposed drafts.
   Agents 07 and 08 load their config files only when the file's status
   records a ratification date; otherwise they keep their ratified defaults
@@ -368,7 +371,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1300 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1305 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

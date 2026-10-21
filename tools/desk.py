@@ -336,6 +336,7 @@ class ReadModel:
             "needs_you": self.needs_you(hub, sw, acked),
             "listings": self.listings(log, hub),
             "leads": self.leads(log, hub, acked),
+            "prospects": self.prospects(sw),
             "team": self.team(log, hub, sw),
             "proof": self.proof(log, hub, sw, audience),
             "activity": self.activity(log),
@@ -471,6 +472,26 @@ class ReadModel:
         return out
 
     # ---- leads
+    # ---- prospects (owner request 2026-10-21): Agent 19's prospects you
+    # have not marked handled - the morning briefing's "prospects waiting"
+    def prospects(self, sw):
+        s19 = sw.spokes.get("19")
+        if s19 is None:
+            return []
+        handled = getattr(s19, "prospects_handled", set())
+        out = []
+        for lid, r in s19.opportunities.items():
+            if lid in handled:
+                continue
+            out.append({"id": lid, "zip": r.get("zip_code"), "source": r.get("source"),
+                        "status": r.get("status_at_retrieval"),
+                        "found": r.get("retrieval_timestamp"),
+                        "do_not_call": r.get("dnc_status") == "on_dnc",
+                        # the comps 10 found for it; None = no package yet
+                        "comps": (r["market_context"].get("comp_count")
+                                  if isinstance(r.get("market_context"), dict) else None)})
+        return out
+
     def leads(self, log, hub, acked):
         leads = {}
         for e in log:
@@ -966,6 +987,17 @@ class Desk:
                     "client_context_id": body.get("ctx"),
                     "by": (self.operator or {}).get("login")})
                 return self._done(f"Marked done: {body.get('title')}", {"acknowledged": item})
+            if kind == "prospect_handled":
+                # signed config.update to Agent 19, like every other setting
+                lid = body.get("id")
+                if lid not in {p["id"] for p in self.model.prospects(self.sw)}:
+                    return {"error": "that prospect is not waiting (already handled, or unknown)"}
+                r, err = console.apply_action(self.sw, self.signer, self.operator,
+                                              {"do": "config", "to": "19", "ctx": lid,
+                                               "payload": {"prospects_handled": [lid]}})
+                if err:
+                    return {"error": f"not recorded: {short(r, 200)}"}
+                return self._done(f"Prospect handled: {lid}", r)
             if kind == "sweep":
                 day = body.get("today") or datetime.date.today().isoformat()
                 r, _ = console.apply_action(self.sw, self.signer, self.operator,

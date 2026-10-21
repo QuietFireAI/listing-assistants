@@ -244,6 +244,8 @@ section{margin-bottom:22px}
       <div id="listings"></div>
       <h2>Leads</h2>
       <div id="leads"></div>
+      <h2>Prospects waiting <span class="count soft" id="prospects-count">0</span></h2>
+      <div id="prospects"></div>
     </section>
   </div>
 
@@ -510,6 +512,20 @@ function leadRow(l) {
     right));
   return c;
 }
+function prospectRow(p) {
+  const c = el("div", {class: "card"});
+  const done = el("button", {}, "Mark handled");
+  done.onclick = () => act({action: "prospect_handled", id: p.id})
+    .then(j => j && !j.error && toast("Signed: prospect " + p.id + " handled"));
+  const meta = [p.status, p.zip && "zip " + p.zip, p.source, p.found,
+                p.comps == null ? "no comps yet" : `${p.comps} comps`].filter(Boolean).join(" · ");
+  c.append(el("div", {class: "lead"},
+    el("div", {}, el("b", {}, p.id), p.do_not_call ? el("span", {class: "badge"}, " do not call") : "",
+       el("div", {class: "meta"}, meta)),
+    el("div", {}, done)));
+  return c;
+}
+
 function renderDay() {
   const D = S.day;
   const pick = document.getElementById("day-pick");
@@ -647,6 +663,10 @@ function render() {
     : [el("div", {class: "empty"}, "No listings yet.")]));
   document.getElementById("leads").replaceChildren(...(S.leads.length ? S.leads.map(leadRow)
     : [el("div", {class: "empty"}, "No leads yet.")]));
+  const pros = S.prospects || [];
+  document.getElementById("prospects-count").textContent = pros.length;
+  document.getElementById("prospects").replaceChildren(...(pros.length ? pros.map(prospectRow)
+    : [el("div", {class: "empty"}, "No prospects waiting.")]));
   const stateWord = {working: "working", you: "waiting for you", waiting: "waiting", problem: "problem", idle: "idle"};
   const tallyT = {};
   for (const a of S.team) tallyT[a.state] = (tallyT[a.state] || 0) + 1;

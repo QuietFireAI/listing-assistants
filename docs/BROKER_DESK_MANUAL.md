@@ -286,6 +286,17 @@ Other statuses: **Captured** (in your pipeline), **Waiting for your decision**
 (a paused thread in Needs you, such as a possible duplicate person),
 **Closed by your decision** (you cancelled it).
 
+### Prospects waiting
+
+Under the leads: Agent 19's prospects (from your monitored zip codes and
+approved sources) that you have not dealt with yet, each with its zip, source,
+status, the day it was found and how many comparables Agent 10 found for it
+("no comps yet" until the package arrives). A prospect on your do-not-call list
+says so. When you have dealt with one, press **Mark handled**: it signs a
+`prospects_handled` setting to Agent 19 with your key, the prospect leaves this
+list and the morning briefing's "prospects waiting" section, and the signed
+setting is on the record. Agent 19 never contacts a prospect itself.
+
 ## 7. Your team
 
 ![The twenty agents and what each is doing](images/desk-manual/11-team.png)
