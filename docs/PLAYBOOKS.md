@@ -55,6 +55,16 @@ gates. Each playbook's executable definition is its end-to-end test,
 `tests_listing/test_playbooks_e2e_all.py`, run against the same hub the
 swarm uses.
 
+**Runs (2026-10-20).** The dispatcher tracks every playbook as runs, one
+per playbook and client (`dispatcher/run_tracker.py`), from the table in
+`identity/playbooks.json`: the message patterns that start and end each
+playbook, its agents, the playbooks it hands on from, and the ones it
+conflicts with. The table is PROPOSED until you ratify it. Each run ends
+with an after-action report. `synth/playbooks/specs/PLAYBOOKS.jsonl` holds
+one console session per playbook from its start to its end; `python
+synth/tuples/run_tuples.py --set playbooks` runs all 24 and writes
+`synth/playbooks/REPORT.md`.
+
 The entries were generated from playbook step tables kept in the
 listing-agents-blueprint repository, which is no longer maintained (owner
 decision 2026-10-11: this repository is the single source). The "Agents
@@ -118,7 +128,10 @@ Human confirms offer acceptance (executed contract artifact filed via 08).
 **Agents touched (from step tables):** 01, 02, 04, 06, 11, 12, 17
 
 ### Trigger
-Open house scheduled (human decision or P01 step 3d).
+Open house scheduled (human decision or P01 step 3d). In the product: your
+signed `{"open_house": {"start": ..., "end": ...}}` to Agent 06 on an
+active listing; your signed `{"open_house_result": {"attendees": n,
+"feedback": [...]}}` closes the run (built 2026-10-20).
 
 ### HITL gates
 (none listed beyond swarm-wide gates)

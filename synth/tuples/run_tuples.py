@@ -11,6 +11,7 @@ afterwards. Every spec runs in its own fresh state folder, through
     python synth/tuples/run_tuples.py 01-02 02-07     # just these tuples
     python synth/tuples/run_tuples.py --agent 01      # one agent's tuples
     python synth/tuples/run_tuples.py --show 01-02    # print the session file for one tuple, to run it yourself
+    python synth/tuples/run_tuples.py --set playbooks # every playbook, start to end, writes synth/playbooks/REPORT.md
 
 A spec line:
   {"id": "01-02", "agent": "01", "tuple": "(prospect refuses consent, ...)",
@@ -62,9 +63,16 @@ CONFIG = os.path.join(HERE, "config")
 SETUP = os.path.join(HERE, "setup.jsonl")
 
 
-def load_specs(selected=None, agent=None):
+# the playbook runs (2026-10-20): one session per playbook, from its start to
+# its end, in synth/playbooks/specs/, reported to synth/playbooks/REPORT.md
+SPEC_SETS = {"tuples": (os.path.join(HERE, "specs"), os.path.join(HERE, "REPORT.md")),
+             "playbooks": (os.path.join(ROOT, "synth", "playbooks", "specs"),
+                           os.path.join(ROOT, "synth", "playbooks", "REPORT.md"))}
+
+
+def load_specs(selected=None, agent=None, spec_set="tuples"):
     specs = []
-    for path in sorted(glob.glob(os.path.join(HERE, "specs", "*.jsonl"))):
+    for path in sorted(glob.glob(os.path.join(SPEC_SETS[spec_set][0], "*.jsonl"))):
         for n, line in enumerate(open(path, encoding="utf-8"), 1):
             line = line.strip()
             if not line or line.startswith("//"):
@@ -202,10 +210,19 @@ def write_report(specs, results, path):
     by = {r["id"]: r for r in results}
     order = ["PASS", "VARIANCE", "ERROR", "NOT REACHABLE", "NOT BUILT", "RETIRED"]
     counts = {k: sum(1 for r in results if r["result"] == k) for k in order}
-    out = ["# Tuple runs", "",
-           "Written by `python synth/tuples/run_tuples.py`. Each tuple ran in its own fresh",
-           "state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.", "",
-           "| Result | Tuples |", "|---|---|"]
+    if os.path.abspath(path) == os.path.abspath(SPEC_SETS["playbooks"][1]):
+        out = ["# Playbook runs", "",
+               "Written by `python synth/tuples/run_tuples.py --set playbooks`. Each playbook ran from its",
+               "start to its end in its own fresh state through `tools/console.py session`, after",
+               "`synth/tuples/setup.jsonl`; each must start its run, end it as completed, write its",
+               "after-action report and show the playbook's own evidence. The table is",
+               "`identity/playbooks.json` (PROPOSED until the owner ratifies it).", "",
+               "| Result | Playbooks |", "|---|---|"]
+    else:
+        out = ["# Tuple runs", "",
+               "Written by `python synth/tuples/run_tuples.py`. Each tuple ran in its own fresh",
+               "state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.", "",
+               "| Result | Tuples |", "|---|---|"]
     out += [f"| {k} | {counts[k]} |" for k in order if counts[k]]
     out += ["", "| Tuple | Agent | Route | Result | Tuple text | Detail |", "|---|---|---|---|---|---|"]
     for s in specs:
@@ -231,15 +248,19 @@ def main(argv=None):
     ap.add_argument("--agent", default=None)
     ap.add_argument("--show", default=None, metavar="ID")
     ap.add_argument("--jobs", type=int, default=max(1, min(4, os.cpu_count() or 1)))
-    ap.add_argument("--report", default=os.path.join(HERE, "REPORT.md"))
+    ap.add_argument("--set", dest="spec_set", choices=sorted(SPEC_SETS), default="tuples",
+                    help="tuples (default) or playbooks: one session per playbook, start to end")
+    ap.add_argument("--report", default=None)
     args = ap.parse_args(argv)
+    if args.report is None:
+        args.report = SPEC_SETS[args.spec_set][1]
     if args.show:
-        spec = load_specs([args.show])
+        spec = load_specs([args.show], spec_set=args.spec_set)
         if not spec:
             raise SystemExit(f"no spec {args.show}")
         print("\n".join(session_lines(spec[0])))
         return 0
-    specs = load_specs(args.ids or None, args.agent)
+    specs = load_specs(args.ids or None, args.agent, args.spec_set)
     if not specs:
         raise SystemExit("no specs selected")
     workdir = tempfile.mkdtemp(prefix="tuple-runs-")

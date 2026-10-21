@@ -214,7 +214,7 @@ sequenceDiagram
     B->>A05: your signed listing or price change
     A05->>A11: reports the listing's status
     A05->>A12: reports the listing's status
-    Note over A12: Held - the marketing waits for your signed release
+    A12->>B: asks you - listing changed (price) while marketing is live - check t...
     A05->>A14: reports the listing's status
 ```
 

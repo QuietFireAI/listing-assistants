@@ -24,6 +24,9 @@ What it wires
     the model drafting gate as hub.drafting (Agent 04, off unless the broker
     turns it on and an examined checkpoint matches the served model); all
     added 2026-10-12
+  - the playbook run tracker as sw.runs (dispatcher/run_tracker.py, added
+    2026-10-20): playbook runs, holds on two matches or conflicts, the
+    open-question cap, after-action reports
   - the plain-language log (added 2026-10-12): the hub's audit log is a
     ReadableAuditLog, so every chain entry also lands, described, in
     <readable_dir>/stream.log (default: "readable" next to the audit log);
@@ -69,7 +72,8 @@ class Swarm:
             ensure = getattr(self.hub.audit, "ensure_intact", None)
             if ensure is not None:
                 ensure()
-            snap = ss.capture(self.hub, self.spokes, self.hitl, self.baseline)
+            snap = ss.capture(self.hub, self.spokes, self.hitl, self.baseline,
+                              getattr(self, "runs", None))
             body, digest = ss.body_and_hash(snap)
             taken = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
             sid = self.store.save_state_snapshot(taken, digest, body)
@@ -301,6 +305,11 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     sw = Swarm(hub, spokes, hitl, store, external, baseline,
                {"verdict": verdict, "vendors_loaded": sorted(roster), "entries_skipped": problems})
     sw.readable = readable
+    # the playbook run tracker (dispatcher/run_tracker.py, owner decision
+    # 2026-10-15): wraps hub.send last, so it sees every message, nested ones
+    # included; it changes nothing an agent does
+    from .run_tracker import RunTracker
+    sw.runs = RunTracker(sw)
     if state_db is None:
         hub.audit.append("state.ephemeral", {
             "reason": "no state store configured - agent state lives in this process only"})
@@ -309,7 +318,10 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
             hub.audit.append("state.fresh", {"state_db": state_db})
         else:
             import json
-            sw.restored = ss.restore(hub, spokes, hitl, json.loads(row["body"]), baseline)
+            body = json.loads(row["body"])
+            sw.restored = ss.restore(hub, spokes, hitl, body, baseline)
+            if body.get("runs"):
+                sw.runs.restore(ss.decode(body["runs"]))
             hub.audit.append("state.restored", {"snapshot_id": row["id"], "sha256": row["sha256"],
                                                 "agents": sorted(a for a, n in sw.restored.items() if n)})
     hub.on_turn_start()

@@ -11,7 +11,7 @@ so other pages can point straight to it.
 
 **The team:** [agent](#agent) · [swarm](#swarm) · [dispatcher and hub](#dispatcher-and-hub) · [identity](#identity) · [rule engine](#rule-engine) · [principal](#principal)
 
-**How work moves:** [message](#message) · [intent](#intent) · [route and lane](#route-and-lane) · [closed track](#closed-track) · [client context](#client-context) · [hand-off](#hand-off) · [playbook](#playbook) · [trigger](#trigger) · [daily clock](#daily-clock) · [queue](#queue)
+**How work moves:** [message](#message) · [intent](#intent) · [route and lane](#route-and-lane) · [closed track](#closed-track) · [client context](#client-context) · [hand-off](#hand-off) · [playbook](#playbook) · [playbook run](#playbook-run) · [after-action report](#after-action-report) · [trigger](#trigger) · [daily clock](#daily-clock) · [queue](#queue)
 
 **Decisions made ahead of time:** [tuple](#tuple) · [stop and ask](#stop-and-ask) · [SKILL.md and DECISIONS.md](#skillmd-and-decisionsmd) · [MANNERS.md and SWARM.md](#mannersmd-and-swarmmd)
 
@@ -128,6 +128,22 @@ Morning Operations, and 22 more. Each playbook names what starts it, the
 agents involved, and the points where it waits for you. Each one has a test
 that runs it from end to end. All 24 are in [PLAYBOOKS.md](PLAYBOOKS.md),
 and pictured message by message in [PLAY-BY-PLAY.md](PLAY-BY-PLAY.md).
+
+### Playbook run
+
+One playbook for one client, from the message that starts it to the one
+that ends it. The dispatcher keeps the runs from the playbook table
+(`identity/playbooks.json`); the agents do the work. When one message could
+start two playbooks, or a new run conflicts with one already open for the
+same client, nothing goes ahead until you choose. The console's
+`{"do": "runs"}` lists them.
+
+### After-action report
+
+A one-page record written when a run ends, from the audit log only: every
+step with its proof, what was held or refused, escalations, your signed
+decisions in the run, and any tuple the run showed is missing, proposed for
+you to ratify. Saved in `after_action/` next to the audit log.
 
 ### Trigger
 

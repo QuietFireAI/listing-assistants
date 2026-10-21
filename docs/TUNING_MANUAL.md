@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1218 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1285 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -389,6 +389,22 @@ now the second one. Revisit when real after-action/fade-rate data exists.
 | Agent 05 | `REDRAFT_FIELDS` | beds, baths, sqft, address | A signed change to one of these sends Agent 04 the updated listing to redraft the description |
 
 ---
+
+## Ratified 2026-10-15 (owner decisions: escalation re-alert, clock skew, queue cap, run tracker)
+
+| Where | Setting | Default | What it does |
+|---|---|---|---|
+| `dispatcher/escalation_watch.py` | `REALERT_MINUTES` | 30 | An escalation nobody has marked done is re-alerted once, on the same queue (`escalation.realerted`) |
+| `dispatcher/escalation_watch.py` | `OWNER_PAGE_MINUTES` | 60 | Then the owner channel is paged once (`escalation.owner_page`, `escalation.owner_paged`). Nothing expires an escalation by time |
+| `dispatcher/escalation_watch.py` | `SKEW_TOLERANCE_SECONDS` | 60 | A live-clock sweep whose clock is more than this behind the newest audit entry holds every time-triggered check (`clock.skew_hold`) and asks you |
+| scheduler | `python tools/run_sweeps.py --watch` every 5 minutes | not installed | The re-alert needs a check more often than the daily sweep; the console's `{"do": "watch"}` runs the same check |
+| `dispatcher/run_tracker.py` | `CAP_OPEN_QUESTIONS` | 25 | With this many questions waiting (paused threads plus clarification requests not marked done), a message from outside the agents that would start a new playbook run waits; you are told once (`escalation.queue_full`). Released by priority class when the count drops |
+| `identity/playbooks.json` | the playbook table | **PROPOSED 2026-10-20**, not ratified | Starts, ends, agents, hand-offs (`supersedes`) and conflicts for P01-P24, written from docs/PLAYBOOKS.md. Runs record `table: PROPOSED` and so does every after-action report until you ratify the file's `_status` line |
+| `identity/playbooks.json` | a comparables request (`data.request`, mode comp, from you to Agent 10) | starts P02, P15 and P23 | The same request starts three playbooks, so it is held until you choose (`set: {"playbook": "P15"}`), unless the request names its playbook (`payload.playbook`) |
+| `identity/playbooks.json` | conflicts | P05 with P01, P02, P04, P12, P18; P14 with P13, P18, P21, P22, P24 | A new run of one while the other is open on the same client holds both until you sequence them |
+| Agent 12 | farm campaign (a `new_campaign` with `audience.geography` and no `listing_id`) | Clear Cooperation gate does not apply | **OWNER TO CONFIRM.** Until 2026-10-20 a farm campaign waited forever for an MLS confirmation no farm gets. It now publishes after compliance review and your release; targeting other than `general` goes to the legal line |
+| Agent 12 | a listing change that is not a status (`status.update` carrying `price`) | marketing kept running | Was: read as "not active" and every live ad was halted. Now logged, and with live ads you are asked to check them for the old value |
+| Agent 06 | `open_house` / `open_house_result` (signed settings) | - | P04's entry and close: schedules the open house on an active listing (calendar, signage through the roster, log) and records the result |
 
 ## External adapters - NOT YET WIRED (owner decision #6: tracked here until clean)
 

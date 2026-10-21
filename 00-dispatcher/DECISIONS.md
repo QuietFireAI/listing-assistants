@@ -34,15 +34,20 @@ Added 2026-10-12 (owner sign-off, Jeff: modules wired, J3/J4/J8 decisions):
 - (an audit entry cannot be written to the plain-language view, the chain entry stands; count the failure and report it at the end of the session)
 - (a text page to the broker fails, record the failure on the chain; the on-screen page stands and nothing else waits on the text)
 
-Code status (checked 2026-10-12): the running hub does not do all of
-this. It does not compare two signed config.update instructions (an agent
-that receives conflicting changes holds them - Agent 05 does for listing
-changes); an audit write that fails stops that one envelope, not all
-traffic; there is no playbook engine, so the two playbook-matching tuples,
-siding by class (`dispatcher/priority.py` is not wired in) and the
-same-context-in-two-playbooks tuple cannot fire; an unacknowledged
-escalation is not re-alerted; there is no identity reload to refuse; the
-clarification queue has no depth limit; clock skew is not checked. SKILL.md
-section 2 lists the same gaps.
+Code status (checked 2026-10-20): the running hub does not compare two
+signed config.update instructions (an agent that receives conflicting
+changes holds them - Agent 05 does for listing changes). The rest runs:
+a failure that escapes the hub, an unwritable audit log among them, halts
+all traffic and alarms (`escalation.system_halt`, 2026-10-15);
+`dispatcher/escalation_watch.py` re-alerts an unanswered escalation at 30
+minutes and pages the owner at 60, and holds time-triggered checks on a
+skewed clock; `dispatcher/identity_reload.py` refuses a reload while work
+is open; and the playbook run tracker (`dispatcher/run_tracker.py`,
+2026-10-20) holds two playbook matches and conflicting runs on one client
+for you, holds new starts past 25 open questions, releases waiting work by
+priority class through `dispatcher/priority.py`'s siding, halts a run whose
+step the track refuses, and writes an after-action report for every run
+(`after_action/` next to the audit log). Each is run as a tuple through the
+console (synth/tuples).
 
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

@@ -167,6 +167,9 @@ class Hub:
             "escalation.legal_line": [], "escalation.hot_lead": [],
             "escalation.complaint": [], "escalation.system_error": [],
             "escalation.confidence_underflow": [],
+            # the playbook run tracker: too many questions wait for you, new
+            # runs wait (dispatcher/run_tracker.py, 2026-10-20)
+            "escalation.queue_full": [],
             "dead.letter": []}
         self._lock = threading.RLock()
         # Fail closed (Agent 00 tuples "audit log unwritable or queue

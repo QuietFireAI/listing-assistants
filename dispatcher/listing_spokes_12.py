@@ -62,6 +62,12 @@ class Spoke12MarketingCampaign:
         self.hub = guard(hub, "12")   # handoff rule (audit TU-2)
         self.mls_confirmed: dict[str, bool] = {}
         self.exempt_status: dict[str, dict] = {}  # ctx -> {exempt, disclosure_on_file}
+        # P12 farm campaigns (2026-10-20): general geographic marketing that
+        # names no listing. The Clear Cooperation gate is about publicly
+        # marketing a property, so it does not hold these; until this date a
+        # farm campaign waited forever for an MLS confirmation that no farm
+        # ever gets. OWNER TO CONFIRM (docs/TUNING_MANUAL.md).
+        self.farm_campaigns: set[str] = set()
         self.approved_assets: dict[str, dict] = {}  # ctx -> asset from 04
         self.pending_review: dict[str, dict] = {}  # ctx -> content awaiting 17
         self.published: dict[str, dict] = {}  # ctx -> {content, verdict_locked}
@@ -76,7 +82,7 @@ class Spoke12MarketingCampaign:
         register_spoke(hub, "12", self)
 
     def _ccp_gate_clear(self, ctx: str) -> bool:
-        if self.mls_confirmed.get(ctx):
+        if self.mls_confirmed.get(ctx) or ctx in self.farm_campaigns:
             return True
         exempt = self.exempt_status.get(ctx, {})
         return bool(exempt.get("exempt") and exempt.get("disclosure_on_file"))
@@ -163,6 +169,24 @@ class Spoke12MarketingCampaign:
             if payload.get("status") == "active":
                 self.mls_confirmed[ctx] = True
                 self._check_awaiting_ccp(ctx)
+                return
+            if "status" not in payload:
+                # A field change, not a status change (P02, found by the
+                # playbook runs 2026-10-20): Agent 05 sends {"price": ...}
+                # after a signed price change, and this handler read the
+                # missing status as "not active" and halted every live ad.
+                # A price change keeps the listing marketed; 12 cannot see
+                # what a live ad says, so when something is published the
+                # broker is asked to check it for the old price.
+                self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                   {"kind": "listing_change_received",
+                                    "fields": sorted(payload)}))
+                if ctx in self.published:
+                    self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                       {"reason": f"listing changed ({', '.join(sorted(payload))}) while "
+                                                  f"marketing is live - check the live ads for the old "
+                                                  f"value; nothing was halted or changed",
+                                        "change": dict(payload), "agent": "12"}))
                 return
             # P05 step 1b / P03 step 1b, ratified but ZERO code until
             # 2026-07-18 (found by the first end-to-end P05 run): this
@@ -272,6 +296,15 @@ class Spoke12MarketingCampaign:
                                                        "required first, "
                                                        "reputational surface"}))
                     return
+                aud = campaign.get("audience") if isinstance(campaign, dict) else None
+                if isinstance(aud, dict) and aud.get("geography") and not campaign.get("listing_id"):
+                    if aud.get("targeting", "general") != "general":
+                        self.hub.escalate("escalation.legal_line", {
+                            "client_context_id": ctx, "agent": "12",
+                            "trigger": f"farm campaign with targeting {aud.get('targeting')!r} - "
+                                       f"farm marketing is general only (P12, Article 16)"})
+                        return
+                    self.farm_campaigns.add(ctx)
                 # every ad carries the brokerage identification when one is on
                 # file; Agent 17 checks it is there (tuple 7, 2026-10-14)
                 if self.brokerage_identification:

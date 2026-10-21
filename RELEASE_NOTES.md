@@ -15,6 +15,37 @@ end-to-end test.
 
 ## Changes in this release
 
+- **One product (owner decisions 2026-10-20).** The dispatcher core is
+  part of this repository and no longer copied from dispatcher-agents
+  (`dispatcher/CORE_ORIGIN.md`); the pillars are built in
+  (`dispatcher/pillar_lib/`, five of them; splitvantage removed) and
+  nothing is installed from git. The pillar code is now covered by boot
+  attestation.
+
+- **Playbook runs (2026-10-20).** The dispatcher tracks each playbook as
+  runs from the table in `identity/playbooks.json` (PROPOSED until you
+  ratify it): a message that starts two playbooks, or a run that conflicts
+  with one already open for the same client, is held for your choice; with
+  25 questions waiting, new runs wait and are released by priority class;
+  a step the track refuses halts its run as a defect in the playbook; every
+  run ends with an after-action report listing your signed decisions and
+  any missing tuple it found. All 24 playbooks run start to end through the
+  console (`python synth/tuples/run_tuples.py --set playbooks`). Found and
+  fixed on the way: a price change halted every live ad (Agent 12); a farm
+  campaign could never publish (Agent 12, owner to confirm the rule); there
+  was no way to schedule an open house (Agent 06, P04 built). Settings:
+  `docs/TUNING_MANUAL.md`, "Ratified 2026-10-15".
+
+- **Dispatcher checks (2026-10-15).** A failure that escapes the hub halts
+  all traffic and alarms; unanswered escalations are re-alerted at 30
+  minutes and the owner paged at 60; a skewed clock holds time-triggered
+  checks; an identity reload is refused while work is open; the morning
+  briefing names items whose source is missing from the log; your calendar
+  instruction past a contractual deadline is held for you. A test harness
+  injects the failures no product entry can produce
+  (`synth/tuples/fault_harness.py`). Tuples now: 246 pass, 2 variance
+  (01-01, 04-03, owner decisions), 15 not reachable, 5 not built, 4 retired.
+
 - **Your decisions of 2026-10-14, wired.** A phrase tagger reads client
   words at intake, and any angry or negative message goes to you as a
   complaint at once, whatever else it asks. Compliance is told each piece of
@@ -284,7 +315,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1217 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1284 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

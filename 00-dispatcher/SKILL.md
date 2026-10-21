@@ -175,7 +175,7 @@ communication in that one guarantee.
 | `vendor.cancellation_notice` | 09 | 07, 06 |
 | `compliance.notice` | 10, 05 | 17 |
 | `client.reply` | external | 11 |
-| `agent.status` | 01, 02, 03, 05, 06, 07, 08, 09, 11, 04, 12, 13, 15, 16, 17, 19, 20 | 18 |
+| `agent.status` | 01, 02, 03, 05, 06, 07, 08, 09, 11, 04, 12, 13, 15, 16, 17, 19, 20, 00 | 18 |
 | `platform.metrics` | external | 12 |
 | `discovery.feed` | external | 19 |
 | `social.mention` | external | 20 |

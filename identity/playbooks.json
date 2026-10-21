@@ -1,0 +1,824 @@
+{
+ "_status": "PROPOSED 2026-10-20 - written from docs/PLAYBOOKS.md (triggers, agents, HITL gates) by Claude for the owner's review; runs carry table PROPOSED until the owner ratifies this file",
+ "_what": "The dispatcher's playbook table (owner decision 2026-10-15: run tracker). Agents keep doing the work; the dispatcher matches each message against these starts and ends, tracks one run per playbook and client, holds when two playbooks match one start or when a new run conflicts with one already open on the same client, and writes an after-action report when a run ends. Priority classes are in identity/priority.json.",
+ "_patterns": "A pattern matches a message on the hub: intent, from and to (an agent id or a list), and optional payload tests - has (keys that must be present and not null), eq (key: value), ne (key: value it must not have), in (key: [values]), prefix (key: text the value starts with); a key may name a nested field with dots (offer_status.stage). A pattern with audit instead of intent matches an audit-log entry of that kind, with the same tests on the entry. A human message may name the playbook it starts with payload.playbook. single_message: the run starts and ends on one message. supersedes: starting this playbook ends an open run of the named one on the same client (a hand-off, not a conflict). conflicts_with: a new run of this playbook while one of these is open on the same client holds both for your decision.",
+ "playbooks": {
+  "P01": {
+   "name": "New Listing Onboarding",
+   "agents": [
+    "04",
+    "05",
+    "06",
+    "09",
+    "11",
+    "12",
+    "13",
+    "14",
+    "17",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "listing.change.authorized",
+     "from": "human",
+     "to": "05",
+     "has": [
+      "new_listing"
+     ]
+    }
+   ],
+   "ends": [
+    {
+     "intent": "status.update",
+     "from": "05",
+     "to": "14",
+     "eq": {
+      "status": "active"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P05"
+   ]
+  },
+  "P02": {
+   "name": "Price Adjustment",
+   "agents": [
+    "04",
+    "05",
+    "10",
+    "11",
+    "12",
+    "14",
+    "17"
+   ],
+   "starts": [
+    {
+     "intent": "listing.change.authorized",
+     "from": "human",
+     "to": "05",
+     "eq": {
+      "field": "price"
+     }
+    },
+    {
+     "intent": "data.request",
+     "from": "human",
+     "to": "10",
+     "eq": {
+      "mode": "comp"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "status.update",
+     "from": "05",
+     "to": "14",
+     "has": [
+      "price"
+     ]
+    }
+   ],
+   "supersedes": [
+    "P23"
+   ],
+   "conflicts_with": [
+    "P05"
+   ]
+  },
+  "P03": {
+   "name": "Under-Contract Transition",
+   "agents": [
+    "05",
+    "07",
+    "08",
+    "11",
+    "12",
+    "14",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "listing.change.authorized",
+     "from": "human",
+     "to": "05",
+     "eq": {
+      "field": "status",
+      "value": "pending"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "07",
+     "has": [
+      "timeline_init"
+     ]
+    }
+   ],
+   "supersedes": [
+    "P08",
+    "P01",
+    "P04"
+   ]
+  },
+  "P04": {
+   "name": "Open House Cycle",
+   "agents": [
+    "01",
+    "02",
+    "04",
+    "06",
+    "11",
+    "12",
+    "14",
+    "17"
+   ],
+   "starts": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "06",
+     "has": [
+      "open_house"
+     ]
+    }
+   ],
+   "ends": [
+    {
+     "intent": "interaction.log",
+     "from": "06",
+     "to": "14",
+     "eq": {
+      "kind": "open_house_event"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P05"
+   ]
+  },
+  "P05": {
+   "name": "Expired/Withdrawn Wind-down",
+   "agents": [
+    "01",
+    "05",
+    "11",
+    "12",
+    "14"
+   ],
+   "starts": [
+    {
+     "intent": "listing.change.authorized",
+     "from": "human",
+     "to": "05",
+     "eq": {
+      "field": "status"
+     },
+     "in": {
+      "value": [
+       "withdrawn",
+       "expired"
+      ]
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "status.update",
+     "from": "05",
+     "to": "14",
+     "in": {
+      "status": [
+       "withdrawn",
+       "expired"
+      ]
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P01",
+    "P02",
+    "P04",
+    "P12",
+    "P18"
+   ]
+  },
+  "P06": {
+   "name": "New Buyer Onboarding",
+   "agents": [
+    "10",
+    "11",
+    "13",
+    "14",
+    "17"
+   ],
+   "starts": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "13",
+     "has": [
+      "buyer_criteria"
+     ]
+    }
+   ],
+   "ends": [
+    {
+     "intent": "client.message.request",
+     "from": "13",
+     "to": "11",
+     "eq": {
+      "template": "new_match"
+     }
+    }
+   ]
+  },
+  "P07": {
+   "name": "Tour Day Coordination",
+   "agents": [
+    "06",
+    "11",
+    "13",
+    "14",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "showing.request",
+     "from": [
+      "13",
+      "11"
+     ],
+     "to": "06",
+     "ne": {
+      "is_open_house": true
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "interaction.log",
+     "from": "06",
+     "to": "14",
+     "eq": {
+      "kind": "showing_feedback"
+     }
+    },
+    {
+     "intent": "showing.feedback_response",
+     "from": "11",
+     "to": "06"
+    }
+   ]
+  },
+  "P08": {
+   "name": "Offer-to-Acceptance",
+   "agents": [
+    "07",
+    "08",
+    "11",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "07",
+     "in": {
+      "offer_status.stage": [
+       "received",
+       "submitted"
+      ]
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "07",
+     "in": {
+      "offer_status.stage": [
+       "accepted",
+       "rejected",
+       "expired",
+       "withdrawn"
+      ]
+     }
+    }
+   ],
+   "supersedes": [
+    "P22"
+   ]
+  },
+  "P09": {
+   "name": "Contract-to-Close",
+   "agents": [
+    "07",
+    "08",
+    "09",
+    "11",
+    "15",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "07",
+     "has": [
+      "timeline_init"
+     ]
+    }
+   ],
+   "ends": [
+    {
+     "intent": "transaction.closed",
+     "from": "07"
+    }
+   ],
+   "supersedes": [
+    "P03"
+   ]
+  },
+  "P10": {
+   "name": "Close + Post-Close Handoff",
+   "agents": [
+    "12",
+    "14",
+    "15",
+    "16"
+   ],
+   "starts": [
+    {
+     "intent": "transaction.closed",
+     "from": "07",
+     "to": "16"
+    }
+   ],
+   "ends": [
+    {
+     "intent": "interaction.log",
+     "from": "16",
+     "to": "14",
+     "eq": {
+      "kind": "post_close_checkin_sent"
+     }
+    }
+   ],
+   "supersedes": [
+    "P09"
+   ]
+  },
+  "P11": {
+   "name": "Speed-to-Lead",
+   "agents": [
+    "01",
+    "02",
+    "03",
+    "11",
+    "14",
+    "20"
+   ],
+   "starts": [
+    {
+     "intent": "lead.inbound",
+     "from": "external",
+     "to": "01"
+    },
+    {
+     "intent": "lead.signal",
+     "from": "20",
+     "to": "01"
+    }
+   ],
+   "ends": [
+    {
+     "audit": "decision.lead",
+     "eq": {
+      "agent": "02"
+     }
+    }
+   ]
+  },
+  "P12": {
+   "name": "Geographic Farm Campaign",
+   "agents": [
+    "01",
+    "03",
+    "10",
+    "12",
+    "17",
+    "19"
+   ],
+   "starts": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "12",
+     "has": [
+      "new_campaign"
+     ]
+    }
+   ],
+   "ends": [
+    {
+     "intent": "campaign.publish",
+     "from": "12",
+     "to": "external"
+    }
+   ],
+   "conflicts_with": [
+    "P05"
+   ]
+  },
+  "P13": {
+   "name": "Referral/Anniversary Cycle",
+   "agents": [
+    "02",
+    "11",
+    "14",
+    "16"
+   ],
+   "starts": [
+    {
+     "intent": "date.trigger",
+     "from": "14",
+     "to": "16"
+    }
+   ],
+   "ends": [
+    {
+     "intent": "client.message.request",
+     "from": "16",
+     "to": "11"
+    },
+    {
+     "intent": "interaction.log",
+     "from": "16",
+     "to": "14",
+     "eq": {
+      "kind": "touch_blocked"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P14"
+   ]
+  },
+  "P14": {
+   "name": "Complaint Response",
+   "agents": [
+    "11",
+    "14",
+    "17",
+    "20"
+   ],
+   "starts": [
+    {
+     "audit": "escalation.raised",
+     "eq": {
+      "queue": "escalation.complaint"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "audit": "desk.acknowledged",
+     "eq": {
+      "title": "escalation.complaint"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P13",
+    "P18",
+    "P21",
+    "P22",
+    "P24"
+   ]
+  },
+  "P15": {
+   "name": "CMA / Listing-Appointment Prep",
+   "agents": [
+    "10",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "data.request",
+     "from": "human",
+     "to": "10",
+     "eq": {
+      "mode": "comp"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "data.package",
+     "from": "10",
+     "to": "human"
+    }
+   ]
+  },
+  "P16": {
+   "name": "Morning Operations",
+   "agents": [
+    "00",
+    "10",
+    "14",
+    "15",
+    "18",
+    "19"
+   ],
+   "starts": [
+    {
+     "intent": "report.package",
+     "from": "18",
+     "to": "human",
+     "eq": {
+      "briefing_type": "morning"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "report.package",
+     "from": "18",
+     "to": "human",
+     "eq": {
+      "briefing_type": "morning"
+     }
+    }
+   ],
+   "single_message": true
+  },
+  "P17": {
+   "name": "End-of-Day Books",
+   "agents": [
+    "00",
+    "14",
+    "15",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "report.package",
+     "from": "14",
+     "to": "human",
+     "eq": {
+      "report_type": "eod"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "report.package",
+     "from": "14",
+     "to": "human",
+     "eq": {
+      "report_type": "eod"
+     }
+    }
+   ],
+   "single_message": true
+  },
+  "P18": {
+   "name": "Seller Weekly Report",
+   "agents": [
+    "05",
+    "06",
+    "10",
+    "11",
+    "14",
+    "17"
+   ],
+   "starts": [
+    {
+     "intent": "agent.status",
+     "from": "06",
+     "to": "18",
+     "prefix": {
+      "reason": "weekly seller report"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "client.message.request",
+     "from": "06",
+     "to": "11",
+     "eq": {
+      "template": "seller_weekly_report"
+     }
+    },
+    {
+     "intent": "interaction.log",
+     "from": "06",
+     "to": "14",
+     "eq": {
+      "kind": "seller_report_skipped"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P05",
+    "P14"
+   ]
+  },
+  "P19": {
+   "name": "Property Access Custody",
+   "agents": [
+    "00",
+    "06",
+    "09",
+    "14",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "14",
+     "has": [
+      "access_grant"
+     ]
+    }
+   ],
+   "ends": [
+    {
+     "intent": "config.update",
+     "from": "human",
+     "to": "14",
+     "has": [
+      "access_closed"
+     ]
+    }
+   ]
+  },
+  "P20": {
+   "name": "Vacant Property Watch",
+   "agents": [
+    "00",
+    "05",
+    "09",
+    "10",
+    "14",
+    "18"
+   ],
+   "starts": [
+    {
+     "intent": "interaction.log",
+     "from": "05",
+     "to": "14",
+     "eq": {
+      "kind": "vacant_watch_started"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "interaction.log",
+     "from": "05",
+     "to": "14",
+     "eq": {
+      "kind": "vacant_watch_ended"
+     }
+    }
+   ]
+  },
+  "P21": {
+   "name": "Lead Re-Score Cycle",
+   "agents": [
+    "02",
+    "03",
+    "10",
+    "14",
+    "17"
+   ],
+   "starts": [
+    {
+     "intent": "lead.rescored",
+     "from": "03",
+     "to": "02"
+    }
+   ],
+   "ends": [
+    {
+     "audit": "decision.lead",
+     "eq": {
+      "agent": "02"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P14"
+   ]
+  },
+  "P22": {
+   "name": "Buyer Feedback & Match Refresh",
+   "agents": [
+    "06",
+    "10",
+    "11",
+    "13",
+    "14",
+    "17"
+   ],
+   "starts": [
+    {
+     "intent": "interaction.log",
+     "from": "06",
+     "to": "14",
+     "eq": {
+      "kind": "showing_feedback"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "client.message.request",
+     "from": "13",
+     "to": "11",
+     "eq": {
+      "template": "new_match"
+     }
+    }
+   ],
+   "supersedes": [
+    "P07"
+   ],
+   "conflicts_with": [
+    "P14"
+   ]
+  },
+  "P23": {
+   "name": "Price-Review Evidence Assembly",
+   "agents": [
+    "05",
+    "10",
+    "11",
+    "14",
+    "15"
+   ],
+   "starts": [
+    {
+     "intent": "data.request",
+     "from": "human",
+     "to": "10",
+     "eq": {
+      "mode": "comp"
+     }
+    }
+   ],
+   "ends": [
+    {
+     "intent": "data.package",
+     "from": "10",
+     "to": "human"
+    }
+   ]
+  },
+  "P24": {
+   "name": "Prospecting Outreach",
+   "agents": [
+    "10",
+    "11",
+    "13",
+    "14",
+    "17",
+    "19"
+   ],
+   "starts": [
+    {
+     "intent": "discovery.feed",
+     "from": "external",
+     "to": "19"
+    }
+   ],
+   "ends": [
+    {
+     "intent": "prospect.opportunity",
+     "from": "19",
+     "to": "human"
+    },
+    {
+     "intent": "interaction.log",
+     "from": "19",
+     "to": "14",
+     "eq": {
+      "kind": "suppressed_by_rule"
+     }
+    }
+   ],
+   "conflicts_with": [
+    "P14"
+   ]
+  }
+ }
+}

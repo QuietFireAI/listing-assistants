@@ -105,7 +105,7 @@ none of them calls a language model.
 
 **Type:** Hub / router / single point of control (and of failure - by design)
 **Summary:** Hub and router for the ListingAssistants real estate swarm. Use for validating and routing inter-agent envelopes, issuing acks, enforcing client-context isolation, and operating the escalation, clarification, integrity, and dead-letter queues.
-**Sends:** (none routed)
+**Sends:** agent.status
 **Receives:** (none routed)
 **Predeliberated tuples:** 17 (see 00-dispatcher/DECISIONS.md)
 **Picture:** who it works with, in [00-dispatcher](../00-dispatcher/README.md)
