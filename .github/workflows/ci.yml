@@ -71,6 +71,20 @@ jobs:
           if ($state.mode -ne "live" -or $state.operator.login -ne "ci@example.test") { throw "wrong desk" }
           $lock = Join-Path $env:LISTINGASSISTANTS_STATE_DIR "desk.lock"
           if (Test-Path $lock) { Remove-Item $lock }   # the hard stop left it behind
+      - name: the Playbook Show launcher serves the show on 8766
+        shell: pwsh
+        run: |
+          $cmd = Join-Path $env:LA_HOME "Playbook Show.cmd"
+          $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"`"$cmd`"`"" -PassThru -WindowStyle Hidden
+          $state = $null
+          for ($i = 0; $i -lt 90 -and -not $state; $i++) {
+            Start-Sleep -Seconds 1
+            try { $state = Invoke-RestMethod http://127.0.0.1:8766/api/state } catch {}
+          }
+          taskkill /T /F /PID $p.Id | Out-Null
+          if (-not $state) { throw "the Playbook Show launcher did not answer on 8766 in 90 s" }
+          Write-Host "mode: $($state.mode)  title: $($state.showcase.title)"
+          if ($state.mode -ne "playbooks" -or -not $state.showcase.title.StartsWith("P01")) { throw "not the playbook show" }
       - name: a second run keeps your records and attests the new install
         shell: pwsh
         run: |
