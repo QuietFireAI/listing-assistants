@@ -409,9 +409,12 @@ class RunTracker:
         client that it involves, in the order messages are sent."""
         ctx = env.client_context_id
         marks = []
-        for rid in self.open_runs(ctx):
+        # a run that just ended on a message also records what that
+        # message set off (its "tail"), until the message is finished
+        tails = [r for r, run in self.runs.items() if run.get("tail") and run["ctx"] == ctx]
+        for rid in self.open_runs(ctx) + tails:
             run = self.runs[rid]
-            if run["status"] != "open":
+            if run["status"] != "open" and not run.get("tail"):
                 continue
             if env.envelope_id != run["start_envelope"] and not self._involves(run, env):
                 continue
@@ -670,6 +673,8 @@ class RunTracker:
         run = self.runs[rid]
         run["status"] = outcome
         run["ended_at"] = time.time()
+        if outcome == "completed":
+            run["tail"] = True
         self._log("playbook.completed", {"playbook": run["playbook"], "run_id": rid,
                                          "client_context_id": run["ctx"], "outcome": outcome,
                                          "reason": reason, "steps": len(run["steps"])})
@@ -759,6 +764,7 @@ class RunTracker:
     # ------------------------------------------------------------- reports
     def _write_due_reports(self):
         for rid, run in self.runs.items():
+            run.pop("tail", None)
             due = run.pop("report_due", None)
             if due is None:
                 continue
@@ -774,14 +780,10 @@ class RunTracker:
         events = self.hub.audit.read()
         start = next((i for i, e in enumerate(events)
                       if e.get("kind") == "playbook.started" and e.get("run_id") == rid), 0)
-        end = next((i for i, e in enumerate(events)
-                    if e.get("kind") == "playbook.completed" and e.get("run_id") == rid),
-                   len(events) - 1)
-        mine = {s.get("envelope_id") for s in run["steps"]}
-        # the run's own window, plus the acknowledgements of its steps that
-        # landed after it ended (a step is acknowledged after its handler)
-        window = events[start:end + 1] + [e for e in events[end + 1:]
-                                          if e.get("kind") == "ack" and e.get("envelope_id") in mine]
+        # from the run's start to now: the report is written when the
+        # message that ended the run is finished, so this window holds the
+        # run, what its last message set off, and their acknowledgements
+        window = events[start:]
         steps = [s for s in run["steps"]]
         text = generate_report(window, run["playbook"], rid, run["ctx"], steps,
                                outcome=outcome, abort_reason=reason)

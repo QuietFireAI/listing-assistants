@@ -97,7 +97,9 @@ def test_a_run_starts_steps_ends_and_writes_its_report(tmp_path):
     sw.hub.send(_comp("A1", playbook="P15"))
     [run] = sw.runs.runs.values()
     assert run["playbook"] == "P15" and run["status"] == "completed"
-    assert [s["intent"] for s in run["steps"]] == ["data.request", "data.package"]
+    # the run ends on the package; what that message set off (Agent 10's
+    # log entry) is recorded too, as the run's tail
+    assert [s["intent"] for s in run["steps"]] == ["data.request", "data.package", "interaction.log"]
     [w] = _kinds(sw, "after_action.written", "A1")
     text = open(w["path"], encoding="utf-8").read()
     assert "data.package: executed=yes" in text and "## playbook table\n- PROPOSED" in text
