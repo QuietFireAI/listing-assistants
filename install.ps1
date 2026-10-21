@@ -96,7 +96,9 @@ if (Test-Path $App) { Remove-Item -Recurse -Force $App }
 Move-Item $top.FullName $App
 Remove-Item -Recurse -Force $unpack
 
-& $Uv venv $Venv --python $PythonVersion --allow-existing
+# a new environment each time, so nothing from an earlier version is left in it
+if (Test-Path $Venv) { Remove-Item -Recurse -Force $Venv }
+& $Uv venv $Venv --python $PythonVersion
 if ($LASTEXITCODE -ne 0) { Fail "uv could not make the environment in $Venv" }
 & $Uv pip install --python $Py -r (Join-Path $App "requirements.txt")
 if ($LASTEXITCODE -ne 0) { Fail "the requirements did not install" }
