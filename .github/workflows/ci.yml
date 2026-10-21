@@ -11,34 +11,6 @@ jobs:
       # earlier would have caught the 98-failure DOA state automatically.
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/ -q
-  core-parity:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      # Owner decision D1 (2026-10-14): listing is checked against the exact
-      # core commit it carries (CORE_PIN.json), not against core main as it
-      # is today - so a core merge never turns listing red, and a release
-      # names its core. Moving the pin is a deliberate commit (sync_core.py).
-      - name: clone core at the pinned commit
-        run: |
-          PIN=$(python tools/sync_core.py --print-pin)
-          git clone --quiet https://github.com/QuietFireAI/dispatcher-agents.git /tmp/core
-          git -C /tmp/core checkout --quiet "$PIN"
-          echo "core pinned at $PIN"
-      # Fork-drift gate: the vendored dispatcher/ must match that commit exactly.
-      # This job existing earlier would have caught the 105-line hub.py lag.
-      - run: python tools/sync_core.py --core /tmp/core --check --require-pin
-      # listing main may only carry a core that is on core main; checked on
-      # a push to main and on a pull request into main (where github.ref is
-      # refs/pull/N/merge, so the ref test alone would skip it)
-      - name: on main, the pinned core must be on core main
-        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
-        run: |
-          git -C /tmp/core merge-base --is-ancestor "$(python tools/sync_core.py --print-pin)" origin/main \
-            && echo "pinned core is on core main" \
-            || { echo "::error::CORE_PIN.json names a core commit that is not on core main"; exit 1; }
   unarmed-still-routes:
     runs-on: ubuntu-latest
     steps:

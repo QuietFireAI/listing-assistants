@@ -12,7 +12,7 @@ or intent list disagree with identity/routes.json.
 - Routes: 52 entries, 51 distinct intents
 - Playbooks: P01-P24 (24 playbooks) (docs/PLAYBOOKS.md)
 - Layer stack: MANNERS.md → dispatcher core (dispatcher/, the files listed in
-  tools/sync_core.py) → identity/ → DECISIONS.md (per agent) →
+  dispatcher/CORE_ORIGIN.md) → identity/ → DECISIONS.md (per agent) →
   docs/PLAYBOOKS.md → agent SKILL.md files
 - Track principle: the ROUTE-SPACE IS CLOSED. Agents run on predetermined
   track; an option absent from the routing table, playbooks, and tuples does

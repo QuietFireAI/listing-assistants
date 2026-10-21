@@ -21,7 +21,7 @@ so other pages can point straight to it.
 
 **Connections and optional engines:** [adapter](#adapter) · [JEV decision adapter](#jev-decision-adapter) · [model drafting](#model-drafting) · [MCP server](#mcp-server) · [pillars](#pillars) · [pager](#pager)
 
-**Running and testing it:** [console](#console) · [Broker Desk](#broker-desk) · [showcase and scenes](#showcase-and-scenes) · [synthetic data](#synthetic-data) · [test and suite](#test-and-suite) · [end-to-end test](#end-to-end-test) · [mutation testing](#mutation-testing) · [CI](#ci) · [repository, clone and commit](#repository-clone-and-commit) · [vendored core](#vendored-core)
+**Running and testing it:** [console](#console) · [Broker Desk](#broker-desk) · [showcase and scenes](#showcase-and-scenes) · [synthetic data](#synthetic-data) · [test and suite](#test-and-suite) · [end-to-end test](#end-to-end-test) · [mutation testing](#mutation-testing) · [CI](#ci) · [repository, clone and commit](#repository-clone-and-commit) · [dispatcher core](#dispatcher-core)
 
 ---
 
@@ -500,10 +500,10 @@ with its full history. To *clone* it is to download a complete copy. A
 *commit* is one saved, dated change with a note saying what changed.
 A *README* is the page GitHub shows first when you open a folder.
 
-### Vendored core
+### Dispatcher core
 
-Sixteen files from the separate dispatcher-agents project, copied into
-`dispatcher/` so this repository runs on its own. `CORE_PIN.json` names the
-exact dispatcher-agents commit they came from, and CI checks that the copies
-match that commit byte for byte, so the copy can never drift. Moving to a
-newer core is a deliberate step (`tools/sync_core.py`).
+Sixteen files in `dispatcher/`: the hub that checks, logs and delivers every
+message, and the parts it is built from. They began in the separate
+dispatcher-agents project and were folded into this product on 2026-10-20,
+so ListingAssistants is one product with one test suite.
+`dispatcher/CORE_ORIGIN.md` lists them and names the commit they came from.

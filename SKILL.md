@@ -11,7 +11,7 @@ A complete, ratified operating identity: a dispatcher hub (00) and 20 spoke
 agents (01-20), 52 legal routes
 (`identity/routes.json` - the closed track), 24 playbooks (P01-P24) with
 explicit human gates, 258 predeliberated decision tuples (3 retired), ratified config
-doctrine, and a test suite (1179 tests, including mutation-hardening
+doctrine, and a test suite (1170 tests, including mutation-hardening
 tests and one end-to-end test per playbook).
 
 ## The absolute lines (enforced in code)
@@ -41,10 +41,9 @@ python3 tools/run_demo.py            # one listing, six acts, live
 python -m pytest tests_listing/   # every playbook, every gate
 ```
 
-**On dispatcher-agents:** this repo IS the identity side-load - routes,
-configs, spokes, and docs mount directly. The vendored core files are
-listed in `tools/sync_core.py`; `python tools/sync_core.py --core <path> --check`
-confirms they match core, and `CORE_PIN.json` names the core commit they came from.
+**The dispatcher core:** the hub and the other core files live in
+`dispatcher/` and belong to this product (folded in from dispatcher-agents
+2026-10-20; `dispatcher/CORE_ORIGIN.md` names the commit they came from).
 
 **On Hermes / OpenClaw / Claude Desktop:** see docs/MOUNTING.md - the
 identity runs as a stdio MCP server with a four-tool surface and a boot

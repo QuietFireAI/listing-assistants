@@ -9,7 +9,7 @@ description: "Hub and router for the ListingAssistants real estate swarm. Use fo
 **Type:** Hub / router / single point of control (and of failure - by design)
 **Autonomy tier:** Full autonomy over routing mechanics; ZERO autonomy over content - the Dispatcher answers no client-facing question itself, ever
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
-**Runtime:** `Hub` in `dispatcher/hub.py` - vendored dispatcher-agents core, kept byte-identical by `tools/sync_core.py`; decision tuples in `DECISIONS.md`
+**Runtime:** `Hub` in `dispatcher/hub.py` - the dispatcher core, part of this product (`dispatcher/CORE_ORIGIN.md`); decision tuples in `DECISIONS.md`
 
 ---
 

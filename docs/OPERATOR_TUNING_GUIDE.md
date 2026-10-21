@@ -20,7 +20,7 @@ on 2026-10-11. For every numeric parameter, see
 <!-- diagram:built-tuning - drawn in tools/doc_diagrams.py; edit it there, not here -->
 ```mermaid
 flowchart TB
-    subgraph CORE["dispatcher-agents core - vendored, byte-identical (tools/sync_core.py --check)"]
+    subgraph CORE["dispatcher core - part of this product (dispatcher/CORE_ORIGIN.md)"]
         HUB["hub.py - checks, logs, delivers"]
         LOG[("hash-chained audit log")]
         HUB --> LOG
@@ -48,13 +48,10 @@ flowchart TB
   against the closed track (`identity/routes.json`), verifies signatures on
   authority intents, persists it to the hash-chained audit log, delivers it,
   and only then acknowledges it.
-- **Core parity.** Sixteen files in `dispatcher/` are vendored from
-  dispatcher-agents and must stay byte-identical. The list is in
-  `tools/sync_core.py`; `python tools/sync_core.py --core <checkout> --check`
-  reports any drift, and CI runs it against the core commit named in
-  `CORE_PIN.json`. A sync (`--core <checkout>` without `--check`) copies the
-  files and moves the pin; it refuses a core checkout with uncommitted
-  changes, so the pin always names what was copied.
+- **Core.** Sixteen files in `dispatcher/` (the hub and the rest of the
+  dispatcher core) began in the dispatcher-agents project and were folded
+  into this product on 2026-10-20. They are changed and tested here only;
+  `dispatcher/CORE_ORIGIN.md` lists them and names the commit they came from.
 - **Agents.** `dispatcher/listing_spokes*.py` holds the 20 agents. They are
   deterministic Python rule engines and make no model calls. Each holds its
   hub through `HandoffGuard` (`dispatcher/handoff_guard.py`), which turns a
@@ -77,7 +74,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1178 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1169 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
@@ -541,7 +538,6 @@ without the credentials.
 ```bash
 python -m pytest tests_listing/ -q
 python tools/console.py verify
-python tools/sync_core.py --core /path/to/dispatcher-agents --check
 python tools/mcp_roundtrip.py
 ```
 

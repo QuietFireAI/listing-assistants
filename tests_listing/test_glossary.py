@@ -115,8 +115,10 @@ def test_what_the_glossary_says_matches_the_code():
     import console
     assert os.path.basename(console.KEY_PATH) == "operator-key.bin" and "`operator-key.bin`" in GLOSS
 
-    import sync_core
-    assert len(sync_core.CORE_FILES) == 16 and "Sixteen files" in GLOSS
+    origin = text("dispatcher/CORE_ORIGIN.md")
+    listed = [w for w in origin.split() if w.endswith(".py") and "/" not in w]
+    assert len(listed) == 16 and "Sixteen files" in GLOSS
+    assert all(os.path.exists(os.path.join(ROOT, "dispatcher", f)) for f in listed)
 
     req = text("requirements.txt")
     for pillar in ("before-turn", "open-mind", "agent-open-mind", "pre-response-selfcheck",

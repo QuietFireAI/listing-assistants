@@ -367,7 +367,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1178 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1169 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -490,9 +490,9 @@ Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 
 ## Layout
 
-- `dispatcher/` - vendored dispatcher-agents core (the 16 files listed in
-  `tools/sync_core.py`, kept identical by `--check` in CI against the core
-  commit named in `CORE_PIN.json`), the 20
+- `dispatcher/` - the dispatcher core (16 files that began in the
+  dispatcher-agents project, folded in 2026-10-20; see
+  `dispatcher/CORE_ORIGIN.md`), the 20
   `listing_spokes*.py` agents, `handoff_guard.py`, `lead_rubric.py`,
   `config_status.py`, and the modules above.
 - `identity/routes.json` - the closed track.
@@ -516,11 +516,11 @@ This repository is the single source for ListingAssistants (owner decision
 2026-10-11): every agent's SKILL.md and DECISIONS.md, the closed track, the
 configuration templates, and the generated docs (`tools/gen_job_descriptions.py`
 rebuilds docs/JOB_DESCRIPTIONS.md; a test fails when it drifts). The
-dispatcher core in `dispatcher/` is vendored from
-[dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents) and
-must stay byte-identical to the core commit named in `CORE_PIN.json`
-(`tools/sync_core.py --check`, run in CI; on `main` the pinned commit must
-also be on core's `main`).
+dispatcher core in `dispatcher/` began in
+[dispatcher-agents](https://github.com/QuietFireAI/dispatcher-agents) and was
+folded into this product on 2026-10-20 (owner decision): it is changed and
+tested here only, and nothing is copied from dispatcher-agents any more.
+`dispatcher/CORE_ORIGIN.md` names the commit it came from.
 
 ## License
 
