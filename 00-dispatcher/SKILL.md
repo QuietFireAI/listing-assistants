@@ -182,6 +182,7 @@ communication in that one guarantee.
 | `clock.tick` | clock | 01, 03, 05, 06, 07, 08, 13, 14, 16, 17, 18 |
 | `briefing.request` | 18 | 10, 14, 15, 19 |
 | `report.package` | 10, 14, 15, 19 | 18 |
+| `client.message.not_sent` | 11 | 03 |
 
 This table is `identity/routes.json` (version 0.19), the file the hub loads;
 `tests_listing/test_docs_agent_tables.py` fails if the two ever differ. Any

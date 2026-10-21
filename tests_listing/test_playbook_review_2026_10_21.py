@@ -137,6 +137,7 @@ def _live_listing(tmp_path):
     sw.hub.release_disclosure(auth)
     _photos(sw)
     assert sw.spokes["05"].mls_records["L1"]["status"] == "active"
+    signed.signer = signer
     return sw, signed
 
 
@@ -176,7 +177,7 @@ def test_an_ad_showing_the_old_price_is_flagged_with_where_it_is(tmp_path):
 
 
 # ------------------------------------------------- decision 7 (nurture day 0)
-def _nurture(tmp_path, now_iso=None):
+def _nurture(tmp_path, now_iso=None, consent=True):
     signer = Ed25519Signer()
     sw = build_swarm(os.path.join(str(tmp_path), "audit.jsonl"),
                      verifier=Ed25519Verifier(signer.public_key_bytes()).verifier())
@@ -187,6 +188,9 @@ def _nurture(tmp_path, now_iso=None):
         e = _env("human", to, "config.update", "x", payload)
         signer.sign(e)
         sw.hub.send(e)
+    if consent:   # on record at 14, as Agent 01 logs it at capture
+        sw.hub.send(_env("01", "14", "interaction.log", "W-1",
+                         {"kind": "lead.captured", "consent": {"email": "yes"}}))
     start = {"tier": "WARM", "consent": {"email": "yes"}, "today": "2026-10-21"}
     if now_iso:
         start["now_iso"] = now_iso
@@ -319,3 +323,65 @@ def test_the_evening_clock_sends_the_books_with_the_days_figures_once(tmp_path):
     to_15 = [e for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"
              and e["intent"] == "report.package" and e["from_agent"] == "14"]
     assert [e["to_agent"] for e in to_15] == ["15"], "14's books go to 15, not straight to you"
+
+
+# ------------------------------------------- P20: the vacant check is daily
+def test_the_vacant_check_is_daily_and_never_stacks(tmp_path):
+    from dispatcher.sweep_runner import run_daily_sweeps
+    sw, signed = _live_listing(tmp_path)
+    signed("05", "config.update", "L1", {"occupancy": "vacant", "today": "2026-10-16"})
+    assert sw.spokes["05"].vacant_watch["L1"]["interval_days"] == 1
+
+    def checks_held():
+        return [h for h in sw.hub._absolute_holds.values()
+                if h.intent == "vendor.schedule" and h.payload.get("kind") == "property_check"]
+    run_daily_sweeps(sw.hub, sw.spokes, today="2026-10-17")
+    assert len(checks_held()) == 1
+    run_daily_sweeps(sw.hub, sw.spokes, today="2026-10-18")
+    run_daily_sweeps(sw.hub, sw.spokes, today="2026-10-19")
+    assert len(checks_held()) == 1, "a check waiting for your release is not booked again"
+    told = [q for q in sw.hub.queues["clarification.request"] if "vacant-property check" in str(q)]
+    assert len(told) == 1, "told once per open check"
+
+    [held] = checks_held()
+    auth = _env("human", "hub", "disclosure.authority", "L1", {"held_envelope_id": held.envelope_id})
+    signed.signer.sign(auth)
+    assert sw.hub.release_disclosure(auth).get("status") == "ack"
+    run_daily_sweeps(sw.hub, sw.spokes, today="2026-10-20")
+    assert checks_held() == [], "sent and not delivered yet: still not booked again"
+    sw.hub.send(_env("external", "09", "vendor.event", "L1",
+                     {"kind": "property_check", "event_kind": "deliverable_report",
+                      "doc_type": "property_check_report", "proof_artifact_present": True,
+                      "content_hash": "pc1"}))
+    run_daily_sweeps(sw.hub, sw.spokes, today="2026-10-21")
+    assert len(checks_held()) == 1, "the day after a proven delivery, the next check is booked"
+
+
+# ------------------------- P11 sign-off: a touch 11 did not send is retried
+def test_a_touch_blocked_for_no_consent_is_not_counted_and_goes_once_consent_is_recorded(tmp_path):
+    sw = _nurture(tmp_path, "2026-10-21T10:15:00", consent=False)     # no consent at 14
+    n = sw.spokes["03"]
+    sent_out = lambda: [e for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"   # noqa: E731
+                        and e["intent"] == "client.message.send"
+                        and e["payload"].get("template") == "sequence_touch"]
+    assert _touches(sw) == ["hello"] and sent_out() == [], "11 blocked it: no consent at 14"
+    assert n.active_sequences["W-1"]["sent"] == [], "a blocked touch is not counted as sent"
+    assert [e for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+            and e["intent"] == "client.message.not_sent" and e["payload"]["reason"] == "no_consent"]
+    # the broker records the client's consent, then the clock runs
+    sw.hub.send(_env("01", "14", "interaction.log", "W-1",
+                     {"kind": "lead.captured", "consent": {"email": "yes"}}))
+    assert n.send_due_touches("W-1", "2026-10-22", "2026-10-22T09:00:00") == "sent:[0]"
+    assert len(sent_out()) == 1
+    assert n.send_due_touches("W-1", "2026-10-22", "2026-10-22T10:00:00") == "none_due"
+
+
+def test_an_opt_out_reported_by_11_stops_the_sequence(tmp_path):
+    sw = _nurture(tmp_path, "2026-10-21T22:30:00", consent=False)   # day 0 waits: outside hours
+    sw.hub.send(_env("01", "14", "interaction.log", "W-1",
+                     {"kind": "lead.captured", "consent": {"email": "no"}}))
+    n = sw.spokes["03"]
+    assert n.send_due_touches("W-1", "2026-10-22", "2026-10-22T09:00:00").startswith("held")
+    assert n.active_sequences["W-1"]["paused"] is True
+    assert [e for e in sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+            and e["payload"].get("kind") == "sequence_stopped"]

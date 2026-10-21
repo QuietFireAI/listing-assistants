@@ -599,6 +599,15 @@
       "receivers": [
         "18"
       ]
+    },
+    {
+      "intent": "client.message.not_sent",
+      "senders": [
+        "11"
+      ],
+      "receivers": [
+        "03"
+      ]
     }
   ]
 }

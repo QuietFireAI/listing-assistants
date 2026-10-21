@@ -641,8 +641,9 @@ def test_p20_vacant_listing_gets_a_check_on_its_interval_until_it_ends(tmp_path)
     assert out["hub"]["status"] == "ack" and out["results"][0]["result"] == "check_requested"
     reqs = [e for e in _persisted(sw, "vendor.request", "P20") if e["payload"].get("kind") == "property_check"]
     assert len(reqs) == 1 and reqs[0]["to_agent"] == "09"
-    assert send_tick(sw.hub, "05", "2026-10-05", checks=["vacant_watch"])["results"][0]["result"] == "not_due"
-    assert send_tick(sw.hub, "05", "2026-10-09", checks=["vacant_watch"])["results"][0]["result"] == "check_requested"
+    # daily since the owner's P20 decision (2026-10-21): same day not due, next day due
+    assert send_tick(sw.hub, "05", "2026-10-02", checks=["vacant_watch"])["results"][0]["result"] == "not_due"
+    assert send_tick(sw.hub, "05", "2026-10-03", checks=["vacant_watch"])["results"][0]["result"] == "check_requested"
     sw.hub.send(_signed(s, "05", "P20", {"occupancy": "occupied"}))
     assert "P20" not in sw.spokes["05"].vacant_watch
 

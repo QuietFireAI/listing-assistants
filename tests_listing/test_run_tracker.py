@@ -118,7 +118,8 @@ def test_a_run_starts_steps_ends_and_writes_its_report(tmp_path):
     assert [s["intent"] for s in run["steps"]] == ["data.request", "data.package", "interaction.log"]
     [w] = _kinds(sw, "after_action.written", "A1")
     text = open(w["path"], encoding="utf-8").read()
-    assert "data.package: executed=yes" in text and "## playbook table\n- P15: PROPOSED" in text
+    # P15 signed by the owner 2026-10-21
+    assert "data.package: executed=yes" in text and "## playbook table\n- P15: RATIFIED" in text
     assert w["sha256"] and w["outcome"] == "completed"
 
 
@@ -319,13 +320,14 @@ def test_a_tracker_failure_never_blocks_the_hub(tmp_path, monkeypatch):
 
 def test_a_playbook_signed_on_its_own_runs_ratified(tmp_path):
     table = json.load(open(os.path.join(ROOT, "identity", "playbooks.json")))
-    table["playbooks"]["P15"]["ratified"] = "RATIFIED 2026-10-21 Jeff Phillips (walkthrough)"
+    # P16 is one the owner held on 2026-10-21; P20 is still unsigned too
+    table["playbooks"]["P16"]["ratified"] = "RATIFIED 2026-10-21 Jeff Phillips (walkthrough)"
     path = tmp_path / "t.json"
     path.write_text(json.dumps(table))
     sw, _ = _swarm(tmp_path)
     rt = run_tracker.RunTracker(sw, table_path=str(path))
-    assert rt.table.status_for("P15") == "RATIFIED" and rt.table.status_for("P23") == "PROPOSED"
-    assert "P15" in [e for e in _kinds(sw, "playbook.table")][-1]["ratified_playbooks"]
+    assert rt.table.status_for("P16") == "RATIFIED" and rt.table.status_for("P20") == "PROPOSED"
+    assert "P16" in [e for e in _kinds(sw, "playbook.table")][-1]["ratified_playbooks"]
 
 
 

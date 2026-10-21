@@ -241,6 +241,16 @@ When you have handled it (called the client, fixed the setting), press
 and takes the card off your list. It changes nothing in the swarm; the
 handling itself is yours.
 
+### 4d. Held after a complaint (yellow edge)
+
+When a client complains, Agent 11 holds every message to that client: no
+nurture touch, no update, nothing scheduled goes out. **Done** on the
+"Upset client" card does not lift that hold. The card "Messages to this
+client are held" stays until you press **Release hold**, which signs the
+release with your key (the same signed `resolve_complaint_hold` setting a
+session script uses). After that, the next scheduled message goes as normal,
+including a nurture touch that was held.
+
 ## 5. Listings
 
 One row per listing you have signed, newest activity first: its name, beds

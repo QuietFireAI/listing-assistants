@@ -259,7 +259,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 **Type:** Long-cycle engagement
 **Summary:** Long-cycle lead nurture. Use for drip email/text sequences, behavioral re-engagement triggers, the weekly re-score cadence, and returning re-scored leads to qualification.
 **Sends:** agent.status, client.message.request, content.review, interaction.log, lead.rescored
-**Receives:** behavioral.signal, clock.tick, content.verdict, lead.nurture, lead.reply
+**Receives:** behavioral.signal, client.message.not_sent, clock.tick, content.verdict, lead.nurture, lead.reply
 **Predeliberated tuples:** 16 (see 03-lead-nurture/DECISIONS.md)
 **Picture:** who it works with, in [03-lead-nurture](../03-lead-nurture/README.md)
 
@@ -325,7 +325,7 @@ never makes pricing decisions.
 - Execute status changes within MLS-mandated reporting windows (human-supplied config per MLS).
 - Entered data must match the authorized source package field-for-field; any discrepancy is a `clarification.request`, never a judgment call.
 - Never enter offers of buyer-broker compensation in MLS fields - prohibited on MLSs since Aug 17, 2024 (NAR settlement practice change).
-- Vacant property watch (P20, amended 2026-10-12): a listing the broker marks vacant (signed package or `occupancy` setting) gets a property condition check ordered through 09 every 7 days (or the signed interval) until it is marked occupied or the listing ends; a check counts only with proof.
+- Vacant property watch (P20, amended 2026-10-12): a listing the broker marks vacant (signed package or `occupancy` setting) gets a property condition check ordered through 09 every day (owner decision 2026-10-21, was every 7 days; or the signed interval; 09 books no new check while the last one is open) until it is marked occupied or the listing ends; a check counts only with proof.
 - File each authorized listing package in the client's drawer (`artifacts`) (added 2026-10-12).
 
 Not yet in the code (checked 2026-10-12): this agent keeps its own listing
@@ -506,7 +506,7 @@ the supplied data would pass through.
 
 **Type:** Client-facing messaging
 **Summary:** Routine client messaging. Use for delivering scheduling and milestone updates and the broker-approved weekly seller report to clients and routing their replies; escalates all advice-seeking immediately.
-**Sends:** agent.status, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
+**Sends:** agent.status, client.message.not_sent, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
 **Receives:** client.message.request, client.reply, deadline.alert, record.response, status.update
 **Predeliberated tuples:** 14 (see 11-client-communication/DECISIONS.md)
 **Picture:** who it works with, in [11-client-communication](../11-client-communication/README.md)

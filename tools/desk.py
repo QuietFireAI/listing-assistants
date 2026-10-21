@@ -369,6 +369,18 @@ class ReadModel:
                 "route_choices": [{"id": a, "name": NAMES.get(a, a)} for a in REPLY_AGENTS],
                 "paused": words(w.get("paused_intent") or "") if w.get("paused_intent") else None,
                 "content": w.get("original_payload")})
+        # P14 (owner request 2026-10-21): every message to a client who
+        # complained is held by Agent 11 until you release it - a button,
+        # not a hand-signed setting
+        s11 = sw.spokes.get("11")
+        for ctx in sorted(getattr(s11, "complaint_hold", ()) or ()):
+            items.append({
+                "type": "hold", "id": f"hold:{ctx}", "ctx": ctx, "from": "11",
+                "from_name": NAMES.get("11", "11"),
+                "title": "Messages to this client are held",
+                "why": "After the complaint, nothing goes to this client (no nurture, no "
+                       "updates) until you release the hold. Release it once you have "
+                       "answered them yourself."})
         holds = set(hub._absolute_holds)
         for q, records in hub.queues.items():
             if q not in QUEUE_TITLE or q == "escalation.hot_lead":
@@ -393,7 +405,7 @@ class ReadModel:
                     "from_name": NAMES.get(agent, agent) if agent else None,
                     "said": short(str(said), 400) if said else None,
                     "content": rec})
-        order = {"held": 0, "wait": 1, "queue": 2}
+        order = {"held": 0, "wait": 1, "hold": 2, "queue": 3}
         prio = {"escalation.legal_line": 0, "escalation.complaint": 1,
                 "integrity.violation": 2, "dead.letter": 3, "clarification.request": 4}
         items.sort(key=lambda i: (order[i["type"]], prio.get(i.get("queue"), 9)))
@@ -987,6 +999,17 @@ class Desk:
                     "client_context_id": body.get("ctx"),
                     "by": (self.operator or {}).get("login")})
                 return self._done(f"Marked done: {body.get('title')}", {"acknowledged": item})
+            if kind == "release_hold":
+                ctx = body.get("ctx")
+                s11 = self.sw.spokes.get("11")
+                if not ctx or ctx not in getattr(s11, "complaint_hold", ()):
+                    return {"error": "no messages are held for that client"}
+                r, err = console.apply_action(self.sw, self.signer, self.operator,
+                                              {"do": "config", "to": "11", "ctx": ctx,
+                                               "payload": {"resolve_complaint_hold": ctx}})
+                if err:
+                    return {"error": f"not recorded: {short(r, 200)}"}
+                return self._done(f"Hold released: {ctx}", r)
             if kind == "prospect_handled":
                 # signed config.update to Agent 19, like every other setting
                 lid = body.get("id")

@@ -420,6 +420,15 @@ function needsCard(i, inGroup) {
       [kv(i.content), el("div", {class: "why"}, i.why)], force));
     c.append(el("div", {class: "actions"}, sendButton(i), declineControls(i),
       el("span", {class: "note"}, "Not ready? Leave it - it stays held until you answer.")));
+  } else if (i.type === "hold") {
+    c.append(inGroup ? el("div", {class: "meta"}, meta || " ")
+                     : [el("h3", {}, i.title), el("div", {class: "meta"}, meta)]);
+    c.append(el("div", {class: "why"}, i.why));
+    const rel = el("button", {class: "primary"}, "Release hold");
+    rel.onclick = () => act({action: "release_hold", ctx: i.ctx})
+      .then(j => j && !j.error && toast("Signed: messages to " + i.ctx + " can go again"));
+    c.append(el("div", {class: "actions"}, rel,
+      el("span", {class: "note"}, "Signs the release; the next scheduled message goes as normal.")));
   } else if (i.type === "wait") {
     c.append(el("h3", {}, i.title), el("div", {class: "meta"}, meta));
     if (i.why) c.append(el("div", {class: "said"}, i.why));
@@ -454,7 +463,7 @@ function needsCard(i, inGroup) {
 }
 // Needs you, grouped: what can leave the business first, then decisions,
 // then the queues in the server's order (legal line first)
-const OPEN_BY_DEFAULT = {held: true, wait: true, "escalation.legal_line": true, "escalation.complaint": true,
+const OPEN_BY_DEFAULT = {held: true, wait: true, hold: true, "escalation.legal_line": true, "escalation.complaint": true,
                          "integrity.violation": false, "dead.letter": false, "clarification.request": false};
 function needsGroups(needs) {
   const groups = [];
@@ -466,9 +475,10 @@ function needsGroups(needs) {
   for (const i of needs) {
     if (i.type === "held") find("held", "Held for your release", "urgent").items.push(i);
     else if (i.type === "wait") find("wait", "Paused for your decision", "urgent").items.push(i);
+    else if (i.type === "hold") find("hold", "Held after a complaint", "urgent").items.push(i);
     else find(i.queue || "other", i.title, "alarm").items.push(i);
   }
-  const order = g => g.key === "held" ? 0 : g.key === "wait" ? 1 : 2;
+  const order = g => g.key === "held" ? 0 : g.key === "wait" ? 1 : g.key === "hold" ? 2 : 3;
   return groups.sort((a, b) => order(a) - order(b));
 }
 const STEP_NAMES = ["Signed", "Booked", "Photos", "Copy OK", "Live", "Marketed", "Contract", "Closed"];

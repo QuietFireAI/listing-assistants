@@ -79,7 +79,7 @@
    "conflicts_with": [
     "P05"
    ],
-   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P02 run reviewed and signed)"
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P02 signed, then re-confirmed after decision 3 changed its start to your signed price change only)"
   },
   "P03": {
    "name": "Under-Contract Transition",
@@ -117,7 +117,8 @@
     "P08",
     "P01",
     "P04"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P03 run reviewed and signed)"
   },
   "P04": {
    "name": "Open House Cycle",
@@ -153,7 +154,8 @@
    ],
    "conflicts_with": [
     "P05"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P04 run reviewed and signed)"
   },
   "P05": {
    "name": "Expired/Withdrawn Wind-down",
@@ -199,7 +201,8 @@
     "P04",
     "P12",
     "P18"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P05 run reviewed and signed)"
   },
   "P06": {
    "name": "New Buyer Onboarding",
@@ -262,7 +265,8 @@
       "kind": "feedback_received"
      }
     }
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P07 run reviewed and signed)"
   },
   "P08": {
    "name": "Offer-to-Acceptance",
@@ -302,7 +306,8 @@
    ],
    "supersedes": [
     "P22"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P08 run reviewed and signed)"
   },
   "P09": {
    "name": "Contract-to-Close",
@@ -332,7 +337,8 @@
    ],
    "supersedes": [
     "P03"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P09 run reviewed and signed)"
   },
   "P10": {
    "name": "Close + Post-Close Handoff",
@@ -361,7 +367,8 @@
    ],
    "supersedes": [
     "P09"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P10 run reviewed and signed)"
   },
   "P11": {
    "name": "Speed-to-Lead",
@@ -392,7 +399,8 @@
       "agent": "02"
      }
     }
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P11 run reviewed and signed)"
   },
   "P12": {
    "name": "Geographic Farm Campaign",
@@ -423,7 +431,8 @@
    ],
    "conflicts_with": [
     "P05"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P12 run reviewed and signed)"
   },
   "P13": {
    "name": "Referral/Anniversary Cycle",
@@ -457,7 +466,8 @@
    ],
    "conflicts_with": [
     "P14"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P13 run reviewed and signed)"
   },
   "P14": {
    "name": "Complaint Response",
@@ -516,7 +526,8 @@
      "from": "10",
      "to": "human"
     }
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P15 run reviewed and signed)"
   },
   "P16": {
    "name": "Morning Operations",
@@ -616,7 +627,8 @@
    "conflicts_with": [
     "P05",
     "P14"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P18 run reviewed and signed)"
   },
   "P19": {
    "name": "Property Access Custody",
@@ -646,7 +658,8 @@
       "access_closed"
      ]
     }
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P19 run reviewed and signed)"
   },
   "P20": {
    "name": "Vacant Property Watch",
@@ -705,7 +718,8 @@
    ],
    "conflicts_with": [
     "P14"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P21 run reviewed and signed)"
   },
   "P22": {
    "name": "Buyer Feedback & Match Refresh",
@@ -742,7 +756,8 @@
    ],
    "conflicts_with": [
     "P14"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P22 run reviewed and signed)"
   },
   "P23": {
    "name": "Price-Review Evidence Assembly",
@@ -770,7 +785,8 @@
      "from": "10",
      "to": "human"
     }
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P23 run reviewed and signed)"
   },
   "P24": {
    "name": "Prospecting Outreach",
@@ -806,7 +822,8 @@
    ],
    "conflicts_with": [
     "P14"
-   ]
+   ],
+   "ratified": "RATIFIED 2026-10-21 Jeff Phillips (owner walkthrough: P24 run reviewed and signed)"
   }
  }
 }

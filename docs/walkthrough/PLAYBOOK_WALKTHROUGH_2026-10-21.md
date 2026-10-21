@@ -1,6 +1,23 @@
 # Walkthrough notes (P03 onward), for the owner's single review
 P01 signed 2026-10-21. P02 signed 2026-10-21.
 
+## Signing round, 2026-10-21 (after the decisions)
+- Signed: P03, P04, P05, P07, P08, P09, P10, P11, P12, P13, P15, P18, P19, P21,
+  P22, P23, P24. P02 re-confirmed after decision 3 changed its start.
+- Held by you: P06, P16, P17 (no reason given yet).
+- P11, signed with "fix the retry gap next": done. Agent 11 now tells Agent 03
+  when a nurture touch did not go out (complaint hold, no consent, opt-out,
+  quiet hours, unresolved variable; new route 11 -> 03
+  `client.message.not_sent`). 03 no longer counts it as sent and tries it on
+  the next clock check; an opt-out on every channel stops the sequence.
+- P14, your note on the two acts ("done" and "release the hold"): the Broker
+  Desk now has a **Release hold** button (Needs you, "Held after a complaint"),
+  which signs the release. Not signed yet: waiting for you.
+- P20, your change: the vacant-property check is daily (was every 7 days).
+  Agent 09 books no new check while the last one is still open (waiting for
+  your release, or sent with no proven delivery), so bookings never stack; you
+  are told once per open check. Not signed yet: waiting for you.
+
 ## Your decisions, applied 2026-10-21 (for the single review)
 1. Sign P03 to P24 after these are applied: waiting for you.
 2. Farm campaigns stay outside the Clear Cooperation hold: confirmed in the

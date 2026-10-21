@@ -92,7 +92,7 @@ class Spoke05MLSListingManagement:
         register_spoke(hub, "05", self)
 
     # TUNABLE (J3, 2026-10-12): days between condition checks on a vacant listing
-    VACANT_CHECK_INTERVAL_DAYS = 7
+    VACANT_CHECK_INTERVAL_DAYS = 1   # owner decision 2026-10-21 (P20 walkthrough): daily, was 7
     _ENDED = ("sold", "withdrawn", "expired", "cancelled", "closed")
 
     # the fields a listing description is drafted from: a signed change to

@@ -211,11 +211,18 @@ class Spoke03LeadNurture:
         for i, t in enumerate(seq["touches"]):
             if i in seq["sent"] or t["day"] > day_n:
                 continue
+            # counted as sent before it is handed to 11: 11 answers inside the
+            # send, and a client.message.not_sent from it takes it back out
+            # (P11 sign-off, 2026-10-21)
+            seq["sent"].append(i)
             result = self.send_scheduled_touch(ctx, {"text": t["text"], "touch": i},
                                                week, hour=hour)
+            if result == "sent" and i not in seq["sent"]:
+                result = "not_sent_by_11"
+            elif result != "sent" and i in seq["sent"]:
+                seq["sent"].remove(i)
             if result != "sent":
                 return f"held:{result}" if not sent_now else f"sent:{sent_now},held:{result}"
-            seq["sent"].append(i)
             sent_now.append(i)
         return f"sent:{sent_now}" if sent_now else "none_due"
 
@@ -592,6 +599,39 @@ class Spoke03LeadNurture:
                     if today:
                         body["today"] = today
                 self.hub.send(_env("03", "02", "lead.rescored", ctx, body))
+            return
+
+        if env.intent == "client.message.not_sent":
+            # P11 sign-off (2026-10-21): Agent 11 did not send a touch. It is
+            # not counted as sent: the next clock check tries it again. An
+            # opt-out on every channel stops the sequence instead.
+            seq = self.active_sequences.get(ctx)
+            i = env.payload.get("touch")
+            why = env.payload.get("reason")
+            if not seq or i not in seq.get("sent", []):
+                self.hub.ingest_spoke_trace(
+                    "03", env.envelope_id,
+                    thought=f"11 reports touch {i!r} for {ctx!r} not sent ({why}) but no "
+                            f"running sequence counts it as sent - nothing to undo",
+                    result="no change")
+                return
+            seq["sent"].remove(i)
+            seq["touch_count"] = max(0, seq.get("touch_count", 0) - 1)
+            weeks = self.touch_log.get(ctx) or []
+            if weeks:
+                weeks.pop()   # the unsent touch does not count against the weekly cap
+            if why == "opted_out":
+                seq["paused"] = True
+                seq["consent"] = {k: "no" for k in seq.get("consent", {})}
+                self.hub.send(_env("03", "14", "interaction.log", ctx,
+                                   {"kind": "sequence_stopped", "reason": "opted out on every channel"}))
+                result = "sequence stopped: opted out"
+            else:
+                result = f"touch {i} not sent ({why}): tried again on the next clock check"
+            self.hub.ingest_spoke_trace(
+                "03", env.envelope_id,
+                thought=f"11 did not send touch {i!r} for {ctx!r} ({why}) - not counting it as sent",
+                result=result)
             return
 
         if env.intent == "content.verdict":

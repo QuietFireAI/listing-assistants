@@ -97,6 +97,9 @@ class Spoke09VendorCoordination:
     def _accept_delivery(self, ctx: str, kind, payload: dict, source_id: str):
         """A verified, proven delivery goes on: photos to 05, documents to 08."""
         target = "05" if kind == "photography" else "08"
+        booked = (self.scheduled.get(ctx) or {}).get(kind)
+        if booked is not None:
+            booked["delivered"] = True     # the booking is closed by its proven delivery
         self.hub.send(_env("09", "18", "agent.status", ctx,
                            {"waiting_on": f"vendor_deliverable:{kind}",
                             "resolved": True}))
@@ -243,11 +246,38 @@ class Spoke09VendorCoordination:
                         return
                 self.slot_holds[slot_key] = {"ctx": ctx, "priority": incoming_priority}
 
+            # P20 daily watch (owner decision 2026-10-21): the vacant-listing
+            # check is asked for every day; a new one is not booked while the
+            # last one is still open (waiting for your release, or sent with
+            # no proven delivery yet), so bookings never stack. You are told
+            # once per open check.
+            prior = (self.scheduled.get(ctx) or {}).get(kind) or {}
+            if payload.get("purpose") == "vacant_watch" and prior.get("booking_envelope") \
+                    and not prior.get("delivered"):
+                state = self.hub.outbound_state(prior["booking_envelope"])
+                if state in ("held", "sent"):
+                    why = ("still waiting for your release" if state == "held"
+                           else "sent, and no delivery with proof has come back")
+                    self.hub.ingest_spoke_trace(
+                        "09", env.envelope_id,
+                        thought=f"{kind!r} check for {ctx!r} asked again, but the last one is "
+                                f"{why} - not booking a second one",
+                        result="not booked: previous check open")
+                    if not prior.get("open_noted"):
+                        prior["open_noted"] = True
+                        self.hub.send(_env("09", "queue", "clarification.request", ctx,
+                                           {"reason": f"the daily vacant-property check for {ctx} "
+                                                      f"is not booked again: the last one is {why}. "
+                                                      f"A new check is booked the day after it is "
+                                                      f"delivered with proof (or declined)",
+                                            "kind": kind, "booked_on": prior.get("booked_on")}))
+                    return
+
             booking = _env("09", "external", "vendor.schedule", ctx,
                            {"vendor_id": vendor_id, "kind": kind})
             self.scheduled.setdefault(ctx, {})[kind] = {
                 "vendor_id": vendor_id, "confirmed": True,
-                "booking_envelope": booking.envelope_id}
+                "booking_envelope": booking.envelope_id, "booked_on": today}
             self.hub.send(booking)
             if today:
                 self.hub.send(_env("09", "18", "agent.status", ctx,

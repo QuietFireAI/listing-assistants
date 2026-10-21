@@ -15,6 +15,14 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Playbooks signed (2026-10-21).** You signed P01 to P05, P07 to P13, P15,
+  P18, P19 and P21 to P24 (each carries its own `ratified` line in
+  `identity/playbooks.json`); P06, P14, P16, P17 and P20 are not signed yet.
+  With the signing: a nurture touch Agent 11 did not send is reported back
+  to Agent 03 and tried again (P11); a **Release hold** button on the Broker
+  Desk for a client held after a complaint (P14); the vacant-property check
+  is daily and never stacks bookings (P20).
+
 - **Tuple map and a Mark handled button (2026-10-21, owner request).**
   `docs/TUPLE_MAP.md` sorts all 273 tuples by what they protect (seven
   categories) and how bad a failure would be (three tiers), with run status
@@ -336,7 +344,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1305 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1309 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

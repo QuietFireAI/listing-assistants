@@ -9,7 +9,7 @@ or intent list disagree with identity/routes.json.
 
 ## Manifest (generated)
 - Agents: 21 (00-dispatcher + 20 spokes)
-- Routes: 54 entries, 52 distinct intents
+- Routes: 55 entries, 53 distinct intents
 - Playbooks: P01-P24 (24 playbooks) (docs/PLAYBOOKS.md)
 - Layer stack: MANNERS.md → dispatcher core (dispatcher/, the files listed in
   dispatcher/CORE_ORIGIN.md) → identity/ → DECISIONS.md (per agent) →
@@ -58,7 +58,7 @@ or intent list disagree with identity/routes.json.
 - 18 Calendar & Task Management Agent
 - 19 Prospecting Agent
 - 20 Social Media Monitoring Agent
-- Intents: `agent.status`, `asset.release`, `behavioral.signal`, `briefing.request`, `calendar.event`, `campaign.publish`, `clarification.request`, `client.message.request`, `client.message.send`, `client.reply`, `clock.tick`, `compliance.notice`, `config.update`, `content.review`, `content.verdict`, `data.package`, `data.request`, `date.trigger`, `deadline.alert`, `deliverable.release`, `discovery.feed`, `doc.request`, `doc.status`, `document.submission`, `escalation.*`, `integrity.violation`, `interaction.log`, `lead.captured`, `lead.inbound`, `lead.nurture`, `lead.reply`, `lead.rescored`, `lead.signal`, `listing.change.authorized`, `listing.data`, `platform.metrics`, `prospect.opportunity`, `record.request`, `record.response`, `report.package`, `showing.feedback_response`, `showing.no_show`, `showing.request`, `social.mention`, `status.request`, `status.response`, `status.update`, `transaction.closed`, `vendor.cancellation_notice`, `vendor.event`, `vendor.request`, `vendor.schedule`
+- Intents: `agent.status`, `asset.release`, `behavioral.signal`, `briefing.request`, `calendar.event`, `campaign.publish`, `clarification.request`, `client.message.not_sent`, `client.message.request`, `client.message.send`, `client.reply`, `clock.tick`, `compliance.notice`, `config.update`, `content.review`, `content.verdict`, `data.package`, `data.request`, `date.trigger`, `deadline.alert`, `deliverable.release`, `discovery.feed`, `doc.request`, `doc.status`, `document.submission`, `escalation.*`, `integrity.violation`, `interaction.log`, `lead.captured`, `lead.inbound`, `lead.nurture`, `lead.reply`, `lead.rescored`, `lead.signal`, `listing.change.authorized`, `listing.data`, `platform.metrics`, `prospect.opportunity`, `record.request`, `record.response`, `report.package`, `showing.feedback_response`, `showing.no_show`, `showing.request`, `social.mention`, `status.request`, `status.response`, `status.update`, `transaction.closed`, `vendor.cancellation_notice`, `vendor.event`, `vendor.request`, `vendor.schedule`
 
 ## Swarm-level decision tuples (predictable scenarios, pre-deliberated)
 - (two playbooks match one trigger, run neither; clarification.request naming both)

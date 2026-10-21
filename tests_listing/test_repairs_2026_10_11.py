@@ -242,6 +242,10 @@ def test_nurture_sends_due_touches_once_each_after_clearance(tmp_path):
                                          "version": "r1"}))
     sw.hub.send(_signed(s, "03", "x", {"nurture_sequences": {"default_drip": {"touches": [
         {"day": 0, "text": "hello"}, {"day": 3, "text": "listings"}]}}}))
+    # consent on record at 14 (as 01 logs it at capture): since 2026-10-21 a
+    # touch 11 blocks for no consent is not counted as sent
+    sw.hub.send(_env("01", "14", "interaction.log", "W-1",
+                     {"kind": "lead.captured", "consent": {"email": "yes"}}))
     sw.hub.send(_env("02", "03", "lead.nurture", "W-1",
                      {"tier": "WARM", "consent": {"email": "yes"}, "today": "2026-10-12",
                       "now_iso": "2026-10-12T23:00:00"}))   # outside hours: day 0 waits for the clock

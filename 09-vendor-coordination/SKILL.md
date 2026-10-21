@@ -69,7 +69,7 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← 05 / 06 / 07 | Vendor need | `vendor.request` |
+| IN | ← 05 / 06 / 07 | Vendor need (a daily vacant-property check from 05 is not booked again while the last one is open, owner decision 2026-10-21) | `vendor.request` |
 | OUT | → vendors via approved channels | Scheduling and confirmations | `vendor.schedule` |
 | OUT | → 05 / 08 | Deliverables | `deliverable.release` |
 | OUT | → 18 Calendar & Task | Appointments | `calendar.event` |

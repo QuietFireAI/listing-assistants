@@ -339,3 +339,26 @@ def test_the_page_has_the_prospects_list_and_its_button():
     page = open(os.path.join(ROOT, "tools", "desk.html"), encoding="utf-8").read()
     assert 'id="prospects"' in page and "Mark handled" in page
     assert 'action: "prospect_handled"' in page
+
+
+def test_release_hold_signs_the_release_and_the_client_can_be_messaged_again(tmp_path):
+    """Owner request 2026-10-21 (P14): releasing a complaint hold is a button."""
+    import console
+    d = desk_mod.Desk(str(tmp_path / "hold"), showcase=True)
+    try:
+        r, err = console.apply_action(d.sw, d.signer, d.operator,
+                                      {"do": "send", "from": "external", "to": "11",
+                                       "intent": "client.reply", "ctx": "H1",
+                                       "payload": {"message": "This is ridiculous. Nobody called me back!",
+                                                   "today": "2026-10-21"}})
+        assert not err, r
+        [h] = [i for i in d.state()["needs_you"] if i["type"] == "hold"]
+        assert h["ctx"] == "H1" and "held" in h["title"]
+        assert d.act({"action": "release_hold", "ctx": "H1"}).get("status") == "ack"
+        assert not [i for i in d.state()["needs_you"] if i["type"] == "hold"]
+        assert "H1" not in d.sw.spokes["11"].complaint_hold
+        assert [e for e in d.sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+                and e["payload"].get("kind") == "complaint_hold_released"]
+        assert "no messages are held" in d.act({"action": "release_hold", "ctx": "H1"})["error"]
+    finally:
+        d.close()
