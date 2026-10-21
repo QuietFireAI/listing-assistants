@@ -5,7 +5,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 
 | Result | Tuples |
 |---|---|
-| PASS | 246 |
+| PASS | 247 |
 | VARIANCE | 2 |
 | NOT REACHABLE | 15 |
 | NOT BUILT | 5 |
@@ -155,6 +155,7 @@ state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.
 | 09-09 | 09 | intake | PASS | (invoice differs from quote, log both, human; never approve variances) |  |
 | 09-10 | 09 | intake | PASS | (vendor no-show on a deadline-critical job, escalate + offer next approved vendor to human; never self-substitute) | Goes to the broker's queue with the roster alternatives (the clarification queue, not the escalation queue). |
 | 09-11 | 09 | intake | PASS | (work scope grows on-site per vendor, stop work order message per template; scope changes are human-approved) | The stop-work message to the vendor is held for the broker's signed release (counterparty audience); it is not sent until then. |
+| 09-12 | 09 | intake | PASS | (a delivery arrives for a booking that never reached the vendor (still held for release, or declined), hold the delivery for the human; continue accepts it, cancel refuses it) | the delivery waits on your decision; continue accepts it and the listing goes live |
 | 10-01 | 10 | intake | PASS | (comps come back thin, report the thinness; never widen parameters silently) |  |
 | 10-02 | 10 | intake | PASS | (sources conflict on a datum, present both with provenance; never average) |  |
 | 10-03 | 10 | intake | PASS | (anyone asks for the opinion ('the number you'd go with'), refuse - data only; escalate if pressed) |  |

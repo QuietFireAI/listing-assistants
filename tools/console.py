@@ -474,6 +474,8 @@ def apply_action(sw, signer, operator, a, external=None):
             error = True
         else:
             r = {"table": rt.table.status,
+                 "ratified_playbooks": sorted(p for p in rt.table.playbooks
+                                              if rt.table.status_for(p) == "RATIFIED"),
                  "open": [{k: rt.runs[x][k] for k in ("run_id", "playbook", "ctx", "status")}
                           | {"steps": len(rt.runs[x]["steps"])} for x in rt.open_runs()],
                  "ended": [{"run_id": x["run_id"], "outcome": x["status"],

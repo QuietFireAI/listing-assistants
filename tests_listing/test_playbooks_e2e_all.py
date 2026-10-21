@@ -52,6 +52,9 @@ def _new_listing(hub, signer, ctx, extra=None):
     hub.send(signed(signer, "05", "listing.change.authorized", ctx,
                     {"new_listing": pkg, "authorize_go_live": True,
                      "today": "2026-07-01"}))
+    # the photographer is booked only on your signed release (owner
+    # walkthrough 2026-10-21: a delivery before it is held for you)
+    release_all_held(hub, signer)
     hub.send(spoke_env("external", "09", "vendor.event", ctx,
                        {"kind": "photography",
                         "event_kind": "deliverable_report",

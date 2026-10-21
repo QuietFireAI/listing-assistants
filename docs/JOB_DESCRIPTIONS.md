@@ -439,7 +439,7 @@ submission's `opens_correctly` flag. There is no separate periodic status report
 **Summary:** Vendor coordination. Use for scheduling photographers, stagers, inspectors, appraisers, contractors, cleaners, and handymen, confirming appointments, and collecting deliverables.
 **Sends:** agent.status, calendar.event, deliverable.release, interaction.log, vendor.cancellation_notice, vendor.schedule
 **Receives:** vendor.event, vendor.request
-**Predeliberated tuples:** 11 (see 09-vendor-coordination/DECISIONS.md)
+**Predeliberated tuples:** 12 (see 09-vendor-coordination/DECISIONS.md)
 **Picture:** who it works with, in [09-vendor-coordination](../09-vendor-coordination/README.md)
 
 Manages the service provider network - photographers, stagers,

@@ -286,14 +286,26 @@ def test_REGRESSION_missing_deadline_critical_fails_closed(tmp_path):
 
 
 def test_vendor_deliverable_wait_tracked_and_resolved(tmp_path):
-    hub = make_hub(str(tmp_path))
+    from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
+    signer = Ed25519Signer()
+    hub = make_hub(str(tmp_path),
+                   signature_verifier=Ed25519Verifier(signer.public_key_bytes()).verifier())
     Spoke09VendorCoordination(hub, roster=ROSTER)
+    hub.register("external", lambda env: None)
     hub.on_turn_start()
     hub.send(vendor_req("v-017", {"vendor_id": "insp-1", "kind": "inspector",
                                   "today": "2026-08-01"}))
     status = persisted(hub, "agent.status")
     assert any(s["payload"].get("waiting_on") == "vendor_deliverable:inspector"
               for s in status)
+    # the booking reaches the vendor only on the broker's signed release;
+    # a delivery before that is held (owner walkthrough 2026-10-21)
+    [booking] = [e for e in hub._absolute_holds.values() if e.intent == "vendor.schedule"]
+    auth = Envelope(from_agent="human", to_agent="hub", intent="disclosure.authority",
+                    client_context_id="v-017", payload={"held_envelope_id": booking.envelope_id},
+                    provenance={"source": "human", "captured_at": "runtime"})
+    signer.sign(auth)
+    assert hub.release_disclosure(auth)["status"] == "ack"
 
     hub.send(vendor_event("v-017", {"event_kind": "deliverable_report",
                                     "kind": "inspector",

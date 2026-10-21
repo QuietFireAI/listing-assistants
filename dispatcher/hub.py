@@ -352,6 +352,19 @@ class Hub:
                                "intent": original.intent})
             return self.send(original)
 
+    def outbound_state(self, envelope_id: str) -> str:
+        """Whether a message the hub held for a signed release has gone out
+        (2026-10-21, P01 review: Agent 09 accepted a photographer's delivery
+        while the booking message to the photographer was still held).
+        "held" while it waits for the broker, "sent" once released and
+        delivered, "not sent" when declined or never seen."""
+        with self._lock:
+            if envelope_id in self._absolute_holds:
+                return "held"
+            if envelope_id in self.seen_ids:
+                return "sent"
+            return "not sent"
+
     def decline_disclosure(self, auth: Envelope) -> dict:
         """The other answer to a held message: do NOT send it. Added
         2026-10-12 - before this, a held message could be released or left

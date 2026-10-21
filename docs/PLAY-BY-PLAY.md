@@ -194,6 +194,8 @@ sequenceDiagram
     A05->>A09: asks to book a vendor
     Note over A09: Held - the vendor booking waits for your signed release
     A09->>A18: puts it on the calendar
+    B->>A09: you sign the release
+    A09->>X: books the vendor
     X->>A09: the vendor reports in
     A09->>A05: passes on the vendor's finished work
     A05->>A04: shares the listing details
@@ -254,6 +256,8 @@ sequenceDiagram
     A05->>A09: asks to book a vendor
     Note over A09: Held - the vendor booking waits for your signed release
     A09->>A18: puts it on the calendar
+    B->>A09: you sign the release
+    A09->>X: books the vendor
     X->>A09: the vendor reports in
     A09->>A05: passes on the vendor's finished work
     A05->>A04: shares the listing details
@@ -330,6 +334,8 @@ sequenceDiagram
     A05->>A09: asks to book a vendor
     Note over A09: Held - the vendor booking waits for your signed release
     A09->>A18: puts it on the calendar
+    B->>A09: you sign the release
+    A09->>X: books the vendor
     X->>A09: the vendor reports in
     A09->>A05: passes on the vendor's finished work
     A05->>A04: shares the listing details
@@ -387,6 +393,8 @@ sequenceDiagram
     A05->>A09: asks to book a vendor
     Note over A09: Held - the vendor booking waits for your signed release
     A09->>A18: puts it on the calendar
+    B->>A09: you sign the release
+    A09->>X: books the vendor
     X->>A09: the vendor reports in
     A09->>A05: passes on the vendor's finished work
     A05->>A04: shares the listing details
@@ -578,6 +586,8 @@ sequenceDiagram
     A05->>A09: asks to book a vendor
     Note over A09: Held - the vendor booking waits for your signed release
     A09->>A18: puts it on the calendar
+    B->>A09: you sign the release
+    A09->>X: books the vendor
     X->>A09: the vendor reports in
     A09->>A05: passes on the vendor's finished work
     A05->>A04: shares the listing details
@@ -593,8 +603,6 @@ sequenceDiagram
     A05->>A06: shares the listing details
     A05->>A13: shares the listing details
     A05->>A10: shares the listing details
-    B->>A09: you sign the release
-    A09->>X: books the vendor
     B->>A12: you sign the release
     A12->>X: publishes the marketing
     B->>A05: your signed listing or price change

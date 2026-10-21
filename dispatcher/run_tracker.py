@@ -147,6 +147,18 @@ class PlaybookTable:
         self.playbooks: dict = data.get("playbooks", {})
         self.problems = self._check(routes, classes)
 
+    def status_for(self, pid: str) -> str:
+        """The owner signs the playbooks one at a time (walkthrough
+        2026-10-21): a playbook's own "ratified" line, or the table's, makes
+        it RATIFIED; otherwise it is PROPOSED."""
+        from .config_status import is_ratified
+        if self.ratified or is_ratified(self.playbooks.get(pid, {}).get("ratified")):
+            return "RATIFIED"
+        return "PROPOSED"
+
+    def status_line_for(self, pid: str) -> str:
+        return self.playbooks.get(pid, {}).get("ratified") or self.status_line
+
     def _check(self, routes, classes) -> list[str]:
         """Every pattern must be a crossing the closed track can carry, and
         every playbook needs a priority class: a table that asks for a step
@@ -240,6 +252,8 @@ class RunTracker:
         self.hub.audit.append("playbook.table", {
             "path": os.path.relpath(table_path, ROOT), "status": self.table.status,
             "status_line": self.table.status_line, "sha256": self.table.sha256,
+            "ratified_playbooks": sorted(p for p in self.table.playbooks
+                                         if self.table.status_for(p) == "RATIFIED"),
             "playbooks": len(self.table.playbooks)})
         self._install()
 
@@ -455,7 +469,7 @@ class RunTracker:
             "playbook": pid, "name": self.table.playbooks[pid].get("name"), "run_id": rid,
             "client_context_id": ctx, "class": self.classes[pid],
             "start_envelope": env.envelope_id, "start_intent": env.intent,
-            "table": self.table.status})
+            "table": self.table.status_for(pid)})
         return rid
 
     def _start_from_log(self, pid: str, kind: str, rec: dict) -> str:
@@ -470,7 +484,7 @@ class RunTracker:
         self._log("playbook.started", {
             "playbook": pid, "name": self.table.playbooks[pid].get("name"), "run_id": rid,
             "client_context_id": ctx, "class": self.classes[pid], "start_envelope": None,
-            "start_intent": kind, "table": self.table.status})
+            "start_intent": kind, "table": self.table.status_for(pid)})
         return rid
 
     def _after(self, env: Envelope, res):
@@ -788,7 +802,7 @@ class RunTracker:
         text = generate_report(window, run["playbook"], rid, run["ctx"], steps,
                                outcome=outcome, abort_reason=reason)
         decided, proposed = self._decisions_and_proposals(run, window)
-        text += self._extra_sections(decided, proposed)
+        text += self._extra_sections(run["playbook"], decided, proposed)
         os.makedirs(self.report_dir, exist_ok=True)
         path = os.path.join(self.report_dir, f"{rid}.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -825,9 +839,9 @@ class RunTracker:
                                     + " -> ?) proposed, not ratified")
         return decided, proposed
 
-    def _extra_sections(self, decided: list, proposed: list) -> str:
+    def _extra_sections(self, pid: str, decided: list, proposed: list) -> str:
         lines = ["", "## playbook table",
-                 f"- {self.table.status}: {self.table.status_line}",
+                 f"- {pid}: {self.table.status_for(pid)}: {self.table.status_line_for(pid)}",
                  f"- identity/playbooks.json sha256 {self.table.sha256}", "",
                  "## your signed decisions in this run (they win over the playbook as written)"]
         lines += [f"- {d}" for d in decided] or ["- none"]
