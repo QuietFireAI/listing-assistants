@@ -15,12 +15,18 @@
 #      then attests the install you just put in place
 #   5. desktop shortcuts: "ListingAssistants Desk" and "ListingAssistants
 #      Playbook Show"
+#   6. Hermes: adds ListingAssistants to Hermes' MCP servers when Hermes is
+#      installed (keeps a copy of its old settings); always saves the block
+#      in hermes-mcp.yaml
 #
 # Settings (environment variables, all optional):
 #   LA_HOME          install folder        (default %LOCALAPPDATA%\ListingAssistants)
 #   LA_REF           branch, tag or commit (default main)
 #   LA_NAME,LA_LOGIN your name and email   (asked for if not set, first install only)
 #   LA_NO_SHORTCUTS  set to 1 for no desktop shortcuts
+#   LA_NO_HERMES     set to 1 to leave Hermes' settings alone
+#   HERMES_HOME      where Hermes keeps config.yaml (default %LOCALAPPDATA%\hermes,
+#                    then %USERPROFILE%\.hermes)
 #
 # Owner decision 2026-10-21: one PowerShell line first; a signed setup
 # wizard (.exe) comes later, with a code-signing certificate.
@@ -53,7 +59,7 @@ Say "version: $Ref"
 New-Item -ItemType Directory -Force -Path $LaHome, $Tools | Out-Null
 
 # --- 1. uv ------------------------------------------------------------------
-Step "1/5 Python manager (uv $UvVersion)"
+Step "1/6 Python manager (uv $UvVersion)"
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "aarch64" } else { "x86_64" }
 $Uv = Join-Path $Tools "uv.exe"
 $haveUv = (Test-Path $Uv) -and ((& $Uv --version) -match [regex]::Escape($UvVersion))
@@ -74,12 +80,12 @@ $env:UV_CACHE_DIR = Join-Path $LaHome "cache"
 $env:UV_PYTHON_PREFERENCE = "only-managed"
 
 # --- 2. Python ----------------------------------------------------------------
-Step "2/5 private Python $PythonVersion"
+Step "2/6 private Python $PythonVersion"
 & $Uv python install $PythonVersion
 if ($LASTEXITCODE -ne 0) { Fail "uv could not install Python $PythonVersion" }
 
 # --- 3. the app -----------------------------------------------------------------
-Step "3/5 ListingAssistants ($Ref)"
+Step "3/6 ListingAssistants ($Ref)"
 $src = if ($env:LA_SOURCE_ZIP) { $env:LA_SOURCE_ZIP } else { "https://github.com/$Repo/archive/$Ref.zip" }
 $zip = Join-Path $LaHome "app.zip"
 $unpack = Join-Path $LaHome "app.new"
@@ -109,7 +115,7 @@ if (-not $base.StartsWith($PyDir, [System.StringComparison]::OrdinalIgnoreCase))
 Say "Python: $base"
 
 # --- 4. your key, who you are, the attestation ----------------------------------------
-Step "4/5 your key and the install check"
+Step "4/6 your key and the install check"
 $env:LISTINGASSISTANTS_STATE_DIR = $State
 $console = Join-Path $App "tools\console.py"
 if (-not (Test-Path (Join-Path $State "operator-key.bin"))) {
@@ -127,7 +133,7 @@ if (-not (Test-Path (Join-Path $State "operator-key.bin"))) {
 }
 
 # --- 5. launchers and shortcuts ---------------------------------------------------
-Step "5/5 launchers"
+Step "5/6 launchers"
 $deskCmd = Join-Path $LaHome "Desk.cmd"
 $showCmd = Join-Path $LaHome "Playbook Show.cmd"
 @"
@@ -155,6 +161,66 @@ if ($env:LA_NO_SHORTCUTS -ne "1") {
         $lnk.Save()
         Say "shortcut: $($pair[0])"
     }
+}
+
+# --- 6. Hermes (owner decision 2026-10-22: Hermes first) ------------------------
+# The assistant works inside your running Broker Desk, on your records; it
+# can read the desk and bring in an inquiry, and it never signs. This adds
+# the server to Hermes' settings when Hermes is installed (a copy of the old
+# settings is kept next to them), and always saves the block here.
+Step "6/6 Hermes"
+function YamlQuote($v) { "'" + ($v -replace "'", "''") + "'" }   # a ' in a folder name is doubled
+function HermesEntry($indent) {
+    $i = " " * $indent
+    @(
+        "${i}listingassistants:",
+        "${i}  command: $(YamlQuote $Py)",
+        "${i}  args: ['-m', 'dispatcher.identity_mcp']",
+        "${i}  enabled: true",
+        "${i}  env:",
+        "${i}    IDENTITY_ROOT: $(YamlQuote $App)",
+        "${i}    PYTHONPATH: $(YamlQuote $App)",
+        "${i}    LISTINGASSISTANTS_STATE_DIR: $(YamlQuote $State)"
+    ) -join "`n"
+}
+$snippet = Join-Path $LaHome "hermes-mcp.yaml"
+$utf8 = New-Object System.Text.UTF8Encoding($false)    # no byte-order mark: YAML readers trip on it
+[System.IO.File]::WriteAllText($snippet, ("mcp_servers:`n" + (HermesEntry 2) + "`n"), $utf8)
+$hermesHomes = @($env:HERMES_HOME, (Join-Path $env:LOCALAPPDATA "hermes"), (Join-Path $env:USERPROFILE ".hermes")) |
+    Where-Object { $_ -and (Test-Path (Join-Path $_ "config.yaml")) }
+$cfg = if ($hermesHomes) { Join-Path @($hermesHomes)[0] "config.yaml" } else { $null }
+if ($env:LA_NO_HERMES -eq "1") { $cfg = $null; Say "Hermes left alone (LA_NO_HERMES=1)" }
+if (-not $cfg) {
+    Say "Hermes settings not found. To add ListingAssistants to Hermes later, put the"
+    Say "block in $snippet under mcp_servers: in Hermes' config.yaml"
+} else {
+    $text = [System.IO.File]::ReadAllText($cfg)
+    $block = [regex]::Match($text, '(?m)^mcp_servers:[ \t]*\r?$')
+    $backup = $cfg + ".bak-listingassistants"
+    if ($text -match '(?m)^[ \t]+listingassistants:[ \t]*\r?$') {
+        Say "Hermes already has a ListingAssistants entry ($cfg); left as it is."
+        Say "If it names another folder, replace it with the block in $snippet"
+    } elseif ($block.Success) {
+        # the new entry goes first under mcp_servers:, indented like the
+        # entries already there (2 spaces when there are none)
+        $after = $text.Substring($block.Index + $block.Length)
+        $first = [regex]::Match($after, '(?m)^([ \t]+)[^ \t\r\n#]')
+        $next = [regex]::Match($after, '(?m)^[^ \t\r\n#]')          # the next top-level key
+        $indent = if ($first.Success -and (-not $next.Success -or $first.Index -lt $next.Index)) { $first.Groups[1].Value.Length } else { 2 }
+        Copy-Item $cfg $backup -Force
+        $text = $text.Substring(0, $block.Index + $block.Length) + "`n" + (HermesEntry $indent) + $after
+        [System.IO.File]::WriteAllText($cfg, $text, $utf8)
+        Say "added to Hermes: $cfg (old copy: $backup)"
+    } elseif ($text -match '(?m)^mcp_servers:') {
+        Say "Hermes' mcp_servers is written on one line in $cfg; not changed."
+        Say "Add the block in $snippet there yourself."
+    } else {
+        Copy-Item $cfg $backup -Force
+        $sep = if ($text.EndsWith("`n") -or $text.Length -eq 0) { "" } else { "`n" }
+        [System.IO.File]::WriteAllText($cfg, ($text + $sep + "mcp_servers:`n" + (HermesEntry 2) + "`n"), $utf8)
+        Say "added to Hermes: $cfg (old copy: $backup)"
+    }
+    Say "In Hermes: start the Desk first, then type /reload-mcp (or restart Hermes)."
 }
 
 Write-Host ""

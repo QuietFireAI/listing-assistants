@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Live MCP round trip: spawn the identity_mcp server over stdio exactly as
-Hermes / OpenClaw / Claude Desktop would, then call all four tools through
+a host would (standalone, with --demo-signing), then call all four tools through
 the real MCP protocol. This is the proof the wrapper mounts - not a
 description of it."""
 import asyncio

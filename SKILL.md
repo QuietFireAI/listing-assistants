@@ -11,7 +11,7 @@ A complete, ratified operating identity: a dispatcher hub (00) and 20 spoke
 agents (01-20), 52 legal routes
 (`identity/routes.json` - the closed track), 24 playbooks (P01-P24) with
 explicit human gates, 259 predeliberated decision tuples (3 retired), ratified config
-doctrine, and a test suite (1313 tests, including mutation-hardening
+doctrine, and a test suite (1316 tests, including mutation-hardening
 tests and one end-to-end test per playbook).
 
 ## The absolute lines (enforced in code)
@@ -45,9 +45,10 @@ python -m pytest tests_listing/   # every playbook, every gate
 `dispatcher/` and belong to this product (folded in from dispatcher-agents
 2026-10-20; `dispatcher/CORE_ORIGIN.md` names the commit they came from).
 
-**On Hermes / OpenClaw / Claude Desktop:** see docs/MOUNTING.md - the
-identity runs as a stdio MCP server with a four-tool surface and a boot
-conformance gate.
+**On Hermes (first; others later):** see docs/MOUNTING.md - the identity
+runs as a stdio MCP server inside the broker's running Broker Desk, with a
+five-tool surface, a boot conformance gate, and no way to sign. The Windows
+installer adds it to Hermes' settings.
 
 ## Key files
 

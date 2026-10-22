@@ -18,9 +18,21 @@ the signer registry, and the audit chain are intact. The governance
 guarantee travels with the server; it cannot be silently mounted broken.
 
 Usage:
-    python3 -m dispatcher.identity_mcp                  # serve the identity
+    python3 -m dispatcher.identity_mcp                  # inside your running Broker Desk
     IDENTITY_ROOT=/path python3 -m dispatcher.identity_mcp
+    python3 -m dispatcher.identity_mcp --standalone     # its own private swarm
     python3 -m dispatcher.identity_mcp --demo-signing   # DEMO ONLY, see below
+
+Desk mode (the default, owner decision 2026-10-22): the server works inside
+the broker's RUNNING Broker Desk, on the broker's own records, through the
+desk's door (POST /api/mcp on 127.0.0.1 with the token the desk writes to
+desk-mcp.json in its state folder). One record: what the assistant brings in
+is on the desk at once. Five tools: identity.status reads the desk,
+identity.submit brings in an inquiry (lead.inbound only), identity.audit
+checks the record, identity.describe names the surface, and
+identity.authority is always refused: the assistant never signs. With no
+desk running, every call says to start it. --standalone (and
+--demo-signing) build a separate swarm in this process instead.
 
 Signing (fixed 2026-10-11, audit MCP-1): the server holds a key it generates
 at boot. Before this fix it used that key to sign `listing.authorize` and
@@ -287,7 +299,80 @@ class GovernedIdentity:
 
 
 # ---------------------------------------------------------------------------
-# MCP server: four tools, no more.
+# Desk mode (owner decision 2026-10-22, the default): the assistant works
+# inside the broker's RUNNING Broker Desk, on the broker's records, through
+# the desk's own door (POST /api/mcp with the token from the private file
+# desk-mcp.json the desk writes at start). One record: what the assistant
+# brings in shows on the desk at once, survives a restart and is seen by the
+# clock. The assistant can read the desk and bring in an inquiry; it cannot
+# sign, release or decide anything - that is the broker, on the desk.
+# ---------------------------------------------------------------------------
+class DeskIdentity:
+    demo_signing = False
+    spokes = None      # describe() reads it; the desk holds the agents
+
+    def __init__(self, state_dir=None):
+        self.state_dir = state_dir or os.environ.get("LISTINGASSISTANTS_STATE_DIR") or \
+            os.path.join(ROOT, "console-state")
+        self.door_file = os.path.join(self.state_dir, "desk-mcp.json")
+
+    def _call(self, tool, args=None):
+        import urllib.error
+        import urllib.request
+        not_running = {"ok": False, "desk": "not running",
+                       "reason": "Your Broker Desk is not running. Start it (desktop shortcut "
+                                 "'ListingAssistants Desk'); the assistant works inside your "
+                                 "running desk, on your records."}
+        try:
+            door = json.load(open(self.door_file, encoding="utf-8"))
+        except (OSError, ValueError):
+            return not_running
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{int(door['port'])}/api/mcp", method="POST",
+            data=json.dumps({"tool": tool, "args": args or {}}).encode(),
+            headers={"Content-Type": "application/json", "X-MCP-Token": door["token"]})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read() or b"{}")
+        except urllib.error.HTTPError as e:
+            try:
+                body = json.loads(e.read() or b"{}")
+            except ValueError:
+                body = {}
+            return {"ok": False, "reason": body.get("error") or f"desk answered {e.code}"}
+        except (urllib.error.URLError, OSError):
+            return not_running
+
+    def describe(self):
+        out = GovernedIdentity.describe(self)
+        out["governance"]["server_signs_for_host"] = False
+        out["governance"]["note"] = (
+            "You work inside the broker's running Broker Desk, on the broker's records. "
+            "Read it with identity.status; bring in an inquiry with identity.submit "
+            "(intent lead.inbound). You never sign: listings, prices, releases and "
+            "decisions are signed by the broker on the Desk.")
+        out["runtime"] = "the broker's running desk" if self._call("audit").get("ok") \
+            else "desk not running"
+        return out
+
+    def status(self):
+        return self._call("status")
+
+    def submit(self, intent, payload, context_id=None):
+        return self._call("submit", {"intent": intent, "payload": payload,
+                                     "context_id": context_id})
+
+    def authority(self, intent, payload, signature_hex=None, context_id=None):
+        return {"ok": False, "intent": intent,
+                "reason": "The assistant cannot sign. Prepare what is needed and tell the "
+                          "broker; the broker signs it on the Broker Desk with their own key."}
+
+    def audit(self):
+        return self._call("audit")
+
+
+# ---------------------------------------------------------------------------
+# MCP server: four tools (five in desk mode), no more.
 # ---------------------------------------------------------------------------
 def build_server(identity):
     from mcp.server import Server
@@ -340,6 +425,39 @@ def build_server(identity):
             inputSchema={"type": "object", "properties": {}}),
     ]
 
+    if isinstance(identity, DeskIdentity):
+        # in desk mode the host is told plainly what it may do, so the
+        # assistant does not try acts that are the broker's (2026-10-22)
+        TOOLS[1] = types.Tool(
+            name="identity.submit",
+            description=("Bring a new inquiry onto the broker's running Broker Desk. "
+                         "intent must be 'lead.inbound'; payload: channel (web_form, "
+                         "email, sms, phone or walk_in), name, email and/or phone, "
+                         "message, property_interest, and consent per channel, e.g. "
+                         "{\"email\": \"yes\"}. Give context_id to name the lead. "
+                         "Every other act (listings, releases, changes) is done by "
+                         "the broker on the Desk and is refused here."),
+            inputSchema={"type": "object",
+                         "properties": {
+                             # not an enum: another intent gets a reason back
+                             # ("done by you on the Broker Desk"), not a schema error
+                             "intent": {"type": "string"},
+                             "payload": {"type": "object"},
+                             "context_id": {"type": "string"}},
+                         "required": ["intent", "payload"]})
+        TOOLS[2] = types.Tool(
+            name="identity.authority",
+            description=("Always refused: the assistant never signs. When something "
+                         "needs a signature, prepare what is needed and tell the "
+                         "broker; the broker signs on the Broker Desk with their own key."),
+            inputSchema=TOOLS[2].inputSchema)
+        TOOLS.insert(1, types.Tool(
+            name="identity.status",
+            description=("Read the broker's running Broker Desk: what needs the broker, "
+                         "listings and where each stands, leads, prospects waiting, the "
+                         "outbox count and whether the record is intact. Read-only."),
+            inputSchema={"type": "object", "properties": {}}))
+
     @server.list_tools()
     async def list_tools():
         return TOOLS
@@ -358,6 +476,8 @@ def build_server(identity):
                                      arguments.get("context_id"))
         elif name == "identity.audit":
             out = identity.audit()
+        elif name == "identity.status" and isinstance(identity, DeskIdentity):
+            out = identity.status()
         else:
             out = {"ok": False, "reason": f"unknown tool {name}"}
         return [types.TextContent(type="text",
@@ -375,7 +495,13 @@ async def _serve():
     if demo:
         sys.stderr.write("[identity_mcp] DEMO SIGNING ON: the server will sign "
                          "authority actions for the host. Not for production.\n")
-    identity = GovernedIdentity(routes, signer, verifier, demo_signing=demo)
+    if demo or "--standalone" in sys.argv[1:]:
+        # its own throwaway record (a demo or a test), not the broker's
+        identity = GovernedIdentity(routes, signer, verifier, demo_signing=demo)
+    else:
+        identity = DeskIdentity()
+        sys.stderr.write(f"[identity_mcp] desk mode: the broker's running desk at "
+                         f"{identity.state_dir}\n")
     server = build_server(identity)
     from mcp.server.stdio import stdio_server
     async with stdio_server() as (read, write):

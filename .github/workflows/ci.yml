@@ -38,7 +38,13 @@ jobs:
       LA_NAME: CI Broker
       LA_LOGIN: ci@example.test
       LA_NO_SHORTCUTS: "1"
+      HERMES_HOME: ${{ github.workspace }}\..\hermes
     steps:
+      - name: a Hermes already set up, with one server of its own (owner decision 2026-10-22, Hermes first)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force $env:HERMES_HOME | Out-Null
+          [System.IO.File]::WriteAllText((Join-Path $env:HERMES_HOME "config.yaml"), "model: x`nmcp_servers:`n  github:`n    command: npx`n")
       - name: install with the one line, from this commit (Windows PowerShell 5.1, what brokers have)
         shell: powershell
         run: iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
@@ -85,6 +91,62 @@ jobs:
           if (-not $state) { throw "the Playbook Show launcher did not answer on 8766 in 90 s" }
           Write-Host "mode: $($state.mode)  title: $($state.showcase.title)"
           if ($state.mode -ne "playbooks" -or -not $state.showcase.title.StartsWith("P01")) { throw "not the playbook show" }
+      - name: Hermes, started the way the installer set it up, works inside the running desk
+        shell: pwsh
+        run: |
+          $py = Join-Path $env:LA_HOME "venv\Scripts\python.exe"
+          & (Join-Path $env:LA_HOME "tools\uv.exe") pip install --python $py pyyaml   # for this check only; the reinstall below makes a fresh venv
+          $env:LISTINGASSISTANTS_STATE_DIR = Join-Path $env:LA_HOME "state"
+          $desk = Join-Path $env:LA_HOME "app\tools\desk.py"
+          $p = Start-Process -FilePath $py -ArgumentList "`"$desk`"" -PassThru -NoNewWindow
+          $state = $null
+          for ($i = 0; $i -lt 60 -and -not $state; $i++) {
+            Start-Sleep -Seconds 1
+            try { $state = Invoke-RestMethod http://127.0.0.1:8765/api/state } catch {}
+          }
+          if (-not $state) { Stop-Process -Id $p.Id -Force; throw "the desk did not answer in 60 s" }
+          $check = Join-Path $env:RUNNER_TEMP "hermes_check.py"
+          $code = @'
+          import asyncio, json, os, sys, urllib.request, yaml
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+          cfg = yaml.safe_load(open(os.path.join(os.environ["HERMES_HOME"], "config.yaml"), encoding="utf-8"))
+          assert sorted(cfg["mcp_servers"]) == ["github", "listingassistants"], cfg
+          e = cfg["mcp_servers"]["listingassistants"]
+          print("Hermes entry:", json.dumps(e))
+          # only what the settings give, as a host starts it: no working folder, no extra environment
+          params = StdioServerParameters(command=e["command"], args=e["args"], env=e["env"])
+          async def run():
+              async with stdio_client(params) as (r, w):
+                  async with ClientSession(r, w) as s:
+                      await s.initialize()
+                      out = {}
+                      for k, tool, a in [("status", "identity.status", {}),
+                                         ("lead", "identity.submit", {"intent": "lead.inbound", "context_id": "HERMES-CI",
+                                                                      "payload": {"channel": "web_form", "name": "Pat Hermes",
+                                                                                  "consent": {"email": "yes"}}}),
+                                         ("sign", "identity.authority", {"intent": "listing.change.authorized", "payload": {}})]:
+                          out[k] = json.loads((await s.call_tool(tool, a)).content[0].text)
+                      return out
+          out = asyncio.run(run())
+          print(json.dumps(out, indent=1))
+          assert out["status"]["ok"] and out["status"]["mode"] == "live", out["status"]
+          assert out["lead"]["ok"], out["lead"]
+          assert not out["sign"]["ok"] and "cannot sign" in out["sign"]["reason"], out["sign"]
+          leads = [l["ctx"] for l in json.load(urllib.request.urlopen("http://127.0.0.1:8765/api/state"))["leads"]]
+          assert "HERMES-CI" in leads, leads
+          print("the lead Hermes brought in is on the desk:", leads)
+          '@
+          Set-Content -Path $check -Value $code
+          Push-Location $env:RUNNER_TEMP
+          & $py -I $check
+          $rc = $LASTEXITCODE
+          Pop-Location
+          Stop-Process -Id $p.Id -Force
+          $lock = Join-Path $env:LISTINGASSISTANTS_STATE_DIR "desk.lock"
+          if (Test-Path $lock) { Remove-Item $lock }
+          if ($rc -ne 0) { throw "Hermes could not work inside the desk" }
+          if (-not (Test-Path (Join-Path $env:HERMES_HOME "config.yaml.bak-listingassistants"))) { throw "no copy of the old Hermes settings" }
       - name: a second run keeps your records and attests the new install
         shell: pwsh
         run: |
@@ -94,6 +156,8 @@ jobs:
           if ((Get-FileHash $key).Hash -ne $before) { throw "the reinstall replaced your key" }
           $op = Get-Content (Join-Path $env:LA_HOME "state\operator.json") | ConvertFrom-Json
           if ($op.login -ne "ci@example.test") { throw "the reinstall lost who you are" }
+          $n = ([regex]::Matches((Get-Content -Raw (Join-Path $env:HERMES_HOME "config.yaml")), "listingassistants:")).Count
+          if ($n -ne 1) { throw "the reinstall wrote ListingAssistants into Hermes $n times" }
   windows-full-suite:
     # The whole suite on Windows, a gate since run 38321234628 (1003 passed
     # then; today's count is in QUICKSTART_WINDOWS.md, held by test_doc_counts).

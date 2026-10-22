@@ -3,144 +3,160 @@
 > **Words used here.** Tuple, playbook, swarm, hold, release and the other technical words are explained in plain language in [GLOSSARY.md](GLOSSARY.md).
 
 This identity ships a generic MCP wrapper (`dispatcher/identity_mcp.py`)
-that exposes it as a standard **stdio MCP server** - so it mounts
-identically on Hermes, OpenClaw, and Claude Desktop with zero per-host
-code. The host's agent gets exactly four tools; it pushes intents at the
-front door and the governed hub does all routing, signing, sealing, and
-logging behind them. The host never routes inside the identity.
+that runs as a standard **stdio MCP server**, so an AI assistant app (the
+*host*) can work with it without any code written for that host. Hermes
+comes first (owner decision 2026-10-22); a general setup for Claude or
+Gemini apps comes later. OpenClaw is not supported for now: its open skill
+market has carried malicious skills, and the owner judged it too risky.
+
+**The assistant works inside your running Broker Desk** (the default since
+2026-10-22). It reads the same records you see on the Desk, and what it
+brings in shows on the Desk at once. It never signs: anything that needs
+your signature you do yourself, on the Desk, with your own key.
 
 The server runs a **boot conformance gate**: it refuses to start unless
 the closed track, the signer gate, and the audit chain are intact. The
 governance guarantee travels with the server - it cannot be silently
 mounted broken.
 
-## The four tools
+## The tools
 
 <!-- diagram:mcp-mount - drawn in tools/doc_diagrams.py; edit it there, not here -->
 ```mermaid
 flowchart LR
-    HOST["Host app<br/>Hermes, OpenClaw, Claude Desktop"] -- "four tools only" --> T["identity.describe<br/>identity.submit<br/>identity.authority<br/>identity.audit"]
+    HOST["AI assistant<br/>Hermes first"] -- "five tools only" --> T["identity.status<br/>identity.describe<br/>identity.submit<br/>identity.authority<br/>identity.audit"]
     T --> S["identity_mcp server<br/>refuses to start unless the track,<br/>the signature check and the log are intact"]
-    S --> H{{"Hub"}}
+    S -- "the desk's door:<br/>a private token, this computer only" --> D["your running Broker Desk"]
+    D --> H{{"Hub"}}
     H --> AG["the 20 agents"]
-    S -. "signs for the host only<br/>with --demo-signing" .-> H
+    B(["You"]) -- "sign on the Desk" --> D
+    S -. "never signs" .-> X["identity.authority:<br/>always refused"]
     classDef hub fill:#1f6feb,stroke:#1f6feb,color:#ffffff
+    classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
+    classDef stop fill:#ffd8d3,stroke:#cf222e,color:#1f2328
     class H hub
+    class B you
+    class X stop
 ```
 
-*The host never routes inside the swarm; it pushes requests at the front door. There is no release tool: releasing a held message needs your own signature (see FINANCIAL_CAPABILITY.md).*
+*The assistant works inside your running Broker Desk, on the same records you see (owner decision 2026-10-22). It can read the desk and bring in an inquiry; it never routes inside the swarm and never signs. Signing, releasing and every other act are yours, on the Desk (see FINANCIAL_CAPABILITY.md).*
 <!-- /diagram:mcp-mount -->
 
+- `identity.status` - read-only: what needs you, your listings and where
+  each stands, leads, prospects waiting, the Outbox count, and whether the
+  record is intact. Read from your running desk.
 - `identity.describe` - read-only: the closed track (legal intents),
-  playbooks, and governance guarantees. Call first.
-- `identity.submit` - push ONE intent at the front door; the hub
-  validates against the closed track, runs the playbook, enforces gates,
-  returns result or refusal-with-reason.
-- `identity.authority` - the signed-money lane; unsigned authority is
-  rejected and the rejection is returned so you can see the gate work.
+  playbooks, and governance guarantees.
+- `identity.submit` - brings a new inquiry onto your desk: intent
+  `lead.inbound` only. Every other act is refused with "done by you on the
+  Broker Desk".
+- `identity.authority` - always refused. The assistant cannot sign.
 - `identity.audit` - hash-chain verification (entries, chain_verified,
-  dead letters) so the host can prove tamper-evidence itself.
+  dead letters) so the assistant can show the record is intact.
 
-## Prerequisites
+Hermes names them `mcp_listingassistants_identity_status` and so on (it
+puts `mcp_<server>_` in front and turns dots into underscores).
 
+**How the door works.** When you start the Desk, it writes a private file,
+`desk-mcp.json`, in your state folder: the port and a fresh random token.
+The server reads that file and calls the desk at `POST /api/mcp` on
+127.0.0.1 with the token. The desk refuses a wrong or missing token, and it
+refuses any call from a web page. Every call is written to your record as
+`mcp.call`, and an inquiry the assistant brings in is marked
+`via: AI assistant (MCP host)`. When the Desk stops, the file is removed;
+with no desk running, every tool answers "Your Broker Desk is not running.
+Start it." The Playbook Show and the demo desk never open this door.
+
+## Hermes on Windows (the installer does it)
+
+The Windows installer (`install.ps1`, step 6) finds Hermes' `config.yaml`
+(in `HERMES_HOME`, else `%LOCALAPPDATA%\hermes`, else `%USERPROFILE%\.hermes`),
+keeps a copy of it as `config.yaml.bak-listingassistants`, and adds this
+under `mcp_servers:` (with your own folders):
+
+```yaml
+mcp_servers:
+  listingassistants:
+    command: 'C:\Users\you\AppData\Local\ListingAssistants\venv\Scripts\python.exe'
+    args: ['-m', 'dispatcher.identity_mcp']
+    enabled: true
+    env:
+      IDENTITY_ROOT: 'C:\Users\you\AppData\Local\ListingAssistants\app'
+      PYTHONPATH: 'C:\Users\you\AppData\Local\ListingAssistants\app'
+      LISTINGASSISTANTS_STATE_DIR: 'C:\Users\you\AppData\Local\ListingAssistants\state'
 ```
-pip install -r requirements.txt   # includes the identity's deps
-pip install mcp                   # the MCP SDK (stdio server/client)
-```
+
+It always saves the same block as `hermes-mcp.yaml` in the install folder.
+It leaves Hermes alone when Hermes is not found, when the entry is already
+there, when `mcp_servers` is written on one line, or when you set
+`LA_NO_HERMES=1`; in those cases it tells you where the block is so you can
+add it yourself. Full paths matter on Windows: a bare `python` can fail
+there with WinError 193.
+
+Then: double-click **ListingAssistants Desk**, and in Hermes type
+`/reload-mcp` (or restart Hermes). CI checks this on a real Windows machine
+on every push: it installs with a Hermes config already present, starts the
+desk, starts the server exactly as the config says, brings in an inquiry,
+sees it on the desk, and sees signing refused.
+
+## Hermes on Linux or macOS
+
+Add the same entry to `~/.hermes/config.yaml` (or a profile's
+`config.yaml`) with your paths, start the desk (`python3 tools/desk.py`),
+then `/reload-mcp`.
 
 ## Prove it locally first
 
 ```
+python3 -m pytest tests_listing/test_mcp_desk_mode.py -q
+```
+Starts a real desk and the real server over stdio, the way a host does:
+the assistant reads the desk, brings in an inquiry that appears on the
+desk, is refused when it tries to sign, and the door refuses a wrong token
+and a web page.
+
+```
 python3 tools/mcp_roundtrip.py
 ```
-Spawns the server over stdio and calls all four tools through the real
-MCP protocol - the exact transport the hosts use. You should see the
-closed surface, a gated submit, unsigned money rejected, signed money
-executed, and the chain verified.
+The older standalone demo: the server builds its own swarm (with
+`--demo-signing`) and calls the tools through the real MCP protocol.
 
-## Hermes (Nous Research)
+## Standalone mode, and Claude Desktop
 
-Hermes reads MCP servers from a profile's `config.yaml` under the
-`mcp_servers:` map (keyed by server name). Add:
-
-```yaml
-# ~/.hermes/profiles/<profile>/config.yaml
-mcp_servers:
-  listing:
-    command: python3
-    args: ["-m", "dispatcher.identity_mcp"]
-    env:
-      IDENTITY_ROOT: /absolute/path/to/listing-assistants
-      PYTHONPATH: /absolute/path/to/listing-assistants
-```
-
-Then in a Hermes session: `/reload-mcp`, and the four `identity.*` tools
-are available. (Hermes can also consume the identity as a SKILL.md tap -
-`hermes skills tap add QuietFireAI/listing-assistants` - but the MCP mount
-is what carries the governed runtime, not just the instructions.)
-
-## OpenClaw
-
-OpenClaw treats every skill as an MCP server. Add the server to your
-OpenClaw MCP config (via the UI's MCP section or the config file):
-
-```json
-{
-  "mcpServers": {
-    "listing": {
-      "command": "python3",
-      "args": ["-m", "dispatcher.identity_mcp"],
-      "env": {
-        "IDENTITY_ROOT": "/absolute/path/to/listing-assistants",
-        "PYTHONPATH": "/absolute/path/to/listing-assistants"
-      }
-    }
-  }
-}
-```
-
-OpenClaw hot-reloads MCP servers; the `identity.*` tools appear without a
-restart.
-
-## Claude Desktop
-
-Same stdio server, in `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "listing": {
-      "command": "python3",
-      "args": ["-m", "dispatcher.identity_mcp"],
-      "env": {
-        "IDENTITY_ROOT": "/absolute/path/to/listing-assistants",
-        "PYTHONPATH": "/absolute/path/to/listing-assistants"
-      }
-    }
-  }
-}
-```
+`python -m dispatcher.identity_mcp --standalone` builds a separate swarm in
+the server process instead of using your desk. Nothing it does reaches your
+Desk's records. It is there for testing other hosts, such as Claude Desktop
+(`claude_desktop_config.json`, `mcpServers`, same command, args and env).
+A general setup for Claude or Gemini apps is planned after Hermes.
 
 ## Signing over MCP
 
-The server checks signatures on every authority action. It does not sign
-on a host's behalf: `identity.submit` with `listing.authorize`, and
-`identity.authority` without a broker signature, are refused with a reason.
-`python -m dispatcher.identity_mcp --demo-signing` makes the server sign
-those calls with its own boot key so `tools/mcp_roundtrip.py` can show the
-signed path; never pass that flag in a host configuration. A production
-signed lane, where the host forwards an envelope the broker signed with
-their own key, is not built yet; until then, signed actions go through
-`tools/console.py`.
+The assistant never signs (owner decision 2026-10-22: "Prepare the
+documents, yes. Sign, no."). In desk mode `identity.authority` is always
+refused, and `identity.submit` takes only new inquiries.
+
+`python -m dispatcher.identity_mcp --demo-signing` makes a standalone
+server sign with its own boot key so `tools/mcp_roundtrip.py` can show the
+signed path; never pass that flag in a host configuration.
+
+**One limit you should know.** The refusal is enforced by this server and
+by the desk's door. It is not a wall around your files. Hermes can run
+commands and read files as your Windows user; if it does, it can reach the
+same files the Desk uses, including your key in the state folder, and it
+can call the Desk the way your browser does. Keeping the assistant from
+ever signing needs one of these: Hermes' terminal set to run in its sandbox
+(Docker) backend, Hermes run as a separate Windows account that cannot read
+your ListingAssistants folder, or a key that needs a step only you can do
+(a passphrase, or signing on your phone). This is an open decision.
 
 ## Governance note (why the surface is deliberately narrow)
 
-Both Hermes and OpenClaw extend agents by letting the host LLM decide
+Hermes, like other assistant apps, extends agents by letting the host LLM decide
 when to call a tool. Exposing this identity's 20 agents (plus the dispatcher) as separate
 free tools would hand routing back to the host and dissolve the closed
 track - the identity would become a toolbox wearing the name, not a
-governed system. The four-tool front door is the fix: the host can only
-submit intents; the hub enforces the track, the signatures, the $0.00
+governed system. The narrow front door is the fix: the host can only
+read and submit intents; the hub enforces the track, the signatures, the $0.00
 rule, and the sealed custody internally. **The MCP shell is the open
 socket; the governed hub is the licensed cartridge.**
 
