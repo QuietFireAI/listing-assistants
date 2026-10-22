@@ -76,7 +76,7 @@ def played(tmp_path_factory):
 def test_showcase_plays_all_ten_scenes_with_your_presses(played):
     d, steps, presses, errors = played
     assert errors == []
-    assert presses == 5          # the scenes' release and decide lines
+    assert presses == 6          # the scenes' release and decide lines (scene 7's close decision added 2026-10-21)
     assert d.state()["showcase"]["done"]
 
 
@@ -306,3 +306,98 @@ def test_lock_left_by_a_dead_desk_is_ignored_and_a_live_one_holds(tmp_path):
     finally:
         alive.kill()
         alive.wait(timeout=30)
+
+
+def test_mark_handled_signs_the_prospect_off_and_it_leaves_the_list(tmp_path):
+    """Owner request 2026-10-21: a button for Agent 19's prospects waiting."""
+    import console
+    d = desk_mod.Desk(str(tmp_path / "pros"), showcase=True)
+    try:
+        for a in ({"do": "config", "to": "19", "ctx": "setup", "payload": {"zip_codes": ["44811"]}},
+                  {"do": "send", "from": "external", "to": "19", "intent": "discovery.feed",
+                   "ctx": "O-1", "payload": {"listing_id": "M-1", "zip_code": "44811",
+                                             "source": "mls", "status": "new",
+                                             "today": "2026-10-21"}}):
+            r, err = console.apply_action(d.sw, d.signer, d.operator, a)
+            assert not err, r
+        [p] = d.state()["prospects"]
+        assert (p["id"], p["zip"], p["status"], p["comps"]) == ("M-1", "44811", "new", 0)
+        r = d.act({"action": "prospect_handled", "id": "M-1"})
+        assert r.get("status") == "ack", r
+        assert d.state()["prospects"] == []
+        signed = [e for e in d.sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+                  and e["intent"] == "config.update" and e["to_agent"] == "19"
+                  and e["payload"].get("prospects_handled") == ["M-1"]]
+        assert len(signed) == 1   # config.update is signature-gated: the hub acked it, so it verified
+        assert "already handled" in d.act({"action": "prospect_handled", "id": "M-1"})["error"]
+        assert "already handled" in d.act({"action": "prospect_handled", "id": "nope"})["error"]
+    finally:
+        d.close()
+
+
+def test_the_page_has_the_prospects_list_and_its_button():
+    page = open(os.path.join(ROOT, "tools", "desk.html"), encoding="utf-8").read()
+    assert 'id="prospects"' in page and "Mark handled" in page
+    assert 'action: "prospect_handled"' in page
+
+
+def test_release_hold_signs_the_release_and_the_client_can_be_messaged_again(tmp_path):
+    """Owner request 2026-10-21 (P14): releasing a complaint hold is a button."""
+    import console
+    d = desk_mod.Desk(str(tmp_path / "hold"), showcase=True)
+    try:
+        r, err = console.apply_action(d.sw, d.signer, d.operator,
+                                      {"do": "send", "from": "external", "to": "11",
+                                       "intent": "client.reply", "ctx": "H1",
+                                       "payload": {"message": "This is ridiculous. Nobody called me back!",
+                                                   "today": "2026-10-21"}})
+        assert not err, r
+        [h] = [i for i in d.state()["needs_you"] if i["type"] == "hold"]
+        assert h["ctx"] == "H1" and "held" in h["title"]
+        assert d.act({"action": "release_hold", "ctx": "H1"}).get("status") == "ack"
+        assert not [i for i in d.state()["needs_you"] if i["type"] == "hold"]
+        assert "H1" not in d.sw.spokes["11"].complaint_hold
+        assert [e for e in d.sw.hub.audit.read() if e["kind"] == "envelope.persisted"
+                and e["payload"].get("kind") == "complaint_hold_released"]
+        assert "no messages are held" in d.act({"action": "release_hold", "ctx": "H1"})["error"]
+    finally:
+        d.close()
+
+
+def test_the_playbook_show_plays_all_24_each_to_its_end(tmp_path):
+    """Owner request 2026-10-21: the 24 playbooks on the desk, for the video."""
+    d = desk_mod.Desk(str(tmp_path / "pbs"), playbooks=True)
+    try:
+        s = d.state()
+        assert s["mode"] == "playbooks" and s["showcase"]["kind"] == "playbooks"
+        assert s["showcase"]["title"].startswith("P01 ") and s["showcase"]["purpose"]
+        steps, presses, errors = press_through(d)
+        assert errors == [] and presses == 13
+        offices = os.path.join(d.state_dir, "offices")
+        assert sorted(os.listdir(offices)) == [f"P{i:02d}" for i in range(1, 25)]
+        for pb in sorted(os.listdir(offices)):
+            log = [json.loads(x) for x in open(os.path.join(offices, pb, "console-audit.jsonl"),
+                                                 encoding="utf-8")]
+            done = [e for e in log if e.get("kind") == "playbook.completed" and e.get("playbook") == pb]
+            assert done and done[0]["outcome"] == "completed", pb
+        last = d.state()
+        assert last["showcase"]["done"] and last["showcase"]["report"]["playbook"] == "P24"
+        assert "# After-Action - P24" in last["showcase"]["report"]["text"]
+        assert d.sw.hub.audit.verify_chain()["ok"]
+    finally:
+        d.close()
+
+
+def test_the_outbox_lists_what_would_have_gone_out_and_says_not_sent(tmp_path):
+    d = desk_mod.Desk(str(tmp_path / "ob"), playbooks=True)
+    try:
+        press_through(d)
+        # P24's office: nothing leaves; open P01's office instead
+        d.open_office("P01", fresh=False)
+        ob = d.state()["outbox"]
+        assert ob["connected"] is False and "Not sent" in ob["note"]
+        kinds = {o["intent"] for o in ob["items"]}
+        assert {"vendor.schedule", "client.message.send"} <= kinds   # P01 releases the booking
+        assert all("not sent" not in o["what"] for o in ob["items"])   # the page adds it
+    finally:
+        d.close()

@@ -6,13 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from dispatcher.hermes_seam import (HermesCognitiveSeam, BrokerContextIngestor, HermesLearningLoop,
-                                    HermesUnavailableError, PILLARS_ARMED)
-
-# These tests exercise the learning loop and the taint gate, which need the
-# open-mind and agent-open-mind pillar packages (requirements.txt). The CI
-# "unarmed" job runs without pillars; there the loop refuses by design
-# (test_pillars_unarmed_refuses_to_assimilate covers that path).
-needs_pillars = pytest.mark.skipif(not PILLARS_ARMED, reason="pillar packages not installed")
+                                    HermesUnavailableError)
 
 
 def test_hermes_thought_extraction():
@@ -91,7 +85,6 @@ def test_model_failure_raises_no_canned_draft(tmp_path):
     assert seam.learning_loop.get_metrics()["total_assimilated"] == 0
 
 
-@needs_pillars
 def test_model_with_think_is_traced_and_assimilated(tmp_path):
     hub = _hub(tmp_path)
     seam = HermesCognitiveSeam(hub=hub, client=_client(
@@ -104,7 +97,6 @@ def test_model_with_think_is_traced_and_assimilated(tmp_path):
     assert seam.learning_loop.get_metrics()["total_assimilated"] == 1
 
 
-@needs_pillars
 def test_model_without_think_trips_taint_gate(tmp_path):
     """Was: a placeholder thought was substituted, the hub saw no taint and
     the fair-housing-violating draft was not flagged (probe_hermes.py)."""
@@ -118,7 +110,6 @@ def test_model_without_think_trips_taint_gate(tmp_path):
     assert seam.learning_loop.get_metrics()["total_assimilated"] == 0
 
 
-@needs_pillars
 def test_fair_housing_phrase_screen_catches_worship_and_familial_terms():
     loop = HermesLearningLoop()
     assert loop.evaluate_policy_compliance("Great family neighborhood, walk to church!") >= 0.8
@@ -127,15 +118,6 @@ def test_fair_housing_phrase_screen_catches_worship_and_familial_terms():
     assert res["status"] == "QUARANTINED_HIGH_VARIANCE"
 
 
-def test_pillars_unarmed_refuses_to_assimilate(monkeypatch):
-    import dispatcher.hermes_seam as hs
-    monkeypatch.setattr(hs, "PILLARS_ARMED", False)
-    monkeypatch.setattr(hs, "PILLARS_UNARMED_REASON", "pillar package(s) not installed: open_mind")
-    res = hs.HermesLearningLoop().assimilate_operational_run("02", "env-u", thought="t", action="a")
-    assert res["status"] == "REFUSED_PILLARS_UNARMED" and res["is_assimilated"] is False
-
-
-@needs_pillars
 def test_hermes_learning_loop_variance_and_quarantine():
     from dispatcher.hermes_seam import HermesLearningLoop
     from dispatcher.readable_logger import HumanReadableLogger

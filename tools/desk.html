@@ -218,12 +218,17 @@ section{margin-bottom:22px}
 <main>
   <div id="showcase" class="showcase" hidden>
     <div class="scene" id="sc-scene"></div>
+    <div class="note" id="sc-purpose" hidden></div>
     <div class="next" id="sc-next"></div>
     <div class="bar">
       <button class="primary" id="sc-step">Next</button>
       <label class="note"><input type="checkbox" id="sc-auto"> play on its own (stops at your moves)</label>
       <span class="note" id="sc-pos"></span>
     </div>
+    <details id="sc-report" class="more" hidden>
+      <summary id="sc-report-h"></summary>
+      <pre id="sc-report-t" style="white-space:pre-wrap;font-size:13px;max-height:340px;overflow:auto"></pre>
+    </details>
   </div>
 
   <section id="recap" class="recap" aria-label="Recap">
@@ -244,6 +249,8 @@ section{margin-bottom:22px}
       <div id="listings"></div>
       <h2>Leads</h2>
       <div id="leads"></div>
+      <h2>Prospects waiting <span class="count soft" id="prospects-count">0</span></h2>
+      <div id="prospects"></div>
     </section>
   </div>
 
@@ -274,6 +281,14 @@ section{margin-bottom:22px}
     <details class="section" id="team-sec" data-key="sec:team">
       <summary><span class="chev">▸</span>Your team <span class="sline" id="team-line"></span></summary>
       <div class="team" id="team"></div>
+    </details>
+  </section>
+
+  <section>
+    <details class="section" id="outbox-sec" data-key="sec:outbox">
+      <summary><span class="chev">▸</span>Outbox <span class="sline" id="outbox-line"></span></summary>
+      <div class="note" id="outbox-note"></div>
+      <div id="outbox"></div>
     </details>
   </section>
 
@@ -418,6 +433,15 @@ function needsCard(i, inGroup) {
       [kv(i.content), el("div", {class: "why"}, i.why)], force));
     c.append(el("div", {class: "actions"}, sendButton(i), declineControls(i),
       el("span", {class: "note"}, "Not ready? Leave it - it stays held until you answer.")));
+  } else if (i.type === "hold") {
+    c.append(inGroup ? el("div", {class: "meta"}, meta || " ")
+                     : [el("h3", {}, i.title), el("div", {class: "meta"}, meta)]);
+    c.append(el("div", {class: "why"}, i.why));
+    const rel = el("button", {class: "primary"}, "Release hold");
+    rel.onclick = () => act({action: "release_hold", ctx: i.ctx})
+      .then(j => j && !j.error && toast("Signed: messages to " + i.ctx + " can go again"));
+    c.append(el("div", {class: "actions"}, rel,
+      el("span", {class: "note"}, "Signs the release; the next scheduled message goes as normal.")));
   } else if (i.type === "wait") {
     c.append(el("h3", {}, i.title), el("div", {class: "meta"}, meta));
     if (i.why) c.append(el("div", {class: "said"}, i.why));
@@ -452,7 +476,7 @@ function needsCard(i, inGroup) {
 }
 // Needs you, grouped: what can leave the business first, then decisions,
 // then the queues in the server's order (legal line first)
-const OPEN_BY_DEFAULT = {held: true, wait: true, "escalation.legal_line": true, "escalation.complaint": true,
+const OPEN_BY_DEFAULT = {held: true, wait: true, hold: true, "escalation.legal_line": true, "escalation.complaint": true,
                          "integrity.violation": false, "dead.letter": false, "clarification.request": false};
 function needsGroups(needs) {
   const groups = [];
@@ -464,9 +488,10 @@ function needsGroups(needs) {
   for (const i of needs) {
     if (i.type === "held") find("held", "Held for your release", "urgent").items.push(i);
     else if (i.type === "wait") find("wait", "Paused for your decision", "urgent").items.push(i);
+    else if (i.type === "hold") find("hold", "Held after a complaint", "urgent").items.push(i);
     else find(i.queue || "other", i.title, "alarm").items.push(i);
   }
-  const order = g => g.key === "held" ? 0 : g.key === "wait" ? 1 : 2;
+  const order = g => g.key === "held" ? 0 : g.key === "wait" ? 1 : g.key === "hold" ? 2 : 3;
   return groups.sort((a, b) => order(a) - order(b));
 }
 const STEP_NAMES = ["Signed", "Booked", "Photos", "Copy OK", "Live", "Marketed", "Contract", "Closed"];
@@ -510,6 +535,20 @@ function leadRow(l) {
     right));
   return c;
 }
+function prospectRow(p) {
+  const c = el("div", {class: "card"});
+  const done = el("button", {}, "Mark handled");
+  done.onclick = () => act({action: "prospect_handled", id: p.id})
+    .then(j => j && !j.error && toast("Signed: prospect " + p.id + " handled"));
+  const meta = [p.status, p.zip && "zip " + p.zip, p.source, p.found,
+                p.comps == null ? "no comps yet" : `${p.comps} comps`].filter(Boolean).join(" · ");
+  c.append(el("div", {class: "lead"},
+    el("div", {}, el("b", {}, p.id), p.do_not_call ? el("span", {class: "badge"}, " do not call") : "",
+       el("div", {class: "meta"}, meta)),
+    el("div", {}, done)));
+  return c;
+}
+
 function renderDay() {
   const D = S.day;
   const pick = document.getElementById("day-pick");
@@ -573,7 +612,7 @@ function renderRecap() {
   const on = p.connections.filter(c => /^(on|loaded)$/.test(c.state)).length;
   document.getElementById("recap-pills").replaceChildren(
     pill(p.chain_ok ? "✓ Record intact" : "✗ Record broken", p.chain_ok ? "good" : "bad", "proof-sec"),
-    pill(`${p.gated_out_signed} of ${p.gated_out} sent on your signature`,
+    pill(`${p.gated_out_signed} of ${p.gated_out} released on your signature`,
          p.gated_out === p.gated_out_signed ? "good" : "bad", "proof-sec"),
     pill((isToday ? "Today: " : D.day + ": ") + (dayBits.length ? dayBits.join(" · ") : "nothing yet"), "", "day-sec"),
     pill(`${on} of ${p.connections.length} connected`, "", "proof-sec"));
@@ -583,21 +622,35 @@ function render() {
   document.getElementById("who").textContent =
     (S.operator ? `${S.operator.name} · ${S.operator.login}` : "not onboarded") + " · updated " + S.generated_at.slice(11);
   const mode = document.getElementById("mode");
-  mode.className = "badge " + (S.mode === "showcase" ? "show" : "live");
-  mode.textContent = S.mode === "showcase" ? "SHOWCASE · synthetic data" : "LIVE · your records";
+  mode.className = "badge " + (S.mode === "live" ? "live" : "show");
+  mode.textContent = S.mode === "playbooks" ? "PLAYBOOK SHOW · synthetic data"
+    : S.mode === "showcase" ? "SHOWCASE · synthetic data" : "LIVE · your records";
 
   const sc = S.showcase, box = document.getElementById("showcase");
   box.hidden = !sc;
   if (sc) {
     box.classList.toggle("yourmove", !!sc.waiting_for_you);
-    const isScript = sc.kind === "script";
+    const isScript = sc.kind === "script", isPb = sc.kind === "playbooks";
     document.getElementById("sc-scene").textContent = sc.done
-      ? (isScript ? "Test script complete" : "Showcase complete")
-      : (isScript ? `Test script · ${sc.title}` : `Scene ${sc.scene} · ${sc.title}`);
+      ? (isScript ? "Test script complete" : isPb ? "Playbook show complete" : "Showcase complete")
+      : (isScript ? `Test script · ${sc.title}`
+         : isPb ? `Playbook ${sc.scene} of ${sc.playbooks_total} · ${sc.title}${sc.between ? " · finished" : ""}`
+         : `Scene ${sc.scene} · ${sc.title}`);
+    const purpose = document.getElementById("sc-purpose");
+    purpose.hidden = !(isPb && sc.purpose && !sc.done);
+    purpose.textContent = sc.purpose || "";
     document.getElementById("sc-next").textContent = sc.done
       ? (isScript ? `All ${sc.total} lines played. Check the record to finish.`
-                  : "All ten scenes played. Check the record to finish.")
-      : (sc.waiting_for_you ? sc.next : "Next: " + sc.next);
+         : isPb ? `All ${sc.playbooks_total} playbooks played, each to its end. Check the record to finish.`
+         : "All ten scenes played. Check the record to finish.")
+      : (sc.waiting_for_you ? sc.next : (sc.between ? "Next playbook: " : "Next: ") + sc.next);
+    const rep = document.getElementById("sc-report");
+    rep.hidden = !(isPb && sc.report);
+    if (isPb && sc.report) {
+      document.getElementById("sc-report-h").textContent =
+        `After-action report: ${sc.report.playbook} ${sc.report.outcome} (${sc.report.file})`;
+      document.getElementById("sc-report-t").textContent = sc.report.text;
+    }
     document.getElementById("sc-step").disabled = sc.done || sc.waiting_for_you;
     document.getElementById("sc-pos").textContent = `step ${sc.pos} of ${sc.total}`;
   }
@@ -627,7 +680,7 @@ function render() {
   document.getElementById("uiv").textContent = `ListingAssistants Broker Desk · UI version ${S.ui_version}`;
   const onC = p.connections.filter(c => /^(on|loaded)$/.test(c.state)).length;
   document.getElementById("proof-line").textContent = "· " + [p.chain_ok ? "✓ record intact" : "✗ record broken",
-    `${p.gated_out_signed} of ${p.gated_out} sent on your signature`, `${p.held_now} held`,
+    `${p.gated_out_signed} of ${p.gated_out} released on your signature`, `${p.held_now} held`,
     `${p.client_messages} client messages`, `${onC} of ${p.connections.length} connected`].join(" · ");
   const trouble = !p.chain_ok || p.gated_out !== p.gated_out_signed;
   if (trouble && !("sec:proof" in OPEN)) document.getElementById("proof-sec").open = true;   // trouble opens it
@@ -647,6 +700,10 @@ function render() {
     : [el("div", {class: "empty"}, "No listings yet.")]));
   document.getElementById("leads").replaceChildren(...(S.leads.length ? S.leads.map(leadRow)
     : [el("div", {class: "empty"}, "No leads yet.")]));
+  const pros = S.prospects || [];
+  document.getElementById("prospects-count").textContent = pros.length;
+  document.getElementById("prospects").replaceChildren(...(pros.length ? pros.map(prospectRow)
+    : [el("div", {class: "empty"}, "No prospects waiting.")]));
   const stateWord = {working: "working", you: "waiting for you", waiting: "waiting", problem: "problem", idle: "idle"};
   const tallyT = {};
   for (const a of S.team) tallyT[a.state] = (tallyT[a.state] || 0) + 1;
@@ -657,6 +714,14 @@ function render() {
   document.getElementById("team").replaceChildren(...S.team.map(a =>
     el("div", {class: "agent " + a.state},
        el("span", {class: "st"}, stateWord[a.state]), el("b", {}, `${a.id} ${a.name}`), a.note)));
+  const ob = S.outbox || {count: 0, items: [], note: ""};
+  document.getElementById("outbox-line").textContent = `· ${ob.count} would have gone out · none sent`;
+  document.getElementById("outbox-note").textContent = ob.note;
+  document.getElementById("outbox").replaceChildren(...(ob.items.length ? ob.items.map(o =>
+    el("div", {class: "card"},
+       el("div", {class: "meta"}, `${o.what} · ${o.ctx || ""} · from ${o.from} · not sent`),
+       details("more", "ob:" + o.ts + o.ctx, false, preview(o.content), [kv(o.content)])))
+    : [el("div", {class: "empty"}, "Nothing would have gone out yet.")]));
   const latest = S.activity[0];
   document.getElementById("feed-line").textContent = latest ? "· latest: " + latest.text : "· nothing yet";
   document.getElementById("feed").replaceChildren(...S.activity.map(f =>

@@ -71,6 +71,11 @@ def generate_report(events: list[dict], playbook: str, run_id: str,
             proof = f"ack on {eid} (audit)"
             lines.append(f"- step {s['step']} [{s['agent']}] {s['intent']}: "
                          f"executed=yes, proof={proof}, latency={lat:.4f}s")
+        elif s.get("status") == "held":
+            # held by the hub for a signed human release (2026-10-21)
+            lines.append(f"- step {s['step']} [{s['agent']}] {s['intent']}: "
+                         f"executed=HELD for your signed release (envelope {eid}) - "
+                         f"not sent, not counted done")
         else:
             lines.append(f"- step {s['step']} [{s['agent']}] {s['intent']}: "
                          f"executed=NO ACK ON LOG (envelope {eid}) - "

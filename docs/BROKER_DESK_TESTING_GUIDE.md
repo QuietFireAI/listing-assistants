@@ -26,8 +26,8 @@ pip install -r requirements.txt
 python -m pytest tests_listing/ -q
 ```
 
-**Expect:** `1178 passed, 1 skipped` on Linux or macOS (the skipped test runs
-only on Windows); `1178 passed, 1 skipped` on Windows (there, the skipped test is
+**Expect:** `1312 passed, 1 skipped` on Linux or macOS (the skipped test runs
+only on Windows); `1312 passed, 1 skipped` on Windows (there, the skipped test is
 the Linux / macOS file-permission check), after 5 to 10 minutes.
 
 ## T2 - The showcase plays through
@@ -50,7 +50,7 @@ outlined in red, and **Next** is greyed out until you answer:
 |---|---|---|---|---|
 | 1 | 3 | press Cancel on the paused thread for S3-hot-again | **Cancel** | The card leaves; the lead "Pat Hot ... S3-hot-again" reads "Closed by your decision" |
 | 2 | 4 | press Send on the held vendor booking for S4 | **Send**, then **Tap again to sign and send** | Listing S4: Booked turns green |
-| 3 | 4 | press Send on the held marketing for S4 | **Send** twice, as above | S4: Marketed green, "Now: Marketing out"; the recap reads "1 of 1 sent on your signature" |
+| 3 | 4 | press Send on the held marketing for S4 | **Send** twice, as above | S4: Marketed green, "Now: Marketing out"; the recap reads "1 of 1 released on your signature" |
 | 4 | 5 | press Send on the held vendor booking for S5 | **Send** twice | S5: Booked green |
 | 5 | 6 | press Send on the held vendor booking for S6 | **Send** twice | S6: Booked green |
 
@@ -75,7 +75,7 @@ tap **Don't send**, type `wrong photographer`, tap **Sign: don't send**.
 
 **Expect:** a note at the bottom "Signed: not sent - Book a vendor"; the card
 leaves; the recap reads **13 waiting for you** and "2 to send or not"; its
-**4 of 4 sent on your signature** does not change (nothing went out); in
+**4 of 4 released on your signature** does not change (nothing went out); in
 Proof and connections the held tile reads **2** with "· 1 you signed not to
 send"; the **What just
 happened** line near the bottom reads "· latest: You signed Don't send: books
@@ -140,7 +140,7 @@ python tools/desk.py
 (Windows: "only your account ... on the Windows permission list"). The page
 shows **LIVE · your records**, your name and login at the top left; the
 recap reads **Nothing is waiting for you**, "All quiet.", **✓ Record
-intact**, **0 of 0 sent on your signature**, **Today: nothing yet**, **0 of 6
+intact**, **0 of 0 released on your signature**, **Today: nothing yet**, **0 of 6
 connected**; Needs you says "Nothing is waiting for you." and Listings "No
 listings yet."; **Your team · 20 idle**; **Today's work · nothing recorded
 yet**; and, in Proof and connections, the chip **Vendor roster:
@@ -214,7 +214,7 @@ Play it through; press **Send** twice when it asks for the S5 booking. The
 script ends with the S5 marketing held. On that card tap **Don't send**, type
 `hold for new photos`, tap **Sign: don't send**.
 
-**Expect:** the card leaves; the recap's "N of N sent on your signature" does
+**Expect:** the card leaves; the recap's "N of N released on your signature" does
 not move; in Proof and connections the held tile adds "· 1 you signed not to
 send"; S5's Marketed step stays grey; the **What
 just happened** line reads "· latest: You signed Don't send: ... (hold for

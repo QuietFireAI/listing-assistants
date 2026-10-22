@@ -167,6 +167,10 @@ class Spoke14CRMPipeline:
         # grants per listing context - who has access and until when. The
         # code, combination or key itself is never recorded or sent.
         self.access_grants: dict[str, list[dict]] = {}
+        # Owner decision 8 (2026-10-21): leads already reported in a morning
+        # briefing (entry ids), so "overnight leads" is every lead captured
+        # since the last briefing, each reported once.
+        self.briefed_leads: set[str] = set()
         register_spoke(hub, "14", self)
 
     def _new_entry_id(self) -> str:
@@ -348,10 +352,34 @@ class Spoke14CRMPipeline:
                     fired.append((ctx, event_type))
         return fired
 
-    def generate_report(self, report_type: str = "eod"):
+    def overnight_leads(self) -> dict:
+        """Owner decision 8 (2026-10-21): the morning briefing's lead
+        section - every lead captured since the last briefing, from the
+        CRM's own entries, each reported once."""
+        leads = []
+        for ctx, entries in self.records.items():
+            tier = None
+            for e in entries:
+                if e["kind"] == "interaction.log" and "tier" in e["payload"]:
+                    tier = e["payload"]["tier"]
+            for e in entries:
+                if (e["kind"] == "interaction.log"
+                        and e["payload"].get("kind") == "lead.captured"
+                        and e["entry_id"] not in self.briefed_leads):
+                    self.briefed_leads.add(e["entry_id"])
+                    leads.append({"context": ctx, "entry_id": e["entry_id"],
+                                  "captured": e["payload"].get("today"),
+                                  "tier": tier})
+        return {"count": len(leads), "leads": leads,
+                "basis": "lead.captured entries not in an earlier briefing"}
+
+    def generate_report(self, report_type: str = "eod", today: str | None = None):
         """Job component: pipeline reports from stored data only - a
         report never contains a figure that cannot be traced to records.
-        Per P17: scheduled daily close, not envelope-triggered."""
+        Per P17: scheduled daily close, not envelope-triggered. Owner
+        decision 9 (2026-10-21): the end-of-day books run on the evening
+        clock and go to Agent 15, which adds the day's figures and sends
+        you one report."""
         interaction_count = sum(len(v) for v in self.records.values())
         tiers = {}
         for ctx, entries in self.records.items():
@@ -378,8 +406,12 @@ class Spoke14CRMPipeline:
             "contexts_covered": len(self.records),
             "tier_snapshot": tiers,
             "logging_gaps": logging_gaps,
+            "today": today,
         }
-        self.hub.send(_env("14", "human", "report.package", "eod-report", report))
+        if report_type == "eod":
+            self.hub.send(_env("14", "15", "report.package", "eod-report", report))
+        else:   # any other report (a listing's activity, P23) comes straight to you
+            self.hub.send(_env("14", "human", "report.package", "eod-report", report))
         return report
 
     def handle(self, env: Envelope):
@@ -387,6 +419,14 @@ class Spoke14CRMPipeline:
             from .clock import handle_tick
             return handle_tick(self, "14", env)
         ctx = env.client_context_id
+
+        if env.intent == "briefing.request":
+            # owner decision 8 (2026-10-21): 18 asks for the morning section
+            section = self.overnight_leads()
+            self.hub.send(_env("14", "18", "report.package", ctx,
+                               {"section": "overnight_leads", "data": section},
+                               confidence=SOURCE_VERIFIED))
+            return
 
         if env.intent == "record.request":
             requester_scope = env.payload.get("requester_scope")
@@ -621,6 +661,10 @@ class Spoke01LeadCapture:
         # configured yet = everything is out of scope until set (fail closed,
         # same discipline as freight's service_scope).
         self.brokerage_scope = brokerage_scope or set()
+        # the brokerage's own listings, as Agent 05 records them (P04
+        # walkthrough 2026-10-21): kept apart from the signed scope, so a
+        # signed scope that replaces the set never drops a listing we hold
+        self.own_listings: set[str] = set()
         # phone/email already on the do-not-call/do-not-contact list
         self.dnc_list = dnc_list or set()
         self.record_response_timeout_days = record_response_timeout_days
@@ -654,6 +698,11 @@ class Spoke01LeadCapture:
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
             from .clock import handle_tick
             return handle_tick(self, "01", env)
+        if env.intent == "listing.data" and env.from_agent == "05":
+            for k in ("listing_id", "address"):
+                if env.payload.get(k):
+                    self.own_listings.add(env.payload[k])
+            return
         if env.intent == "config.update" and ("brokerage_scope" in env.payload
                                               or "dnc_add" in env.payload):
             # Broker-signed (config.update is signature-gated at the hub).
@@ -760,7 +809,8 @@ class Spoke01LeadCapture:
             interest = payload.get("property_interest", {})
             addr_or_listing = interest.get("address") or interest.get("listing_id")
             out_of_scope = (addr_or_listing is not None
-                           and addr_or_listing not in self.brokerage_scope)
+                           and addr_or_listing not in self.brokerage_scope
+                           and addr_or_listing not in self.own_listings)
             if out_of_scope:
                 self.hub.ingest_spoke_trace(
                     "01", env.envelope_id,
@@ -925,6 +975,11 @@ class Spoke01LeadCapture:
             # real "since" (scene run 2026-10-11: briefings showed since=null)
             if payload.get("today"):
                 captured["today"] = payload["today"]
+            # and the time it arrived, when the source gives one: Agent 03
+            # sends the day-0 touch at once inside contact hours by it
+            # (owner decision 7, 2026-10-21)
+            if payload.get("now_iso"):
+                captured["now_iso"] = payload["now_iso"]
             self.pending[ctx] = {**captured, "raw_inputs": raw_inputs, "notes": notes,
                                  "property_interests": interests,
                                  "requested_at": payload.get("today"),
@@ -1050,8 +1105,11 @@ class Spoke01LeadCapture:
                     f"authoritative state; forwarding complete lead "
                     f"object to Lead Qualification (02)",
             result="lead.captured issued")
-        self.hub.send(_env("01", "02", "lead.captured", ctx, payload,
-                           confidence=STATED_BY_PARTY))
+        # Recorded first, then forwarded (2026-10-21, decision 7): the CRM
+        # holds the lead and its consent before anything downstream acts.
+        # Since the day-0 nurture touch goes at once, 02 -> 03 -> 11 can
+        # reach a client inside this same send; in the old order 11 found
+        # no consent on record yet and blocked the touch.
         self.hub.send(_env("01", "14", "interaction.log", ctx,
                            {"kind": "lead.captured", "duplicate": captured["known"],
                             "identifiers": captured["identifiers"],
@@ -1059,6 +1117,8 @@ class Spoke01LeadCapture:
                             "consent": payload["consent"],
                             "property_interests": payload["property_interests"],
                             "contact": payload.get("contact")}))
+        self.hub.send(_env("01", "02", "lead.captured", ctx, payload,
+                           confidence=STATED_BY_PARTY))
 
     def _resume(self, ws, decision_payload: dict):
         """The broker's signed decision on a held possible-duplicate lead.

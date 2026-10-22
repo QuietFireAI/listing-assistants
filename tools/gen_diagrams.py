@@ -65,6 +65,8 @@ PHRASE = {
     "lead.signal": "passes on a lead spotted on social media",
     "lead.inbound": "a new inquiry comes in",
     "report.package": "delivers a report",
+    "briefing.request": "asks for its part of the morning briefing",
+    "client.message.not_sent": "reports a touch that did not go out",
     "interaction.log": "logs it in the CRM",
     "record.request": "looks up the CRM record",
     "record.response": "returns the CRM record",

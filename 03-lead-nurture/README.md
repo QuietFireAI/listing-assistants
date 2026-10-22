@@ -32,7 +32,7 @@ flowchart LR
     I02 -- "passes a not-ready-yet lead for follow-up" --> A03
     I17 -- "returns the review - approved or flagged" --> A03
     IB -- "your signed settings" --> A03
-    I11 -- "passes on the client's reply" --> A03
+    I11 -- "passes on the client's reply<br/>reports a touch that did not go out" --> A03
     I12 -- "reports how a lead engaged with marketing" --> A03
     IK -- "the daily clock runs" --> A03
     A03 -- "sends back a lead whose interest changed" --> O02

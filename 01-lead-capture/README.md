@@ -12,6 +12,7 @@ Left: who sends this agent messages. Right: who it sends messages to. The blue c
 flowchart LR
     subgraph IN["Hears from"]
         direction TB
+        I05["05 MLS and Listing Management"]
         I20["20 Social Media Monitoring"]
         IX[/"Outside world"/]
         I14["14 CRM and Pipeline"]
@@ -27,6 +28,7 @@ flowchart LR
         OB(["You (broker)"])
         O18["18 Calendar and Task Management"]
     end
+    I05 -- "shares the listing details" --> A01
     I20 -- "passes on a lead spotted on social media" --> A01
     IX -- "a new inquiry comes in" --> A01
     I14 -- "returns the CRM record" --> A01
@@ -49,7 +51,12 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
+- [P01 - New Listing Onboarding](../docs/PLAY-BY-PLAY.md#p01---new-listing-onboarding)
+- [P02 - Price Adjustment](../docs/PLAY-BY-PLAY.md#p02---price-adjustment)
+- [P03 - Under-Contract Transition](../docs/PLAY-BY-PLAY.md#p03---under-contract-transition)
 - [P04 - Open House Cycle](../docs/PLAY-BY-PLAY.md#p04---open-house-cycle)
+- [P05 - Expired/Withdrawn Wind-down](../docs/PLAY-BY-PLAY.md#p05---expiredwithdrawn-wind-down)
+- [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
 - [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
 - [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
 - [P11 - Speed to Lead](../docs/PLAY-BY-PLAY.md#p11---speed-to-lead)

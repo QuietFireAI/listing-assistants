@@ -65,6 +65,7 @@ Dispatcher returns an `ack`.
 | IN | ← 02 Lead Qualification | Warm lead assignment | `lead.nurture` |
 | OUT | → 17 Compliance | New/edited sequence content, pre-send | `content.review` |
 | IN | ← 17 Compliance | Verdict on content | `content.verdict` |
+| IN | ← 11 Client Communication | A touch 11 did not send: not counted as sent, tried again on the next clock check; an opt-out on every channel stops the sequence (P11 sign-off, 2026-10-21) | `client.message.not_sent` |
 | OUT | → 02 Lead Qualification | Behavioral score change | `lead.rescored` |
 | OUT | → 14 CRM & Pipeline | Every touch and signal | `interaction.log` |
 | OUT | → HITL queue | Legal Line trigger; nurture assignment with no consent on any channel | `escalation.legal_line` |

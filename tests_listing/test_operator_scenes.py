@@ -139,7 +139,10 @@ def test_scene07_contract_to_close(run):
     assert {e["to_agent"] for e in closed} == {"14", "15", "16"}
     assert all(e["payload"]["sale_price"] == 405000 and e["payload"]["close_date"] == "2026-11-01"
                for e in closed)
-    sweep = results(run, "scene07")[12]
+    # line 11: the close waited for you (inspection and financing contingency
+    # still open, decision 6, 2026-10-21) and continues on your decision
+    assert any("still open" in str(e["payload"]) for e in persisted(run, "agent.status", "S7"))
+    sweep = results(run, "scene07")[13]
     assert {"agent": "16", "sweep": "post_close_milestones", "result": "sent:30"} in sweep
     # the client has consent on record (line 1), so the check-in actually leaves
     assert any(e["payload"]["template"] == "post_close_checkin_30day"

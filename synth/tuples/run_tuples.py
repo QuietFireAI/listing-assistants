@@ -11,6 +11,7 @@ afterwards. Every spec runs in its own fresh state folder, through
     python synth/tuples/run_tuples.py 01-02 02-07     # just these tuples
     python synth/tuples/run_tuples.py --agent 01      # one agent's tuples
     python synth/tuples/run_tuples.py --show 01-02    # print the session file for one tuple, to run it yourself
+    python synth/tuples/run_tuples.py --set playbooks # every playbook, start to end, writes synth/playbooks/REPORT.md
 
 A spec line:
   {"id": "01-02", "agent": "01", "tuple": "(prospect refuses consent, ...)",
@@ -18,7 +19,10 @@ A spec line:
    "lines": [<console session actions>], "expect": [<checks>],
    "status": optional "NOT BUILT" | "NOT REACHABLE" (with "why"), "note": "..."}
 
-route "intake": every line is an entry the product takes from outside (an
+route "fault": a {"do": "fault"} line injects one failure no product entry
+can produce (synth/tuples/fault_harness.py; the harness's own observations
+are read as entries of kind "harness.*"). route "intake": every line is an
+entry the product takes from outside (an
 inquiry, a vendor event, a client reply, a mention, a feed, a broker
 authorization or setting, the daily clock, the broker's release / decline /
 decide). route "stand-in": at least one line sends as an agent to stand in
@@ -54,13 +58,21 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 CONSOLE = os.path.join(ROOT, "tools", "console.py")
+HARNESS = os.path.join(HERE, "fault_harness.py")
 CONFIG = os.path.join(HERE, "config")
 SETUP = os.path.join(HERE, "setup.jsonl")
 
 
-def load_specs(selected=None, agent=None):
+# the playbook runs (2026-10-20): one session per playbook, from its start to
+# its end, in synth/playbooks/specs/, reported to synth/playbooks/REPORT.md
+SPEC_SETS = {"tuples": (os.path.join(HERE, "specs"), os.path.join(HERE, "REPORT.md")),
+             "playbooks": (os.path.join(ROOT, "synth", "playbooks", "specs"),
+                           os.path.join(ROOT, "synth", "playbooks", "REPORT.md"))}
+
+
+def load_specs(selected=None, agent=None, spec_set="tuples"):
     specs = []
-    for path in sorted(glob.glob(os.path.join(HERE, "specs", "*.jsonl"))):
+    for path in sorted(glob.glob(os.path.join(SPEC_SETS[spec_set][0], "*.jsonl"))):
         for n, line in enumerate(open(path, encoding="utf-8"), 1):
             line = line.strip()
             if not line or line.startswith("//"):
@@ -162,8 +174,13 @@ def run_one(spec, template, workdir):
         f.write("\n".join(session_lines(spec)) + "\n")
     env = _env()
     env["LISTINGASSISTANTS_STATE_DIR"] = state
-    r = subprocess.run([sys.executable, CONSOLE, "session", script, "--config-dir", CONFIG],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
+    # a spec with a fault line runs through the fault harness (same build,
+    # same apply_action, one injected failure); every other spec through the
+    # console, exactly as a broker runs it
+    faulted = any(a.get("do") == "fault" for a in spec.get("lines", []))
+    cmd = ([sys.executable, HARNESS, script, "--config-dir", CONFIG] if faulted else
+           [sys.executable, CONSOLE, "session", script, "--config-dir", CONFIG])
+    r = subprocess.run(cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
     last = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
     try:
         summary = json.loads(last)
@@ -173,6 +190,9 @@ def run_one(spec, template, workdir):
         return {"id": spec["id"], "result": "ERROR",
                 "why": (r.stdout[-1500:] + r.stderr[-1500:]).strip()}
     entries = [json.loads(ln) for ln in open(os.path.join(state, "console-audit.jsonl"), encoding="utf-8")]
+    hpath = os.path.join(state, "harness.jsonl")
+    if os.path.exists(hpath):   # the harness's own observations, kind "harness.*"
+        entries += [json.loads(ln) for ln in open(hpath, encoding="utf-8")]
     idx = ctx_index(entries)
     failed = []
     for c in spec.get("expect", []):
@@ -190,10 +210,19 @@ def write_report(specs, results, path):
     by = {r["id"]: r for r in results}
     order = ["PASS", "VARIANCE", "ERROR", "NOT REACHABLE", "NOT BUILT", "RETIRED"]
     counts = {k: sum(1 for r in results if r["result"] == k) for k in order}
-    out = ["# Tuple runs", "",
-           "Written by `python synth/tuples/run_tuples.py`. Each tuple ran in its own fresh",
-           "state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.", "",
-           "| Result | Tuples |", "|---|---|"]
+    if os.path.abspath(path) == os.path.abspath(SPEC_SETS["playbooks"][1]):
+        out = ["# Playbook runs", "",
+               "Written by `python synth/tuples/run_tuples.py --set playbooks`. Each playbook ran from its",
+               "start to its end in its own fresh state through `tools/console.py session`, after",
+               "`synth/tuples/setup.jsonl`; each must start its run, end it as completed, write its",
+               "after-action report and show the playbook's own evidence. The table is",
+               "`identity/playbooks.json` (PROPOSED until the owner ratifies it).", "",
+               "| Result | Playbooks |", "|---|---|"]
+    else:
+        out = ["# Tuple runs", "",
+               "Written by `python synth/tuples/run_tuples.py`. Each tuple ran in its own fresh",
+               "state through `tools/console.py session`, after `synth/tuples/setup.jsonl`.", "",
+               "| Result | Tuples |", "|---|---|"]
     out += [f"| {k} | {counts[k]} |" for k in order if counts[k]]
     out += ["", "| Tuple | Agent | Route | Result | Tuple text | Detail |", "|---|---|---|---|---|---|"]
     for s in specs:
@@ -219,15 +248,19 @@ def main(argv=None):
     ap.add_argument("--agent", default=None)
     ap.add_argument("--show", default=None, metavar="ID")
     ap.add_argument("--jobs", type=int, default=max(1, min(4, os.cpu_count() or 1)))
-    ap.add_argument("--report", default=os.path.join(HERE, "REPORT.md"))
+    ap.add_argument("--set", dest="spec_set", choices=sorted(SPEC_SETS), default="tuples",
+                    help="tuples (default) or playbooks: one session per playbook, start to end")
+    ap.add_argument("--report", default=None)
     args = ap.parse_args(argv)
+    if args.report is None:
+        args.report = SPEC_SETS[args.spec_set][1]
     if args.show:
-        spec = load_specs([args.show])
+        spec = load_specs([args.show], spec_set=args.spec_set)
         if not spec:
             raise SystemExit(f"no spec {args.show}")
         print("\n".join(session_lines(spec[0])))
         return 0
-    specs = load_specs(args.ids or None, args.agent)
+    specs = load_specs(args.ids or None, args.agent, args.spec_set)
     if not specs:
         raise SystemExit("no specs selected")
     workdir = tempfile.mkdtemp(prefix="tuple-runs-")

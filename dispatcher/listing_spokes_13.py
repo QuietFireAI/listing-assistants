@@ -24,12 +24,23 @@ _PRICE_OPINION_WORDS = ("is this a good price", "good deal", "worth the price",
                         "should i pay")
 
 
+def _meets(want, have) -> bool:
+    """Owner decision 5 (2026-10-21): a number criterion is a minimum; a
+    true/false or text criterion must be equal."""
+    if isinstance(want, bool) or isinstance(have, bool):
+        return want == have
+    if isinstance(want, (int, float)) and isinstance(have, (int, float)):
+        return have >= want
+    return want == have
+
+
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
                     client_context_id=ctx, payload=payload,
                     confidence=confidence, in_reply_to=in_reply_to,
                     provenance={"source": f"spoke-{frm}", "captured_at": "runtime",
                                 "verbatim_available": True})
+
 
 
 class Spoke13BuyerSearchMatch:
@@ -84,6 +95,12 @@ class Spoke13BuyerSearchMatch:
         self.pending_showing: dict[str, dict] = {}  # ctx -> held request awaiting 14
         self.preapproval_expired: dict[str, bool] = {}
         self.criteria_pending_review: dict[str, list] = {}  # sensitive language awaiting 17
+        # Owner decision 4 (2026-10-21): no match goes to a buyer until a
+        # signed buyer agreement is on file with 14. ctx -> held matches,
+        # each {"match", "listing", "day", "logged"}; released on the
+        # record.response that shows the agreement, re-asked on the clock.
+        self.held_matches: dict[str, list[dict]] = {}
+        self._held_notified: set[str] = set()
         register_spoke(hub, "13", self)
 
     def _protected_class_hit(self, text: str) -> str | None:
@@ -114,6 +131,16 @@ class Spoke13BuyerSearchMatch:
                                              "a criterion",
                                     "budget": budget, "price": price}))
                 return
+            # P02 walkthrough (2026-10-21): over the stated budget with no
+            # area conflict to present, it is not a match. Before, it fell
+            # through and was sent as a new match - silently relaxing the
+            # budget, which tuple 6 forbids.
+            self.hub.ingest_spoke_trace(
+                "13", env.envelope_id,
+                thought=f"{listing.get('listing_id')!r} at {price} is over the stated "
+                        f"budget {budget} - not a match",
+                result="no match: over budget")
+            return
 
         # tuple 9: data anomaly -> flag before presenting, never present
         # suspect data as inventory
@@ -124,6 +151,26 @@ class Spoke13BuyerSearchMatch:
                                          "as inventory",
                                 "anomaly": listing.get("data_anomaly")}))
             return
+
+        # Owner decision 5 (2026-10-21): stated criteria exclude. A criterion
+        # the listing carries but does not meet makes it no match. Number
+        # criteria are minimums (beds 3 = at least 3); true/false and text
+        # must be equal. Budget is the maximum above; a field the listing
+        # does not carry is handled below (unknown, never a pass or a fail).
+        for c in criteria:
+            field, want = c.get("field"), c.get("value")
+            if field in ("budget",) or field is None or want is None:
+                continue
+            have = listing.get(field)
+            if have is None:
+                continue
+            if not _meets(want, have):
+                self.hub.ingest_spoke_trace(
+                    "13", env.envelope_id,
+                    thought=f"{listing.get('listing_id')!r}: stated {field}={want!r}, "
+                            f"listing has {have!r} - not a match",
+                    result=f"no match: {field}")
+                return
 
         # tuple 3: incomplete on a hard criterion. Excludes fields with
         # their own dedicated comparison logic above (budget compares
@@ -156,9 +203,99 @@ class Spoke13BuyerSearchMatch:
                                "agent": "13"})
             return
 
+        # P02 walkthrough (2026-10-21): Agent 05 now sends a listing again
+        # when its price changes. A buyer already matched to it gets the
+        # change, not a second "new match"; the same listing arriving again
+        # unchanged sends nothing.
+        lid = listing.get("listing_id")
+        if any(m.get("listing_id") == lid for m in self.match_history.get(ctx, [])):
+            changed = listing.get("changed_field")
+            if changed:
+                self.hub.send(_env("13", "11", "client.message.request", ctx,
+                                   {"template": "listing_update", "listing_id": lid,
+                                    "changed_field": changed,
+                                    "value": listing.get(changed),
+                                    "prior_value": listing.get(f"prior_{changed}")},
+                                   confidence=SOURCE_VERIFIED))
+                self.hub.send(_env("13", "14", "interaction.log", ctx,
+                                   {"kind": "matched_listing_changed", "listing_id": lid,
+                                    "changed_field": changed}))
+            else:
+                self.hub.ingest_spoke_trace(
+                    "13", env.envelope_id,
+                    thought=f"{lid!r} already matched for this buyer and unchanged - "
+                            f"nothing sent",
+                    result="no repeat match")
+            return
+
+        held = self.held_matches.get(ctx, [])
+        for h in held:
+            if h["match"]["listing_id"] == lid:
+                h["listing"] = listing
+                self.hub.ingest_spoke_trace(
+                    "13", env.envelope_id,
+                    thought=f"{lid!r} is already held for this buyer (no buyer agreement "
+                            f"yet) - the held match now carries the newer listing facts",
+                    result="held match updated")
+                return
+
         match_record = {"listing_id": listing.get("listing_id"),
                         "unknown_fields": missing_hard,
                         "unverified_financing": self.preapproval_expired.get(ctx, False)}
+        # Owner decision 4 (2026-10-21): hold until the buyer agreement is
+        # signed. The match waits here; 14 is asked, and the answer
+        # (record.response) releases it or keeps it held.
+        held.append({"match": match_record, "listing": listing,
+                     "day": listing.get("today") or env.payload.get("today"),
+                     "env_id": env.envelope_id, "logged": False})
+        self.held_matches[ctx] = held
+        self.hub.send(_env("13", "14", "record.request", ctx, {"purpose": "match_gate"}))
+
+    def _settle_held(self, ctx: str, agreement_on_file: bool, env: Envelope):
+        held = self.held_matches.get(ctx) or []
+        if not held:
+            return
+        if agreement_on_file:
+            self.held_matches.pop(ctx, None)
+            if ctx in self._held_notified:
+                self._held_notified.discard(ctx)
+                self.hub.send(_env("13", "18", "agent.status", ctx,
+                                   {"waiting_on": "buyer_agreement_signature",
+                                    "resolved": True}))
+            for h in held:
+                self._deliver_match(ctx, h["match"], h["listing"], h["day"], h["env_id"])
+            return
+        for h in held:
+            if not h["logged"]:
+                h["logged"] = True
+                self.hub.send(_env("13", "14", "interaction.log", ctx,
+                                   {"kind": "match_held_no_buyer_agreement",
+                                    "listing_id": h["match"]["listing_id"]}))
+        self.hub.ingest_spoke_trace(
+            "13", env.envelope_id,
+            thought=f"{len(held)} match(es) for this buyer held: no signed buyer "
+                    f"agreement on file with 14",
+            result=f"held: {len(held)}")
+        if ctx not in self._held_notified:
+            self._held_notified.add(ctx)
+            self.hub.send(_env("13", "18", "agent.status", ctx,
+                               {"waiting_on": "buyer_agreement_signature",
+                                "since": held[0]["day"]}))
+            self.hub.send(_env("13", "queue", "clarification.request", ctx,
+                               {"reason": "matches for this buyer are held: no signed "
+                                          "buyer agreement on file. Record it with a "
+                                          "signed config.update to Agent 14; the held "
+                                          "matches go out on the next check after that",
+                                "held_listings": [h["match"]["listing_id"] for h in held]}))
+
+    def recheck_held_matches(self, ctx: str):
+        """Clock check: ask 14 again for each buyer with held matches."""
+        if not self.held_matches.get(ctx):
+            return "nothing_held"
+        self.hub.send(_env("13", "14", "record.request", ctx, {"purpose": "match_gate"}))
+        return f"asked:{len(self.held_matches.get(ctx) or [])} held"
+
+    def _deliver_match(self, ctx: str, match_record: dict, listing: dict, day, env_id: str):
         self.match_history.setdefault(ctx, []).append(match_record)
 
         # tuple 5 (owner decision #7, 2026-07-18): overload = more than
@@ -169,7 +306,6 @@ class Spoke13BuyerSearchMatch:
         # criterion the buyer didn't state. Every match logs to 14 either
         # way - the CRM record is complete even when the client ping is
         # batched.
-        day = listing.get("today") or env.payload.get("today")
         state = self.matches_today.setdefault(ctx, {"day": day, "count": 0,
                                                     "overflow": []})
         if day != state["day"]:
@@ -183,7 +319,7 @@ class Spoke13BuyerSearchMatch:
                                       "criteria_met": criteria_met,
                                       "arrival": state["count"]})
             self.hub.ingest_spoke_trace(
-                "13", env.envelope_id,
+                "13", env_id,
                 thought=f"match #{state['count']} today for this buyer "
                         f"exceeds max_matches_per_buyer_per_day="
                         f"{self.max_matches_per_buyer_per_day} - joining "
@@ -198,9 +334,9 @@ class Spoke13BuyerSearchMatch:
 
     def _criteria_met_count(self, ctx: str, listing: dict) -> int:
         """Rank basis for overload: how many STATED criteria this listing
-        satisfies. Budget compares against price; area compares equal;
-        any other stated field compares equal when the listing carries
-        it. A field the listing lacks counts unmet - unknown never ranks
+        satisfies. Budget compares against price; numbers are minimums,
+        true/false and text compare equal (decision 5, 2026-10-21), when
+        the listing carries the field. A field the listing lacks counts unmet - unknown never ranks
         above known."""
         count = 0
         for c in self.buyer_criteria.get(ctx, []):
@@ -209,7 +345,8 @@ class Spoke13BuyerSearchMatch:
                 price = listing.get("price")
                 if value is not None and price is not None and price <= value:
                     count += 1
-            elif field is not None and listing.get(field) == value:
+            elif field is not None and listing.get(field) is not None \
+                    and value is not None and _meets(value, listing.get(field)):
                 count += 1
         return count
 
@@ -431,6 +568,8 @@ class Spoke13BuyerSearchMatch:
             return
 
         if env.intent == "record.response":
+            # decision 4: any answer from 14 settles this buyer's held matches
+            self._settle_held(ctx, bool(payload.get("buyer_agreement_on_file", False)), env)
             pending = self.pending_showing.pop(ctx, None)
             if pending is None:
                 return

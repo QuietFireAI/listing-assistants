@@ -22,8 +22,7 @@ in-process hub: a reject (schema, closed track, signature) rejects again,
 and a dead-lettered envelope id is already in seen_ids, so the same
 envelope comes back "duplicate". A human gets it on the first failure.
 
-The guard lives outside the core files (tools/sync_core.py CORE_FILES), so
-core parity with dispatcher-agents is unchanged.
+The guard lives outside the sixteen core files (dispatcher/CORE_ORIGIN.md).
 """
 from __future__ import annotations
 

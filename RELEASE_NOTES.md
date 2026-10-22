@@ -15,6 +15,79 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Windows install in one line, and the playbook show (2026-10-21, owner
+  decisions).** `install.ps1`: paste one PowerShell line; no admin, a
+  private Python 3.12, everything in `%LOCALAPPDATA%\ListingAssistants`,
+  your records kept on reinstall, desktop shortcuts for your Desk and for
+  the playbook show. CI runs the installer on a Windows machine from each
+  commit. `python tools\desk.py --playbooks` plays all 24 playbooks on the
+  desk, each in a fresh office, stopping at your moves, with each run's
+  after-action report. The desk's new **Outbox** lists what would have gone
+  out, marked not sent (no outside connections yet); the recap now says
+  "released on your signature", not "sent".
+
+- **Playbooks signed (2026-10-21).** You signed 22 of the 24 playbooks:
+  P01 to P15 and P18 to P24 (each carries its own `ratified` line in
+  `identity/playbooks.json`; P06 after it was changed to start at the
+  buyer's first criteria). P16 and P17 are not signed yet: they run on real
+  mornings and evenings first. The tuple map's placements are accepted.
+  With the signing: a nurture touch Agent 11 did not send is reported back
+  to Agent 03 and tried again (P11); a **Release hold** button on the Broker
+  Desk for a client held after a complaint (P14); the vacant-property check
+  is daily and never stacks bookings (P20).
+
+- **Tuple map and a Mark handled button (2026-10-21, owner request).**
+  `docs/TUPLE_MAP.md` sorts all 273 tuples by what they protect (seven
+  categories) and how bad a failure would be (three tiers), with run status
+  and the playbooks each can fire in; the placing is in
+  `synth/tuples/TUPLE_MAP.json`, PROPOSED for your review, and a test keeps
+  the page current. The Broker Desk lists Agent 19's prospects waiting, with
+  a **Mark handled** button that signs the `prospects_handled` setting.
+
+- **Owner playbook walkthrough (2026-10-21).** P01 and P02 signed. Ten
+  decisions applied (`docs/walkthrough/PLAYBOOK_WALKTHROUGH_2026-10-21.md`):
+  a comparables request starts P23 on a live listing and P15 otherwise;
+  buyer matches wait for the signed buyer agreement; stated criteria
+  exclude, numbers are minimums; a close with open milestones waits for
+  you, naming them; the day-0 nurture touch goes at once inside contact
+  hours; the morning briefing carries overnight leads, yesterday's books,
+  prospects waiting and market changes; the end-of-day books run on the
+  evening clock (`run_sweeps.py --evening`) with Agent 15's figures; each
+  prospect reaches you once, with its comps. Farm campaigns outside the
+  Clear Cooperation hold: confirmed. Found on the way: Agent 01 forwarded a
+  lead before logging its consent, which blocked an immediate touch.
+
+- **One product (owner decisions 2026-10-20).** The dispatcher core is
+  part of this repository and no longer copied from dispatcher-agents
+  (`dispatcher/CORE_ORIGIN.md`); the pillars are built in
+  (`dispatcher/pillar_lib/`, five of them; splitvantage removed) and
+  nothing is installed from git. The pillar code is now covered by boot
+  attestation.
+
+- **Playbook runs (2026-10-20).** The dispatcher tracks each playbook as
+  runs from the table in `identity/playbooks.json` (PROPOSED until you
+  ratify it): a message that starts two playbooks, or a run that conflicts
+  with one already open for the same client, is held for your choice; with
+  25 questions waiting, new runs wait and are released by priority class;
+  a step the track refuses halts its run as a defect in the playbook; every
+  run ends with an after-action report listing your signed decisions and
+  any missing tuple it found. All 24 playbooks run start to end through the
+  console (`python synth/tuples/run_tuples.py --set playbooks`). Found and
+  fixed on the way: a price change halted every live ad (Agent 12); a farm
+  campaign could never publish (Agent 12, rule confirmed 2026-10-21); there
+  was no way to schedule an open house (Agent 06, P04 built). Settings:
+  `docs/TUNING_MANUAL.md`, "Ratified 2026-10-15".
+
+- **Dispatcher checks (2026-10-15).** A failure that escapes the hub halts
+  all traffic and alarms; unanswered escalations are re-alerted at 30
+  minutes and the owner paged at 60; a skewed clock holds time-triggered
+  checks; an identity reload is refused while work is open; the morning
+  briefing names items whose source is missing from the log; your calendar
+  instruction past a contractual deadline is held for you. A test harness
+  injects the failures no product entry can produce
+  (`synth/tuples/fault_harness.py`). Tuples now: 246 pass, 2 variance
+  (01-01, 04-03, owner decisions), 15 not reachable, 5 not built, 4 retired.
+
 - **Your decisions of 2026-10-14, wired.** A phrase tagger reads client
   words at intake, and any angry or negative message goes to you as a
   complaint at once, whatever else it asks. Compliance is told each piece of
@@ -284,7 +357,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1178 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1312 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

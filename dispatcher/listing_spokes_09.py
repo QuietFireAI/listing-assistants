@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -63,7 +64,11 @@ class Spoke09VendorCoordination:
         self.roster = roster or {}
         self.scheduled: dict[str, dict[str, dict]] = {}  # ctx -> milestone -> {vendor_id, time}
         self.slot_holds: dict[str, str] = {}  # (property, time) key -> ctx holding it
+        # deliveries held because the booking never reached the vendor
+        # (2026-10-21): ctx -> kind -> the vendor's report, until you decide
+        self.held_deliveries: dict[str, dict[str, dict]] = {}
         register_spoke(hub, "09", self)
+        register_resumer(hub, "09", self._resume)
 
     def _credentials_current(self, vendor_id: str, today: str) -> bool:
         v = self.roster.get(vendor_id)
@@ -88,6 +93,49 @@ class Spoke09VendorCoordination:
         if today:
             others = [vid for vid in others if self._credentials_current(vid, today)]
         return {"vendors": others, "credentials_checked_on": today or None}
+
+    def _accept_delivery(self, ctx: str, kind, payload: dict, source_id: str):
+        """A verified, proven delivery goes on: photos to 05, documents to 08."""
+        target = "05" if kind == "photography" else "08"
+        booked = (self.scheduled.get(ctx) or {}).get(kind)
+        if booked is not None:
+            booked["delivered"] = True     # the booking is closed by its proven delivery
+        self.hub.send(_env("09", "18", "agent.status", ctx,
+                           {"waiting_on": f"vendor_deliverable:{kind}",
+                            "resolved": True}))
+        self.hub.send(_env("09", target, "deliverable.release", ctx,
+                           {"doc_type": payload.get("doc_type"),
+                            "opens_correctly": True,
+                            "content_hash": payload.get("content_hash"),
+                            "appraised_value": payload.get("appraised_value"),
+                            "contract_price": payload.get("contract_price"),
+                            "repair_requests_present":
+                                payload.get("repair_requests_present"),
+                            "exception_found": payload.get("exception_found"),
+                            "exception_text": payload.get("exception_text")},
+                           confidence=SOURCE_VERIFIED))
+        self.hub.ingest_spoke_trace(
+            "09", source_id,
+            thought=f"{kind!r} deliverable verified present and opens - "
+                    f"routing to {target}",
+            result=f"deliverable.release -> {target}")
+
+    def _resume(self, ws, decision_payload: dict):
+        """Your decision on a delivery whose booking never reached the vendor."""
+        ctx = ws.client_context_id
+        kind = (ws.original_payload or {}).get("kind")
+        d = decision_of(decision_payload)
+        held = (self.held_deliveries.get(ctx) or {}).get(kind)
+        if held is None or d == "other":
+            return "nothing held" if held is None else "decision not continue/cancel"
+        self.held_deliveries[ctx].pop(kind)
+        if d == "continue":
+            self._accept_delivery(ctx, kind, held, ws.wait_id)
+            return f"{kind} delivery accepted on your decision"
+        self.hub.send(_env("09", "14", "interaction.log", ctx,
+                           {"kind": "delivery_not_accepted", "vendor_kind": kind,
+                            "reason": "the booking never reached the vendor; you declined it"}))
+        return f"{kind} delivery not accepted"
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id
@@ -198,10 +246,39 @@ class Spoke09VendorCoordination:
                         return
                 self.slot_holds[slot_key] = {"ctx": ctx, "priority": incoming_priority}
 
+            # P20 daily watch (owner decision 2026-10-21): the vacant-listing
+            # check is asked for every day; a new one is not booked while the
+            # last one is still open (waiting for your release, or sent with
+            # no proven delivery yet), so bookings never stack. You are told
+            # once per open check.
+            prior = (self.scheduled.get(ctx) or {}).get(kind) or {}
+            if payload.get("purpose") == "vacant_watch" and prior.get("booking_envelope") \
+                    and not prior.get("delivered"):
+                state = self.hub.outbound_state(prior["booking_envelope"])
+                if state in ("held", "sent"):
+                    why = ("still waiting for your release" if state == "held"
+                           else "sent, and no delivery with proof has come back")
+                    self.hub.ingest_spoke_trace(
+                        "09", env.envelope_id,
+                        thought=f"{kind!r} check for {ctx!r} asked again, but the last one is "
+                                f"{why} - not booking a second one",
+                        result="not booked: previous check open")
+                    if not prior.get("open_noted"):
+                        prior["open_noted"] = True
+                        self.hub.send(_env("09", "queue", "clarification.request", ctx,
+                                           {"reason": f"the daily vacant-property check for {ctx} "
+                                                      f"is not booked again: the last one is {why}. "
+                                                      f"A new check is booked the day after it is "
+                                                      f"delivered with proof (or declined)",
+                                            "kind": kind, "booked_on": prior.get("booked_on")}))
+                    return
+
+            booking = _env("09", "external", "vendor.schedule", ctx,
+                           {"vendor_id": vendor_id, "kind": kind})
             self.scheduled.setdefault(ctx, {})[kind] = {
-                "vendor_id": vendor_id, "confirmed": True}
-            self.hub.send(_env("09", "external", "vendor.schedule", ctx,
-                               {"vendor_id": vendor_id, "kind": kind}))
+                "vendor_id": vendor_id, "confirmed": True,
+                "booking_envelope": booking.envelope_id, "booked_on": today}
+            self.hub.send(booking)
             if today:
                 self.hub.send(_env("09", "18", "agent.status", ctx,
                                    {"waiting_on": f"vendor_deliverable:{kind}",
@@ -299,26 +376,29 @@ class Spoke09VendorCoordination:
                                     "partial": True}))
                 return
 
-            target = "05" if kind == "photography" else "08"
-            self.hub.send(_env("09", "18", "agent.status", ctx,
-                               {"waiting_on": f"vendor_deliverable:{kind}",
-                                "resolved": True}))
-            self.hub.send(_env("09", target, "deliverable.release", ctx,
-                               {"doc_type": payload.get("doc_type"),
-                                "opens_correctly": True,
-                                "content_hash": payload.get("content_hash"),
-                                "appraised_value": payload.get("appraised_value"),
-                                "contract_price": payload.get("contract_price"),
-                                "repair_requests_present":
-                                    payload.get("repair_requests_present"),
-                                "exception_found": payload.get("exception_found"),
-                                "exception_text": payload.get("exception_text")},
-                               confidence=SOURCE_VERIFIED))
-            self.hub.ingest_spoke_trace(
-                "09", env.envelope_id,
-                thought=f"{kind!r} deliverable verified present and opens - "
-                        f"routing to {target}",
-                result=f"deliverable.release -> {target}")
+            # P01 review (2026-10-21): a delivery for a booking that never
+            # reached the vendor (still held for your release, or declined)
+            # is not accepted on its own: the booking must have gone out
+            booked = (self.scheduled.get(ctx) or {}).get(kind) or {}
+            if booked.get("booking_envelope"):
+                state = self.hub.outbound_state(booked["booking_envelope"])
+                if state != "sent":
+                    self.held_deliveries.setdefault(ctx, {})[kind] = dict(payload)
+                    why = ("is still waiting for your release" if state == "held"
+                           else "was never sent to the vendor")
+                    self.hub.ingest_spoke_trace(
+                        "09", env.envelope_id,
+                        thought=f"{kind!r} delivery arrived but our booking message {why} - "
+                                f"not accepting it on my own",
+                        result="held: booking not sent")
+                    hold_for_human(self.hub, "09", ctx, "deliverable.release",
+                                   f"A {kind} delivery arrived for {ctx}, but the booking message "
+                                   f"to the vendor {why}. Continue = accept the delivery (the "
+                                   f"booking was made some other way); cancel = do not accept it.",
+                                   {"kind": kind, "booking_state": state,
+                                    "content_hash": payload.get("content_hash")})
+                    return
+            self._accept_delivery(ctx, kind, payload, env.envelope_id)
             return
 
         if env.intent == "vendor.event" and payload.get("event_kind") == "invoice":

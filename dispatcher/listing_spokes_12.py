@@ -25,6 +25,18 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN):
                                 "verbatim_available": True})
 
 
+
+def _mentions_amount(content, amount) -> bool:
+    """Whether ad content shows a dollar amount, written plain or with
+    commas (450000, 450,000, $450,000)."""
+    try:
+        n = int(amount)
+    except (TypeError, ValueError):
+        return False
+    import json as _json
+    text = _json.dumps(content, default=str)
+    return str(n) in text or f"{n:,}" in text
+
 class Spoke12MarketingCampaign:
     """DECISIONS.md tuples implemented directly:
       1. platform-forced truncation -> that's an edit, back through 17
@@ -62,6 +74,12 @@ class Spoke12MarketingCampaign:
         self.hub = guard(hub, "12")   # handoff rule (audit TU-2)
         self.mls_confirmed: dict[str, bool] = {}
         self.exempt_status: dict[str, dict] = {}  # ctx -> {exempt, disclosure_on_file}
+        # P12 farm campaigns (2026-10-20): general geographic marketing that
+        # names no listing. The Clear Cooperation gate is about publicly
+        # marketing a property, so it does not hold these; until this date a
+        # farm campaign waited forever for an MLS confirmation that no farm
+        # ever gets. Confirmed by the owner 2026-10-21 (docs/TUNING_MANUAL.md).
+        self.farm_campaigns: set[str] = set()
         self.approved_assets: dict[str, dict] = {}  # ctx -> asset from 04
         self.pending_review: dict[str, dict] = {}  # ctx -> content awaiting 17
         self.published: dict[str, dict] = {}  # ctx -> {content, verdict_locked}
@@ -76,7 +94,7 @@ class Spoke12MarketingCampaign:
         register_spoke(hub, "12", self)
 
     def _ccp_gate_clear(self, ctx: str) -> bool:
-        if self.mls_confirmed.get(ctx):
+        if self.mls_confirmed.get(ctx) or ctx in self.farm_campaigns:
             return True
         exempt = self.exempt_status.get(ctx, {})
         return bool(exempt.get("exempt") and exempt.get("disclosure_on_file"))
@@ -105,9 +123,11 @@ class Spoke12MarketingCampaign:
                                               "and Agent 17; the held ad then publishes"}))
             return
         campaign = self._with_brokerage_id(campaign)
-        self.published[ctx] = {"content": campaign, "verdict_locked": True}
-        res = self.hub.send(_env("12", "external", "campaign.publish", ctx,
-                                 {"content": campaign, "source": source}))
+        publish = _env("12", "external", "campaign.publish", ctx,
+                       {"content": campaign, "source": source})
+        self.published[ctx] = {"content": campaign, "verdict_locked": True,
+                               "envelope_id": publish.envelope_id}
+        res = self.hub.send(publish)
         # 2026-10-14 (tuple runs): the hub holds a campaign.publish for the
         # broker's signed release (counterparty audience), yet the record said
         # "campaign_published" before anything left. The log now names what
@@ -164,6 +184,31 @@ class Spoke12MarketingCampaign:
                 self.mls_confirmed[ctx] = True
                 self._check_awaiting_ccp(ctx)
                 return
+            if "status" not in payload:
+                # A field change, not a status change (P02, found by the
+                # playbook runs 2026-10-20): Agent 05 sends {"price": ...}
+                # after a signed price change, and this handler read the
+                # missing status as "not active" and halted every live ad.
+                # A price change keeps the listing marketed. Walkthrough
+                # 2026-10-21: the broker is asked only when the ad itself
+                # shows the old price, and told whether that ad is live or
+                # still held for release.
+                fields = sorted(k for k in payload if not k.startswith("prior_"))
+                self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                   {"kind": "listing_change_received", "fields": fields}))
+                prior = payload.get("prior_price")
+                pub = self.published.get(ctx)
+                if pub is not None and prior is not None and _mentions_amount(pub.get("content"), prior):
+                    state = (self.hub.outbound_state(pub["envelope_id"])
+                             if pub.get("envelope_id") else "sent")
+                    where = "held for your release" if state == "held" else "live"
+                    self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                       {"reason": f"the ad for this listing ({where}) shows the old "
+                                                  f"price {prior}; the price is now "
+                                                  f"{payload.get('price')}. Nothing was changed: "
+                                                  f"decline or replace the ad",
+                                        "agent": "12"}))
+                return
             # P05 step 1b / P03 step 1b, ratified but ZERO code until
             # 2026-07-18 (found by the first end-to-end P05 run): this
             # handler only reacted to "active" - a withdrawn/expired/
@@ -179,19 +224,38 @@ class Spoke12MarketingCampaign:
             if ctx in self.published:
                 halted = self.published.pop(ctx)
                 self.approved_awaiting_ccp.pop(ctx, None)
+                # P03/P05 walkthrough (2026-10-21): an ad still held for your
+                # release never went out, so there is nothing on a platform
+                # to halt; but released after this, it would publish an ad
+                # for a listing that is no longer active. You are asked to
+                # decline it, and no halt message is sent for it.
+                held = bool(halted.get("envelope_id")) and \
+                    self.hub.outbound_state(halted["envelope_id"]) == "held"
                 self.hub.ingest_spoke_trace(
                     "12", env.envelope_id,
-                    thought=f"status.update {new_status!r} consumed - "
-                            f"halting ALL marketing for this context; a "
-                            f"live ad for a {new_status} listing is a "
-                            f"compliance exposure and a seller wound",
-                    result="marketing_halted")
-                self.hub.send(_env("12", "external", "campaign.publish", ctx,
-                                   {"action": "halt",
-                                    "reason": f"listing_status_{new_status}"}))
+                    thought=(f"status.update {new_status!r} consumed - the ad is still held "
+                             f"for the broker, never published; asking for it to be declined"
+                             if held else
+                             f"status.update {new_status!r} consumed - "
+                             f"halting ALL marketing for this context; a "
+                             f"live ad for a {new_status} listing is a "
+                             f"compliance exposure and a seller wound"),
+                    result="held ad flagged" if held else "marketing_halted")
+                if not held:
+                    self.hub.send(_env("12", "external", "campaign.publish", ctx,
+                                       {"action": "halt",
+                                        "reason": f"listing_status_{new_status}"}))
                 self.hub.send(_env("12", "14", "interaction.log", ctx,
-                                   {"kind": "marketing_halted",
-                                    "status": new_status}))
+                                   {"kind": "marketing_halted", "status": new_status,
+                                    "ad": "held, never published" if held else "live, halt sent"}))
+                if held:
+                    self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                       {"reason": f"the listing is now {new_status}; its ad is "
+                                                  f"still held for your release. Decline it: "
+                                                  f"released, it would publish an ad for a "
+                                                  f"{new_status} listing",
+                                        "held_envelope_id": halted["envelope_id"],
+                                        "agent": "12"}))
             else:
                 self.approved_awaiting_ccp.pop(ctx, None)
                 self.hub.ingest_spoke_trace(
@@ -272,6 +336,15 @@ class Spoke12MarketingCampaign:
                                                        "required first, "
                                                        "reputational surface"}))
                     return
+                aud = campaign.get("audience") if isinstance(campaign, dict) else None
+                if isinstance(aud, dict) and aud.get("geography") and not campaign.get("listing_id"):
+                    if aud.get("targeting", "general") != "general":
+                        self.hub.escalate("escalation.legal_line", {
+                            "client_context_id": ctx, "agent": "12",
+                            "trigger": f"farm campaign with targeting {aud.get('targeting')!r} - "
+                                       f"farm marketing is general only (P12, Article 16)"})
+                        return
+                    self.farm_campaigns.add(ctx)
                 # every ad carries the brokerage identification when one is on
                 # file; Agent 17 checks it is there (tuple 7, 2026-10-14)
                 if self.brokerage_identification:

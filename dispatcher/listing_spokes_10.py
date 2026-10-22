@@ -92,6 +92,7 @@ class Spoke10MarketData:
         # "Structural gap" note. Currently unused: real comp-sourcing
         # requires an MLS comp-search capability this system doesn't have.
         self.mls_feed: dict[str, list[dict]] = {}
+        self.briefed_feed: dict[str, int] = {}   # listing -> feed entries already briefed (decision 8)
         self.comp_minimum = comp_minimum
         self.staleness_days = staleness_days
         self.retention_days = retention_days
@@ -104,6 +105,29 @@ class Spoke10MarketData:
 
         if env.intent == "listing.data":
             self.mls_feed.setdefault(ctx, []).append(payload)
+            return
+
+        if env.intent == "briefing.request":
+            # owner decision 8 (2026-10-21): market changes since the last
+            # briefing, from the listing feed this agent received - each
+            # entry reported once, never characterized
+            changes = []
+            for lid, feed in self.mls_feed.items():
+                start = self.briefed_feed.get(lid, 0)
+                for p in feed[start:]:
+                    field = p.get("changed_field")
+                    changes.append({"listing_id": p.get("listing_id") or lid,
+                                    "change": field or "listing",
+                                    "value": p.get(field) if field else p.get("status"),
+                                    "prior_value": p.get(f"prior_{field}") if field else None,
+                                    "date": p.get("today")})
+                self.briefed_feed[lid] = len(feed)
+            self.hub.send(_env("10", "18", "report.package", ctx,
+                               {"section": "market_changes",
+                                "data": {"count": len(changes), "changes": changes,
+                                         "basis": "listing data received since the "
+                                                  "last briefing"}},
+                               confidence=SOURCE_VERIFIED))
             return
 
         if env.intent == "data.request":

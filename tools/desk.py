@@ -331,14 +331,17 @@ class ReadModel:
         return {
             "operator": self.d.operator,
             "ui_version": DESK_UI_VERSION,
-            "mode": "showcase" if self.d.showcase else "live",
+            "mode": "playbooks" if getattr(self.d, "playbooks", False)
+                    else "showcase" if self.d.showcase else "live",
             "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
             "needs_you": self.needs_you(hub, sw, acked),
             "listings": self.listings(log, hub),
             "leads": self.leads(log, hub, acked),
+            "prospects": self.prospects(sw),
             "team": self.team(log, hub, sw),
             "proof": self.proof(log, hub, sw, audience),
             "activity": self.activity(log),
+            "outbox": self.outbox(log),
             "day": day_tally(log, day),
             "showcase": self.d.show.status() if self.d.show else None,
             "last_action": self.d.last_action,
@@ -368,6 +371,18 @@ class ReadModel:
                 "route_choices": [{"id": a, "name": NAMES.get(a, a)} for a in REPLY_AGENTS],
                 "paused": words(w.get("paused_intent") or "") if w.get("paused_intent") else None,
                 "content": w.get("original_payload")})
+        # P14 (owner request 2026-10-21): every message to a client who
+        # complained is held by Agent 11 until you release it - a button,
+        # not a hand-signed setting
+        s11 = sw.spokes.get("11")
+        for ctx in sorted(getattr(s11, "complaint_hold", ()) or ()):
+            items.append({
+                "type": "hold", "id": f"hold:{ctx}", "ctx": ctx, "from": "11",
+                "from_name": NAMES.get("11", "11"),
+                "title": "Messages to this client are held",
+                "why": "After the complaint, nothing goes to this client (no nurture, no "
+                       "updates) until you release the hold. Release it once you have "
+                       "answered them yourself."})
         holds = set(hub._absolute_holds)
         for q, records in hub.queues.items():
             if q not in QUEUE_TITLE or q == "escalation.hot_lead":
@@ -392,7 +407,7 @@ class ReadModel:
                     "from_name": NAMES.get(agent, agent) if agent else None,
                     "said": short(str(said), 400) if said else None,
                     "content": rec})
-        order = {"held": 0, "wait": 1, "queue": 2}
+        order = {"held": 0, "wait": 1, "hold": 2, "queue": 3}
         prio = {"escalation.legal_line": 0, "escalation.complaint": 1,
                 "integrity.violation": 2, "dead.letter": 3, "clarification.request": 4}
         items.sort(key=lambda i: (order[i["type"]], prio.get(i.get("queue"), 9)))
@@ -471,6 +486,26 @@ class ReadModel:
         return out
 
     # ---- leads
+    # ---- prospects (owner request 2026-10-21): Agent 19's prospects you
+    # have not marked handled - the morning briefing's "prospects waiting"
+    def prospects(self, sw):
+        s19 = sw.spokes.get("19")
+        if s19 is None:
+            return []
+        handled = getattr(s19, "prospects_handled", set())
+        out = []
+        for lid, r in s19.opportunities.items():
+            if lid in handled:
+                continue
+            out.append({"id": lid, "zip": r.get("zip_code"), "source": r.get("source"),
+                        "status": r.get("status_at_retrieval"),
+                        "found": r.get("retrieval_timestamp"),
+                        "do_not_call": r.get("dnc_status") == "on_dnc",
+                        # the comps 10 found for it; None = no package yet
+                        "comps": (r["market_context"].get("comp_count")
+                                  if isinstance(r.get("market_context"), dict) else None)})
+        return out
+
     def leads(self, log, hub, acked):
         leads = {}
         for e in log:
@@ -595,6 +630,34 @@ class ReadModel:
             ]}
 
     # ---- activity
+    # ---- outbox (owner decision 2026-10-21): what would have left the
+    # business. No outside connection exists yet (TUNING_MANUAL, External
+    # adapters - NOT YET WIRED): every message to "external" stops at a
+    # stand-in, so this list is read from the audit log and says "not sent".
+    # When an adapter lands, this wording must change with it.
+    def outbox(self, log, n=40):
+        words_for = {"client.message.send": "Message to the client",
+                     "vendor.schedule": "Booking to a vendor",
+                     "campaign.publish": "Ad to the public"}
+        items = []
+        for e in log:
+            if e.get("kind") != "envelope.persisted" or e.get("to_agent") != "external":
+                continue
+            p = e.get("payload") or {}
+            content = held_content(e.get("intent"), e.get("client_context_id"), p)
+            if e.get("intent") == "client.message.send":
+                content = {"Template": p.get("template"),
+                           **({"Says": (p.get("variables") or {}).get("content", {}).get("text")}
+                              if isinstance((p.get("variables") or {}).get("content"), dict) else {})}
+            items.append({"ts": e.get("ts"), "ctx": e.get("client_context_id"),
+                          "intent": e.get("intent"), "from": e.get("from_agent"),
+                          "what": words_for.get(e.get("intent"), words(e.get("intent") or "")),
+                          "content": {k: v for k, v in content.items() if v not in (None, "")}})
+        items.reverse()
+        return {"count": len(items), "items": items[:n],
+                "connected": False,
+                "note": "Not sent: no outside connections yet. This is what would have gone out."}
+
     def activity(self, log, n=25):
         out = []
         for e in reversed(log):
@@ -639,6 +702,36 @@ class ReadModel:
 
 # ----------------------------------------------------------------- showcase
 YOUR_MOVES = ("release", "decide", "decline")
+PLAYBOOK_SPECS = os.path.join(ROOT, "synth", "playbooks", "specs", "PLAYBOOKS.jsonl")
+PLAYBOOK_SETUP = os.path.join(ROOT, "synth", "tuples", "setup.jsonl")
+PLAYBOOK_CONFIG = os.path.join(ROOT, "synth", "tuples", "config")
+PLAYBOOK_ORDER = []
+
+
+def playbook_lines():
+    """The 24 playbook sessions in order, each line tagged with its playbook,
+    its name (identity/playbooks.json) and what it is for (the summary in
+    docs/PLAYBOOKS.md, up to its first full stop)."""
+    table = json.load(open(os.path.join(ROOT, "identity", "playbooks.json"), encoding="utf-8"))["playbooks"]
+    doc = open(os.path.join(ROOT, "docs", "PLAYBOOKS.md"), encoding="utf-8").read()
+    purpose = {}
+    for m in re.finditer(r"^## Playbook (P\d\d) - .+?$\n\n\*\*Summary:\*\* (.+?)$", doc, re.M):
+        text = m.group(2).split(": ", 1)[-1]
+        first = text.split(". ")[0].rstrip(".") + "."
+        purpose[m.group(1)] = first[:1].upper() + first[1:]
+    lines = []
+    PLAYBOOK_ORDER.clear()
+    for n, raw in enumerate(open(PLAYBOOK_SPECS, encoding="utf-8"), 1):
+        if not raw.strip():
+            continue
+        spec = json.loads(raw)
+        pb = spec["id"]
+        PLAYBOOK_ORDER.append(pb)
+        title = f"{pb} {table.get(pb, {}).get('name', '')}".strip()
+        for a in spec["lines"]:
+            lines.append({"scene": n, "title": title, "pb": pb,
+                          "purpose": purpose.get(pb), "a": a})
+    return lines
 
 
 class Showcase:
@@ -672,11 +765,22 @@ class Showcase:
                 lines.append({"scene": n, "title": os.path.basename(f), "a": a})
         return lines
 
-    def __init__(self, desk, files=None, lines=None):
+    def __init__(self, desk, files=None, lines=None, playbooks=False):
         self.d = desk
         self.lines = []
-        self.kind = "script" if files else "showcase"
-        if files:
+        self.kind = "playbooks" if playbooks else ("script" if files else "showcase")
+        self.report = None
+        if playbooks:
+            # owner request 2026-10-21: all 24 playbooks on the desk, each in
+            # a fresh office (its own folder), exactly the sessions that
+            # `run_tuples.py --set playbooks` checks
+            self.lines = playbook_lines()
+            fp = hashlib.sha256()
+            for f in (PLAYBOOK_SPECS, PLAYBOOK_SETUP):
+                fp.update(open(f, "rb").read())
+            self.fingerprint = fp.hexdigest()
+            self.progress_path = os.path.join(desk.state_dir, "playbook-progress.json")
+        elif files:
             self.lines = lines if lines is not None else self.read_script(files)
             fp = hashlib.sha256()
             for f in files:
@@ -703,6 +807,15 @@ class Showcase:
             if saved.get("fingerprint") == self.fingerprint:
                 self.pos = int(saved.get("pos", 0))
                 self.reached = set(saved.get("reached", []))
+                self.office = saved.get("office")
+        if playbooks:
+            office = getattr(self, "office", None)
+            first = self.lines[min(self.pos, len(self.lines) - 1)]["pb"] if self.lines else None
+            if office:
+                desk.open_office(office, fresh=False)
+            else:
+                desk.open_office(first, fresh=True)
+                self.office = first
 
     def save_progress(self):
         if not self.progress_path:
@@ -710,7 +823,8 @@ class Showcase:
         tmp = self.progress_path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"fingerprint": self.fingerprint, "pos": self.pos,
-                       "reached": sorted(self.reached)}, f)
+                       "reached": sorted(self.reached),
+                       "office": getattr(self, "office", None)}, f)
         os.replace(tmp, self.progress_path)
 
     def caption(self, a):
@@ -729,12 +843,16 @@ class Showcase:
                         f"{a['to']} {NAMES.get(a['to'], '')} ({a.get('intent')}, {a.get('ctx')})")
             who = "From outside" if frm == "external" else f"{frm} {NAMES.get(frm, '')}"
             return f"{who}: {words(a.get('intent'))} ({a.get('ctx')})"
+        if do == "sweep" and a.get("evening"):
+            return f"The evening clock runs the end-of-day books for {a.get('today')}"
         if do == "sweep":
             return f"The daily clock runs for {a.get('today')}"
         if do == "show" and a.get("what") == "briefing":
             return "Agent 18 builds the morning briefing"
         if do == "show" and a.get("what") == "eod":
             return "Agent 14 runs the end-of-day books"
+        if do == "ack":
+            return f"You mark the {words(a.get('queue', '').replace('escalation.', ''))} item for {a.get('ctx')} done"
         if do == "release":
             noun = {"vendor.schedule": "vendor booking", "campaign.publish": "marketing"}.get(
                 a.get("intent"), "message")
@@ -777,27 +895,66 @@ class Showcase:
                 continue
             break
 
+    def _office_report(self):
+        """The after-action report of the run that ended last in this
+        office (playbook show): the file the run tracker wrote."""
+        if self.kind != "playbooks":
+            return None
+        written = [e for e in self.d.sw.hub.audit.read() if e.get("kind") == "after_action.written"
+                   and e.get("playbook") == getattr(self, "office", None)]
+        if not written:
+            return None
+        w = written[-1]
+        try:
+            text = open(w["path"], encoding="utf-8").read()
+        except OSError as e:
+            text = f"(the report file could not be read: {e})"
+        return {"playbook": w.get("playbook"), "outcome": w.get("outcome"),
+                "file": os.path.basename(w["path"]), "text": text[:6000]}
+
     def status(self):
         self.skip_noise()
+        extra = {}
+        if self.kind == "playbooks":
+            extra = {"office": getattr(self, "office", None), "report": self._office_report(),
+                     "playbooks_total": len(PLAYBOOK_ORDER)}
         if self.pos >= len(self.lines):
             return {"done": True, "kind": self.kind, "pos": self.pos, "total": len(self.lines),
-                    "log": self.log[-8:]}
+                    "log": self.log[-8:], **extra}
         cur = self.lines[self.pos]
         a = cur["a"]
         yours = a.get("do") in YOUR_MOVES
-        if yours:
+        new_office = self.kind == "playbooks" and cur["pb"] != getattr(self, "office", None)
+        if yours and not new_office:
             self.reached.add(self.pos)
+        shown = cur
+        if new_office and getattr(self, "office", None):
+            # between playbooks the office (and its report) is still the
+            # last one: the banner names that one as finished
+            shown = next((x for x in self.lines if x["pb"] == self.office), cur)
+        nxt = (f"{cur['title']}, in a fresh office with the starting settings signed"
+               if new_office else self.caption(a))
         return {"done": False, "kind": self.kind, "pos": self.pos, "total": len(self.lines),
-                "scene": cur["scene"], "title": cur["title"],
-                "next": self.caption(a), "yours": yours, "line": a if yours else None,
-                "waiting_for_you": yours and self._pending(a),
-                "log": self.log[-8:]}
+                "scene": shown["scene"], "title": shown["title"], "purpose": shown.get("purpose"),
+                "between": bool(new_office and getattr(self, "office", None)),
+                "next": nxt, "yours": yours and not new_office,
+                "line": a if yours and not new_office else None,
+                "waiting_for_you": yours and not new_office and self._pending(a),
+                "log": self.log[-8:], **extra}
 
     def step(self):
         self.skip_noise()
         if self.pos >= len(self.lines):
             return {"done": True}
         cur = self.lines[self.pos]
+        if self.kind == "playbooks" and cur["pb"] != getattr(self, "office", None):
+            # a new playbook: its own fresh office, the starting settings
+            # signed, then its first line on the next step
+            r = self.d.open_office(cur["pb"], fresh=True)
+            self.office = cur["pb"]
+            self.log.append({"scene": cur["scene"], "text": f"Opened a fresh office for {cur['title']}",
+                             "result": short(r, 200), "error": bool(r.get("errors"))})
+            return {"stepped": True, "result": r, "error": bool(r.get("errors"))}
         a = cur["a"]
         if a.get("do") in YOUR_MOVES:
             self.reached.add(self.pos)
@@ -814,11 +971,15 @@ class Showcase:
 
 # ----------------------------------------------------------------- the desk
 class Desk:
-    def __init__(self, state_dir, config_dir=None, showcase=False, scripts=None):
+    def __init__(self, state_dir, config_dir=None, showcase=False, scripts=None, playbooks=False):
         from dispatcher.state_snapshot import StateIntegrityError
         # refuse a bad request before taking the lock or opening the swarm
         if showcase and scripts:
             raise SystemExit("--script plays into your own desk; leave out --showcase")
+        if playbooks and scripts:
+            raise SystemExit("--playbooks plays the 24 playbooks; leave out --script")
+        self.playbooks = playbooks
+        showcase = showcase or playbooks      # synthetic data in its own folder, like the showcase
         script_lines = Showcase.read_script(scripts) if scripts else None
         self.state_dir = state_dir
         self.showcase = showcase
@@ -841,7 +1002,9 @@ class Desk:
             json.dump({"name": "Showcase Broker", "login": "showcase@example.test",
                        "note": "showcase desk - synthetic data, not your records"},
                       open(os.path.join(state_dir, "operator.json"), "w", encoding="utf-8"), indent=1)
-        if showcase:
+        if playbooks:
+            config_dir = PLAYBOOK_CONFIG       # the synthetic roster the playbook runs use
+        elif showcase:
             config_dir = os.path.join(state_dir, "config")
             os.makedirs(config_dir, exist_ok=True)
             roster = json.load(open(os.path.join(ROOT, "scenes", "config", "vendor_panel.json"), encoding="utf-8"))
@@ -865,6 +1028,14 @@ class Desk:
         with open(self.lockfile, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
         self.operator = console._operator()
+        self.config_dir = config_dir
+        if playbooks:
+            # each playbook opens its own office (Showcase -> open_office)
+            self.sw = self.signer = None
+            self.office_dir = None
+            self.show = Showcase(self, playbooks=True)
+            self.model = ReadModel(self)
+            return
         audit_path = os.path.join(state_dir, "console-audit.jsonl")
         from dispatcher.core import AuditLogBusy, AuditLogDamaged
         from dispatcher.boot_attest import AttestationRefused
@@ -892,6 +1063,31 @@ class Desk:
         self.show = Showcase(self) if showcase else \
             (Showcase(self, scripts, script_lines) if scripts else None)
         self.model = ReadModel(self)
+
+    def open_office(self, pb, fresh):
+        """Playbook show: closes the office in use and opens playbook pb's
+        own office (a folder under the show's folder). Fresh: emptied first,
+        then the starting settings (synth/tuples/setup.jsonl) are signed into
+        it, as for the checked playbook runs."""
+        if self.sw is not None:
+            self.sw.save_state()
+        folder = os.path.join(self.state_dir, "offices", pb)
+        if fresh and os.path.isdir(folder):
+            shutil.rmtree(folder)
+        os.makedirs(folder, exist_ok=True)
+        self.sw, self.signer = console.build(
+            os.path.join(folder, "console-audit.jsonl"), self.config_dir,
+            os.path.join(folder, "swarm-state.sqlite"), None, self.pager, enforce=False)
+        self.office_dir = folder
+        errors = []
+        if fresh:
+            for raw in open(PLAYBOOK_SETUP, encoding="utf-8"):
+                if raw.strip():
+                    r, err = console.apply_action(self.sw, self.signer, self.operator, json.loads(raw))
+                    if err:
+                        errors.append(short(r, 200))
+            self.sw.save_state()
+        return {"office": pb, "fresh": fresh, "errors": errors}
 
     def close(self):
         from dispatcher.core import AuditLogBusy, AuditLogDamaged
@@ -964,10 +1160,33 @@ class Desk:
                     "client_context_id": body.get("ctx"),
                     "by": (self.operator or {}).get("login")})
                 return self._done(f"Marked done: {body.get('title')}", {"acknowledged": item})
+            if kind == "release_hold":
+                ctx = body.get("ctx")
+                s11 = self.sw.spokes.get("11")
+                if not ctx or ctx not in getattr(s11, "complaint_hold", ()):
+                    return {"error": "no messages are held for that client"}
+                r, err = console.apply_action(self.sw, self.signer, self.operator,
+                                              {"do": "config", "to": "11", "ctx": ctx,
+                                               "payload": {"resolve_complaint_hold": ctx}})
+                if err:
+                    return {"error": f"not recorded: {short(r, 200)}"}
+                return self._done(f"Hold released: {ctx}", r)
+            if kind == "prospect_handled":
+                # signed config.update to Agent 19, like every other setting
+                lid = body.get("id")
+                if lid not in {p["id"] for p in self.model.prospects(self.sw)}:
+                    return {"error": "that prospect is not waiting (already handled, or unknown)"}
+                r, err = console.apply_action(self.sw, self.signer, self.operator,
+                                              {"do": "config", "to": "19", "ctx": lid,
+                                               "payload": {"prospects_handled": [lid]}})
+                if err:
+                    return {"error": f"not recorded: {short(r, 200)}"}
+                return self._done(f"Prospect handled: {lid}", r)
             if kind == "sweep":
                 day = body.get("today") or datetime.date.today().isoformat()
                 r, _ = console.apply_action(self.sw, self.signer, self.operator,
-                                            {"do": "sweep", "today": day})
+                                            {"do": "sweep", "today": day} if body.get("today")
+                                            else {"do": "sweep", "clock": "live"})
                 return self._done(f"Ran today's checks ({day})", r)
             if kind == "verify":
                 r = self.sw.hub.audit.verify_chain()
@@ -1162,9 +1381,14 @@ def main(argv=None):
                     help="live mode: play a session file (JSON lines, the console's format) into "
                          "your desk one step at a time, stopping at your moves; repeat for more files. "
                          "Its place is saved, so a restart resumes it")
+    ap.add_argument("--playbooks", action="store_true",
+                    help="a separate desk that plays all 24 playbooks in order on synthetic data, "
+                         "each in a fresh office, stopping at your moves (default folder playbook-show/)")
     ap.add_argument("--fresh", action="store_true",
-                    help="with --showcase: start the showcase from scene 1 on empty state")
+                    help="with --showcase or --playbooks: start again from the beginning on empty state")
     args = ap.parse_args(argv)
+    if args.playbooks and (args.showcase or args.script):
+        raise SystemExit("--playbooks runs on its own; leave out --showcase and --script")
     if os.name != "nt":
         # private by default (2026-10-14, integration snapshot finding 2):
         # the record, drawers and state are readable only by this account
@@ -1172,14 +1396,15 @@ def main(argv=None):
     # console.STATE_DIR's rule, computed here so console.py is not loaded
     # before the install check below (2026-10-14)
     state_dir = args.state_dir or (os.path.join(ROOT, "showcase-state") if args.showcase
+                                   else os.path.join(ROOT, "playbook-show") if args.playbooks
                                    else os.environ.get("LISTINGASSISTANTS_STATE_DIR")
                                    or os.path.join(ROOT, "console-state"))
-    if args.showcase and args.fresh and os.path.isdir(state_dir):
+    if (args.showcase or args.playbooks) and args.fresh and os.path.isdir(state_dir):
         if not is_showcase_folder(state_dir):
             # 2026-10-14 review: it deleted any folder without an operator key
             raise SystemExit(f"--fresh deletes only a showcase folder; {state_dir} is not one")
         shutil.rmtree(state_dir)
-    if not args.showcase and os.path.exists(os.path.join(state_dir, "operator-key.bin")):
+    if not (args.showcase or args.playbooks) and os.path.exists(os.path.join(state_dir, "operator-key.bin")):
         # the install first, before the desk loads anything else of this
         # repository (2026-10-14); a folder with no key gets the desk's own
         # "run init" message below
@@ -1206,7 +1431,7 @@ def main(argv=None):
     from dispatcher.private_file import tighten_tree
     tighten_tree(state_dir)                 # a folder an earlier version left readable
     desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase,
-                                    scripts=scripts or None))
+                                    scripts=scripts or None, playbooks=args.playbooks))
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
     # connections on their own threads; the swarm on one (OwnerThread)
@@ -1214,7 +1439,8 @@ def main(argv=None):
     srv.daemon_threads = True
     url = f"http://{'<this-computer>' if args.lan else '127.0.0.1'}:{args.port}/" + \
         (f"?t={token}" if token else "")
-    print(json.dumps({"desk": url, "mode": "showcase" if args.showcase else "live",
+    print(json.dumps({"desk": url, "mode": "playbooks" if args.playbooks
+                      else "showcase" if args.showcase else "live",
                       "state_dir": state_dir,
                       "note": "Ctrl+C to stop; state is saved after every action"}),
           flush=True)   # under a service manager or a pipe, the address must not sit in a buffer

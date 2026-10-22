@@ -119,6 +119,7 @@ class Spoke11ClientCommunication:
         self.consent_seen: dict[str, dict] = {}
         self.no_consent_reported: set[str] = set()   # broker told once per client
         self._consent_check_open: str | None = None
+        self._last_block = None   # why the last client message did not go (P11, 2026-10-21)
         register_spoke(hub, "11", self)
         register_resumer(hub, "11", self._resume)
 
@@ -215,6 +216,7 @@ class Spoke11ClientCommunication:
                 result="held: complaint_hold")
             self.hub.send(_env("11", "14", "interaction.log", ctx,
                                {"kind": "touch_held_complaint_hold", "template": template}))
+            self._last_block = "complaint_hold"
             return False
         # tuple 8: unresolved template variable -> does not send
         unresolved = [k for k, v in variables.items() if v is None]
@@ -228,6 +230,7 @@ class Spoke11ClientCommunication:
             self.hub.send(_env("11", "queue", "clarification.request", ctx,
                                {"reason": f"unresolved template variables: "
                                          f"{unresolved}"}))
+            self._last_block = "unresolved_variables"
             return False
 
         # tuple 4/7: quiet hours / legal contact hours gate
@@ -242,6 +245,7 @@ class Spoke11ClientCommunication:
             self.hub.send(_env("11", "queue", "clarification.request", ctx,
                                {"reason": "send queued - quiet hours, "
                                          "human notified instead"}))
+            self._last_block = "quiet_hours"
             return False
 
         # consent check against 14, the system of record for consent.
@@ -276,12 +280,26 @@ class Spoke11ClientCommunication:
                                                   "consent on record at 14; record the client's "
                                                   "consent with a signed consent_record",
                                         "first_blocked_template": template}))
+                self._last_block = why
                 return False
         self.hub.send(_env("11", "external", "client.message.send", ctx,
                            {"template": template, "variables": variables}))
         self.hub.send(_env("11", "14", "interaction.log", ctx,
                            {"kind": "client_touch", "template": template}))
         return True
+
+    def _tell_not_sent(self, env: Envelope, why: str):
+        """P11 sign-off (2026-10-21): a nurture touch that did not go out is
+        reported back to Agent 03, so it is not counted as sent; 03 tries
+        it again on its next clock check (or stops the sequence on an
+        opt-out). Before, 03 counted every touch it handed over as sent."""
+        p = env.payload or {}
+        if env.from_agent != "03" or p.get("template") != "sequence_touch":
+            return
+        self.hub.send(_env("11", "03", "client.message.not_sent", env.client_context_id,
+                           {"template": "sequence_touch",
+                            "touch": (p.get("content") or {}).get("touch"),
+                            "reason": why}))
 
     def _consent_from_14(self, ctx: str) -> dict:
         """Consent as Agent 14 records it now (the same in-step answer the
@@ -354,6 +372,7 @@ class Spoke11ClientCommunication:
                     result="held: complaint_hold")
                 self.hub.send(_env("11", "14", "interaction.log", ctx,
                                    {"kind": "touch_held_complaint_hold"}))
+                self._tell_not_sent(env, "complaint_hold")
                 return
 
             # tuple 3: two agents report conflicting statuses -> send
@@ -381,8 +400,10 @@ class Spoke11ClientCommunication:
             variables = payload.get("variables", {k: v for k, v in payload.items()
                                                   if k not in ("hour", "alert_class",
                                                               "template")})
-            self._send_client_message(ctx, template, variables, hour,
-                                      alert_class, env)
+            self._last_block = None
+            if not self._send_client_message(ctx, template, variables, hour,
+                                             alert_class, env):
+                self._tell_not_sent(env, self._last_block or "not_sent")
             return
 
         if env.intent == "client.reply":

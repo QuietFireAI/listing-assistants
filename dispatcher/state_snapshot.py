@@ -10,6 +10,7 @@ What is saved
   - the hub's runtime state: seen envelope ids, sequence counters, loop
     counts, held outbound messages and one-shot releases, human queues
   - the HITL manager's waits, alerts and errors, when one is wired
+  - the playbook run tracker's runs and held or waiting messages (2026-10-20)
 Not saved: the hub's in-memory analysis buffers (reflection_artifacts,
 spoke_traces). Their content is on the audit log.
 
@@ -103,8 +104,10 @@ def agent_state(spoke: Any) -> dict:
     return {k: v for k, v in vars(spoke).items() if k != "hub"}
 
 
-def capture(hub: Any, spokes: dict, hitl: Any, baseline: dict) -> dict:
+def capture(hub: Any, spokes: dict, hitl: Any, baseline: dict, runs: Any = None) -> dict:
+    """runs: the playbook run tracker (dispatcher/run_tracker.py), when wired."""
     return {
+        "runs": encode(runs.state()) if runs is not None else None,
         "format": 1,
         "hub": {a: encode(getattr(hub, a)) for a in HUB_STATE_ATTRS},
         "agents": {aid: encode(agent_state(sp)) for aid, sp in spokes.items()},

@@ -55,6 +55,16 @@ gates. Each playbook's executable definition is its end-to-end test,
 `tests_listing/test_playbooks_e2e_all.py`, run against the same hub the
 swarm uses.
 
+**Runs (2026-10-20).** The dispatcher tracks every playbook as runs, one
+per playbook and client (`dispatcher/run_tracker.py`), from the table in
+`identity/playbooks.json`: the message patterns that start and end each
+playbook, its agents, the playbooks it hands on from, and the ones it
+conflicts with. The table is PROPOSED until you ratify it. Each run ends
+with an after-action report. `synth/playbooks/specs/PLAYBOOKS.jsonl` holds
+one console session per playbook from its start to its end; `python
+synth/tuples/run_tuples.py --set playbooks` runs all 24 and writes
+`synth/playbooks/REPORT.md`.
+
 The entries were generated from playbook step tables kept in the
 listing-agents-blueprint repository, which is no longer maintained (owner
 decision 2026-10-11: this repository is the single source). The "Agents
@@ -96,7 +106,7 @@ starts; no step below produces or modifies it.
 **Agents touched (from step tables):** 04, 05, 10, 11, 12, 14, 17
 
 ### Trigger
-Human requests decision-support data, or submits a SIGNED `listing.change.authorized` envelope with the new price. The price decision itself is fiduciary and human-only; this playbook surrounds it, never makes it.
+The human submits a SIGNED `listing.change.authorized` envelope with the new price. The price decision itself is fiduciary and human-only; this playbook surrounds it, never makes it. Owner decision 3 (2026-10-21): a request for comparables does not start P02; on a live listing of ours it starts P23, otherwise P15.
 
 ### HITL gates
 (none listed beyond swarm-wide gates)
@@ -118,7 +128,10 @@ Human confirms offer acceptance (executed contract artifact filed via 08).
 **Agents touched (from step tables):** 01, 02, 04, 06, 11, 12, 17
 
 ### Trigger
-Open house scheduled (human decision or P01 step 3d).
+Open house scheduled (human decision or P01 step 3d). In the product: your
+signed `{"open_house": {"start": ..., "end": ...}}` to Agent 06 on an
+active listing; your signed `{"open_house_result": {"attendees": n,
+"feedback": [...]}}` closes the run (built 2026-10-20).
 
 ### HITL gates
 (none listed beyond swarm-wide gates)
@@ -140,7 +153,7 @@ Listing reaches expiration date (07/05 tracked) or seller withdrawal confirmed b
 **Agents touched (from step tables):** 10, 11, 13, 14, 17
 
 ### Trigger
-Signed written buyer agreement filed (08) and recorded (14).
+The buyer's first criteria, signed by you to Agent 13 (owner change 2026-10-21; before, the run started at the recorded buyer agreement). Getting the signed written buyer agreement filed (08) and recorded (14) is now inside the run: matches wait for it, you are told once, and the daily clock sends the held matches once it is recorded.
 
 ### HITL gates
 (none listed beyond swarm-wide gates)
@@ -239,7 +252,7 @@ Human decides to run a farm campaign (zips, budget, duration as config).
 **Agents touched (from step tables):** 10, 18
 
 ### Trigger
-Listing appointment scheduled (human).
+Listing appointment scheduled (human). In the run tracker: a comparables request (`data.request`, mode comp, from the human to Agent 10) for a client that is not one of our live listings (owner decision 3, 2026-10-21).
 
 ### HITL gates
 (none listed beyond swarm-wide gates)
@@ -250,7 +263,7 @@ Listing appointment scheduled (human).
 **Agents touched (from step tables):** 00, 10, 14, 15, 18, 19
 
 ### Trigger
-Scheduled daily start (owner-configured time) or owner command.
+Scheduled daily start (owner-configured time) or owner command. Owner decision 8 (2026-10-21): Agent 18 asks 14 (overnight leads), 15 (yesterday's books), 19 (prospects waiting) and 10 (market changes) for their sections through the hub and sends one briefing; a section with no answer is named as missing. The run starts at 18's first ask and ends at the briefing.
 
 ### HITL gates
 (none listed beyond swarm-wide gates)
@@ -261,7 +274,7 @@ Scheduled daily start (owner-configured time) or owner command.
 **Agents touched (from step tables):** 00, 14, 15, 18
 
 ### Trigger
-Scheduled daily close (owner-configured) or owner command.
+Scheduled daily close (owner-configured) or owner command. Owner decision 9 (2026-10-21): the evening clock (`python tools/run_sweeps.py --evening`) has Agent 14 send its end-of-day books to Agent 15, which adds the day's figures (commissions and expenses recorded that day) and sends one report to the human. The run starts at 14's report to 15 and ends at 15's report to the human.
 
 ### HITL gates
 (none listed beyond swarm-wide gates)
@@ -344,7 +357,9 @@ A price-review signal on a live listing: days-on-market threshold crossed,
 showing-to-offer ratio below a configured floor, or an owner command. This
 playbook produces evidence; it never produces or implies a number. The price
 opinion is the human's fiduciary decision, always - the same line P02 and P15
-hold.
+hold. In the run tracker: a comparables request from the human to Agent 10 for
+one of our listings that is active on the MLS record starts P23 (owner decision
+3, 2026-10-21).
 
 ### HITL gates
 - The playbook states NO recommended price and NO "should reduce" language. Any

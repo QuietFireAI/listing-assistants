@@ -74,14 +74,16 @@ Dispatcher returns an `ack`.
 |---|---|---|---|
 | IN | ← all agents | Interaction logs | `interaction.log` |
 | OUT | → 16 After-Close & Referral | Date triggers per supplied list | `date.trigger` |
-| OUT | → Broker (15 is routed, not used yet) | End-of-day report | `report.package` |
+| OUT | → 15 Financial Tracking | End-of-day books on the evening clock; 15 adds the day's figures and sends you one report (owner decision 9, 2026-10-21). Any other report (a listing's activity) comes straight to you | `report.package` |
+| IN | ← 18 Calendar & Task | Morning briefing: ask for this agent's section (owner decision 8, 2026-10-21) | `briefing.request` |
+| OUT | → 18 Calendar & Task | Overnight leads: every lead captured since the last briefing, from the CRM's own entries, each reported once | `report.package` |
 | OUT | → 01 / 11 / 13 / 15 via 00 | Record query responses | `record.response` |
 | IN | ← 01 / 11 / 13 / 15 via 00 | Record queries | `record.request` |
 | IN | ← 07 via 00 | Transaction closed - context to past-client | `transaction.closed` |
 | IN | ← 05 via 00 | Listing status changes | `status.update` |
 | OUT | → HITL queue | Deletion or retention request | `escalation.legal_line` |
 | OUT | → HITL queue | Setting rejected, write to a frozen record, access window ended unclosed | `clarification.request` |
-| IN | ← Clock (through the hub) | Daily tick: date triggers, access custody; EOD report when named | `clock.tick` |
+| IN | ← Clock (through the hub) | Daily tick: date triggers, access custody. The evening clock (or `show eod`) names the end-of-day report, which goes to 15 | `clock.tick` |
 | IN | ← Broker (signed) | Record updates listed in section 2 | `config.update` |
 
 This agent has no other edges. If a task appears to require any other

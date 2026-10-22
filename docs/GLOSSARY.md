@@ -11,7 +11,7 @@ so other pages can point straight to it.
 
 **The team:** [agent](#agent) · [swarm](#swarm) · [dispatcher and hub](#dispatcher-and-hub) · [identity](#identity) · [rule engine](#rule-engine) · [principal](#principal)
 
-**How work moves:** [message](#message) · [intent](#intent) · [route and lane](#route-and-lane) · [closed track](#closed-track) · [client context](#client-context) · [hand-off](#hand-off) · [playbook](#playbook) · [trigger](#trigger) · [daily clock](#daily-clock) · [queue](#queue)
+**How work moves:** [message](#message) · [intent](#intent) · [route and lane](#route-and-lane) · [closed track](#closed-track) · [client context](#client-context) · [hand-off](#hand-off) · [playbook](#playbook) · [playbook run](#playbook-run) · [after-action report](#after-action-report) · [trigger](#trigger) · [daily clock](#daily-clock) · [queue](#queue)
 
 **Decisions made ahead of time:** [tuple](#tuple) · [stop and ask](#stop-and-ask) · [SKILL.md and DECISIONS.md](#skillmd-and-decisionsmd) · [MANNERS.md and SWARM.md](#mannersmd-and-swarmmd)
 
@@ -21,7 +21,7 @@ so other pages can point straight to it.
 
 **Connections and optional engines:** [adapter](#adapter) · [JEV decision adapter](#jev-decision-adapter) · [model drafting](#model-drafting) · [MCP server](#mcp-server) · [pillars](#pillars) · [pager](#pager)
 
-**Running and testing it:** [console](#console) · [Broker Desk](#broker-desk) · [showcase and scenes](#showcase-and-scenes) · [synthetic data](#synthetic-data) · [test and suite](#test-and-suite) · [end-to-end test](#end-to-end-test) · [mutation testing](#mutation-testing) · [CI](#ci) · [repository, clone and commit](#repository-clone-and-commit) · [vendored core](#vendored-core)
+**Running and testing it:** [console](#console) · [Broker Desk](#broker-desk) · [showcase and scenes](#showcase-and-scenes) · [synthetic data](#synthetic-data) · [test and suite](#test-and-suite) · [end-to-end test](#end-to-end-test) · [mutation testing](#mutation-testing) · [CI](#ci) · [repository, clone and commit](#repository-clone-and-commit) · [dispatcher core](#dispatcher-core)
 
 ---
 
@@ -128,6 +128,22 @@ Morning Operations, and 22 more. Each playbook names what starts it, the
 agents involved, and the points where it waits for you. Each one has a test
 that runs it from end to end. All 24 are in [PLAYBOOKS.md](PLAYBOOKS.md),
 and pictured message by message in [PLAY-BY-PLAY.md](PLAY-BY-PLAY.md).
+
+### Playbook run
+
+One playbook for one client, from the message that starts it to the one
+that ends it. The dispatcher keeps the runs from the playbook table
+(`identity/playbooks.json`); the agents do the work. When one message could
+start two playbooks, or a new run conflicts with one already open for the
+same client, nothing goes ahead until you choose. The console's
+`{"do": "runs"}` lists them.
+
+### After-action report
+
+A one-page record written when a run ends, from the audit log only: every
+step with its proof, what was held or refused, escalations, your signed
+decisions in the run, and any tuple the run showed is missing, proposed for
+you to ratify. Saved in `after_action/` next to the audit log.
 
 ### Trigger
 
@@ -419,13 +435,12 @@ or the audit chain is broken. Details: [MOUNTING.md](MOUNTING.md).
 
 ### Pillars
 
-Six add-on self-check packages from QuietFire (before-turn, open-mind,
-agent-open-mind, pre-response-selfcheck, sleep-marks, splitvantage), each
-watching a different point in the hub, such as a last read of outgoing text
-before it leaves. A pillar is *armed* when it is installed and has what it
-needs to run; one that is not says *UNARMED* on the audit log rather than
-staying silent. The swarm routes correctly without them, and the build
-checks that too.
+Five self-checks from QuietFire (before-turn, open-mind, agent-open-mind,
+pre-response-selfcheck, sleep-marks), built into the product in
+`dispatcher/pillar_lib/`, each watching a different point in the hub, such
+as a last read of outgoing text before it leaves. A pillar is *armed* when
+it has what it needs to run. pre-response-selfcheck needs a reviewer model;
+without one, it says *UNARMED* on the audit log rather than staying silent.
 
 ### Pager
 
@@ -500,10 +515,10 @@ with its full history. To *clone* it is to download a complete copy. A
 *commit* is one saved, dated change with a note saying what changed.
 A *README* is the page GitHub shows first when you open a folder.
 
-### Vendored core
+### Dispatcher core
 
-Sixteen files from the separate dispatcher-agents project, copied into
-`dispatcher/` so this repository runs on its own. `CORE_PIN.json` names the
-exact dispatcher-agents commit they came from, and CI checks that the copies
-match that commit byte for byte, so the copy can never drift. Moving to a
-newer core is a deliberate step (`tools/sync_core.py`).
+Sixteen files in `dispatcher/`: the hub that checks, logs and delivers every
+message, and the parts it is built from. They began in the separate
+dispatcher-agents project and were folded into this product on 2026-10-20,
+so ListingAssistants is one product with one test suite.
+`dispatcher/CORE_ORIGIN.md` lists them and names the commit they came from.

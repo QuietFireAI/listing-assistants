@@ -24,9 +24,9 @@ Behavior fixed 2026-10-11 (audit H-2..H-5):
   - A reply with no <think> block sends an EMPTY thought to the hub, so the
     taint gate fires. Before, a placeholder thought was substituted and the
     gate never fired.
-  - The open-mind / agent-open-mind pillars are required (requirements.txt).
-    If either is missing, PILLARS_ARMED is False and the learning loop
-    refuses to assimilate. Before, local stand-ins always reported "aligned".
+  - The open-mind / agent-open-mind pillars are part of this product
+    (dispatcher/pillar_lib/, folded in 2026-10-20), so they are always
+    present. Before 2026-10-12, local stand-ins always reported "aligned".
   - evaluate_policy_compliance() is a phrase screen. Passing it does not
     establish Fair Housing or wire-safety compliance; a human reviews drafts.
 """
@@ -37,22 +37,8 @@ import os
 import re
 from typing import Any, Optional, Tuple
 
-_missing: list[str] = []
-try:
-    from open_mind.comparator import Comparator
-except ImportError:
-    Comparator = None
-    _missing.append("open_mind")
-try:
-    from agent_open_mind import taint_check
-except ImportError:
-    taint_check = None
-    _missing.append("agent_open_mind")
-
-PILLARS_ARMED: bool = not _missing
-PILLARS_UNARMED_REASON: str = ("" if PILLARS_ARMED else
-                               f"pillar package(s) not installed: {', '.join(_missing)} - "
-                               f"learning loop refuses to assimilate (no stand-in logic)")
+from .pillar_lib.open_mind.comparator import Comparator
+from .pillar_lib.agent_open_mind import taint_check
 
 
 class HermesUnavailableError(RuntimeError):
@@ -145,7 +131,6 @@ class HermesLearningLoop:
     A run is offered only when code calls assimilate_operational_run(); today
     the only caller is HermesCognitiveSeam.draft_and_trace(), and nothing in
     the swarm calls that. Screening, in order:
-      0. pillars absent -> REFUSED_PILLARS_UNARMED
       1. agent-open-mind taint_check (e.g. empty thought) -> QUARANTINED_TAINTED
       2. composite variance = max(0.5*open-mind drift + 0.5*phrase-screen
          penalty, phrase-screen penalty); >= drift_threshold -> QUARANTINED_HIGH_VARIANCE
@@ -203,8 +188,6 @@ class HermesLearningLoop:
         """Calculates multi-dimensional variance between internal deliberation,
         external action, and broker policy boundaries. Requires the open_mind
         pillar (no stand-in)."""
-        if Comparator is None:
-            raise RuntimeError(PILLARS_UNARMED_REASON)
         dr = Comparator.compare(thought, action)
         drift_score = float(dr.drift_score)
         policy_penalty = self.evaluate_policy_compliance(action)
@@ -242,17 +225,6 @@ class HermesLearningLoop:
             "thought": thought,
             "result": action
         }
-
-        # Step 0: pillars absent -> refuse, declared (no stand-in gate)
-        if not PILLARS_ARMED:
-            if self.logger and hasattr(self.logger, "log_training_update"):
-                self.logger.log_training_update(agent_id=agent_id, client_context_id=client_context_id,
-                                                topic=topic, variance=1.0,
-                                                status="REFUSED_PILLARS_UNARMED",
-                                                detail=PILLARS_UNARMED_REASON)
-            return {"agent_id": agent_id, "envelope_id": envelope_id,
-                    "status": "REFUSED_PILLARS_UNARMED", "reason": PILLARS_UNARMED_REASON,
-                    "is_assimilated": False}
 
         # Step 1: agent-open-mind taint check gate
         gate = taint_check(rec)

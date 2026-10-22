@@ -26,4 +26,7 @@ constrains everything.
 - (vendor no-show on a deadline-critical job, escalate + offer next approved vendor to human; never self-substitute)
 - (work scope grows on-site per vendor, stop work order message per template; scope changes are human-approved)
 
+Added 2026-10-21 (owner, P01 review: the photographer's delivery was accepted while the booking message was still held):
+- (a delivery arrives for a booking that never reached the vendor (still held for release, or declined), hold the delivery for the human; continue accepts it, cancel refuses it)
+
 (Root rule, restated: no suitable tuple - or an uncertain match - means STOP and ask the human.)

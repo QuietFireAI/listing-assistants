@@ -24,11 +24,20 @@ A session script is JSON Lines; each line is one action:
   {"do": "send", "from": "20", "to": "01", "intent": "lead.signal",
    "ctx": "lead-1", "payload": {...}}                               # spoke/external traffic
   {"do": "sweep", "today": "2026-07-19"}                            # run the clock layer
+  {"do": "sweep", "clock": "live"}                                  # the clock layer on the wall clock, skew checked
+  {"do": "sweep", "today": "2026-07-19", "evening": true}           # the evening clock: end-of-day books (14 + 15's figures)
+  {"do": "watch"}                                                   # re-alert unanswered escalations now
+  {"do": "reload_identity"}                                         # re-read identity/routes.json; refused while work is open ("force": true overrides)
+  {"do": "ack", "queue": "escalation.legal_line", "ctx": "T1"}      # mark that client's items in the queue done
   {"do": "show", "what": "queues"}     # or "held", "external", "briefing", "eod", "anchor"
   {"do": "release", "ctx": "L1", "intent": "campaign.publish"}      # signed release of held outbound
   {"do": "decline", "ctx": "L1", "intent": "campaign.publish", "reason": "wrong photos"}  # signed: never send it
   {"do": "decide", "ctx": "L1", "decision": "continue"}             # signed continue/cancel on a hold
   {"do": "decide", "ctx": "L1", "decision": "continue", "route_to": "13"}   # a hold that asks for an agent
+  {"do": "decide", "ctx": "L1", "agent": "00", "decision": "continue", "set": {"playbook": "P15"}}
+                                                                    # a hold that asks you to choose (here, which playbook)
+  {"do": "runs"}                                                    # playbook runs: open, ended (with report), held, waiting
+  {"do": "run_end", "run_id": "P19-L1-3", "outcome": "ended_by_owner"}   # you end a run; its after-action report is written
 
 "send" injects one message as if from the named sender. It is the test
 harness's way in: use "external" or "human" where the closed track has
@@ -287,9 +296,12 @@ def decide(sw, signer, a):
     choice = str(a.get("decision", "")).lower()
     if choice == "continue":
         payload = {"wait_id": w["wait_id"], "decision": "APPROVE"}
+        fields = dict(a.get("set") or {})
         if a.get("route_to") is not None:
+            fields["route_to"] = str(a["route_to"])
+        if fields:
             payload = {"wait_id": w["wait_id"], "decision": "APPROVE_WITH_OVERRIDE",
-                       "updated_fields": {"route_to": str(a["route_to"])}}
+                       "updated_fields": fields}
     elif choice == "cancel":
         payload = {"wait_id": w["wait_id"], "decision": "REJECT_AND_ABORT"}
     else:
@@ -376,8 +388,8 @@ def cmd_onboard(args):
     if not os.path.exists(KEY_PATH):
         _p({"error": "run `python tools/console.py init` first - there is no key to bind"})
         return 1
-    name = args.name or input("Your name (broker of record): ").strip()
-    login = args.login or input("Your login (email you sign as): ").strip()
+    name = (args.name or input("Your name (broker of record): ")).strip()
+    login = (args.login or input("Your login (email you sign as): ")).strip()
     if not name or not login or "@" not in login:
         _p({"error": "a name and an email-style login are both required; nothing saved"})
         return 1
@@ -447,9 +459,66 @@ def apply_action(sw, signer, operator, a, external=None):
         r = decide(sw, signer, a)
         if isinstance(r, dict) and r.get("error"):
             error = True
+    elif do == "sweep" and a.get("evening"):
+        # owner decision 9 (2026-10-21): the evening clock - end-of-day books
+        from dispatcher.sweep_runner import run_evening_sweep
+        r = run_evening_sweep(hub, spokes, today=a["today"], now_iso=a.get("now_iso"))
     elif do == "sweep":
-        r = run_daily_sweeps(hub, spokes, today=a["today"],
-                             now_iso=a.get("now_iso"))
+        if a.get("clock") == "live":
+            # the wall clock, as tools/run_sweeps.py reads it; skew is checked
+            now = datetime.datetime.now().replace(microsecond=0)
+            r = run_daily_sweeps(hub, spokes, today=a.get("today") or now.date().isoformat(),
+                                 now_iso=now.isoformat(), live=True)
+        else:
+            r = run_daily_sweeps(hub, spokes, today=a["today"],
+                                 now_iso=a.get("now_iso"))
+    elif do == "runs":
+        rt = getattr(sw, "runs", None)
+        if rt is None or rt.table is None:
+            r = {"error": "no playbook table in use (see playbook.table_refused on the log)"}
+            error = True
+        else:
+            r = {"table": rt.table.status,
+                 "ratified_playbooks": sorted(p for p in rt.table.playbooks
+                                              if rt.table.status_for(p) == "RATIFIED"),
+                 "open": [{k: rt.runs[x][k] for k in ("run_id", "playbook", "ctx", "status")}
+                          | {"steps": len(rt.runs[x]["steps"])} for x in rt.open_runs()],
+                 "ended": [{"run_id": x["run_id"], "outcome": x["status"],
+                            "report": (x.get("report") or {}).get("path")}
+                           for x in rt.runs.values() if x["status"] not in ("open", "held")],
+                 "held_for_you": [{"wait": k, "kind": v["kind"], "ctx": v["ctx"]}
+                                  for k, v in rt.held.items()],
+                 "waiting": [{"envelope_id": w["env"]["record"]["envelope_id"],
+                              "why": w["why"], "candidates": w["candidates"]} for w in rt.waiting],
+                 "open_questions": rt.open_questions()}
+    elif do == "run_end":
+        rt = getattr(sw, "runs", None)
+        if rt is None or rt.table is None or not a.get("run_id"):
+            r = {"error": "run_end needs run_id, and a playbook table in use"}
+            error = True
+        else:
+            r = rt.end_by_owner(a["run_id"], a.get("outcome") or "ended_by_owner",
+                                (operator or {}).get("login"))
+            error = not r.get("ended")
+    elif do == "reload_identity":
+        from dispatcher.identity_reload import reload_identity
+        r = reload_identity(sw, force=bool(a.get("force")), by=(operator or {}).get("login"))
+    elif do == "watch":
+        from dispatcher.escalation_watch import check_unacknowledged
+        r = check_unacknowledged(hub)
+        if getattr(sw, "runs", None) is not None and sw.runs.table is not None:
+            sw.runs.release_waiting()
+    elif do == "ack":
+        from dispatcher.escalation_watch import acknowledge
+        if not a.get("queue") or not a.get("ctx"):
+            r = {"error": "ack needs queue and ctx"}
+            error = True
+        else:
+            r = {"acknowledged": acknowledge(hub, a["queue"], a["ctx"],
+                                             (operator or {}).get("login"))}
+            # answered questions may free starts waiting on a full queue
+            if getattr(sw, "runs", None) is not None and sw.runs.table is not None:
+                sw.runs.release_waiting()
     elif do == "show":
         what = a.get("what")
         if what == "queues":

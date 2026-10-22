@@ -90,8 +90,79 @@ class Spoke06ShowingScheduler:
         self.seller_reports: dict | None = None
         self.seller_report_weeks: dict[str, str] = {}   # listing_id -> ISO week reported
         self.held_reports: dict[str, dict] = {}         # seller ctx -> report awaiting the broker
+        self.open_houses: dict[str, dict] = {}          # listing ctx -> the scheduled open house (P04)
         register_spoke(hub, "06", self)
         register_resumer(hub, "06", self._resume)
+
+    def _schedule_open_house(self, ctx: str, env: Envelope) -> None:
+        """P04 (built 2026-10-20; before, no entry scheduled an open house and
+        the playbook could not start). The broker signs {"open_house":
+        {"start": "2026-10-25T13:00", "end": "2026-10-25T15:00"}} on the
+        listing. Held for the broker, nothing scheduled, when the listing is
+        not active on the record Agent 05 pushed, or the times are not
+        readable. Otherwise: the event goes on the calendar (18), signage is
+        ordered through the vendor roster (09) and the schedule is logged
+        (14). Promotion is the broker's signed campaign through Agent 12;
+        walk-ins arrive as inquiries through Agent 01."""
+        import datetime
+        oh = env.payload.get("open_house")
+        lid = (oh or {}).get("listing_id") or ctx if isinstance(oh, dict) else ctx
+        problems = []
+        if not isinstance(oh, dict) or not oh.get("start") or not oh.get("end"):
+            problems.append("open_house takes start and end (YYYY-MM-DDTHH:MM)")
+        else:
+            try:
+                if datetime.datetime.fromisoformat(oh["end"]) <= datetime.datetime.fromisoformat(oh["start"]):
+                    problems.append("end must be after start")
+            except ValueError:
+                problems.append("start and end must be YYYY-MM-DDTHH:MM")
+        facts = self.listing_facts.get(lid)
+        if not problems and (facts is None or facts.get("status") != "active"):
+            problems.append(f"listing {lid!r} is not active on the MLS record "
+                            f"(status {(facts or {}).get('status')!r}) - an open house "
+                            f"markets the property to the public")
+        if problems:
+            self.hub.send(_env("06", "queue", "clarification.request", ctx,
+                               {"reason": "open house not scheduled; nothing changed",
+                                "problems": problems}))
+            return
+        self.open_houses[ctx] = {"listing_id": lid, "start": oh["start"], "end": oh["end"],
+                                 "status": "scheduled"}
+        self.hub.send(_env("06", "18", "calendar.event", ctx,
+                           {"event": "open_house", "time": oh["start"], "end": oh["end"],
+                            "day": oh["start"][:10], "timezone_confirmed": True,
+                            "buffer_minutes": 0}))
+        self.hub.send(_env("06", "09", "vendor.request", ctx,
+                           {"kind": "open_house_signage", "today": oh["start"][:10]}))
+        self.hub.send(_env("06", "14", "interaction.log", ctx,
+                           {"kind": "open_house_scheduled", "listing_id": lid,
+                            "start": oh["start"], "end": oh["end"]}))
+        self.hub.ingest_spoke_trace("06", env.envelope_id,
+                                    thought=f"broker-signed open house for {lid!r} {oh['start']} to "
+                                            f"{oh['end']}; listing active on the record",
+                                    result="open house scheduled")
+
+    def _record_open_house(self, ctx: str, env: Envelope) -> None:
+        """P04's close: the broker signs {"open_house_result": {"attendees":
+        12, "feedback": ["light traffic"]}} after the event; it is logged to
+        Agent 14 as the open house event. Walk-ins are leads in their own
+        right (Agent 01), not part of this record."""
+        r = env.payload.get("open_house_result")
+        oh = self.open_houses.get(ctx)
+        if oh is None or not isinstance(r, dict) or not isinstance(r.get("attendees"), int) \
+                or isinstance(r.get("attendees"), bool):
+            self.hub.send(_env("06", "queue", "clarification.request", ctx,
+                               {"reason": "open house result not recorded; nothing changed - "
+                                          + ("no open house is scheduled for this listing"
+                                             if oh is None else
+                                             "attendees must be a whole number")}))
+            return
+        oh["status"] = "held"
+        oh["attendees"] = r["attendees"]
+        self.hub.send(_env("06", "14", "interaction.log", ctx,
+                           {"kind": "open_house_event", "listing_id": oh["listing_id"],
+                            "attendees": r["attendees"],
+                            "feedback": [str(x) for x in r.get("feedback", [])]}))
 
     def _configure_seller_reports(self, env: Envelope) -> None:
         cfg = env.payload.get("seller_reports")
@@ -260,6 +331,14 @@ class Spoke06ShowingScheduler:
 
         if env.intent == "config.update" and "seller_reports" in env.payload:
             self._configure_seller_reports(env)
+            return
+
+        if env.intent == "config.update" and "open_house" in env.payload:
+            self._schedule_open_house(ctx, env)
+            return
+
+        if env.intent == "config.update" and "open_house_result" in env.payload:
+            self._record_open_house(ctx, env)
             return
 
         if env.intent == "config.update" and "confirm_protected_bump" in env.payload:
@@ -443,9 +522,12 @@ class Spoke06ShowingScheduler:
             self.hub.send(_env("06", "18", "agent.status", ctx,
                                {"waiting_on": "showing_feedback",
                                 "resolved": True}))
+            # P07 walkthrough (2026-10-21): Agent 11 forwards the client's
+            # words as "message"; this read only "response", so every
+            # feedback was logged empty
             self.hub.send(_env("06", "14", "interaction.log", ctx,
                                {"kind": "feedback_received",
-                                "response": env.payload.get("response")}))
+                                "response": env.payload.get("response") or env.payload.get("message")}))
             return
 
         if env.intent == "showing.no_show":

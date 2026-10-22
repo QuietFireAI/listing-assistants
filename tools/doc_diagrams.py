@@ -283,7 +283,7 @@ RUNNING_ORDER_CAPTION = ("*One console session per scene, in this order, in the 
 
 BUILT = f"""```mermaid
 flowchart TB
-    subgraph CORE["dispatcher-agents core - vendored, byte-identical (tools/sync_core.py --check)"]
+    subgraph CORE["dispatcher core - part of this product (dispatcher/CORE_ORIGIN.md)"]
         HUB["hub.py - checks, logs, delivers"]
         LOG[("hash-chained audit log")]
         HUB --> LOG

@@ -15,6 +15,7 @@ flowchart LR
         I14["14 CRM and Pipeline"]
         I07["07 Transaction Coordinator"]
         IB(["You (broker)"])
+        I18["18 Calendar and Task Management"]
     end
     A15(("15 Financial Tracking"))
     subgraph OUT["Talks to"]
@@ -27,10 +28,11 @@ flowchart LR
     I14 -- "delivers a report<br/>returns the CRM record" --> A15
     I07 -- "reports the deal closed" --> A15
     IB -- "your signed settings" --> A15
+    I18 -- "asks for its part of the morning briefing" --> A15
     A15 -- "delivers a report" --> OB
     A15 -- "looks up the CRM record" --> O14
     A15 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
-    A15 -- "reports what it is waiting on" --> O18
+    A15 -- "reports what it is waiting on<br/>delivers a report" --> O18
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
@@ -42,7 +44,10 @@ flowchart LR
 
 Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs/PLAY-BY-PLAY.md)):
 
+- [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
 - [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
+- [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
+- [P17 - End-of-Day Books](../docs/PLAY-BY-PLAY.md#p17---end-of-day-books)
 
 ## The rules it follows
 

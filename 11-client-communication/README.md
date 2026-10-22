@@ -57,7 +57,7 @@ flowchart LR
     A11 -- "sends the client a message" --> OX
     A11 -- "logs it in the CRM<br/>looks up the CRM record" --> O14
     A11 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
-    A11 -- "passes on the client's reply" --> O03
+    A11 -- "passes on the client's reply<br/>reports a touch that did not go out" --> O03
     A11 -- "passes on the client's reply" --> O04
     A11 -- "passes on the client's reply" --> O12
     A11 -- "passes on the client's reply" --> O13

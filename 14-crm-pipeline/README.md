@@ -21,6 +21,7 @@ flowchart LR
         I07["07 Transaction Coordinator"]
         IB(["You (broker)"])
         IK(["Daily clock"])
+        I18["18 Calendar and Task Management"]
     end
     A14(("14 CRM and Pipeline"))
     subgraph OUT["Talks to"]
@@ -32,6 +33,7 @@ flowchart LR
         O13["13 Buyer Search and Match"]
         O11["11 Client Communication"]
         OB(["You (broker)"])
+        O18["18 Calendar and Task Management"]
     end
     IM -- "logs it in the CRM" --> A14
     I01 -- "looks up the CRM record" --> A14
@@ -42,6 +44,7 @@ flowchart LR
     I07 -- "reports the deal closed" --> A14
     IB -- "your signed settings" --> A14
     IK -- "the daily clock runs" --> A14
+    I18 -- "asks for its part of the morning briefing" --> A14
     A14 -- "flags a date to act on" --> O16
     A14 -- "delivers a report" --> OB
     A14 -- "delivers a report<br/>returns the CRM record" --> O15
@@ -49,6 +52,7 @@ flowchart LR
     A14 -- "returns the CRM record" --> O13
     A14 -- "returns the CRM record" --> O11
     A14 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
+    A14 -- "delivers a report" --> O18
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
@@ -74,6 +78,7 @@ Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs
 - [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
 - [P17 - End-of-Day Books](../docs/PLAY-BY-PLAY.md#p17---end-of-day-books)
 - [P18 - Seller Weekly Report](../docs/PLAY-BY-PLAY.md#p18---seller-weekly-report)
+- [P22 - Buyer Feedback Match Refresh](../docs/PLAY-BY-PLAY.md#p22---buyer-feedback-match-refresh)
 - [P23 - Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23---price-review-evidence)
 
 ## The rules it follows

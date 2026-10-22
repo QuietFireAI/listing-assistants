@@ -7,7 +7,7 @@
    console session, the same way `python synth/tuples/run_tuples.py` runs
    them, and must PASS.
 
-The full run (all 272) is `python synth/tuples/run_tuples.py`; it writes
+The full run (all 273 since 2026-10-21) is `python synth/tuples/run_tuples.py`; it writes
 synth/tuples/REPORT.md. Two tuples there are VARIANCE on purpose until the
 owner decides them (01-01, 04-03), so the full run is not a CI gate.
 """
@@ -44,7 +44,7 @@ def test_every_tuple_has_one_spec_in_order():
     for agent, tuples in expected.items():
         got = [s["tuple"] for s in by_agent[agent]]
         assert got == tuples, f"agent {agent}: specs do not match its tuples"
-    assert sum(len(t) for t in expected.values()) == len(specs) == 272
+    assert sum(len(t) for t in expected.values()) == len(specs) == 273
 
 
 def test_every_spec_without_a_run_says_why():

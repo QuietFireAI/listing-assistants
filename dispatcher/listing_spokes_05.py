@@ -92,7 +92,7 @@ class Spoke05MLSListingManagement:
         register_spoke(hub, "05", self)
 
     # TUNABLE (J3, 2026-10-12): days between condition checks on a vacant listing
-    VACANT_CHECK_INTERVAL_DAYS = 7
+    VACANT_CHECK_INTERVAL_DAYS = 1   # owner decision 2026-10-21 (P20 walkthrough): daily, was 7
     _ENDED = ("sold", "withdrawn", "expired", "cancelled", "closed")
 
     # the fields a listing description is drafted from: a signed change to
@@ -111,6 +111,13 @@ class Spoke05MLSListingManagement:
                             "occupancy": self.occupancy.get(ctx),
                             "state": _state_of(self.property_data.get(ctx, {}).get("address")),
                             "facts_for": "showings"}))
+        # P04 walkthrough (2026-10-21): Agent 01 learns the brokerage's own
+        # listings, so an inquiry about one is not "outside our scope"
+        self.hub.send(_env("05", "01", "listing.data", ctx,
+                           {"listing_id": ctx,
+                            "address": self.property_data.get(ctx, {}).get("address"),
+                            "status": self.mls_records.get(ctx, {}).get("status"),
+                            "facts_for": "scope"}))
 
     def _set_occupancy(self, ctx: str, env: Envelope, occupancy, interval, today):
         if occupancy not in ("vacant", "occupied") or (
@@ -484,7 +491,10 @@ class Spoke05MLSListingManagement:
                                             "agreement_price": agreement_price}))
                     return
                 record = self.mls_records.setdefault(ctx, {})
+                prior_price = record.get("price")
                 record["price"] = new_price
+                if ctx in self.property_data:
+                    self.property_data[ctx]["price"] = new_price
                 self._record_authorization(ctx, "price", new_price,
                                            authorizing_identity)
                 self.hub.ingest_spoke_trace(
@@ -496,9 +506,18 @@ class Spoke05MLSListingManagement:
                 self.hub.send(_env("05", "11", "status.update", ctx,
                                    {"price": new_price}))
                 self.hub.send(_env("05", "12", "status.update", ctx,
-                                   {"price": new_price}))
+                                   {"price": new_price, "prior_price": prior_price}))
                 self.hub.send(_env("05", "14", "status.update", ctx,
                                    {"price": new_price}))
+                # P02 walkthrough (2026-10-21): buyer matching (13) and market
+                # data (10) get the new price, as they got the listing at
+                # go-live; before this they kept the old price, so a buyer
+                # the lower price now fits was never matched
+                if record.get("status") == "active" and ctx in self.property_data:
+                    for to in ("13", "10"):
+                        self.hub.send(_env("05", to, "listing.data", ctx,
+                                           {**self.property_data[ctx], "changed_field": "price",
+                                            "prior_price": prior_price}))
                 return
 
             # Every other MLS field (owner decision 2026-10-14): a signed

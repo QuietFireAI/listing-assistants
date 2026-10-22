@@ -103,7 +103,7 @@ it to open its detail.
 |---|---|---|
 | How much waits for you | **14 waiting for you** · 3 to send or not · 11 to handle · **2 hot leads to call** (in red) | jump to Needs you |
 | The record | **✓ Record intact** (green), or **✗ Record broken** (red) | open Proof and connections |
-| Your signature | **4 of 4 sent on your signature**: messages to vendors or the public, and how many went out on your signed release (green when they match) | open Proof and connections |
+| Your signature | **4 of 4 released on your signature**: messages to vendors or the public, and how many of those you released with your signature (green when they match). No outside connection exists yet, so released messages stop in the Outbox, not sent | open Proof and connections |
 | Today | **Today: 16 client messages · 3 leads · 3 bookings** | open Today's work |
 | Connections | **1 of 6 connected** | open Proof and connections |
 
@@ -241,6 +241,16 @@ When you have handled it (called the client, fixed the setting), press
 and takes the card off your list. It changes nothing in the swarm; the
 handling itself is yours.
 
+### 4d. Held after a complaint (yellow edge)
+
+When a client complains, Agent 11 holds every message to that client: no
+nurture touch, no update, nothing scheduled goes out. **Done** on the
+"Upset client" card does not lift that hold. The card "Messages to this
+client are held" stays until you press **Release hold**, which signs the
+release with your key (the same signed `resolve_complaint_hold` setting a
+session script uses). After that, the next scheduled message goes as normal,
+including a nurture touch that was held.
+
 ## 5. Listings
 
 One row per listing you have signed, newest activity first: its name, beds
@@ -286,6 +296,17 @@ Other statuses: **Captured** (in your pipeline), **Waiting for your decision**
 (a paused thread in Needs you, such as a possible duplicate person),
 **Closed by your decision** (you cancelled it).
 
+### Prospects waiting
+
+Under the leads: Agent 19's prospects (from your monitored zip codes and
+approved sources) that you have not dealt with yet, each with its zip, source,
+status, the day it was found and how many comparables Agent 10 found for it
+("no comps yet" until the package arrives). A prospect on your do-not-call list
+says so. When you have dealt with one, press **Mark handled**: it signs a
+`prospects_handled` setting to Agent 19 with your key, the prospect leaves this
+list and the morning briefing's "prospects waiting" section, and the signed
+setting is on the record. Agent 19 never contacts a prospect itself.
+
 ## 7. Your team
 
 ![The twenty agents and what each is doing](images/desk-manual/11-team.png)
@@ -307,7 +328,7 @@ Each tile is one agent, with a colored top edge:
 ## 8. Proof and connections
 
 This section is folded under one line, for example "✓ record intact · 4 of 4
-sent on your signature · 3 held · 16 client messages · 1 of 6 connected". The
+released on your signature · 3 held · 16 client messages · 1 of 6 connected". The
 recap's record, signature and connections buttons open it. It opens by itself
 if the record ever fails its check, or if a message to a vendor or the public
 went out without your signed release (unless you have closed it yourself).
@@ -317,7 +338,7 @@ went out without your signed release (unless you have closed it yourself).
 | Tile | Meaning |
 |---|---|
 | **Intact** / **Broken** | The audit record is checked entry by entry: each entry is chained to the one before, so a changed or deleted entry breaks the chain. "Intact" is what you want to see. |
-| **N of N** | Messages that went to vendors or the public, and how many of those went out on your signed release. The two numbers are equal; green when they are. |
+| **N of N** | Messages to vendors or the public, and how many of those you released with your signature. The two numbers are equal; green when they are. Released messages stop in the Outbox until an outside connection exists. |
 | **Held** | Messages held right now, waiting for you; with how many you signed not to send, once there are any |
 | **Client messages** | Messages released to your own clients, recorded |
 
@@ -326,6 +347,13 @@ pager to you** (`python tools/console.py pager` turns it on), **Vendor
 roster** (ratified or not), **Identity provider (login + MFA)**, and
 **Model-written remarks**. Red means not connected or off. Hover a chip for a
 note.
+
+## 8a. Outbox
+
+Everything that would have left the business: messages to clients, vendor
+bookings and ads, each with what it says, newest first. No outside connection
+exists yet (no email, text, MLS or ad platform), so every one is marked **not
+sent**. It is read from the record, so it is still there after a restart.
 
 ## 9. What just happened
 
@@ -398,6 +426,17 @@ python tools/desk.py --showcase --fresh
 It replays the ten operator scenes, stopping at each of your moves. It is
 what the client video is recorded on
 ([OPERATOR_TESTING_GUIDE.md](../OPERATOR_TESTING_GUIDE.md), section 0a).
+
+## 12a. The playbook show
+
+`python tools/desk.py --playbooks` opens a separate desk (folder
+`playbook-show/`, synthetic data) that plays all 24 playbooks in order, the
+same sessions the checked playbook runs use. Each playbook opens in a fresh
+office with the starting settings signed; the banner names it and what it is
+for. **Next** moves one step (or tick "play on its own"); it stops when it is
+your move, and you press Send, Continue or Cancel on the card as you would
+for real. When a playbook ends, its after-action report opens under the
+banner. `--fresh` starts again from P01.
 
 ## 13. Limits to know
 

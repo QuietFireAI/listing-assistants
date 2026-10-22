@@ -67,6 +67,27 @@ class Spoke15FinancialTracking:
         self.data_months_present: set[str] = set()
         register_spoke(hub, "15", self)
 
+    def day_figures(self, day: str | None) -> dict:
+        """The figures recorded on one day: commissions (from closings) and
+        expenses, each as recorded, with totals. No day = nothing is
+        guessed: the figures say so."""
+        if not day:
+            return {"date": None, "note": "no date given - no figures picked"}
+        comms = [{"context": c, **{k: v for k, v in rec.items()}}
+                 for c, rec in self.commissions.items() if rec.get("recorded_on") == day]
+        exps = [{"context": c, **e} for c, lst in self.expenses.items() for e in lst
+                if e.get("recorded_on") == day]
+        def total(rows, key):
+            vals = [r.get(key) for r in rows if isinstance(r.get(key), (int, float))
+                    and not isinstance(r.get(key), bool)]
+            return sum(vals) if vals else 0
+        return {"date": day,
+                "commissions": comms, "commission_total": total(comms, "amount"),
+                "commissions_unsigned": sum(1 for r in comms if not r.get("signed")),
+                "commissions_without_amount": sum(1 for r in comms if r.get("amount") is None),
+                "expenses": exps, "expense_total": total(exps, "amount"),
+                "expenses_unverified": sum(1 for r in exps if not r.get("verified"))}
+
     def _trust_escrow_hit(self, text: str) -> str | None:
         low = text.lower()
         for w in _TRUST_ESCROW_WORDS:
@@ -90,17 +111,18 @@ class Spoke15FinancialTracking:
             if amount is None and payload.get("sale_price") is not None:
                 amount = payload["sale_price"] * self.commission_rate
                 source = f"computed_at_default_rate_{self.commission_rate}"
+            recorded_on = payload.get("close_date") or payload.get("today")
             if not signed:
                 # tuple 6: unsigned amendment -> compute on signed docs
                 # only, projection labeled as such
                 # source kept since 2026-10-14 (tuple runs): an unsigned close
                 # computed at the default rate lost the "computed" label
                 self.commissions[ctx] = {"amount": amount, "signed": False,
-                                         "source": source,
+                                         "source": source, "recorded_on": recorded_on,
                                          "labeled": "projection - unsigned amendment"}
             else:
                 self.commissions[ctx] = {"amount": amount, "signed": True,
-                                         "source": source}
+                                         "source": source, "recorded_on": recorded_on}
             # Contract fix, found 2026-07-17: this used to send
             # {"dedupe_key": ctx}, which hits 14's DEDUPE branch and
             # returns {known, consent, property_interests} - no "entries"
@@ -148,6 +170,30 @@ class Spoke15FinancialTracking:
                                              f"discrepancy, not silently "
                                              f"reconciled",
                                    "agent": "15"})
+            return
+
+        if env.intent == "briefing.request":
+            # owner decision 8 (2026-10-21): yesterday's books for 18
+            import datetime
+            today = payload.get("today")
+            try:
+                day = (datetime.date.fromisoformat(today)
+                       - datetime.timedelta(days=1)).isoformat()
+            except (TypeError, ValueError):
+                day = None
+            self.hub.send(_env("15", "18", "report.package", ctx,
+                               {"section": "yesterdays_books", "data": self.day_figures(day)},
+                               confidence=SOURCE_VERIFIED))
+            return
+
+        if env.intent == "report.package" and env.from_agent == "14" \
+                and payload.get("report_type") == "eod":
+            # owner decision 9 (2026-10-21): 14's end-of-day books, with the
+            # day's figures added here, go to you as one report
+            self.hub.send(_env("15", "human", "report.package", ctx,
+                               {"report_type": "eod_books", "crm": payload,
+                                "figures": self.day_figures(payload.get("today"))},
+                               confidence=SOURCE_VERIFIED))
             return
 
         if env.intent == "report.package":
@@ -244,7 +290,8 @@ class Spoke15FinancialTracking:
                         result="flagged: dual_category_tax_conflict")
                 entry = {**expense,
                          "verified": bool(receipt_on_file),
-                         "dual_category_tax_conflict": dual_category_conflict}
+                         "dual_category_tax_conflict": dual_category_conflict,
+                         "recorded_on": expense.get("date") or payload.get("today")}
                 # tuple 7: no receipt -> unverified, never promoted by time
                 self.expenses.setdefault(ctx, []).append(entry)
                 file_record(self.hub, "15", ctx, "financials", f"expense_{env.envelope_id[:12]}", entry)

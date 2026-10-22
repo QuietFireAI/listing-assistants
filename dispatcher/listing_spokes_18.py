@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
+from .human_holds import hold_for_human, decision_of, register_resumer
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -89,6 +90,7 @@ class Spoke18CalendarTask:
     def __init__(self, hub, max_events_per_day: int = 8,
                  no_show_grace_minutes: int = 60):
         self.hub = guard(hub, "18")   # handoff rule (audit TU-2)
+        self._sections = None   # set only while a morning briefing is being built
         self.calendar: dict[str, list[dict]] = {}  # day -> events
         self.protected_blocks: dict[str, dict] = {}  # event_id -> {day, source: "07"}
         self.deadline_sources: dict[str, dict[str, dict[str, str]]] = {}  # ctx -> {milestone: {source: date}}
@@ -105,7 +107,9 @@ class Spoke18CalendarTask:
         # silence counts as a calendar-detected no-show. TUNING_MANUAL entry
         # added in the same commit, per standing KPI.
         self.no_show_grace_minutes = no_show_grace_minutes
+        self.pending_instructions: dict[str, dict] = {}  # ctx -> instruction held (tuple 3)
         register_spoke(hub, "18", self)
+        register_resumer(hub, "18", self._resume)
 
     def _wait_key(self, agent: str, ctx: str, waiting_on: str) -> str:
         return f"{agent}:{ctx}:{waiting_on}"
@@ -116,6 +120,21 @@ class Spoke18CalendarTask:
             return handle_tick(self, "18", env)
         ctx = env.client_context_id
         payload = env.payload
+
+        if env.intent == "report.package":
+            # owner decision 8 (2026-10-21): a briefing section, accepted only
+            # from the agent that owns it and only while a briefing is built
+            name = payload.get("section")
+            owner = dict((n, a) for a, n in self.BRIEF_SECTIONS).get(name)
+            if self._sections is None or owner != env.from_agent:
+                self.hub.ingest_spoke_trace(
+                    "18", env.envelope_id,
+                    thought=f"briefing section {name!r} from {env.from_agent} arrived "
+                            f"with no briefing being built for it from that agent - not used",
+                    result="ignored: unrequested section")
+                return
+            self._sections[name] = payload.get("data")
+            return
 
         if env.intent == "agent.status":
             # Any post-showing signal from 06 (feedback wait opened OR
@@ -143,7 +162,9 @@ class Spoke18CalendarTask:
                                      "waiting_on": payload.get("waiting_on"),
                                      "since": payload.get("since"),
                                      "wait_id": payload.get("wait_id"),
-                                     "reason": payload.get("reason")}
+                                     "reason": payload.get("reason"),
+                                     # the envelope this item stands on (tuple 2)
+                                     "source_envelope_id": env.envelope_id}
                 self.hub.ingest_spoke_trace(
                     "18", env.envelope_id,
                     thought=f"{env.from_agent} is waiting on "
@@ -284,6 +305,9 @@ class Spoke18CalendarTask:
                                                    for e in conflicting_soft_events]}))
             return
 
+        if env.intent == "config.update" and "schedule_instruction" in payload:
+            return self._schedule_instruction(ctx, payload["schedule_instruction"], env)
+
         if env.intent == "config.update" and "move_protected_block" in payload:
             event_id = payload["move_protected_block"].get("event_id")
             requester = payload["move_protected_block"].get("requester")
@@ -312,6 +336,59 @@ class Spoke18CalendarTask:
                         f"block on record - nothing moved",
                 result="no such protected block")
             return
+
+    def _schedule_instruction(self, ctx: str, ins, env: Envelope):
+        """Tuple 3 (wired 2026-10-15): your signed instruction to put an event
+        on the calendar, e.g. {"event": "final walkthrough", "day":
+        "2026-10-25", "before_milestone": "closing"}. If the day falls after
+        a contractual deadline it must come before, both are surfaced and
+        neither is acted on until you decide: continue puts the event where
+        you said, cancel drops it. The deadline is never moved."""
+        if not isinstance(ins, dict) or not ins.get("event") or not ins.get("day"):
+            self.hub.send(_env("18", "queue", "clarification.request", ctx,
+                               {"reason": "schedule_instruction needs event and day; nothing done"}))
+            return
+        m = ins.get("before_milestone")
+        dates = sorted(set((self.deadline_sources.get(ctx, {}).get(m) or {}).values())) if m else []
+        late = [d for d in dates if d and str(ins["day"]) > str(d)]
+        if late:
+            self.pending_instructions[ctx] = dict(ins)
+            self.hub.ingest_spoke_trace(
+                "18", env.envelope_id,
+                thought=f"your instruction puts {ins['event']!r} on {ins['day']}, after the "
+                        f"{m!r} deadline {late} - surfacing both, acting on neither",
+                result="held: instruction vs contractual deadline")
+            hold_for_human(self.hub, "18", ctx, "schedule_instruction",
+                           f"your instruction puts {ins['event']!r} on {ins['day']}, after the "
+                           f"contractual {m!r} deadline ({', '.join(late)}). Continue to put it "
+                           f"there anyway (the deadline stays as it is); cancel to drop it.",
+                           {"instruction": dict(ins), "deadline": {"milestone": m, "dates": dates}})
+            return
+        self._add_instructed_event(ctx, ins, env.envelope_id)
+
+    def _add_instructed_event(self, ctx: str, ins: dict, source: str):
+        day = str(ins["day"])
+        event_id = f"instructed-{ctx}-{ins['event']}"
+        self.calendar.setdefault(day, []).append({"event_id": event_id, "source": "human",
+                                                  "protected": False, "time": ins.get("time")})
+        self.hub.send(_env("18", "14", "interaction.log", ctx,
+                           {"kind": "calendar_event_logged", "day": day, "event_id": event_id,
+                            "by": "your instruction"}))
+
+    def _resume(self, ws, decision_payload: dict):
+        ctx = ws.client_context_id
+        d = decision_of(decision_payload)
+        ins = self.pending_instructions.pop(ctx, None)
+        if ins is None or d == "other":
+            if ins is not None:
+                self.pending_instructions[ctx] = ins
+            return "unchanged"
+        if d == "continue":
+            self._add_instructed_event(ctx, ins, ws.wait_id)
+            return "event placed as instructed; deadline unchanged"
+        self.hub.send(_env("18", "14", "interaction.log", ctx,
+                           {"kind": "instruction_dropped", "instruction": ins}))
+        return "instruction dropped"
 
     def check_showing_no_show(self, ctx: str, now_iso: str):
         """SKILL.md ratified edge, implemented 2026-07-17 (was a declared
@@ -373,13 +450,47 @@ class Spoke18CalendarTask:
             return "surfaced"
         return "on_schedule"
 
-    def generate_briefing(self, briefing_type: str = "morning"):
+    # owner decision 8 (2026-10-21): the morning briefing's four sections,
+    # each asked of the agent that owns the facts (briefing.request) and
+    # answered through the hub (report.package)
+    BRIEF_SECTIONS = (("14", "overnight_leads"), ("15", "yesterdays_books"),
+                      ("19", "prospects_waiting"), ("10", "market_changes"))
+
+    def generate_briefing(self, briefing_type: str = "morning", today: str | None = None):
         """Job component: briefings built ONLY from logged envelopes and
         calendar records - a briefing never contains a status the system
         cannot source. This is where the agent.status tracking actually
         pays off: waiting items are real, sourced facts, not guesses."""
+        # tuple 2 (wired 2026-10-15): a briefing item whose source envelope
+        # is not on the audit log is stated as a gap, never presented as if
+        # it were sourced (a wait restored from saved state whose envelope
+        # is gone, or one recorded before sources were kept)
+        on_log = {e.get("envelope_id") for e in self.hub.audit.read()
+                  if e.get("kind") == "envelope.persisted"}
+        gaps = [{"agent": w["agent"], "context": w["ctx"], "waiting_on": w["waiting_on"],
+                 "missing_source": w.get("source_envelope_id") or "none recorded"}
+                for w in self.waiting.values()
+                if w.get("source_envelope_id") not in on_log]
+        sections, missing = {}, []
+        if briefing_type == "morning":
+            self._sections = {}
+            for agent, name in self.BRIEF_SECTIONS:
+                self.hub.send(_env("18", agent, "briefing.request", "briefing",
+                                   {"section": name, "today": today}))
+            got, self._sections = self._sections, None
+            for agent, name in self.BRIEF_SECTIONS:
+                if name in got:
+                    sections[name] = got[name]
+                else:   # stated, never left out quietly
+                    sections[name] = None
+                    missing.append({"agent": agent, "section": name,
+                                    "missing_source": "no answer to the briefing request"})
         briefing = {
             "briefing_type": briefing_type,
+            "today": today,
+            "sections": sections,
+            "sections_missing": missing,
+            "gaps": gaps,
             "calendar_days": {d: [e["event_id"] for e in events]
                              for d, events in self.calendar.items()},
             "currently_waiting": [

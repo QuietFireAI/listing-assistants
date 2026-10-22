@@ -421,6 +421,7 @@ class Spoke02LeadQualification:
                                {"tier": tier, "score": score,
                                 "consent": payload.get("consent"),
                                 "today": payload.get("today"),
+                                "now_iso": payload.get("now_iso"),
                                 "reassignment": rescored,
                                 "scoring_inputs": inputs}))
         elif tier == "COLD":

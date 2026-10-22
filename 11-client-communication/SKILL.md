@@ -70,6 +70,7 @@ Dispatcher returns an `ack`.
 | IN | ← 05 (`status.update`), 07 (`deadline.alert`), 03 / 06 / 08 / 13 / 16 / 20 (`client.message.request`) | Update triggers | `status.update` / `deadline.alert` / `client.message.request` |
 | IN | ← 01 Lead Capture | Opt-out confirmation, once (tuple 15, added 2026-07-17) | `client.message.request` |
 | OUT | → clients via approved channels | Routine updates | `client.message.send` |
+| OUT | → 03 Lead Nurture | A nurture touch that did not go out (complaint hold, no consent, opt-out, quiet hours, unresolved variable), so 03 does not count it as sent (P11 sign-off, 2026-10-21) | `client.message.not_sent` |
 | OUT | → 06 Showing Scheduler | Client-requested showings | `showing.request` |
 | OUT | → HITL queue | Advice-seeking, wire topic in a client message | `escalation.legal_line` |
 | OUT | → HITL queue | Angry client, negative-tone reply | `escalation.complaint` |

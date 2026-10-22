@@ -1,7 +1,7 @@
 # ListingAssistants Identity Module - Real Estate (v0.1, ratified 2026-07-10)
 
-Side-loaded vertical identity for the dispatcher-agents hub (the core files
-vendored in `dispatcher/`, listed in `tools/sync_core.py`). This module
+Vertical identity for the dispatcher hub (the core files in `dispatcher/`,
+listed in `dispatcher/CORE_ORIGIN.md`). This module
 declares WHAT is orchestrated; the core
 defines HOW orchestration works. Swap this module to redeploy the same
 dispatcher into another vertical (e.g., insurance/claims).

@@ -11,49 +11,6 @@ jobs:
       # earlier would have caught the 98-failure DOA state automatically.
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/ -q
-  core-parity:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      # Owner decision D1 (2026-10-14): listing is checked against the exact
-      # core commit it carries (CORE_PIN.json), not against core main as it
-      # is today - so a core merge never turns listing red, and a release
-      # names its core. Moving the pin is a deliberate commit (sync_core.py).
-      - name: clone core at the pinned commit
-        run: |
-          PIN=$(python tools/sync_core.py --print-pin)
-          git clone --quiet https://github.com/QuietFireAI/dispatcher-agents.git /tmp/core
-          git -C /tmp/core checkout --quiet "$PIN"
-          echo "core pinned at $PIN"
-      # Fork-drift gate: the vendored dispatcher/ must match that commit exactly.
-      # This job existing earlier would have caught the 105-line hub.py lag.
-      - run: python tools/sync_core.py --core /tmp/core --check --require-pin
-      # listing main may only carry a core that is on core main; checked on
-      # a push to main and on a pull request into main (where github.ref is
-      # refs/pull/N/merge, so the ref test alone would skip it)
-      - name: on main, the pinned core must be on core main
-        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
-        run: |
-          git -C /tmp/core merge-base --is-ancestor "$(python tools/sync_core.py --print-pin)" origin/main \
-            && echo "pinned core is on core main" \
-            || { echo "::error::CORE_PIN.json names a core commit that is not on core main"; exit 1; }
-  unarmed-still-routes:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      # No pillars installed at all: the swarm must still route (declared
-      # unarmed), with ONLY the explicit six-pillars-armed test failing.
-      # cryptography is NOT a pillar - signing is core, always required.
-      - run: pip install pytest cryptography
-      - run: |
-          python -m pytest tests_listing/ -q > out.txt 2>&1 || true
-          tail -1 out.txt
-          grep -q "1 failed" out.txt
-          grep -q "test_all_six_pillars_fire_on_listing_traffic" out.txt
   windows-desk:
     timeout-minutes: 15
     # The Broker Desk on Windows, run for real (added 2026-10-12): the
@@ -67,6 +24,76 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/test_desk.py -q
+  windows-installer:
+    # The one-line installer, run for real on a Windows machine (owner
+    # decision 2026-10-21): a private Python through uv, the app from this
+    # exact commit, the operator key and onboarding, the launchers. Then the
+    # installed copy plays all 24 playbooks on the desk, the desk starts on
+    # the installed records, and a second run keeps those records.
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      LA_HOME: ${{ github.workspace }}\..\LA
+      LA_REF: ${{ github.sha }}
+      LA_NAME: CI Broker
+      LA_LOGIN: ci@example.test
+      LA_NO_SHORTCUTS: "1"
+    steps:
+      - name: install with the one line, from this commit (Windows PowerShell 5.1, what brokers have)
+        shell: powershell
+        run: iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
+      - name: the installed copy runs on its own Python and plays the playbooks
+        shell: pwsh
+        run: |
+          $home_ = [System.IO.Path]::GetFullPath($env:LA_HOME)
+          $py = Join-Path $home_ "venv\Scripts\python.exe"
+          $base = & $py -c "import sys; print(sys.base_prefix)"
+          Write-Host "base Python: $base"
+          if (-not $base.StartsWith((Join-Path $home_ "python"), [System.StringComparison]::OrdinalIgnoreCase)) { throw "not the private Python: $base" }
+          Set-Location (Join-Path $env:LA_HOME "app")
+          & $py -m pytest tests_listing/test_desk.py -k "playbook_show or outbox" -q -p no:cacheprovider
+          if ($LASTEXITCODE -ne 0) { throw "the playbook show failed in the installed copy" }
+      - name: the desk starts on the installed records and answers
+        shell: pwsh
+        run: |
+          $py = Join-Path $env:LA_HOME "venv\Scripts\python.exe"
+          $env:LISTINGASSISTANTS_STATE_DIR = Join-Path $env:LA_HOME "state"
+          $desk = Join-Path $env:LA_HOME "app\tools\desk.py"
+          $p = Start-Process -FilePath $py -ArgumentList "`"$desk`"" -PassThru -NoNewWindow
+          $state = $null
+          for ($i = 0; $i -lt 60 -and -not $state; $i++) {
+            Start-Sleep -Seconds 1
+            try { $state = Invoke-RestMethod http://127.0.0.1:8765/api/state } catch {}
+          }
+          Stop-Process -Id $p.Id -Force
+          if (-not $state) { throw "the desk did not answer in 60 s" }
+          Write-Host "mode: $($state.mode)  operator: $($state.operator.login)"
+          if ($state.mode -ne "live" -or $state.operator.login -ne "ci@example.test") { throw "wrong desk" }
+          $lock = Join-Path $env:LISTINGASSISTANTS_STATE_DIR "desk.lock"
+          if (Test-Path $lock) { Remove-Item $lock }   # the hard stop left it behind
+      - name: the Playbook Show launcher serves the show on 8766
+        shell: pwsh
+        run: |
+          $cmd = Join-Path $env:LA_HOME "Playbook Show.cmd"
+          $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"`"$cmd`"`"" -PassThru -WindowStyle Hidden
+          $state = $null
+          for ($i = 0; $i -lt 90 -and -not $state; $i++) {
+            Start-Sleep -Seconds 1
+            try { $state = Invoke-RestMethod http://127.0.0.1:8766/api/state } catch {}
+          }
+          taskkill /T /F /PID $p.Id | Out-Null
+          if (-not $state) { throw "the Playbook Show launcher did not answer on 8766 in 90 s" }
+          Write-Host "mode: $($state.mode)  title: $($state.showcase.title)"
+          if ($state.mode -ne "playbooks" -or -not $state.showcase.title.StartsWith("P01")) { throw "not the playbook show" }
+      - name: a second run keeps your records and attests the new install
+        shell: pwsh
+        run: |
+          $key = Join-Path $env:LA_HOME "state\operator-key.bin"
+          $before = (Get-FileHash $key).Hash
+          iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
+          if ((Get-FileHash $key).Hash -ne $before) { throw "the reinstall replaced your key" }
+          $op = Get-Content (Join-Path $env:LA_HOME "state\operator.json") | ConvertFrom-Json
+          if ($op.login -ne "ci@example.test") { throw "the reinstall lost who you are" }
   windows-full-suite:
     # The whole suite on Windows, a gate since run 38321234628 (1003 passed
     # then; today's count is in QUICKSTART_WINDOWS.md, held by test_doc_counts).

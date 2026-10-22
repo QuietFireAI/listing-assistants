@@ -9,7 +9,7 @@ description: "Hub and router for the ListingAssistants real estate swarm. Use fo
 **Type:** Hub / router / single point of control (and of failure - by design)
 **Autonomy tier:** Full autonomy over routing mechanics; ZERO autonomy over content - the Dispatcher answers no client-facing question itself, ever
 **Version:** 0.1 (ratified 2026-07-11 - owner sign-off; later amendments are dated where they appear)
-**Runtime:** `Hub` in `dispatcher/hub.py` - vendored dispatcher-agents core, kept byte-identical by `tools/sync_core.py`; decision tuples in `DECISIONS.md`
+**Runtime:** `Hub` in `dispatcher/hub.py` - the dispatcher core, part of this product (`dispatcher/CORE_ORIGIN.md`); decision tuples in `DECISIONS.md`
 
 ---
 
@@ -134,7 +134,7 @@ communication in that one guarantee.
 | `content.review` | 03, 04, 12, 13, 20, 16 | 17 |
 | `content.verdict` | 17 | 03, 04, 12, 13, 20, 16 |
 | `asset.release` | 04 | 12, 05 |
-| `listing.data` | 05 | 04, 06, 10, 13 |
+| `listing.data` | 05 | 04, 06, 10, 13, 01 |
 | `listing.change.authorized` | human (broker) - SIGNED | 05 |
 | `showing.request` | 13, 11 | 06 |
 | `doc.request` | 07 | 08 |
@@ -175,11 +175,14 @@ communication in that one guarantee.
 | `vendor.cancellation_notice` | 09 | 07, 06 |
 | `compliance.notice` | 10, 05 | 17 |
 | `client.reply` | external | 11 |
-| `agent.status` | 01, 02, 03, 05, 06, 07, 08, 09, 11, 04, 12, 13, 15, 16, 17, 19, 20 | 18 |
+| `agent.status` | 01, 02, 03, 05, 06, 07, 08, 09, 11, 04, 12, 13, 15, 16, 17, 19, 20, 00 | 18 |
 | `platform.metrics` | external | 12 |
 | `discovery.feed` | external | 19 |
 | `social.mention` | external | 20 |
 | `clock.tick` | clock | 01, 03, 05, 06, 07, 08, 13, 14, 16, 17, 18 |
+| `briefing.request` | 18 | 10, 14, 15, 19 |
+| `report.package` | 10, 14, 15, 19 | 18 |
+| `client.message.not_sent` | 11 | 03 |
 
 This table is `identity/routes.json` (version 0.19), the file the hub loads;
 `tests_listing/test_docs_agent_tables.py` fails if the two ever differ. Any
