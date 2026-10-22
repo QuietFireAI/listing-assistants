@@ -44,7 +44,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force $env:HERMES_HOME | Out-Null
-          Set-Content -NoNewline (Join-Path $env:HERMES_HOME "config.yaml") "model: x`nmcp_servers:`n  github:`n    command: npx`n"
+          [System.IO.File]::WriteAllText((Join-Path $env:HERMES_HOME "config.yaml"), "model: x`nmcp_servers:`n  github:`n    command: npx`n")
       - name: install with the one line, from this commit (Windows PowerShell 5.1, what brokers have)
         shell: powershell
         run: iex (irm "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/install.ps1")
