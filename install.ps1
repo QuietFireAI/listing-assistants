@@ -134,14 +134,14 @@ $showCmd = Join-Path $LaHome "Playbook Show.cmd"
 @echo off
 rem ListingAssistants Broker Desk - your own records (state\)
 set LISTINGASSISTANTS_STATE_DIR=%~dp0state
-start "" cmd /c "timeout /t 4 /nobreak >nul & start http://127.0.0.1:8765/"
+start "" powershell -NoProfile -WindowStyle Hidden -Command "for ($i = 0; $i -lt 90; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/ | Out-Null; break } catch { Start-Sleep -Seconds 1 } }; Start-Process http://127.0.0.1:8765/"
 "%~dp0venv\Scripts\python.exe" "%~dp0app\tools\desk.py"
 if errorlevel 1 (echo. & echo The desk stopped with the error above. & pause)
 "@ | Set-Content -Path $deskCmd -Encoding ASCII
 @"
 @echo off
 rem ListingAssistants Playbook Show - all 24 playbooks on synthetic data (playbook-show\)
-start "" cmd /c "timeout /t 4 /nobreak >nul & start http://127.0.0.1:8766/"
+start "" powershell -NoProfile -WindowStyle Hidden -Command "for ($i = 0; $i -lt 90; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8766/ | Out-Null; break } catch { Start-Sleep -Seconds 1 } }; Start-Process http://127.0.0.1:8766/"
 "%~dp0venv\Scripts\python.exe" "%~dp0app\tools\desk.py" --playbooks --state-dir "%~dp0playbook-show" --port 8766
 if errorlevel 1 (echo. & echo The playbook show stopped with the error above. & pause)
 "@ | Set-Content -Path $showCmd -Encoding ASCII
