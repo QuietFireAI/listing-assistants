@@ -1064,6 +1064,58 @@ class Desk:
             (Showcase(self, scripts, script_lines) if scripts else None)
         self.model = ReadModel(self)
 
+    # ---- the AI assistant's door (MCP, owner decision 2026-10-22): Hermes
+    # works inside this running desk, on these records, through the MCP
+    # server (dispatcher/identity_mcp.py). It can read the desk and bring in
+    # an inquiry; it cannot sign, release or decide anything. Every call is
+    # on the audit log.
+    MCP_INTAKE = {"lead.inbound": ("external", "01")}
+
+    def mcp(self, tool, args):
+        with self.lock:
+            args = args if isinstance(args, dict) else {}
+            intent = args.get("intent")
+            self.sw.hub.audit.append("mcp.call", {"tool": tool, "intent": intent,
+                                                  "client_context_id": args.get("context_id")})
+            if tool == "status":
+                s = self.model.build()
+                return {"ok": True, "mode": s["mode"],
+                        "needs_you": [{"type": i["type"], "title": i["title"], "client": i.get("ctx"),
+                                       "from": i.get("from_name")} for i in s["needs_you"]],
+                        "listings": [{"client": c["ctx"], "now": c.get("now")} for c in s["listings"]],
+                        "leads": [{"client": l["ctx"], "name": l.get("name"), "status": l.get("status")}
+                                  for l in s["leads"]],
+                        "prospects_waiting": [p["id"] for p in s["prospects"]],
+                        "outbox": {"count": s["outbox"]["count"], "note": s["outbox"]["note"]},
+                        "record_intact": s["proof"]["chain_ok"],
+                        "note": "Read from your running Broker Desk. Anything that needs your "
+                                "signature is done by you on the Desk, never by the assistant."}
+            if tool == "audit":
+                v = self.sw.hub.audit.verify_chain()
+                return {"ok": True, "entries": len(self.sw.hub.audit.read()),
+                        "chain_verified": v.get("ok"), "record": self.sw.hub.audit.path,
+                        "dead_letters": len(self.sw.hub.queues.get("dead.letter", []))}
+            if tool == "submit":
+                if intent not in self.MCP_INTAKE:
+                    return {"ok": False, "intent": intent,
+                            "reason": f"'{intent}' is not something the assistant may bring in. "
+                                      f"It may bring in: {', '.join(sorted(self.MCP_INTAKE))}. "
+                                      f"Anything you sign (a listing, a price, a release, a "
+                                      f"decision) is done by you on the Broker Desk."}
+                payload = args.get("payload")
+                if not isinstance(payload, dict):
+                    return {"ok": False, "reason": "payload must be an object"}
+                frm, to = self.MCP_INTAKE[intent]
+                ctx = args.get("context_id") or f"mcp-{secrets.token_hex(4)}"
+                env = console.make_env(frm, to, intent, ctx, payload)
+                env.provenance["via"] = "AI assistant (MCP host)"
+                r = self.sw.hub.send(env)
+                self.sw.save_state()
+                return {"ok": r.get("status") == "ack", "context_id": ctx,
+                        "hub_status": r.get("status"), "reason": r.get("reason"),
+                        "note": "On your Desk now, under Leads."}
+            return {"ok": False, "reason": f"unknown tool {tool!r}"}
+
     def open_office(self, pb, fresh):
         """Playbook show: closes the office in use and opens playbook pb's
         own office (a folder under the show's folder). Fresh: emptied first,
@@ -1220,6 +1272,9 @@ class OwnerThread:
     def act(self, body):
         return self._ex.submit(self.desk.act, body).result()
 
+    def mcp(self, tool, args):
+        return self._ex.submit(self.desk.mcp, tool, args).result()
+
     def close(self):
         try:
             self._ex.submit(self.desk.close).result()
@@ -1230,7 +1285,7 @@ class OwnerThread:
 LOCAL_NAMES = {"127.0.0.1", "localhost", "::1"}
 
 
-def make_handler(desk, token, lan=False):
+def make_handler(desk, token, lan=False, mcp_token=None):
     """The desk's HTTP handler.
 
     Who may use it (2026-10-14, integration snapshot finding 1: local mode
@@ -1334,7 +1389,24 @@ def make_handler(desk, token, lan=False):
             ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
             if ctype != "application/json":
                 return self._send(415, {"error": "an action is sent as application/json"})
-            if urllib.parse.urlparse(self.path).path != "/api/act":
+            path = urllib.parse.urlparse(self.path).path
+            if path == "/api/mcp":
+                # the MCP server's door: its own token from the private file
+                # the desk wrote at start (desk-mcp.json), never a browser's
+                given = self.headers.get("X-MCP-Token") or ""
+                if not mcp_token or self.headers.get("Origin") is not None or \
+                        not hmac.compare_digest(given.encode(), mcp_token.encode()):
+                    return self._send(403, {"error": "the assistant's door needs its token"})
+                n = int(self.headers.get("Content-Length") or 0)
+                try:
+                    body = json.loads(self.rfile.read(n) or b"{}")
+                except ValueError:
+                    return self._send(400, {"error": "bad JSON"})
+                try:
+                    return self._send(200, desk.mcp(body.get("tool"), body.get("args")))
+                except Exception as e:    # raw reason, never softened
+                    return self._send(500, {"error": repr(e)})
+            if path != "/api/act":
                 return self._send(404, {"error": "not found"})
             n = int(self.headers.get("Content-Length") or 0)
             try:
@@ -1435,7 +1507,20 @@ def main(argv=None):
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
     # connections on their own threads; the swarm on one (OwnerThread)
-    srv = http.server.ThreadingHTTPServer((host, args.port), make_handler(desk, token, lan=args.lan))
+    # the AI assistant's door (MCP, 2026-10-22): live desk on this machine
+    # only. Its token and port go in a private file in the state folder,
+    # which the MCP server reads; the file is removed when the desk stops.
+    mcp_token = mcp_file = None
+    if not (args.lan or args.showcase or args.playbooks):
+        from dispatcher.private_file import write_private
+        mcp_token = secrets.token_urlsafe(24)
+        mcp_file = os.path.join(state_dir, "desk-mcp.json")
+        if os.path.exists(mcp_file):
+            os.remove(mcp_file)
+        write_private(mcp_file, json.dumps({"port": args.port, "token": mcp_token,
+                                            "pid": os.getpid()}).encode())
+    srv = http.server.ThreadingHTTPServer((host, args.port),
+                                          make_handler(desk, token, lan=args.lan, mcp_token=mcp_token))
     srv.daemon_threads = True
     url = f"http://{'<this-computer>' if args.lan else '127.0.0.1'}:{args.port}/" + \
         (f"?t={token}" if token else "")
@@ -1460,6 +1545,8 @@ def main(argv=None):
     finally:
         srv.server_close()
         desk.close()
+        if mcp_file and os.path.exists(mcp_file):
+            os.remove(mcp_file)
     return 0
 
 

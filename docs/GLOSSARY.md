@@ -428,9 +428,10 @@ like any other. Details: [OPERATOR_TUNING_GUIDE.md](OPERATOR_TUNING_GUIDE.md).
 
 *Model Context Protocol*: a standard way for an AI assistant app to use an
 outside tool. ListingAssistants can run as an MCP server, so an assistant
-app (Hermes, OpenClaw or Claude Desktop, called the *host*) can hand it
-work through four fixed tools while the hub keeps all the routing, signing
-and logging. It refuses to start if the closed track, the signature check
+app (Hermes first, called the *host*) can work inside your running Broker
+Desk through five fixed tools: it can read the desk and bring in an
+inquiry, while the hub keeps all the routing and logging and you keep all
+the signing. It refuses to start if the closed track, the signature check
 or the audit chain is broken. Details: [MOUNTING.md](MOUNTING.md).
 
 ### Pillars

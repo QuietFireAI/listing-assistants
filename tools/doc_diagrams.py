@@ -337,18 +337,26 @@ sequenceDiagram
 
 MCP = f"""```mermaid
 flowchart LR
-    HOST["Host app<br/>Hermes, OpenClaw, Claude Desktop"] -- "four tools only" --> T["identity.describe<br/>identity.submit<br/>identity.authority<br/>identity.audit"]
+    HOST["AI assistant<br/>Hermes first"] -- "five tools only" --> T["identity.status<br/>identity.describe<br/>identity.submit<br/>identity.authority<br/>identity.audit"]
     T --> S["identity_mcp server<br/>refuses to start unless the track,<br/>the signature check and the log are intact"]
-    S --> H{{{{"Hub"}}}}
+    S -- "the desk's door:<br/>a private token, this computer only" --> D["your running Broker Desk"]
+    D --> H{{{{"Hub"}}}}
     H --> AG["the 20 agents"]
-    S -. "signs for the host only<br/>with --demo-signing" .-> H
+    B(["You"]) -- "sign on the Desk" --> D
+    S -. "never signs" .-> X["identity.authority:<br/>always refused"]
     {HUBC}
+    {YOU}
+    {STOP}
     class H hub
+    class B you
+    class X stop
 ```"""
 
-MCP_CAPTION = ("*The host never routes inside the swarm; it pushes requests at the "
-               "front door. There is no release tool: releasing a held message "
-               "needs your own signature (see FINANCIAL_CAPABILITY.md).*")
+MCP_CAPTION = ("*The assistant works inside your running Broker Desk, on the same "
+               "records you see (owner decision 2026-10-22). It can read the desk and "
+               "bring in an inquiry; it never routes inside the swarm and never signs. "
+               "Signing, releasing and every other act are yours, on the Desk "
+               "(see FINANCIAL_CAPABILITY.md).*")
 
 INSTALL = """```mermaid
 flowchart LR
@@ -435,7 +443,7 @@ BLOCKS = {
     "locks-fin": ("docs/FINANCIAL_CAPABILITY.md", r"^## The two locks$", TWO_LOCKS, TWO_LOCKS_CAPTION),
     "audience-fin": ("docs/FINANCIAL_CAPABILITY.md", r"^## What \"held\" means for a disclosure$", AUDIENCE, AUDIENCE_CAPTION),
     "release-fin": ("docs/FINANCIAL_CAPABILITY.md", r"^## How to engage a held message \(the key, in practice\)$", HOLD_AND_RELEASE, HOLD_CAPTION),
-    "mcp-mount": ("docs/MOUNTING.md", r"^## The four tools$", MCP, MCP_CAPTION),
+    "mcp-mount": ("docs/MOUNTING.md", r"^## The tools$", MCP, MCP_CAPTION),
     "order-testing": ("docs/OPERATOR_TESTING_MANUAL.md", r"^## Running order$", RUNNING_ORDER, RUNNING_ORDER_CAPTION),
     "built-tuning": ("docs/OPERATOR_TUNING_GUIDE.md", r"^## 1\. How the system is built$", BUILT, None),
     "config-tuning": ("docs/OPERATOR_TUNING_GUIDE.md", r"^## 3\. Ratify your configuration$", CONFIG_FLOW, None),

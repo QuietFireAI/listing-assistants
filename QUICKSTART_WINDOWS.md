@@ -42,6 +42,14 @@ new install is attested with your key. To remove everything, delete the
 folder and the two shortcuts. Nothing reaches the outside world yet: client
 messages, vendor bookings and ads stop in the desk's Outbox, marked not sent.
 
+**Hermes.** If Hermes is installed, the installer adds ListingAssistants to
+its settings (a copy of the old settings is kept as
+`config.yaml.bak-listingassistants`). Start the Desk, then type
+`/reload-mcp` in Hermes. Hermes then works inside your running desk: it can
+read it and bring in an inquiry, and it can never sign. The block is also
+saved as `hermes-mcp.yaml` in the install folder. Details:
+docs\MOUNTING.md.
+
 The steps below are the manual install, for developers.
 
 ---
@@ -113,7 +121,7 @@ pip install -r requirements.txt
 ```powershell
 python -m pytest tests_listing/
 ```
-Expected: `1312 passed, 1 skipped` (CI runs this on Windows on every push;
+Expected: `1315 passed, 1 skipped` (CI runs this on Windows on every push;
 the skipped test checks Linux / macOS file permissions). It takes
 several minutes on Windows - every audit-log write is flushed to disk - where
 Linux takes about two minutes. The suite runs every agent's rules and all 24
