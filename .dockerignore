@@ -1,0 +1,8 @@
+.git
+**/__pycache__
+**/*.pyc
+console-state
+showcase-state
+playbook-show
+checkpoints
+*.sqlite

@@ -300,3 +300,107 @@ def test_portal_mode_playbooks(pb, monkeypatch):
                         e.get("to_agent"), e.get("status")))
         return out
     assert lines("a") == lines("b")
+
+
+def test_a_stopped_agent_stays_stopped_after_the_dispatcher_restarts(tmp_path):
+    def act(peer, env):
+        peer.call("send", {"envelope": _env("13", "02", "lead.captured", "X", {})})
+    tmp = str(tmp_path)
+    sw = _swarm(tmp, rogue=("20", act))
+    sw.hub.send(_env("external", "20", "social.mention", "M-1", MENTION))
+    assert "20" in sw.team.stopped
+    sw.close()
+    sw = _swarm(tmp)                      # the real agent 20 is ready to connect
+    try:
+        assert "20" in sw.team.stopped and "20" not in sw.team.processes
+        [held] = _entries(sw, "portal.agent_held_stopped")
+        assert held["agent"] == "20" and "impersonation" in held["why"]
+        r = sw.hub.send(_env("external", "20", "social.mention", "M-2", MENTION))
+        assert r["status"] == "dead.letter" and "stopped" in r["reason"]
+        assert sw.team.clear("20", by="jeff@example.test")["ok"]
+        r = sw.hub.send(_env("external", "20", "social.mention", "M-3", MENTION))
+        assert r["status"] == "ack"
+    finally:
+        sw.close()
+
+
+def test_the_alert_door_sends_only_short_codes(tmp_path):
+    from dispatcher import alert_door
+    door = alert_door.Door(str(tmp_path / "pager.json"))
+    assert door.page("portal.violation", "portal", "V05-1A2B3C", "LA-ABC123", "05") == \
+        {"status": "failed", "error": "no pager set up in the alert door"}
+    for bad in ({"client_context_id": "Pat Smith 12 Oak St"}, {"alert_code": "x" * 80},
+                {"agent": "05; rm -rf"}):
+        with pytest.raises(ValueError):
+            door.page("portal.violation", **{"client_context_id": "portal", **bad})
+
+
+def test_the_dispatcher_pages_through_the_alert_door(tmp_path):
+    """The dispatcher side (DoorPager) and the door (serve) on a real line:
+    the page the door would send, and the record of the attempt."""
+    from dispatcher import alert_door, pager as pg
+    sent = []
+    pg_path = tmp_path / "pager.json"
+    pg.save_config(str(pg_path), {"account_sid": "AC1", "auth_token": "t", "from_number": "+15550000001",
+                                  "to_number": "+15550000002", "api_base": "http://127.0.0.1:9"})
+    real_send = pg.send_page
+    pg.send_page = lambda cfg, text, **k: sent.append(text) or {"status": "sent"}
+    path = os.path.join(tempfile.mkdtemp(prefix="la-d-"), "alert.sock")
+    threading.Thread(target=alert_door.serve, args=(path, str(pg_path)), daemon=True).start()
+    for _ in range(100):
+        if os.path.exists(path):
+            break
+        time.sleep(0.05)
+    notes = []
+
+    class Audit:
+        def append(self, kind, data):
+            notes.append((kind, data))
+    try:
+        p = alert_door.DoorPager(path)
+        p.audit = Audit()
+        res = p("portal.violation", {"client_context_id": "portal", "agent": "05",
+                                     "alert_code": "V05-1A2B3C", "system_id": "LA-ABC123",
+                                     "detail": "anything else here never leaves"})
+        assert res == {"status": "sent"}
+        assert sent == ["ListingAssistants LA-ABC123: portal.violation V05-1A2B3C. "
+                        "Agent 05 is stopped until you clear it."]
+        assert notes[0][0] == "pager.sent" and notes[0][1]["via"] == "alert door"
+        res = p("clarification.request", {"client_context_id": "Pat Smith at 12 Oak"})
+        assert res["status"] == "failed" and notes[-1][0] == "pager.failed"
+        assert len(sent) == 1                       # the bad one never left
+    finally:
+        pg.send_page = real_send
+
+
+def test_the_desk_shows_a_stopped_agent_and_restarts_it_after_review(tmp_path, monkeypatch):
+    import json
+    import urllib.request
+    sys.path.insert(0, os.path.join(ROOT, "tests_listing"))
+    from test_desk import start, stop
+    from test_mcp_desk_mode import _live
+    from dispatcher.core import AuditLog
+    state = _live(tmp_path)
+    log = AuditLog(os.path.join(state, "console-audit.jsonl"))
+    log.append("portal.agent_stopped", {"agent": "20", "stopped_for": "violation",
+                                        "code": "V20-TEST01", "system_id": "LA-TEST",
+                                        "reason": "stopped until you review it"})
+    monkeypatch.setenv("LISTINGASSISTANTS_PORTAL", "process")
+    monkeypatch.setenv("LISTINGASSISTANTS_PORTAL_DIR", tempfile.mkdtemp(prefix="la-k-"))
+    p, url, port = start([], state)
+    try:
+        s = json.load(urllib.request.urlopen(url + "api/state"))
+        [t20] = [t for t in s["team"] if t["id"] == "20"]
+        assert t20["state"] == "problem" and "stopped" in t20["note"]
+        req = urllib.request.Request(url + "api/act", method="POST",
+                                     data=json.dumps({"action": "restart_agent", "agent": "20"}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        out = json.load(urllib.request.urlopen(req))
+        assert out.get("ok") is True, out
+        s = json.load(urllib.request.urlopen(url + "api/state"))
+        [t20] = [t for t in s["team"] if t["id"] == "20"]
+        assert t20["state"] != "problem"
+    finally:
+        stop(p)
+    kinds = [json.loads(ln)["kind"] for ln in open(os.path.join(state, "console-audit.jsonl"))]
+    assert "portal.agent_cleared" in kinds and "portal.agent_restarted" in kinds

@@ -112,6 +112,9 @@ QUEUE_TITLE = {
     "clarification.request": "A question for you",
     "integrity.violation": "Refused: unsigned or tampered",
     "dead.letter": "Could not be delivered",
+    # agent isolation (2026-10-26): an agent stopped behind its portal
+    "portal.violation": "An agent broke a rule and was stopped",
+    "portal.crash": "An agent stopped working",
 }
 REPLY_AGENTS = ["03", "04", "12", "13", "16", "20"]   # agents with a reply handler (Agent 11)
 
@@ -579,10 +582,13 @@ class ReadModel:
         for w in sw.hitl.get_pending_waits():
             you[w["agent_id"]] = you.get(w["agent_id"], 0) + 1
         tiles = []
+        stopped = getattr(getattr(sw, "team", None), "stopped", {}) or {}
         for aid in sorted(NAMES):
             if aid == "00":
                 continue
-            if aid in problem:
+            if aid in stopped:
+                state, note = "problem", "stopped: " + short(stopped[aid]["why"], 110)
+            elif aid in problem:
                 state, note = "problem", problem[aid]
             elif you.get(aid):
                 state, note = "you", f"{you[aid]} waiting for you"
@@ -1212,6 +1218,15 @@ class Desk:
                     "client_context_id": body.get("ctx"),
                     "by": (self.operator or {}).get("login")})
                 return self._done(f"Marked done: {body.get('title')}", {"acknowledged": item})
+            if kind == "restart_agent":
+                # agent isolation (2026-10-26): you reviewed a stopped agent;
+                # it starts on a new line with the state it last reported
+                team = getattr(self.sw, "team", None)
+                aid = str(body.get("agent") or "")
+                if team is None or aid not in team.stopped:
+                    return {"error": f"agent {aid or '?'} is not stopped"}
+                r = team.clear(aid, by=(self.operator or {}).get("login") or "the desk")
+                return self._done(f"Agent {aid} restarted after review", r)
             if kind == "release_hold":
                 ctx = body.get("ctx")
                 s11 = self.sw.spokes.get("11")
@@ -1504,7 +1519,11 @@ def main(argv=None):
     tighten_tree(state_dir)                 # a folder an earlier version left readable
     desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase,
                                     scripts=scripts or None, playbooks=args.playbooks))
-    host = "0.0.0.0" if args.lan else "127.0.0.1"
+    # in its container (docker/compose.yml) the Desk listens on the
+    # container's closed network; only the desk door reaches it, and compose
+    # publishes that door on this computer's own address (2026-10-26)
+    in_container = os.environ.get("LISTINGASSISTANTS_IN_CONTAINER") == "1"
+    host = "0.0.0.0" if (args.lan or in_container) else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
     # connections on their own threads; the swarm on one (OwnerThread)
     # the AI assistant's door (MCP, 2026-10-22): live desk on this machine

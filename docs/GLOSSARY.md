@@ -164,7 +164,9 @@ hub like everything else. You start it with `python tools/run_sweeps.py`
 A waiting list for something only you can handle. Each queue has a name the
 Broker Desk shows: a question for you, a hot lead to call, a legal-line
 question, an upset client, a message refused as unsigned or tampered, a
-message that could not be delivered. The record says you were notified about
+message that could not be delivered, and, when the agents run in their own
+containers, an agent that broke a rule and was stopped or an agent that
+stopped working. The record says you were notified about
 a queue item only when it was put on your screen or a text page to you went
 through; when a page fails, it says nobody was reached, and the item waits on
 its queue.

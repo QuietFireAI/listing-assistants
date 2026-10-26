@@ -352,6 +352,12 @@ def load_pager(state_dir):
     ValueError naming what is wrong: a pager that is on must page. Used by
     console sessions, the Broker Desk and the daily clock (2026-10-13: the
     desk showed "Text pager to you: on" while its swarm paged nobody)."""
+    door = os.environ.get("LISTINGASSISTANTS_ALERT_DOOR")
+    if door:
+        # in containers the dispatcher has no internet: texts go through the
+        # alert door, which holds the Twilio details (2026-10-26)
+        from dispatcher.alert_door import DoorPager
+        return DoorPager(door)
     from dispatcher import pager as pg
     cfg = pg.load_config(os.path.join(state_dir, "pager.json"))
     return pg.Pager(cfg) if cfg else None

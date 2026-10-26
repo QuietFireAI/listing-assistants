@@ -253,7 +253,7 @@ def connect(path: str, wait_s: float = 60.0) -> socket.socket:
             s.close()
             if time.monotonic() > end:
                 raise
-            time.sleep(0.05)
+            time.sleep(0.05 if wait_s <= 60 else 1.0)
 
 
 def main(argv=None) -> int:
@@ -266,7 +266,10 @@ def main(argv=None) -> int:
     if os.name != "nt":
         os.umask(0o077)
     runner = AgentRunner(agent_id)
-    sock = connect(path)
+    # in a container the agent waits for the dispatcher as long as it takes
+    # (LISTINGASSISTANTS_CONNECT_WAIT=0); a started process gives up after 60 s
+    wait = float(os.environ.get("LISTINGASSISTANTS_CONNECT_WAIT", "60"))
+    sock = connect(path, wait_s=wait if wait > 0 else float("inf"))
     peer = Peer(sock, {}, DISPATCHER_TO_AGENT, name=f"agent {agent_id}")
     peer.handlers = runner.handlers(peer)
     try:

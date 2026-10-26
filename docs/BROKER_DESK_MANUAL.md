@@ -234,6 +234,8 @@ it.
 | A question for you | An agent needs a fact or a correction (a broken setting, photos that contradict the data sheet, no approved vendor) |
 | Refused: unsigned or tampered | A message claimed to come from you without your signature; the hub refused it |
 | Could not be delivered | A message that had nowhere to go |
+| An agent broke a rule and was stopped | With the agents in their own containers ([CONTAINERS.md](CONTAINERS.md)): an agent tried a route not on the track, spoke as another agent, or asked for something off its menu. It is stopped and its messages wait. Look the code up on the record, then press **Reviewed: restart agent** |
+| An agent stopped working | An agent's container crashed or did not answer in time. It is not restarted on its own; its messages wait for you |
 | Hot lead - call now | Shown on the lead itself ([section 6](#6-leads)) |
 
 When you have handled it (called the client, fixed the setting), press

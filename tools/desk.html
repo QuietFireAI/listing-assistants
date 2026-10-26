@@ -469,8 +469,18 @@ function needsCard(i, inGroup) {
     else c.append(details("more", "card:" + i.id, false, "Details", [kv(i.content)]));
     const done = el("button", {}, "Done");
     done.onclick = () => act({action: "ack", id: i.id, title: i.title, ctx: i.ctx});
-    c.append(el("div", {class: "actions"}, done,
-      el("span", {class: "note"}, "Marks it handled on the record; changes nothing in the swarm.")));
+    if ((i.queue === "portal.violation" || i.queue === "portal.crash") && i.content && i.content.agent) {
+      // an agent stopped behind its portal: restart it only after you reviewed it
+      const re = el("button", {class: "primary"}, "Reviewed: restart agent " + i.content.agent);
+      re.onclick = () => act({action: "restart_agent", agent: i.content.agent})
+        .then(j => j && !j.error && act({action: "ack", id: i.id, title: i.title, ctx: i.ctx}));
+      c.append(el("div", {class: "actions"}, re, done,
+        el("span", {class: "note"}, "Code " + (i.content.alert_code || "") +
+           ": look it up on the record before you restart it.")));
+    } else {
+      c.append(el("div", {class: "actions"}, done,
+        el("span", {class: "note"}, "Marks it handled on the record; changes nothing in the swarm.")));
+    }
   }
   return c;
 }

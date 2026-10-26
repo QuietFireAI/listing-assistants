@@ -66,6 +66,22 @@ class AgentStopped(RuntimeError):
     """The agent's line is cut; nothing is delivered to it until cleared."""
 
 
+def stopped_on_record(audit) -> dict:
+    """Agents whose last portal.agent_stopped has no portal.agent_cleared
+    after it."""
+    out: dict[str, dict] = {}
+    for e in audit.read():
+        k = e.get("kind")
+        if k == "portal.agent_stopped":
+            what = e.get("violation") or e.get("stopped_for")
+            out[str(e.get("agent"))] = {"kind": e.get("stopped_for"),
+                                        "why": f"{what} (code {e.get('code')})"
+                                        if e.get("code") else f"{what}: {e.get('reason')}"}
+        elif k == "portal.agent_cleared":
+            out.pop(str(e.get("agent")), None)
+    return out
+
+
 def system_id(state_dir: str) -> str:
     """This install's short id for alerts, made once and kept in the state
     folder (it names the system, not the broker or a client)."""
@@ -121,6 +137,10 @@ class RemoteSpoke:
         raise AttributeError(f"agent {self._portal_id} has no {name!r}")
 
     def __setattr__(self, name: str, value: Any) -> None:
+        if self._portal_id in self._portal_team.stopped:
+            # stopped: kept here and handed back when it is cleared
+            object.__setattr__(self, "_portal_state", {**self._portal_state, name: value})
+            return
         out = self._portal_team.call(self._portal_id, "restore", {"attrs": {name: value}})
         self._portal_apply(out.get("state"))
 
@@ -165,6 +185,9 @@ class Team:
         self.kwargs: dict[str, dict] = {}
         self.system_id = system_id(state_dir)
         self.alert = alert
+        # an agent stopped and not yet cleared stays stopped across restarts
+        # of the dispatcher: the record says so, not a file beside it
+        self.stopped.update(stopped_on_record(hub.audit))
         os.makedirs(sockets_dir, exist_ok=True)
 
     # ------------------------------------------------------------ lines
@@ -245,7 +268,8 @@ class Team:
         code = f"V{agent_id}-{str(entry)[:6].upper()}"
         self._stop(agent_id, "violation", f"{kind}: {detail} (code {code})")
         self.hub.audit.append("portal.agent_stopped", {
-            "agent": agent_id, "stopped_for": "violation", "code": code, "system_id": self.system_id,
+            "agent": agent_id, "stopped_for": "violation", "violation": kind, "code": code,
+            "system_id": self.system_id,
             "reason": "stopped until you review it and clear it on the Desk"})
         self._raise_alert("portal.violation", {
             "client_context_id": "portal", "agent": agent_id, "alert_code": code,
@@ -256,7 +280,7 @@ class Team:
         rec = {"agent": agent_id, "stopped_for": "crash", "reason": why, "system_id": self.system_id,
                "held_envelope_id": message.envelope_id if message is not None else None}
         entry = self.hub.audit.append("portal.agent_stopped", rec)
-        code = f"C{agent_id}-{str(entry)[:6].upper()}"
+        code = f"C{agent_id}-{str(entry)[:6].upper()}"      # the start of this entry's hash
         self._stop(agent_id, "crash", f"{why} (code {code})")
         self._raise_alert("portal.crash", {
             "client_context_id": "portal", "agent": agent_id, "alert_code": code,
@@ -419,9 +443,19 @@ class Team:
         the hub exactly as an agent in this process registers itself."""
         from .handoff_guard import register
         self.kwargs[agent_id] = kwargs or {}
-        self.connect_agent(agent_id)
         remote = remote or RemoteSpoke(self, agent_id)
         self.remotes[agent_id] = remote
+        if agent_id in self.stopped:
+            # not connected: messages for it wait for you until it is cleared
+            register(self.hub, agent_id, remote)
+            hitl = getattr(self.hub, "hitl", None)
+            if hitl is not None:
+                hitl.register_resumption_handler(agent_id, remote.resume)
+            self.hub.audit.append("portal.agent_held_stopped", {
+                "agent": agent_id, "why": self.stopped[agent_id]["why"],
+                "reason": "stopped on the record and not cleared; not connected"})
+            return remote
+        self.connect_agent(agent_id)
         out = self.call(agent_id, "init", {"agent_id": agent_id, "kwargs": kwargs or {}})
         if out.get("registered") != [agent_id]:
             self.violation(agent_id, "registration",

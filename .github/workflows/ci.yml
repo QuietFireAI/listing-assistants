@@ -11,6 +11,24 @@ jobs:
       # earlier would have caught the 98-failure DOA state automatically.
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/ -q
+      # agent isolation V1 (owner decisions 2026-10-26): each agent in its
+      # own process behind its portal; Unix sockets, so Linux only
+      - run: python -m pytest tests_isolation/ -q -p no:cacheprovider
+  linux-containers:
+    # Agent isolation V1 in real containers: the dispatcher, the desk door,
+    # the alert door and twenty agents, built from this commit and run with
+    # Docker; a playbook, the lock-down of an agent container, the Desk
+    # through its door, and a rogue agent stopped (tests_isolation/test_containers.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests_isolation/test_containers.py -v -p no:cacheprovider
+        env:
+          LA_DOCKER_TESTS: "1"
   windows-desk:
     timeout-minutes: 15
     # The Broker Desk on Windows, run for real (added 2026-10-12): the
