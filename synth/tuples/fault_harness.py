@@ -95,7 +95,8 @@ def apply_fault(h: Harness, sw, f: dict) -> dict:
                        client_context_id=env.client_context_id)
                 return None
             return real(env)
-        spoke.handle = silent
+        if not hasattr(type(spoke), "__portal_state__"):
+            spoke.handle = silent          # an agent behind its portal is reached only by the hub
         hub.handlers[f.get("agent", "14")] = silent
         return {"injected": t}
     if t == "send_raw":
@@ -120,7 +121,11 @@ def apply_fault(h: Harness, sw, f: dict) -> dict:
         w = {"agent": f.get("agent", "07"), "ctx": f["ctx"], "waiting_on": f["waiting_on"],
              "since": f.get("since"), "wait_id": None, "reason": None,
              "source_envelope_id": f.get("source_envelope_id", "missing-envelope")}
-        sw.spokes["18"].waiting[f"{w['agent']}:{w['ctx']}:{w['waiting_on']}"] = w
+        # assigned, not changed in place, so an agent behind its portal
+        # receives it too (2026-10-26)
+        s18 = sw.spokes["18"]
+        current = {k: dict(v) for k, v in s18.waiting.items()}
+        s18.waiting = {**current, f"{w['agent']}:{w['ctx']}:{w['waiting_on']}": w}
         return {"injected": t}
     if t == "advance_clock":
         h.clock_offset += 60.0 * float(f["minutes"])

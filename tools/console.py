@@ -121,6 +121,30 @@ def _notify_human(queue, record, pager):
     return {"status": "shown", "channel": "screen"}
 
 
+def portal_settings():
+    """Agent isolation (owner decision 2026-10-26). LISTINGASSISTANTS_PORTAL:
+      unset       all twenty agents in this process (as before)
+      process     each agent in its own process, started here, behind its portal
+      containers  each agent in its own container, which connects on its own
+    LISTINGASSISTANTS_PORTAL_DIR names the folder of the agents' sockets
+    (containers: the shared portal folder); by default a new private folder."""
+    mode = os.environ.get("LISTINGASSISTANTS_PORTAL", "").strip()
+    if not mode:
+        return None
+    if mode not in ("process", "containers"):
+        raise SystemExit(f"LISTINGASSISTANTS_PORTAL must be 'process' or 'containers', not {mode!r}")
+    import tempfile
+    sockets = os.environ.get("LISTINGASSISTANTS_PORTAL_DIR") or tempfile.mkdtemp(prefix="la-portal-")
+    launcher = None
+    if mode == "process":
+        from dispatcher.portal_dispatcher import process_launcher
+        launcher = process_launcher(sys.executable, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # a violation or crash alert goes through the hub's notifier, so with the
+    # pager on it is texted like any other queue landing
+    return {"sockets_dir": sockets, "launcher": launcher,
+            "accept_timeout_s": float(os.environ.get("LISTINGASSISTANTS_PORTAL_WAIT", "60"))}
+
+
 def build(audit_path, config_dir=None, state_db=None, model=None, pager=None, enforce=True):
     """The console's swarm: dispatcher/swarm.py with this operator's key.
     Returns (swarm, signer). State is restored from state_db (default
@@ -151,7 +175,8 @@ def build(audit_path, config_dir=None, state_db=None, model=None, pager=None, en
         human_notifier=lambda queue, record: _notify_human(queue, record, pager),
         human_sink=lambda env: _p({"DELIVERED_TO_HUMAN": env.intent,
                                    "ctx": env.client_context_id, "payload": env.payload}),
-        model_client=(model or {}).get("client"), model_name=(model or {}).get("name"))
+        model_client=(model or {}).get("client"), model_name=(model or {}).get("name"),
+        portal=portal_settings())
     _p({"vendor_roster": sw.roster_info["verdict"],
         "vendors_loaded": sw.roster_info["vendors_loaded"],
         "entries_skipped": sw.roster_info["entries_skipped"],

@@ -101,6 +101,11 @@ def _envelope_from_record(rec: dict):
 
 
 def agent_state(spoke: Any) -> dict:
+    # an agent running behind its portal (dispatcher/portal_dispatcher.py,
+    # 2026-10-26) reports its own state; the dispatcher keeps the last report
+    reported = getattr(type(spoke), "__portal_state__", None)
+    if reported is not None:
+        return reported(spoke)
     return {k: v for k, v in vars(spoke).items() if k != "hub"}
 
 

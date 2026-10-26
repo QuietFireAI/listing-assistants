@@ -95,7 +95,8 @@ def guard(hub: Any, agent_id: str) -> Any:
 
 def _snapshot(spoke: Any) -> bytes:
     import pickle
-    return pickle.dumps({k: v for k, v in vars(spoke).items() if k != "hub"})
+    from .state_snapshot import agent_state      # an agent behind its portal reports its own
+    return pickle.dumps(agent_state(spoke))
 
 
 def _config_digest(payload: Any) -> str:
@@ -131,9 +132,9 @@ def register(hub: Any, agent_id: str, spoke: Any) -> None:
         result = handler(env)
         keys = sorted((env.payload or {}).keys())
         digest = _config_digest(env.payload)
-        effective = getattr(spoke, "_effective_configs", None)
-        if effective is None:
-            effective = {}
+        # a new dict, assigned: an agent behind its portal (2026-10-26)
+        # receives it; a copy changed in place would reach nobody
+        effective = dict(getattr(spoke, "_effective_configs", None) or {})
         if _snapshot(spoke) != before_state:
             # took effect: remember these exact values (survives restart -
             # the snapshot carries spoke attributes)

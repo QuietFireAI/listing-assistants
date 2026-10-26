@@ -89,6 +89,11 @@ def file_record(hub: Any, agent_id: str, ctx: str, category: str, name: str,
                 record: Any, identity: Optional[dict] = None) -> dict:
     """Files one record as <category>/<name>.json in the client's drawer.
     Returns {"filed": bool, ...}; refusals are on the chain and held."""
+    # an agent behind its portal (2026-10-26) has no drawers: the dispatcher
+    # files for it, as the agent on that line
+    via = getattr(type(getattr(hub, "unwrapped", hub)), "file_record_via_dispatcher", None)
+    if via is not None:
+        return via(getattr(hub, "unwrapped", hub), agent_id, ctx, category, name, record, identity)
     drawers = getattr(hub, "drawers", None)
     if drawers is None:
         return {"filed": False, "reason": "no drawer store on this hub"}
