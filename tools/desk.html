@@ -200,6 +200,7 @@ section{margin-bottom:22px}
   .printonly{display:inline !important;font-weight:700}
   .tgroup{box-shadow:none;break-inside:avoid}
 }
+pre.case{white-space:pre-wrap;font-size:13px;max-height:420px;overflow:auto}
 .signbar{position:fixed;left:16px;right:16px;bottom:16px;padding:12px;border-radius:8px;background:#fff8c5;border:1px solid #d4a72c;z-index:50}
 </style>
 </head>
@@ -502,6 +503,9 @@ function needsCard(i, inGroup) {
     const done = el("button", {}, "Done");
     done.onclick = () => act({action: "ack", id: i.id, title: i.title, ctx: i.ctx});
     if ((i.queue === "portal.violation" || i.queue === "portal.crash") && i.content && i.content.agent) {
+      // the review agent's case file (it reads the record; it never acts)
+      c.append(details("more", "case:" + i.id, true, i.case ? "Case file" : "Case file (being written)",
+        [el("pre", {class: "case"}, i.case || "The review agent has not written it yet.")]));
       // an agent stopped behind its portal: restart it only after you reviewed it
       const re = el("button", {class: "primary"}, "Reviewed: restart agent " + i.content.agent);
       re.onclick = () => act({action: "restart_agent", agent: i.content.agent})

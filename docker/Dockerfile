@@ -17,9 +17,9 @@ RUN --mount=type=secret,id=ca,required=false \
     pip install --no-cache-dir -r /app/docker/requirements-signer.txt
 COPY . /app
 # the mount points, owned by the one unprivileged user every container runs as
-RUN mkdir -p /state /line /door /door-config /signer /out /signer-out \
+RUN mkdir -p /state /line /door /door-config /signer /out /signer-out /reviews \
     && for i in $(seq -w 1 20); do mkdir -p /portal/$i; done \
-    && chown -R 10001:10001 /state /line /door /door-config /signer /out /signer-out /portal \
-    && chmod -R 700 /state /line /door /door-config /signer /portal \
+    && chown -R 10001:10001 /state /line /door /door-config /signer /out /signer-out /reviews /portal \
+    && chmod -R 700 /state /line /door /door-config /signer /reviews /portal \
     && chmod 755 /out /signer-out
 USER 10001:10001

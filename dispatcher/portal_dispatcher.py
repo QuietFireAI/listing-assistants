@@ -183,6 +183,7 @@ class Team:
         self._depth: dict[str, int] = {}
         self.remotes: dict[str, RemoteSpoke] = {}
         self.kwargs: dict[str, dict] = {}
+        self.reviewers: list = []
         self.system_id = system_id(state_dir)
         self.alert = alert
         # an agent stopped and not yet cleared stays stopped across restarts
@@ -290,6 +291,26 @@ class Team:
         self.hub.queue_and_notify(queue, record)
         if self.alert is not None:
             self.alert(queue, record)
+        self._ask_review()
+
+    def reviews_dir(self) -> str:
+        return os.environ.get("LISTINGASSISTANTS_REVIEWS") or os.path.join(self.state_dir, "reviews")
+
+    def _ask_review(self) -> None:
+        """The review agent builds the case (dispatcher/review_agent.py). In
+        containers it runs in its own room and watches the record; when this
+        dispatcher starts its agents itself, it starts the review agent as
+        its own process once, after the stop is on the record."""
+        if self.launcher is None:
+            return
+        import subprocess
+        import sys
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.reviewers.append(subprocess.Popen(
+            [sys.executable, "-m", "dispatcher.review_agent", "--state", self.state_dir,
+             "--out", self.reviews_dir(), "--record", self.hub.audit.path],
+            cwd=root, env={**os.environ, "PYTHONPATH": root},
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
 
     def clear(self, agent_id: str, by: str) -> dict:
         """Jeff (or the broker) reviewed a stopped agent and cleared it. It
@@ -315,7 +336,7 @@ class Team:
     def close(self) -> None:
         for peer in self.peers.values():
             peer.close()
-        for p in self.processes.values():
+        for p in [*self.processes.values(), *self.reviewers]:
             _end(p)
 
     # ------------------------------------------------------------ menu

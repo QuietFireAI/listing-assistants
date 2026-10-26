@@ -404,11 +404,19 @@ class ReadModel:
                 if agent == "human":
                     agent = None          # an unsigned "human" sender is not you
                 said = queue_said(q, rec)
+                case = None
+                if q in ("portal.violation", "portal.crash"):
+                    # the review agent's case file for this stop, when it is written
+                    from dispatcher.review_agent import read_case
+                    reviews = os.environ.get("LISTINGASSISTANTS_REVIEWS") or os.path.join(
+                        self.d.state_dir, "reviews")
+                    case = read_case(reviews, rec.get("alert_code"))
                 items.append({
                     "type": "queue", "id": k, "queue": q, "title": QUEUE_TITLE[q],
                     "ctx": rec.get("client_context_id"), "from": agent,
                     "from_name": NAMES.get(agent, agent) if agent else None,
                     "said": short(str(said), 400) if said else None,
+                    "case": case,
                     "content": rec})
         order = {"held": 0, "wait": 1, "hold": 2, "queue": 3}
         prio = {"escalation.legal_line": 0, "escalation.complaint": 1,

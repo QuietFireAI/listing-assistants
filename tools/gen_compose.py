@@ -14,6 +14,8 @@ One dispatcher, two doors and twenty agents, each in its own container:
                key and the signed list of installed files (signer-out, which
                the dispatcher mounts read-only)
   signer-door  passes your browser to the signer's page, on 127.0.0.1:8767 only
+  review       the review agent: an observer with no network, the record and
+               state mounted read-only, writing only its case files
   agent-01..20 no network at all, read-only, no Linux capabilities, an
                unprivileged user; each sees only its own line
 
@@ -53,12 +55,14 @@ def render() -> str:
             "      LISTINGASSISTANTS_IN_CONTAINER: \"1\"",
             "      LISTINGASSISTANTS_ALERT_DOOR: /door/alert.sock",
             "      LISTINGASSISTANTS_SIGNER_URL: http://localhost:8767",
+            "      LISTINGASSISTANTS_REVIEWS: /reviews",
             "    networks: [inside]",
             "    mem_limit: 1g",
             "    volumes:",
             "      - state:/state",
             "      - door-alert:/door",
-            "      - signer-out:/signer-out:ro"]
+            "      - signer-out:/signer-out:ro",
+            "      - reviews:/reviews:ro"]
     out += [f"      - portal-{a}:/portal/{a}" for a in AGENTS]
     out += ["", "  desk-door:", HARDENED,
             '    command: ["python", "tools/desk_door.py", "dispatcher", "8765"]',
@@ -90,6 +94,14 @@ def render() -> str:
             "    networks: [signing, outside]",
             '    ports: ["127.0.0.1:8767:8767"]',
             "    mem_limit: 64m"]
+    out += ["", "  review:", HARDENED,
+            '    command: ["python", "-m", "dispatcher.review_agent", "--state", "/state",'
+            ' "--out", "/reviews", "--watch"]',
+            "    network_mode: none",
+            "    mem_limit: 256m",
+            "    volumes:",
+            "      - state:/state:ro",
+            "      - reviews:/reviews"]
     for a in AGENTS:
         out += ["", f"  agent-{a}:", HARDENED,
                 f'    command: ["python", "-m", "dispatcher.portal_agent", "{a}", "/line/portal.sock"]',
@@ -103,7 +115,7 @@ def render() -> str:
     out += ["", "networks:", "  inside:", "    internal: true", "  signing:", "    internal: true",
             "  outside: {}",
             "", "volumes:", "  state: {}", "  door-alert: {}", "  alert-config: {}",
-            "  signer-state: {}", "  signer-out: {}"]
+            "  signer-state: {}", "  signer-out: {}", "  reviews: {}"]
     out += [f"  portal-{a}: {{}}" for a in AGENTS]
     return "\n".join(out) + "\n"
 

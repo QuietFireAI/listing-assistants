@@ -76,6 +76,8 @@ def test_every_agent_is_locked_down_in_the_compose_file():
     assert not [ln for ln in disp if "signer-state" in ln]
     assert "- signer-out:/signer-out:ro" in disp
     assert 'ports: ["127.0.0.1:8767:8767"]' in blocks["signer-door"]
+    # the review agent: no network, the record read-only
+    assert "network_mode: none" in blocks["review"] and "- state:/state:ro" in blocks["review"]
 
 
 needs_docker = pytest.mark.skipif(os.environ.get("LA_DOCKER_TESTS") != "1",
@@ -308,5 +310,41 @@ def test_a_rogue_agent_container_is_stopped_and_the_alert_door_is_asked(stack):
         assert pages and pages[0]["error"] == "no pager set up in the alert door"
         dead = [e for e in entries if e["kind"] == "dead.letter" and "stopped" in str(e.get("reason"))]
         assert dead
+        [stop] = [e for e in entries if e["kind"] == "portal.agent_stopped"]
+        # the review agent, in its own room, builds the case from the record
+        _compose("up", "-d", "review")
+        case = None
+        for _ in range(60):
+            r = _run("docker", "run", "--rm", "--user", "10001", "-v", f"{PROJECT}_reviews:/reviews:ro",
+                     IMAGE, "cat", f"/reviews/{stop['code']}.json", check=False)
+            if r.returncode == 0:
+                case = json.loads(r.stdout)
+                break
+            time.sleep(1)
+        assert case and case["violation"] == "impersonation" and case["code_check"]["ok"] is True
+        out = _in("review", """
+import os, socket
+try:
+    open("/state/x", "w"); print("WROTE STATE")
+except OSError: print("state read-only")
+try:
+    socket.create_connection(("1.1.1.1", 53), 3); print("NET")
+except OSError: print("no-net")
+""")
+        assert "state read-only" in out and "no-net" in out
+        # and the Desk shows it beside the stopped agent
+        _compose("up", "-d", "dispatcher", "desk-door")
+        item = None
+        for _ in range(90):
+            try:
+                s = json.load(urllib.request.urlopen("http://127.0.0.1:8765/api/state", timeout=3))
+                item = next((i for i in s["needs_you"] if i.get("queue") == "portal.violation"), None)
+                if item and item.get("case"):
+                    break
+            except OSError:
+                pass
+            time.sleep(2)
+        assert item and stop["code"] in item["case"] and "First reading" in item["case"]
     finally:
+        _compose("stop", "dispatcher", "desk-door", "review")
         _run("docker", "rm", "-f", "la-ctest-rogue", check=False)

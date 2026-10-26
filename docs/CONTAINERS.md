@@ -16,6 +16,7 @@ and reaches nothing except the dispatcher, and only on a route that is on
 | `alert-door` | internet | the Twilio details | sends one kind of text: system id, error code, queue |
 | `signer` | its own closed network | the operator's key, the authenticator secret, the security keys | signs one message at a time after your code or key, on its own page |
 | `signer-door` | the signer's network + this computer | nothing | passes your browser to the signer's page; 127.0.0.1:8767 only |
+| `review` | none at all | its own case files | reads the record (mounted read-only) and writes a case file for each stopped agent |
 | `agent-01` ... `agent-20` | none at all | its own working memory | answers the dispatcher on its one line |
 
 Every container runs as an unprivileged user, read-only, with no Linux
@@ -102,6 +103,26 @@ and the dispatcher does not connect it. On the Desk the item has a button,
 it back the state it last reported (`portal.agent_cleared`,
 `portal.agent_restarted`, with your login).
 
+## The review agent: an observer
+
+The review agent sits outside the group (owner decision 2026-10-26). It is
+not on the routes, has no line to any agent, cannot restart anything and
+writes nothing on the record. For each stop on the record it writes one
+case file, named by the stop's code (`dispatcher/review_agent.py`):
+
+1. the stop: when, a rule broken or a crash, the code;
+2. what the agent was handling: the message delivered to it just before;
+3. what it tried, and whether that route is on `identity/routes.json` for it;
+4. what it normally sends (30 days on the record), and whether it had ever
+   used the route it tried;
+5. its code: whether the agent's files match the install your key attested;
+6. a first reading: a bug in a rarely used path, a changed install, or
+   something to look into. It is a first reading for a person, not a verdict.
+
+The Desk shows the case file inside the stopped agent's item, beside the
+**Reviewed: restart agent** button. The standards and KPIs for each agent
+(what "normal" means beyond the record) are still to be written down.
+
 ## Running it
 
     docker compose -f docker/compose.yml build
@@ -141,13 +162,19 @@ the dispatcher records it:
   on the Desk and signed on the signer's page with the authenticator code,
   and again with a security key (Chrome's virtual authenticator), after
   which playbook P01 runs to its end.
+- `tests_isolation/test_review.py`: a case file built from the record for
+  a stop (what it handled, what it tried, its allowed and normal routes),
+  the code check naming a changed agent file, one case file per stop and
+  never rewritten, nothing written on the record by the review agent.
 - `tests_isolation/test_containers.py`: the same in real containers
   (CI job `linux-containers`, `LA_DOCKER_TESTS=1`): playbook P01, an agent
   container with no network, no capabilities and a read-only disk, the
   dispatcher with no internet, the Desk through its door only, a rogue
   agent container stopped with the alert going to the alert door, the key
   only in the signer's volume, and the signer unreachable from the
-  dispatcher (P01 runs to the booking that waits for your signed release).
+  dispatcher (P01 runs to the booking that waits for your signed release);
+  the review agent's container (no network, the record read-only) writes the
+  case for the rogue agent, and the Desk shows it.
 - Every tuple and playbook run both ways (`LISTINGASSISTANTS_PORTAL=process
   python synth/tuples/run_tuples.py`): on 2026-10-26, 246 of 247 records
   identical line for line; the one difference is fault-harness tuple 01-16,
