@@ -12,7 +12,11 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest tests_listing/ -q
       # agent isolation V1 (owner decisions 2026-10-26): each agent in its
-      # own process behind its portal; Unix sockets, so Linux only
+      # own process behind its portal, and the signer with two-factor (a
+      # browser signs with the authenticator code and with a virtual
+      # security key); Unix sockets, so Linux only
+      - run: pip install -r docker/requirements-signer.txt playwright==1.56.0
+      - run: python -m playwright install --with-deps chromium
       - run: python -m pytest tests_isolation/ -q -p no:cacheprovider
   linux-containers:
     # Agent isolation V1 in real containers: the dispatcher, the desk door,

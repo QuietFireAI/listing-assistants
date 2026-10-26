@@ -517,10 +517,10 @@ def operator_attestation():
     from dispatcher.boot_attest import fingerprint
     state = os.environ.get("LISTINGASSISTANTS_STATE_DIR") or os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "console-state")
-    key = os.path.join(state, "operator-key.bin")
-    if not os.path.exists(key):
+    from dispatcher.boot_attest import PUBLIC_FILE, operator_public_key
+    if not any(os.path.exists(os.path.join(state, f)) for f in ("operator-key.bin", PUBLIC_FILE)):
         return None
-    pub = Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes()
+    pub = operator_public_key(state)       # the key here, or the signer's public key
     return {"state_dir": state, "verify_bytes": Ed25519Verifier(pub).verify_bytes,
             "key_fingerprint": fingerprint(pub)}
 

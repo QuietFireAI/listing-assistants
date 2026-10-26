@@ -11,10 +11,15 @@ COPY requirements.txt /app/requirements.txt
 RUN --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export PIP_CERT=/run/secrets/ca; fi; \
     pip install --no-cache-dir -r /app/requirements.txt
+COPY docker/requirements-signer.txt /app/docker/requirements-signer.txt
+RUN --mount=type=secret,id=ca,required=false \
+    if [ -f /run/secrets/ca ]; then export PIP_CERT=/run/secrets/ca; fi; \
+    pip install --no-cache-dir -r /app/docker/requirements-signer.txt
 COPY . /app
 # the mount points, owned by the one unprivileged user every container runs as
-RUN mkdir -p /state /line /door /door-config \
+RUN mkdir -p /state /line /door /door-config /signer /out /signer-out \
     && for i in $(seq -w 1 20); do mkdir -p /portal/$i; done \
-    && chown -R 10001:10001 /state /line /door /door-config /portal \
-    && chmod -R 700 /state /line /door /door-config /portal
+    && chown -R 10001:10001 /state /line /door /door-config /signer /out /signer-out /portal \
+    && chmod -R 700 /state /line /door /door-config /signer /portal \
+    && chmod 755 /out /signer-out
 USER 10001:10001

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""desk_door - lets your browser reach the Broker Desk while the dispatcher
-stays on a network with no way out (agent isolation V1, 2026-10-26).
+"""desk_door - lets your browser reach the Broker Desk (and, as the signer
+door, the signer's page) while the room behind it stays on a network with
+no way out (agent isolation V1, 2026-10-26).
 
 The dispatcher container is on a closed network (no internet). This door
 container sits on that network and on a normal one, and does one thing:

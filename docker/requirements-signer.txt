@@ -1,0 +1,4 @@
+# The signer container only (dispatcher/signer_service.py): hardware security
+# keys (WebAuthn / FIDO2). Installed in the image; the one-program install
+# (requirements.txt) does not need it.
+webauthn==3.0.1

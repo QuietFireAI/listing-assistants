@@ -9,6 +9,11 @@ One dispatcher, two doors and twenty agents, each in its own container:
                computer's own address only (127.0.0.1:8765)
   alert-door   the only container that can send a text message (the pager);
                the dispatcher asks it over a line, with a fixed menu
+  signer       the operator's key and the second factor; on a network of its
+               own that the dispatcher is not on; hands over only the public
+               key and the signed list of installed files (signer-out, which
+               the dispatcher mounts read-only)
+  signer-door  passes your browser to the signer's page, on 127.0.0.1:8767 only
   agent-01..20 no network at all, read-only, no Linux capabilities, an
                unprivileged user; each sees only its own line
 
@@ -47,11 +52,13 @@ def render() -> str:
             "      LISTINGASSISTANTS_STATE_DIR: /state",
             "      LISTINGASSISTANTS_IN_CONTAINER: \"1\"",
             "      LISTINGASSISTANTS_ALERT_DOOR: /door/alert.sock",
+            "      LISTINGASSISTANTS_SIGNER_URL: http://localhost:8767",
             "    networks: [inside]",
             "    mem_limit: 1g",
             "    volumes:",
             "      - state:/state",
-            "      - door-alert:/door"]
+            "      - door-alert:/door",
+            "      - signer-out:/signer-out:ro"]
     out += [f"      - portal-{a}:/portal/{a}" for a in AGENTS]
     out += ["", "  desk-door:", HARDENED,
             '    command: ["python", "tools/desk_door.py", "dispatcher", "8765"]',
@@ -66,6 +73,23 @@ def render() -> str:
             "    volumes:",
             "      - door-alert:/door",
             "      - alert-config:/door-config"]
+    out += ["", "  signer:", HARDENED,
+            '    command: ["python", "-m", "dispatcher.signer_service", "serve", "--dir", "/signer",'
+            ' "--port", "8767"]',
+            "    environment:",
+            "      LISTINGASSISTANTS_IN_CONTAINER: \"1\"",
+            "      LISTINGASSISTANTS_SIGNER_ORIGIN: http://localhost:8767",
+            "      LISTINGASSISTANTS_DESK_ORIGIN: http://127.0.0.1:8765",
+            "    networks: [signing]",
+            "    mem_limit: 256m",
+            "    volumes:",
+            "      - signer-state:/signer",
+            "      - signer-out:/out",
+            "", "  signer-door:", HARDENED,
+            '    command: ["python", "tools/desk_door.py", "signer", "8767"]',
+            "    networks: [signing, outside]",
+            '    ports: ["127.0.0.1:8767:8767"]',
+            "    mem_limit: 64m"]
     for a in AGENTS:
         out += ["", f"  agent-{a}:", HARDENED,
                 f'    command: ["python", "-m", "dispatcher.portal_agent", "{a}", "/line/portal.sock"]',
@@ -76,8 +100,10 @@ def render() -> str:
                 "    pids_limit: 64",
                 "    volumes:",
                 f"      - portal-{a}:/line:ro"]
-    out += ["", "networks:", "  inside:", "    internal: true", "  outside: {}",
-            "", "volumes:", "  state: {}", "  door-alert: {}", "  alert-config: {}"]
+    out += ["", "networks:", "  inside:", "    internal: true", "  signing:", "    internal: true",
+            "  outside: {}",
+            "", "volumes:", "  state: {}", "  door-alert: {}", "  alert-config: {}",
+            "  signer-state: {}", "  signer-out: {}"]
     out += [f"  portal-{a}: {{}}" for a in AGENTS]
     return "\n".join(out) + "\n"
 

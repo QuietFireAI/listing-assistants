@@ -263,13 +263,45 @@ def check(state_dir: str, verify_bytes, key_fingerprint: str, root: str = ROOT,
             "key_fingerprint": key_fingerprint, "manifest_sha256": msha}
 
 
+KEY_FILE = "operator-key.bin"
+PUBLIC_FILE = "operator-public.bin"
+
+
+def has_operator_key(state_dir: str) -> bool:
+    """True when this state folder holds the operator's private key (the
+    one-program install). With the signer in its own container (owner
+    decision 2026-10-26) the folder holds only the public key."""
+    return os.path.exists(os.path.join(state_dir, KEY_FILE))
+
+
+def operator_public_key(state_dir: str) -> bytes:
+    """The operator's public key: from the private key when this folder
+    holds it, else from operator-public.bin, which the signer hands over.
+    Raises AttestationRefused when there is neither."""
+    key_path = os.path.join(state_dir, KEY_FILE)
+    if os.path.exists(key_path):
+        from .signatures import Ed25519Signer
+        with open(key_path, "rb") as f:
+            return Ed25519Signer(private_key_bytes=f.read()).public_key_bytes()
+    pub_path = os.path.join(state_dir, PUBLIC_FILE)
+    if os.path.exists(pub_path):
+        with open(pub_path, "rb") as f:
+            pub = f.read()
+        if len(pub) != 32:
+            raise AttestationRefused(f"{pub_path} is not a public key ({len(pub)} bytes)")
+        return pub
+    raise AttestationRefused(f"no operator key at {key_path}: run "
+                             f"`python tools/console.py init` first")
+
+
 def preflight(state_dir: str, audit_path: str | None = None) -> dict:
     """The whole check for a program's main(), before it imports anything
     else from this repository: the files are compared first (only this
-    module and dispatcher/__init__.py have run), then the operator key in
-    state_dir is loaded to check the signature and the log."""
-    key_path = os.path.join(state_dir, "operator-key.bin")
-    if not os.path.exists(key_path):
+    module and dispatcher/__init__.py have run), then the operator's public
+    key (from the key in state_dir, or the one the signer handed over) is
+    loaded to check the signature and the log."""
+    key_path = os.path.join(state_dir, KEY_FILE)
+    if not (os.path.exists(key_path) or os.path.exists(os.path.join(state_dir, PUBLIC_FILE))):
         raise AttestationRefused(f"no operator key at {key_path}: run "
                                  f"`python tools/console.py init` first")
     path, doc = _read(state_dir)
@@ -283,8 +315,7 @@ def preflight(state_dir: str, audit_path: str | None = None) -> dict:
             "the install differs from what was attested - tainted, not starting: "
             + "; ".join(found)
             + ". Review the change, then run `python tools/console.py attest`")
-    from .signatures import Ed25519Signer, Ed25519Verifier
-    with open(key_path, "rb") as f:
-        pub = Ed25519Signer(private_key_bytes=f.read()).public_key_bytes()
+    from .signatures import Ed25519Verifier
+    pub = operator_public_key(state_dir)
     return check(state_dir, Ed25519Verifier(pub).verify_bytes, fingerprint(pub),
                  audit_path=audit_path)

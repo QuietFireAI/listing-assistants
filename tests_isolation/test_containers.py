@@ -26,6 +26,7 @@ import urllib.request
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
 COMPOSE = os.path.join(ROOT, "docker", "compose.yml")
 PROJECT = "la-ctest"
 IMAGE = "listingassistants:local"
@@ -69,6 +70,12 @@ def test_every_agent_is_locked_down_in_the_compose_file():
     assert "  inside:\n    internal: true" in text
     assert 'ports: ["127.0.0.1:8765:8765"]' in blocks["desk-door"]
     assert "networks: [outside]" in blocks["alert-door"]
+    # the key's room: on its own closed network, never shared with the dispatcher
+    assert "networks: [signing]" in blocks["signer"]
+    assert "  signing:\n    internal: true" in text
+    assert not [ln for ln in disp if "signer-state" in ln]
+    assert "- signer-out:/signer-out:ro" in disp
+    assert 'ports: ["127.0.0.1:8767:8767"]' in blocks["signer-door"]
 
 
 needs_docker = pytest.mark.skipif(os.environ.get("LA_DOCKER_TESTS") != "1",
@@ -87,7 +94,16 @@ def _compose(*args, **kw):
 
 
 def _in(container, code):
-    return _run("docker", "exec", f"{PROJECT}-{container}-1", "python", "-c", code).stdout
+    # an agent's container restarts when a dispatcher session ends (its line
+    # closes); wait for it to be running again
+    for _ in range(60):
+        r = _run("docker", "exec", f"{PROJECT}-{container}-1", "python", "-c", code, check=False)
+        if r.returncode == 0 or "is restarting" not in r.stderr:
+            break
+        time.sleep(1)
+    if r.returncode != 0:
+        raise AssertionError(r.stdout[-2000:] + r.stderr[-2000:])
+    return r.stdout
 
 
 def _record():
@@ -103,25 +119,50 @@ def stack():
         build += ["--secret", f"id=ca,src={os.environ['LA_DOCKER_BUILD_CA']}"]
     _run(*build, ".", timeout=1800)
     _compose("down", "-v", check=False)
-    _compose("run", "--rm", "dispatcher", "python", "tools/console.py", "init")
+    # the key is made in the signer and never leaves it; the dispatcher
+    # gets the public key and the signed list of installed files
+    _compose("run", "--rm", "signer", "python", "-m", "dispatcher.signer_service", "init",
+             "--dir", "/signer", "--out", "/out", "--account", "broker@example.test")
+    _compose("run", "--rm", "dispatcher", "python", "tools/console.py", "init",
+             "--from-signer", "/signer-out")
     agents = [f"agent-{i:02d}" for i in range(1, 21)]
     _compose("up", "-d", *agents, "alert-door")
     _compose("run", "--rm", "dispatcher", "python", "tools/console.py", "onboard",
              "--name", "Container Broker", "--login", "broker@example.test")
     scripts = tempfile.mkdtemp(prefix="la-cscripts-")
-    os.chmod(scripts, 0o755)
+    os.chmod(scripts, 0o777)        # the containers write the prepared and signed files here
     yield scripts
     _compose("down", "-v", check=False)
 
 
-def _session(scripts, name, lines):
+def _code():
+    from dispatcher import totp
+    secret = json.loads(_run("docker", "run", "--rm", "--user", "10001", "-v",
+                             f"{PROJECT}_signer-state:/signer:ro", IMAGE, "cat",
+                             "/signer/totp.json").stdout)["secret"]
+    return totp.code_at(secret, totp.counter_now())
+
+
+def _session(scripts, name, lines, sign=False):
     path = os.path.join(scripts, name)
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(json.dumps(x) if not isinstance(x, str) else x for x in lines) + "\n")
     os.chmod(path, 0o644)
+    signed = []
+    if sign:
+        # what the script asks you to sign, signed in a batch on the signer
+        # with your code; the dispatcher never sees the key
+        _compose("run", "--rm", "-v", f"{scripts}:/run-scripts", "dispatcher", "python",
+                 "tools/console.py", "prepare", f"/run-scripts/{name}",
+                 "--out", f"/run-scripts/{name}.unsigned")
+        _compose("run", "--rm", "-v", f"{scripts}:/run-scripts", "signer", "python", "-m",
+                 "dispatcher.signer_service", "sign-batch", "--dir", "/signer",
+                 "--in", f"/run-scripts/{name}.unsigned", "--out", f"/run-scripts/{name}.signed",
+                 "--code", _code())
+        signed = ["--signed", f"/run-scripts/{name}.signed"]
     r = _compose("run", "--rm", "-v", f"{scripts}:/run-scripts:ro", "dispatcher", "python",
                  "tools/console.py", "session", f"/run-scripts/{name}",
-                 "--config-dir", "synth/tuples/config")
+                 "--config-dir", "synth/tuples/config", *signed)
     last = json.loads(r.stdout.strip().splitlines()[-1])
     assert last.get("session_complete"), r.stdout[-2000:]
     return r.stdout
@@ -129,16 +170,55 @@ def _session(scripts, name, lines):
 
 @needs_docker
 def test_a_playbook_runs_with_every_agent_in_its_own_container(stack):
+    """P01 up to the photographer booking, which waits for your signed
+    release (that release is signed on the Desk through the signer's page:
+    tests_isolation/test_signer.py drives it in a browser)."""
     sys.path.insert(0, os.path.join(ROOT, "synth", "tuples"))
+    sys.path.insert(0, ROOT)
     import run_tuples
     [spec] = run_tuples.load_specs(["P01"], spec_set="playbooks")
-    _session(stack, "P01.jsonl", run_tuples.session_lines(spec))
+    lines = run_tuples.session_lines(spec)
+    upto = next(i for i, ln in enumerate(lines) if json.loads(ln).get("do") == "release")
+    _session(stack, "P01.jsonl", lines[:upto], sign=True)
     entries = _record()
-    idx = run_tuples.ctx_index(entries)
-    failed = [c for c in spec["expect"] if not run_tuples.check(entries, idx, c)[0]]
-    assert not failed, failed
+    held = [e for e in entries if e["kind"] == "absolute_signal.hold"]
+    assert held and held[0]["intent"] == "vendor.schedule", [e["kind"] for e in entries][-30:]
+    assert len([e for e in entries if e["kind"] == "envelope.persisted"
+                and e.get("from_agent") == "human"]) >= 1
+    assert not [e for e in entries if e["kind"] == "reject"]
     assert [e for e in entries if e["kind"] == "portal.team"]
     assert not [e for e in entries if e["kind"] in ("portal.violation", "portal.agent_stopped")]
+
+
+@needs_docker
+def test_the_key_is_only_in_the_signer(stack):
+    listing = _run("docker", "run", "--rm", "--user", "10001", "-v", f"{PROJECT}_state:/state:ro",
+                   IMAGE, "ls", "/state").stdout.split()
+    assert "operator-key.bin" not in listing and "operator-public.bin" in listing
+    signer_files = _run("docker", "run", "--rm", "--user", "10001", "-v",
+                        f"{PROJECT}_signer-state:/signer:ro", IMAGE, "ls", "/signer").stdout.split()
+    assert "operator-key.bin" in signer_files and "totp.json" in signer_files
+    _compose("up", "-d", "dispatcher", "signer", "signer-door")
+    try:
+        page = None
+        for _ in range(60):
+            try:
+                req = urllib.request.Request("http://127.0.0.1:8767/", headers={"Host": "localhost:8767"})
+                page = urllib.request.urlopen(req, timeout=3).read().decode()
+                break
+            except OSError:
+                time.sleep(2)
+        assert page and "Your signer" in page
+        out = _in("dispatcher", """
+import socket
+for host in ("signer", "signer-door"):
+    try:
+        socket.create_connection((host, 8767), 4); print(host, "REACHED")
+    except OSError as e: print(host, "unreachable")
+""")
+        assert "REACHED" not in out, out
+    finally:
+        _compose("stop", "dispatcher", "signer", "signer-door")
 
 
 @needs_docker

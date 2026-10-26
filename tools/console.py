@@ -151,13 +151,16 @@ def build(audit_path, config_dir=None, state_db=None, model=None, pager=None, en
     console-state/swarm-state.sqlite) when the audit chain vouches for it."""
     from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
     from dispatcher.swarm import build_swarm
-    from dispatcher.boot_attest import AttestationRefused
-    if not os.path.exists(KEY_PATH):
-        # 2026-10-14: the install is attested with the operator key, so
-        # there is nothing to check it against without one
-        raise AttestationRefused(f"no operator key at {KEY_PATH}: run "
-                                 f"`python tools/console.py init` first")
-    signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
+    from dispatcher.boot_attest import AttestationRefused, operator_public_key
+    state = os.path.dirname(KEY_PATH)
+    if os.path.exists(KEY_PATH):
+        signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
+    else:
+        # the key in its own signer (owner decision 2026-10-26): this program
+        # holds the public key only and asks for each signature
+        # (dispatcher/remote_signer.py); raises when there is no key at all
+        from dispatcher.remote_signer import RemoteSigner
+        signer = RemoteSigner(operator_public_key(state))
     verifier = Ed25519Verifier(signer.public_key_bytes())
     from dispatcher.boot_attest import fingerprint
     sw = build_swarm(
@@ -237,7 +240,16 @@ def make_env(frm, to, intent, ctx, payload):
                                 "verbatim_available": True})
 
 
-def cmd_init(_args):
+def _from_signer(folder):
+    """The public key and the signed list of installed files the signer
+    handed over (dispatcher/signer_service.py init / attest)."""
+    from dispatcher.remote_signer import SignerAttestation
+    pub = open(os.path.join(folder, "operator-public.bin"), "rb").read()
+    doc = json.load(open(os.path.join(folder, "signer-attestation.json"), encoding="utf-8"))
+    return pub, SignerAttestation(doc, pub)
+
+
+def cmd_init(args):
     from dispatcher.signatures import Ed25519Signer
     os.makedirs(STATE_DIR, exist_ok=True)
     if os.path.exists(AUDIT_PATH):
@@ -245,6 +257,25 @@ def cmd_init(_args):
                      f"silently replaced; move it aside yourself"})
         return 1
     from dispatcher.private_file import write_private, is_private
+    if getattr(args, "from_signer", None):
+        # the key stays in the signer (owner decision 2026-10-26): this
+        # folder gets the public key, and records the files the signer signed
+        from dispatcher.boot_attest import PUBLIC_FILE, attest
+        try:
+            pub, att_signer = _from_signer(args.from_signer)
+        except (OSError, ValueError, KeyError) as e:
+            _p({"error": f"the signer's handover in {args.from_signer} is not usable: {e}"})
+            return 1
+        write_private(os.path.join(STATE_DIR, PUBLIC_FILE), pub)
+        try:
+            att = attest(STATE_DIR, att_signer, audit_path=AUDIT_PATH)
+        except Exception as e:
+            _p({"error": "not attested", "reason": str(e)})
+            return 1
+        _p({"initialized": STATE_DIR, "operator_key": "in the signer, not here (public key only)",
+            "audit_log": AUDIT_PATH, "attested": {"files": att["files"], "file": att["path"],
+                                                  "by": "the signer"}})
+        return 0
     signer = Ed25519Signer()
     # private from the first byte, on Linux, macOS and Windows alike
     write_private(KEY_PATH, signer.private_key_bytes())
@@ -416,7 +447,10 @@ def cmd_onboard(args):
     provenance. Credentials for anything else are asked for when a feature
     first needs them; nothing in the console needs one today."""
     import hashlib
-    if not os.path.exists(KEY_PATH):
+    from dispatcher.boot_attest import AttestationRefused, operator_public_key
+    try:
+        pub = operator_public_key(STATE_DIR)       # the key here, or the signer's public key
+    except AttestationRefused:
         _p({"error": "run `python tools/console.py init` first - there is no key to bind"})
         return 1
     name = (args.name or input("Your name (broker of record): ")).strip()
@@ -424,8 +458,6 @@ def cmd_onboard(args):
     if not name or not login or "@" not in login:
         _p({"error": "a name and an email-style login are both required; nothing saved"})
         return 1
-    from dispatcher.signatures import Ed25519Signer
-    pub = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read()).public_key_bytes()
     rec = {"name": name, "login": login,
            "key_fingerprint": hashlib.sha256(pub).hexdigest()[:16],
            "onboarded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
@@ -664,6 +696,18 @@ def cmd_session(args):
     if operator is None:
         _p({"note": "not onboarded - run `python tools/console.py onboard` to record who "
                     "signs; signed actions still carry your key's signature"})
+    if getattr(args, "signed", None):
+        if not hasattr(signer, "supply"):
+            _p({"error": "--signed is for a desk whose key is in the signer; this one holds the key"})
+            return 2
+        try:
+            for ln in open(args.signed, encoding="utf-8"):
+                if ln.strip():
+                    signer.supply(json.loads(ln))
+        except (OSError, ValueError) as e:
+            _p({"error": f"--signed {args.signed}: {e}"})
+            return 2
+    from dispatcher.remote_signer import NeedsSignature
     errors = 0
     for lineno, line in enumerate(open(args.script, encoding="utf-8"), 1):
         line = line.strip()
@@ -678,6 +722,10 @@ def cmd_session(args):
         do = a.get("do")
         try:
             r, err = apply_action(sw, signer, operator, a, external)
+        except NeedsSignature as e:
+            r, err = {"error": str(e), "envelope": e.env.to_record(),
+                      "action": "prepare the script (`console.py prepare`), sign it on the signer "
+                                "(`signer_service sign-batch`), then run it with --signed"}, True
         except (AuditLogDamaged, AuditLogBusy) as e:
             # the record changed or broke under this session, or stayed busy: stop here,
             # write nothing more (no state save either), and say where
@@ -695,6 +743,37 @@ def cmd_session(args):
         "chain": hub.audit.verify_chain(), "anchor": hub.audit.anchor(),
         "dead_letters": len(hub.queues["dead.letter"])})
     return 1 if errors else 0
+
+
+def cmd_prepare(args):
+    """The messages a session script will ask you to sign (its config and
+    authorize lines), written unsigned to --out for the signer's sign-batch.
+    Lines that answer something held (release, decline, decide) name a
+    message that exists only when the script runs; those are signed on the
+    Desk, one by one, and are listed here as not prepared."""
+    operator = _operator()
+    out, skipped = [], []
+    for lineno, line in enumerate(open(args.script, encoding="utf-8"), 1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        a = json.loads(line)
+        do = a.get("do")
+        if do in ("config", "authorize"):
+            intent = "config.update" if do == "config" else "listing.change.authorized"
+            env = make_env("human", a["to"], intent, a.get("ctx", "console"), a.get("payload", {}))
+            if operator:
+                env.provenance["operator"] = operator["login"]
+            out.append(env.to_record())
+        elif do in ("release", "decline", "decide"):
+            skipped.append({"line": lineno, "do": do})
+    with open(args.out, "w", encoding="utf-8") as f:
+        for r in out:
+            f.write(json.dumps(r) + "\n")
+    _p({"prepared": len(out), "out": args.out, "not_prepared": skipped,
+        "next": "sign them on the signer (signer_service sign-batch), then run the session "
+                "with --signed <the signed file>"})
+    return 0
 
 
 def cmd_verify(args):
@@ -772,10 +851,17 @@ def cmd_attest(args):
     start until the install matches what you attested (2026-10-14)."""
     from dispatcher.signatures import Ed25519Signer
     from dispatcher.boot_attest import attest
-    if not os.path.exists(KEY_PATH):
+    if getattr(args, "from_signer", None):
+        try:
+            _, signer = _from_signer(args.from_signer)
+        except (OSError, ValueError, KeyError) as e:
+            _p({"error": f"the signer's handover in {args.from_signer} is not usable: {e}"})
+            return 2
+    elif not os.path.exists(KEY_PATH):
         _p({"error": f"no operator key at {KEY_PATH}: run `python tools/console.py init` first"})
         return 2
-    signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
+    else:
+        signer = Ed25519Signer(private_key_bytes=open(KEY_PATH, "rb").read())
     from dispatcher.core import AuditLogBusy, AuditLogDamaged
     from dispatcher.boot_attest import AttestationRefused
     try:
@@ -797,8 +883,16 @@ def cmd_attest(args):
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("init")
+    it = sub.add_parser("init")
+    it.add_argument("--from-signer", default=None, metavar="DIR",
+                    help="the key is in the signer: take its public key and signed file list from DIR")
+    pr = sub.add_parser("prepare", help="the messages a session script asks you to sign, unsigned, "
+                                        "for the signer's sign-batch")
+    pr.add_argument("script")
+    pr.add_argument("--out", required=True)
     at = sub.add_parser("attest", help="sign what is installed now, after reviewing a change")
+    at.add_argument("--from-signer", default=None, metavar="DIR",
+                    help="record the file list the signer signed (signer_service attest)")
     at.add_argument("--audit-log", default=None,
                     help="the audit log this attestation is recorded on (default: the console's)")
     at.add_argument("--new-key", action="store_true",
@@ -821,6 +915,8 @@ def main():
                    help="OpenAI-style endpoint of a locally served model for Agent 04's "
                         "optional model-written remarks (e.g. http://localhost:11434/v1)")
     s.add_argument("--model-name", default=None, help="the served model's name")
+    s.add_argument("--signed", default=None, metavar="FILE",
+                   help="signatures the signer made for this script (signer_service sign-batch)")
     s.add_argument("--allow-remote-model", action="store_true",
                    help="allow a model endpoint that is not this machine (listing data leaves it)")
     pg = sub.add_parser("pager")
@@ -880,7 +976,7 @@ def main():
         tighten_tree(os.path.dirname(os.path.abspath(args.audit_log)))
     try:
         return {"init": cmd_init, "attest": cmd_attest, "onboard": cmd_onboard,
-                "session": cmd_session,
+                "session": cmd_session, "prepare": cmd_prepare,
                 "verify": cmd_verify, "pager": cmd_pager,
                 "repair-record": cmd_repair_record}[args.cmd](args)
     except EOFError:

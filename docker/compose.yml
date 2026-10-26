@@ -20,11 +20,13 @@ services:
       LISTINGASSISTANTS_STATE_DIR: /state
       LISTINGASSISTANTS_IN_CONTAINER: "1"
       LISTINGASSISTANTS_ALERT_DOOR: /door/alert.sock
+      LISTINGASSISTANTS_SIGNER_URL: http://localhost:8767
     networks: [inside]
     mem_limit: 1g
     volumes:
       - state:/state
       - door-alert:/door
+      - signer-out:/signer-out:ro
       - portal-01:/portal/01
       - portal-02:/portal/02
       - portal-03:/portal/03
@@ -73,6 +75,38 @@ services:
     volumes:
       - door-alert:/door
       - alert-config:/door-config
+
+  signer:
+    image: listingassistants:local
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    restart: unless-stopped
+    command: ["python", "-m", "dispatcher.signer_service", "serve", "--dir", "/signer", "--port", "8767"]
+    environment:
+      LISTINGASSISTANTS_IN_CONTAINER: "1"
+      LISTINGASSISTANTS_SIGNER_ORIGIN: http://localhost:8767
+      LISTINGASSISTANTS_DESK_ORIGIN: http://127.0.0.1:8765
+    networks: [signing]
+    mem_limit: 256m
+    volumes:
+      - signer-state:/signer
+      - signer-out:/out
+
+  signer-door:
+    image: listingassistants:local
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    restart: unless-stopped
+    command: ["python", "tools/desk_door.py", "signer", "8767"]
+    networks: [signing, outside]
+    ports: ["127.0.0.1:8767:8767"]
+    mem_limit: 64m
 
   agent-01:
     image: listingassistants:local
@@ -417,12 +451,16 @@ services:
 networks:
   inside:
     internal: true
+  signing:
+    internal: true
   outside: {}
 
 volumes:
   state: {}
   door-alert: {}
   alert-config: {}
+  signer-state: {}
+  signer-out: {}
   portal-01: {}
   portal-02: {}
   portal-03: {}
