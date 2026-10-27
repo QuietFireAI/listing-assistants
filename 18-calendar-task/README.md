@@ -26,10 +26,10 @@ flowchart LR
     A18(("18 Calendar and Task Management"))
     subgraph OUT["Talks to"]
         direction TB
+        O06["06 Showing Scheduler"]
         OB(["You (broker)"])
         O14["14 CRM and Pipeline"]
         OB(["You (broker)"])
-        O06["06 Showing Scheduler"]
         O10["10 Market Data"]
         O15["15 Financial Tracking"]
         O19["19 Prospecting"]
@@ -44,10 +44,10 @@ flowchart LR
     I14 -- "delivers a report" --> A18
     I15 -- "delivers a report" --> A18
     I19 -- "delivers a report" --> A18
+    A18 -- "says the calendar could not take it<br/>reports a no-show" --> O06
     A18 -- "delivers a report" --> OB
     A18 -- "logs it in the CRM<br/>asks for its part of the morning briefing" --> O14
     A18 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
-    A18 -- "reports a no-show" --> O06
     A18 -- "asks for its part of the morning briefing" --> O10
     A18 -- "asks for its part of the morning briefing" --> O15
     A18 -- "asks for its part of the morning briefing" --> O19

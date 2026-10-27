@@ -91,6 +91,11 @@ class Spoke06ShowingScheduler:
         self.seller_report_weeks: dict[str, str] = {}   # listing_id -> ISO week reported
         self.held_reports: dict[str, dict] = {}         # seller ctx -> report awaiting the broker
         self.open_houses: dict[str, dict] = {}          # listing ctx -> the scheduled open house (P04)
+        # Owner decision 2026-10-27: a showing is confirmed to the buyer only
+        # once it is on the calendar. 18 answers calendar.conflict when it
+        # did not add it; the showing is then held for the broker.
+        self.calendar_refused: dict[str, dict] = {}     # ctx -> 18's answer, read once
+        self.held_showings: dict[str, dict] = {}        # ctx -> showing awaiting the broker
         register_spoke(hub, "06", self)
         register_resumer(hub, "06", self._resume)
 
@@ -234,9 +239,24 @@ class Spoke06ShowingScheduler:
         return f"held:{held}" if held else "none_due"
 
     def _resume(self, ws, decision_payload: dict):
-        """The broker's signed decision on a held weekly seller report."""
+        """The broker's signed decision on a held weekly seller report, or on
+        a showing the calendar did not take."""
         ctx = ws.client_context_id
         d = decision_of(decision_payload)
+        if ctx in self.held_showings and d != "other":
+            showing = self.held_showings.pop(ctx)
+            if d == "cancel":
+                self.hub.send(_env("06", "14", "interaction.log", ctx,
+                                   {"kind": "showing_not_confirmed", "time": showing.get("time"),
+                                    "reason": "calendar conflict; broker cancelled"}))
+                return "cancelled: showing not confirmed"
+            self.confirmed_showings.setdefault(ctx, []).append({**showing, "confirmed": True})
+            self.hub.send(_env("06", "11", "client.message.request", ctx,
+                               {"template": "showing_confirmation"}))
+            self.hub.send(_env("06", "14", "interaction.log", ctx,
+                               {"kind": "showing_confirmed", "time": showing.get("time"),
+                                "after": "broker continued past a calendar conflict"}))
+            return "continued: showing confirmed"
         report = self.held_reports.get(ctx)
         if report is None or d == "other":
             return "nothing held for this context" if report is None else "decision not continue/cancel"
@@ -416,6 +436,15 @@ class Spoke06ShowingScheduler:
             self.hub.ingest_spoke_trace("06", env.envelope_id,
                                         thought=f"broker-signed: showing facts come from {src}",
                                         result="showing facts source set")
+            return
+
+        if env.intent == "calendar.conflict":
+            self.calendar_refused[env.client_context_id] = dict(env.payload)
+            self.hub.ingest_spoke_trace(
+                "06", env.envelope_id,
+                thought=f"calendar (18) did not add the showing for "
+                        f"{env.client_context_id!r} at {env.payload.get('time')!r}",
+                result="noted: not on the calendar")
             return
 
         if env.intent == "showing.request":
@@ -686,6 +715,23 @@ class Spoke06ShowingScheduler:
                             "day": requested_time.split("T")[0] if requested_time else None,
                             "timezone_confirmed": True,
                             "buffer_minutes": buffer_minutes}))
+        refused = self.calendar_refused.pop(ctx, None)
+        if refused is not None:
+            showing = {"time": requested_time, "listing_id": listing_id}
+            self.held_showings[ctx] = showing
+            self.hub.ingest_spoke_trace(
+                "06", env.envelope_id,
+                thought=f"the calendar (18) did not take the showing at {requested_time!r} - "
+                        f"not confirming it to the buyer; holding for the broker",
+                result="held: not on the calendar")
+            hold_for_human(self.hub, "06", ctx, "showing.request",
+                           f"showing of {listing_id} at {requested_time} is not on your calendar "
+                           f"(the calendar asked you about it). Continue = confirm it to the buyer; "
+                           f"cancel = nothing is sent (offer another time yourself).",
+                           {"showing": showing})
+            self.hub.send(_env("06", "14", "interaction.log", ctx,
+                               {"kind": "showing_held_calendar", "time": requested_time}))
+            return
 
         # job component: open house RSVP logistics - an open house (unlike
         # an individual buyer showing) needs event vendor support

@@ -25,7 +25,7 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Manage confirmation and cancellation flow; send reminders to all parties (via 11 for clients).
 - Track and send post-showing feedback requests; log responses to CRM (14).
 - Handle open house RSVP logistics.
-- Create calendar events via Calendar & Task (18); check conflicts via 18 before confirming.
+- Create calendar events via Calendar & Task (18); check conflicts via 18 before confirming. Built 2026-10-27 (owner decision): when 18 does not add a showing (conflict, full day, no day, unconfirmed time zone) it answers `calendar.conflict`; the buyer is not told the showing is confirmed, and the showing is held for the broker (continue = confirm it to the buyer, cancel = nothing sent).
 - Honor human-configured minimum-notice rules for occupied properties (tenant/seller notice requirements vary by state and lease).
 - Verify requester identity per the human-configured procedure before confirming any access-bearing appointment - vacant-property fraud is a real pattern.
 - Confirm the showing request carries the buyer-agreement-on-file flag (set by 13); flag absent = hold and escalate. Written buyer agreements are required before touring, in person or live-virtual (NAR settlement, effective Aug 17, 2024).
@@ -35,7 +35,9 @@ RSVP logistics. It schedules people; it never authorizes access.
 How the code does it today (checked 2026-10-12): there is no seller
 availability data; a request is checked against minimum notice, the listing's
 status (asked of 05) and the showings already confirmed for that listing or
-that buyer, with a time buffer (default 30 minutes), not by asking 18.
+that buyer, with a time buffer (default 30 minutes); after it passes those
+checks the showing goes to 18 as a `calendar.event`, and a `calendar.conflict`
+answer from 18 holds it for the broker before the buyer is told (2026-10-27).
 Requester identity is read from the `requester_identity_verified` flag set
 upstream; minimum notice comes from `min_notice_hours` (default 24). A conflict
 goes to the broker as `clarification.request`; no alternative time is
@@ -76,6 +78,7 @@ Dispatcher returns an `ack`.
 | IN | ← 13 Buyer Search & Match / 11 | Showing request | `showing.request` |
 | OUT | → 11 Client Communication | Confirmations, reminders, cancellations | `client.message.request` |
 | OUT | → 18 Calendar & Task | Calendar events | `calendar.event` |
+| IN | ← 18 Calendar & Task | A showing the calendar did not add (2026-10-27) | `calendar.conflict` |
 | OUT | → 09 Vendor Coordination | Event vendor needs | `vendor.request` |
 | OUT | → 14 CRM & Pipeline | Feedback and RSVP logs | `interaction.log` |
 | OUT | → HITL queue | Access authorization requests; showing requested without a buyer agreement on file | `escalation.legal_line` |

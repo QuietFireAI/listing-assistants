@@ -248,7 +248,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 - Score inbound leads on readiness: timeline, financing status, motivation level.
 - Assign a priority tier to each lead; record the scoring inputs alongside the tier.
 - Weed out tire-kickers (archive with reason, never delete).
-- Flag hot leads for immediate human handoff (`escalation.hot_lead`).
+- Flag hot leads for immediate human handoff (`escalation.hot_lead`). Owner decision 2026-10-27: a hot lead the broker may not contact (on the Do Not Call list, or no channel with consent "yes") is still alerted, marked `do_not_contact` with the reason and no call window.
 - Re-score leads returned by Nurture (03) when behavioral signals change.
 - Apply the human-supplied scoring rubric (delivered via signed `config.update`); the agent applies the rubric, never authors or drifts it - rubric version recorded with every tier assignment.
 - Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes. Not yet in the code (checked 2026-10-12): the window (`hot_lead_sla_seconds`, default 300) travels with the page, and nothing re-alerts when it passes - the daily clock cannot measure minutes. The broker closes a hot lead with a signed `resolve_hot_lead`.
@@ -340,7 +340,7 @@ portal stale, MLS rejects an entry) cannot fire until one exists.
 **Type:** Coordination / scheduling
 **Summary:** Showing coordination. Use for scheduling buyer showings against seller availability, the confirmation/cancellation/reminder flow, post-showing feedback, and open house RSVPs.
 **Sends:** agent.status, calendar.event, client.message.request, interaction.log, status.request, vendor.request
-**Receives:** clock.tick, listing.data, showing.feedback_response, showing.no_show, showing.request, status.response, vendor.cancellation_notice
+**Receives:** calendar.conflict, clock.tick, listing.data, showing.feedback_response, showing.no_show, showing.request, status.response, vendor.cancellation_notice
 **Predeliberated tuples:** 13 (see 06-showing-scheduler/DECISIONS.md)
 **Picture:** who it works with, in [06-showing-scheduler](../06-showing-scheduler/README.md)
 
@@ -353,7 +353,7 @@ RSVP logistics. It schedules people; it never authorizes access.
 - Manage confirmation and cancellation flow; send reminders to all parties (via 11 for clients).
 - Track and send post-showing feedback requests; log responses to CRM (14).
 - Handle open house RSVP logistics.
-- Create calendar events via Calendar & Task (18); check conflicts via 18 before confirming.
+- Create calendar events via Calendar & Task (18); check conflicts via 18 before confirming. Built 2026-10-27 (owner decision): when 18 does not add a showing (conflict, full day, no day, unconfirmed time zone) it answers `calendar.conflict`; the buyer is not told the showing is confirmed, and the showing is held for the broker (continue = confirm it to the buyer, cancel = nothing sent).
 - Honor human-configured minimum-notice rules for occupied properties (tenant/seller notice requirements vary by state and lease).
 - Verify requester identity per the human-configured procedure before confirming any access-bearing appointment - vacant-property fraud is a real pattern.
 - Confirm the showing request carries the buyer-agreement-on-file flag (set by 13); flag absent = hold and escalate. Written buyer agreements are required before touring, in person or live-virtual (NAR settlement, effective Aug 17, 2024).
@@ -363,7 +363,9 @@ RSVP logistics. It schedules people; it never authorizes access.
 How the code does it today (checked 2026-10-12): there is no seller
 availability data; a request is checked against minimum notice, the listing's
 status (asked of 05) and the showings already confirmed for that listing or
-that buyer, with a time buffer (default 30 minutes), not by asking 18.
+that buyer, with a time buffer (default 30 minutes); after it passes those
+checks the showing goes to 18 as a `calendar.event`, and a `calendar.conflict`
+answer from 18 holds it for the broker before the buyer is told (2026-10-27).
 Requester identity is read from the `requester_identity_verified` flag set
 upstream; minimum notice comes from `min_notice_hours` (default 24). A conflict
 goes to the broker as `clarification.request`; no alternative time is
@@ -735,7 +737,7 @@ Advertising without brokerage identification is caught from the submitter's
 
 **Type:** Personal assistant to the licensed agent
 **Summary:** Personal assistant to the licensed agent. Use for calendar and to-do management, daily priorities, morning briefings, end-of-day summaries, and time blocking.
-**Sends:** briefing.request, interaction.log, report.package, showing.no_show
+**Sends:** briefing.request, calendar.conflict, interaction.log, report.package, showing.no_show
 **Receives:** agent.status, calendar.event, clock.tick, deadline.alert, report.package
 **Predeliberated tuples:** 9 (see 18-calendar-task/DECISIONS.md)
 **Picture:** who it works with, in [18-calendar-task](../18-calendar-task/README.md)
@@ -745,7 +747,7 @@ to-do lists, and daily priorities; produces morning briefings and end-of-day
 summaries; blocks time for prospecting, showings, and admin work.
 
 ### Job components
-- Manage the human agent's calendar and to-do lists; consume `calendar.event` envelopes from 06, 07, 09.
+- Manage the human agent's calendar and to-do lists; consume `calendar.event` envelopes from 06, 07, 09. A showing from 06 that is not added (conflict, full day, no day, unconfirmed time zone) is answered to 06 with `calendar.conflict`, so 06 does not confirm it to the buyer (owner decision 2026-10-27); the question to the broker stands as before.
 - Maintain daily priorities from human direction plus deadline alerts.
 - Generate morning briefings and end-of-day summaries - built only from logged envelopes and calendar records; a briefing never contains a status the system cannot source.
 - Block time for prospecting, showings, and administrative work per human-set rules.

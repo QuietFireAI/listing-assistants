@@ -13,6 +13,7 @@ settings in synth/tuples/setup.jsonl):
 
     python synth/procedures/collect_evidence.py           # writes synth/procedures/evidence.json
     python synth/procedures/collect_evidence.py 03-01 05-02
+    python synth/procedures/collect_evidence.py --set playbooks   # writes evidence_playbooks.json
 """
 import datetime
 import json
@@ -163,7 +164,15 @@ def evidence(spec, result, entries):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    specs = run_tuples.load_specs(argv or None)
+    global OUT
+    spec_set = "tuples"
+    if "--set" in argv:
+        i = argv.index("--set")
+        spec_set = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    if spec_set == "playbooks":
+        OUT = os.path.join(HERE, "evidence_playbooks.json")
+    specs = run_tuples.load_specs(argv or None, spec_set=spec_set)
     wd = tempfile.mkdtemp(prefix="proc-evidence-")
     tpl = run_tuples.make_template(wd)
     today = datetime.date.today().isoformat()
@@ -178,7 +187,18 @@ def main(argv=None):
         hpath = os.path.join(wd, spec["id"], "harness.jsonl")
         if os.path.exists(hpath):   # the fault harness's own observations, as run_tuples reads them
             entries += [json.loads(ln) for ln in open(hpath, encoding="utf-8")]
-        return spec["id"], evidence(spec, r, entries)
+        ev = evidence(spec, r, entries)
+        if spec_set == "playbooks":
+            # the run tracker's own account of the playbook: its steps in
+            # order, how it ended, and the after-action report
+            ev["steps"] = [e.get("note") for e in entries
+                           if e.get("kind") == "playbook.step" and e.get("playbook") == spec["id"]]
+            ev["ended"] = [{"outcome": e.get("outcome"), "reason": e.get("reason")} for e in entries
+                           if e.get("kind") == "playbook.completed" and e.get("playbook") == spec["id"]]
+            ev["after_action"] = [{k: e.get(k) for k in ("outcome", "your_decisions", "proposed_tuples")}
+                                  for e in entries
+                                  if e.get("kind") == "after_action.written" and e.get("playbook") == spec["id"]]
+        return spec["id"], ev
 
     with ThreadPoolExecutor(8) as ex:
         results = dict(ex.map(one, specs))

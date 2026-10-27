@@ -1,5 +1,5 @@
 {
-  "version": "0.19",
+  "version": "0.20",
   "vertical": "real-estate-listing-agent",
   "signed_intents": [
     "listing.change.authorized"
@@ -207,6 +207,15 @@
       ],
       "receivers": [
         "18"
+      ]
+    },
+    {
+      "intent": "calendar.conflict",
+      "senders": [
+        "18"
+      ],
+      "receivers": [
+        "06"
       ]
     },
     {

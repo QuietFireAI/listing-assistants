@@ -1,135 +1,195 @@
 [
- {"id": "07-01", "rev": 1,
+ {
+  "id": "07-01",
+  "rev": 2,
   "title": "A deadline can be counted two ways",
   "when": "A contract deadline comes out differently depending on how it is counted (for example business days or calendar days).",
   "steps": [
    "Agent 07 (Transaction Coordinator) does not pick one.",
-   "It asks you, showing both dates."
+   "It asks the authorized user, showing both dates."
   ],
-  "never": ["Choose the counting method itself."],
-  "why": "A wrong deadline can void a contingency or breach the contract. How to count is a contract reading, and that is yours.",
+  "never": [
+   "Choose the counting method itself."
+  ],
+  "why": "A wrong deadline can void a contingency or breach the contract. How to count is a contract reading, and that is for the authorized user.",
   "you_see": "A question showing both calculated dates.",
-  "test": "A transaction's timeline is set. You relay, as a signed setting, that the inspection deadline is October 27 counting business days or October 25 counting calendar days. (No entry reads a contract today, so the question reaches the system as your setting.)"},
- {"id": "07-02", "rev": 1,
+  "test": "A transaction's timeline is set. The authorized user relays, as a signed setting, that the inspection deadline is October 27 counting business days or October 25 counting calendar days. (No entry reads a contract today, so the question reaches the system as the authorized user's setting.)"
+ },
+ {
+  "id": "07-02",
+  "rev": 2,
   "title": "A party says a deadline was extended, but there is no amendment",
   "when": "Someone says a deadline was extended and no signed amendment is on file.",
   "steps": [
    "Agent 07 keeps tracking the original deadline.",
-   "It tells you an extension was claimed with no amendment on file."
+   "It tells the authorized user an extension was claimed with no amendment on file."
   ],
-  "never": ["Move a deadline on someone's word."],
+  "never": [
+   "Move a deadline on someone's word."
+  ],
   "why": "Only a signed amendment changes a contract date. Tracking a claimed date could let the real one pass.",
   "you_see": "A question saying an extension was claimed with no amendment.",
-  "test": "A transaction with an inspection deadline of October 25; a party claims the inspection deadline was extended, with no amendment on file."},
- {"id": "07-03", "rev": 1,
+  "test": "A transaction with an inspection deadline of October 25; a party claims the inspection deadline was extended, with no amendment on file."
+ },
+ {
+  "id": "07-03",
+  "rev": 2,
   "title": "A document contradicts a tracked deadline",
   "when": "A document comes in that states a different date for a milestone than the one being tracked.",
   "steps": [
    "Agent 07 stops that milestone: it is not marked satisfied.",
-   "It raises a legal-line alert for you with both dates.",
+   "It raises a legal-line alert for the authorized user with both dates.",
    "A document whose dates agree is filed normally."
   ],
-  "never": ["Pick one of the two dates, or mark the milestone done."],
-  "why": "Two dates for one deadline means one is wrong. Until you settle it, acting on either could miss the real one.",
+  "never": [
+   "Pick one of the two dates, or mark the milestone done."
+  ],
+  "why": "Two dates for one deadline means one is wrong. Until the authorized user settles it, acting on either could miss the real one.",
   "you_see": "A legal-line alert showing the tracked date and the date in the document.",
-  "test": "Two transactions track an inspection deadline of October 25. On the first, the inspection report states October 22: alert, report not logged as received. On the second, the report states October 25: filed normally, no alert."},
- {"id": "07-04", "rev": 1,
+  "test": "Two transactions track an inspection deadline of October 25. On the first, the inspection report states October 22: alert, report not logged as received. On the second, the report states October 25: filed normally, no alert."
+ },
+ {
+  "id": "07-04",
+  "rev": 2,
   "title": "Several deadlines fall on the same day",
   "when": "Two or more milestones are due on the same day.",
   "steps": [
    "Agent 07 sends a separate warning for each milestone.",
    "It never rolls them into one combined alert."
   ],
-  "never": ["Summarize several deadlines into one alert."],
+  "never": [
+   "Summarize several deadlines into one alert."
+  ],
   "why": "A combined alert is easy to clear after handling only one item. One alert per deadline means each one gets attention.",
   "you_see": "One deadline warning per milestone.",
-  "test": "Inspection and appraisal are both due October 20. On the daily run that day, each gets its own warnings."},
- {"id": "07-05", "rev": 1,
+  "test": "Inspection and appraisal are both due October 20. On the daily run that day, each gets its own warnings."
+ },
+ {
+  "id": "07-05",
+  "rev": 2,
   "title": "Wire instructions come up anywhere",
   "when": "Wiring money comes up in any message or document (for example \"updated wire instructions\").",
   "steps": [
    "Everything stops for that message: Agent 11 (Client Communication) catches it before it reaches the document or transaction agents.",
-   "It raises a legal-line alert for you, flagged for checking outside the system.",
+   "It raises a legal-line alert for the authorized user, flagged for checking outside the system.",
    "Nothing is handled partially."
   ],
-  "never": ["Pass on, confirm or act on wire instructions in any message."],
+  "never": [
+   "Pass on, confirm or act on wire instructions in any message."
+  ],
   "why": "Wire fraud is the most common way buyers lose their down payment. Wire details are confirmed by phone with a known number, never through messages.",
   "you_see": "A legal-line alert about the wire message.",
-  "test": "A party sends a settlement statement with the message \"Here are the updated wire instructions for closing\"."},
- {"id": "07-06", "rev": 1,
+  "test": "A party sends a settlement statement with the message \"Here are the updated wire instructions for closing\"."
+ },
+ {
+  "id": "07-06",
+  "rev": 2,
   "title": "The inspection report arrives",
   "when": "An inspection report comes in.",
   "steps": [
    "Agent 07 records that the report was received.",
-   "If the report includes repair requests, that part goes only to you: a legal-line alert names the repair negotiation."
+   "If the report includes repair requests, that part goes only to the authorized user: a legal-line alert names the repair negotiation."
   ],
-  "never": ["Draft, suggest or send anything about repair negotiation."],
+  "never": [
+   "Draft, suggest or send anything about repair negotiation."
+  ],
   "why": "Repair negotiation is advice and negotiation on the client's behalf. That is licensed work for a person.",
   "you_see": "The report logged as received; a legal-line alert about the repair negotiation.",
-  "test": "An inspection report with repair requests is submitted."},
- {"id": "07-07", "rev": 1,
+  "test": "An inspection report with repair requests is submitted."
+ },
+ {
+  "id": "07-07",
+  "rev": 2,
   "title": "The appraisal comes in below the contract price",
   "when": "The appraised value is lower than the contract price.",
   "steps": [
    "Agent 07 records the fact.",
-   "It raises a legal-line alert for you: every option from here is yours."
+   "It raises a legal-line alert for the authorized user: every option from here is for the authorized user."
   ],
-  "never": ["Draft or suggest ways to cover the gap."],
+  "never": [
+   "Draft or suggest ways to cover the gap."
+  ],
   "why": "An appraisal gap means renegotiating, paying cash or walking away. Those are legal and financial decisions for people.",
   "you_see": "A legal-line alert saying the appraisal is below the contract price.",
-  "test": "An appraisal of $430,000 against a contract price of $450,000."},
- {"id": "07-08", "rev": 1,
+  "test": "An appraisal of $430,000 against a contract price of $450,000."
+ },
+ {
+  "id": "07-08",
+  "rev": 2,
   "title": "The financing contingency date passes with no removal on file",
   "when": "The financing contingency deadline passes and no contingency removal is on file.",
   "steps": [
-   "On the daily run after the date passes, Agent 07 raises a legal-line alert for you.",
+   "On the daily run after the date passes, Agent 07 raises a legal-line alert for the authorized user.",
    "It never assumes the contingency was waived."
   ],
-  "never": ["Treat silence as a waived contingency."],
+  "never": [
+   "Treat silence as a waived contingency."
+  ],
   "why": "Whether a contingency still protects the buyer changes who loses the deposit. That has to be confirmed, not assumed.",
   "you_see": "A legal-line alert naming the financing contingency.",
-  "test": "Financing contingency due October 20; the daily clock runs October 21 with no removal on file."},
- {"id": "07-09", "rev": 1,
+  "test": "Financing contingency due October 20; the daily clock runs October 21 with no removal on file."
+ },
+ {
+  "id": "07-09",
+  "rev": 2,
   "title": "A title exception shows up",
   "when": "The title commitment lists an exception (for example an easement).",
   "steps": [
-   "Agent 07 sends you the exception word for word in a legal-line alert.",
+   "Agent 07 sends the authorized user the exception word for word in a legal-line alert.",
    "It never says how serious it is."
   ],
-  "never": ["Characterize a title exception as minor, standard or serious."],
-  "why": "Judging a title exception is legal advice. The exact text goes to you and the title professionals.",
+  "never": [
+   "Characterize a title exception as minor, standard or serious."
+  ],
+  "why": "Judging a title exception is legal advice. The exact text goes to the authorized user and the title professionals.",
   "you_see": "A legal-line alert quoting the exception.",
-  "test": "A title commitment with the exception \"Recorded easement for a utility line along the rear lot\"."},
- {"id": "07-10", "rev": 1,
+  "test": "A title commitment with the exception \"Recorded easement for a utility line along the rear lot\"."
+ },
+ {
+  "id": "07-10",
+  "rev": 2,
   "title": "The closing date moves on someone's word",
   "when": "Someone says the closing date has moved, but no amendment is signed.",
   "steps": [
    "Agent 07 keeps tracking the original closing date until an amendment is signed."
   ],
-  "never": ["Change the tracked closing date without a signed amendment."],
+  "never": [
+   "Change the tracked closing date without a signed amendment."
+  ],
   "why": "A verbal date change is not binding. Tracking it could let the contract date pass unnoticed.",
   "you_see": "The original closing date still tracked.",
-  "test": "Closing on November 20; a verbal move to November 25 is reported with no signed amendment."},
- {"id": "07-11", "rev": 1,
+  "test": "Closing on November 20; a verbal move to November 25 is reported with no signed amendment."
+ },
+ {
+  "id": "07-11",
+  "rev": 2,
   "title": "The earnest money receipt is not confirmed by its deadline",
   "when": "The earnest money deadline passes with no receipt on file.",
   "steps": [
-   "On the daily run after the deadline, Agent 07 raises a legal-line alert for you.",
+   "On the daily run after the deadline, Agent 07 raises a legal-line alert for the authorized user.",
    "Money milestones never get the benefit of the doubt."
   ],
-  "never": ["Assume the deposit arrived."],
-  "why": "A missing deposit can be a default under the contract, or a sign of fraud. You need to know at once.",
+  "never": [
+   "Assume the deposit arrived."
+  ],
+  "why": "A missing deposit can be a default under the contract, or a sign of fraud. The authorized user needs to know at once.",
   "you_see": "A legal-line alert naming the earnest money.",
-  "test": "Earnest money due October 20; the daily clock runs October 21 with no receipt on file."},
- {"id": "07-12", "rev": 1,
+  "test": "Earnest money due October 20; the daily clock runs October 21 with no receipt on file."
+ },
+ {
+  "id": "07-12",
+  "rev": 2,
   "title": "The possession terms are unclear",
   "when": "The contract's possession terms can be read more than one way.",
   "steps": [
-   "Agent 07 asks you, quoting the exact clause.",
+   "Agent 07 asks the authorized user, quoting the exact clause.",
    "It never fills in what the parties probably meant."
   ],
-  "never": ["Interpret the clause."],
+  "never": [
+   "Interpret the clause."
+  ],
   "why": "When the buyer gets the keys matters to both families. Reading intent into a clause is legal interpretation.",
   "you_see": "A question quoting the possession clause.",
-  "test": "You relay, as a signed setting, the clause \"Possession at closing or as agreed\"."}
+  "test": "The authorized user relays, as a signed setting, the clause \"Possession at closing or as agreed\"."
+ }
 ]

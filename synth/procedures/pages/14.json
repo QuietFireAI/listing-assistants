@@ -1,158 +1,228 @@
 [
- {"id": "14-01", "rev": 1,
+ {
+  "id": "14-01",
+  "rev": 2,
   "title": "Two entries disagree about the same thing",
   "when": "Two entries in a client's history record conflicting facts about the same kind of event (for example two different preferred channels).",
   "steps": [
    "Agent 14 (CRM & Pipeline) keeps both entries.",
    "It flags the second as conflicting, naming the field."
   ],
-  "never": ["Merge, overwrite or pick between conflicting entries."],
+  "never": [
+   "Merge, overwrite or pick between conflicting entries."
+  ],
   "why": "The history is evidence. Deciding which fact is true is a person's job, with both in view.",
   "you_see": "Both entries in the history, the second flagged.",
-  "test": "A client asks to be texted, then minutes later to be emailed. Both changes are recorded; the second is flagged on the channel field."},
- {"id": "14-02", "rev": 1,
+  "test": "A client asks to be texted, then minutes later to be emailed. Both changes are recorded; the second is flagged on the channel field."
+ },
+ {
+  "id": "14-02",
+  "rev": 2,
   "title": "Two records might be the same person",
   "when": "A new inquiry shares a phone number with an existing client but the name differs.",
   "steps": [
    "Nothing is merged.",
-   "The new inquiry is held and you are asked to continue (a separate person) or cancel."
+   "The new inquiry is held and the authorized user is asked to continue (a separate person) or cancel."
   ],
-  "never": ["Merge records without confirmed identity."],
+  "never": [
+   "Merge records without confirmed identity."
+  ],
   "why": "A wrong merge mixes two people's private information and consent.",
   "you_see": "A held inquiry naming the possible match.",
-  "test": "\"Avery Synth\" and later \"A. Synthe\" with the same phone number."},
- {"id": "14-03", "rev": 1,
+  "test": "\"Avery Synth\" and later \"A. Synthe\" with the same phone number."
+ },
+ {
+  "id": "14-03",
+  "rev": 2,
   "title": "A report covers a period with a gap in the record",
   "when": "A report is produced for a time when some entries could not be written.",
   "steps": [
    "The report names the gap and the client it affects.",
    "It never smooths over missing entries."
   ],
-  "never": ["Produce a report that hides a logging gap."],
+  "never": [
+   "Produce a report that hides a logging gap."
+  ],
   "why": "A report that looks complete when it is not leads to wrong decisions.",
   "you_see": "The end-of-day report listing the logging gap.",
-  "test": "A client's record is frozen (a deletion request) before the lead's entries arrive, so they are refused; the end-of-day report names that client as a logging gap."},
- {"id": "14-04", "rev": 1,
+  "test": "A client's record is frozen (a deletion request) before the lead's entries arrive, so they are refused; the end-of-day report names that client as a logging gap."
+ },
+ {
+  "id": "14-04",
+  "rev": 2,
   "title": "A client's consent conflicts across channels",
   "when": "A client opted out of a channel and later says something that sounds like yes to it.",
   "steps": [
    "The most restrictive answer stands on each channel.",
-   "A later yes does not lift a no on its own; only a consent record you sign, marked as reconfirmed by the client, does.",
-   "Nothing confirming the change is sent to the client; you are told the opt-out stands."
+   "A later yes does not lift a no on its own; only a consent record the authorized user signs, marked as reconfirmed by the client, does.",
+   "Nothing confirming the change is sent to the client; the authorized user is told the opt-out stands."
   ],
-  "never": ["Lift an opt-out because the client seemed to change their mind in passing."],
-  "why": "Contact rules require clear consent. Your signed record of the client's reconfirmation is that proof.",
+  "never": [
+   "Lift an opt-out because the client seemed to change their mind in passing."
+  ],
+  "why": "Contact rules require clear consent. The authorized user's signed record of the client's reconfirmation is that proof.",
   "you_see": "A question saying the opt-out stands until a reconfirmed consent record is signed.",
-  "test": "A lead says no to texts at capture; the next day writes \"Please text me from now on\". Texts stay no and no confirmation is sent."},
- {"id": "14-05", "rev": 1,
+  "test": "A lead says no to texts at capture; the next day writes \"Please text me from now on\". Texts stay no and no confirmation is sent."
+ },
+ {
+  "id": "14-05",
+  "rev": 2,
   "title": "Someone asks to delete a client's record",
   "when": "A request to delete a client's record arrives.",
   "steps": [
    "Agent 14 deletes nothing.",
-   "It raises a legal-line alert for you."
+   "It raises a legal-line alert for the authorized user."
   ],
-  "never": ["Delete a record on its own."],
-  "why": "Retention periods are set by law in your state, not by judgment.",
+  "never": [
+   "Delete a record on its own."
+  ],
+  "why": "Retention periods are set by law in the authorized user's state, not by judgment.",
   "you_see": "A legal-line alert about the deletion request.",
-  "test": "A signed request to delete a lead's record."},
- {"id": "14-06", "rev": 1,
+  "test": "A signed request to delete a lead's record."
+ },
+ {
+  "id": "14-06",
+  "rev": 2,
   "title": "Two records look like the same person",
   "when": "Two inquiries match on name and phone (written differently).",
   "steps": [
    "Agent 14 proposes the match with the evidence.",
-   "You decide: continue keeps them as separate people; nothing is merged automatically."
+   "The authorized user decides: continue keeps them as separate people; nothing is merged automatically."
   ],
-  "never": ["Merge client records automatically."],
+  "never": [
+   "Merge client records automatically."
+  ],
   "why": "Even a strong match can be two people (a parent and child at one number). A person confirms.",
   "you_see": "A held inquiry naming the possible match and what continue means.",
-  "test": "\"Avery Synth\" at (216) 555-0101 and \"Avery Synth\" at +1 216 555 0101."},
- {"id": "14-07", "rev": 1,
+  "test": "\"Avery Synth\" at (216) 555-0101 and \"Avery Synth\" at +1 216 555 0101."
+ },
+ {
+  "id": "14-07",
+  "rev": 2,
   "title": "A change would overwrite history",
   "when": "A fact in a client's history changes.",
   "steps": [
    "The change is added as a new entry.",
    "The old entry stays; nothing is edited or erased."
   ],
-  "never": ["Edit or erase an entry."],
-  "why": "The history is written in ink: it shows what was true when, which is what protects you in a dispute.",
+  "never": [
+   "Edit or erase an entry."
+  ],
+  "why": "The history is written in ink: it shows what was true when, which is what protects the authorized user in a dispute.",
   "you_see": "Both entries, in order.",
-  "test": "You sign email consent \"yes\", then \"no\". Both are recorded as separate entries."},
- {"id": "14-08", "rev": 1,
+  "test": "The authorized user signs email consent \"yes\", then \"no\". Both are recorded as separate entries."
+ },
+ {
+  "id": "14-08",
+  "rev": 2,
   "title": "Imported data conflicts with the record",
   "when": "Data imported from another system disagrees with the record.",
   "steps": [
    "The record wins.",
    "The import's differences are flagged."
   ],
-  "never": ["Let an import overwrite the record."],
+  "never": [
+   "Let an import overwrite the record."
+  ],
   "why": "The record is built from signed and logged events; an import is someone else's copy.",
   "you_see": "The flagged differences.",
-  "test": ""},
- {"id": "14-09", "rev": 1,
+  "test": ""
+ },
+ {
+  "id": "14-09",
+  "rev": 2,
   "title": "An agent asks for a client record it has no route to",
   "when": "An agent asks the CRM for a client's record without a route that allows it.",
   "steps": [
    "The dispatcher refuses the request before Agent 14 sees it."
   ],
-  "never": ["Share a client's record with an agent that has no need to know."],
+  "never": [
+   "Share a client's record with an agent that has no need to know."
+  ],
   "why": "Need-to-know is built into the routes; it does not depend on anyone's judgment.",
   "you_see": "The refusal in the record.",
-  "test": "Agent 06 asks for a client's record; only Agents 01, 11, 13 and 15 may. Stand-in: the test sends it as Agent 06."},
- {"id": "14-10", "rev": 1,
+  "test": "Agent 06 asks for a client's record; only Agents 01, 11, 13 and 15 may. Stand-in: the test sends it as Agent 06."
+ },
+ {
+  "id": "14-10",
+  "rev": 2,
   "title": "A deletion request freezes the record",
   "when": "A retention or deletion request arrives for a client.",
   "steps": [
    "Agent 14 freezes the record: nothing is deleted and nothing new is written.",
-   "It raises a legal-line alert for you.",
-   "Any later attempt to write to the frozen record is refused and you are told."
+   "It raises a legal-line alert for the authorized user.",
+   "Any later attempt to write to the frozen record is refused and the authorized user is told."
   ],
-  "never": ["Decide a deletion on its own."],
-  "why": "Deletion is the owner's decision under the law. Freezing keeps everything as it was until you decide.",
+  "never": [
+   "Decide a deletion on its own."
+  ],
+  "why": "Deletion is the owner's decision under the law. Freezing keeps everything as it was until the authorized user decides.",
   "you_see": "A legal-line alert; questions when something tries to write to the frozen record.",
-  "test": "A signed deletion request for a lead; the next day the client asks to be texted. The write to the record is refused. (The confirmation of the channel change still goes to the client.)"},
- {"id": "14-11", "rev": 1,
-  "title": "You record who has access to a property",
-  "when": "You sign an access grant (for example an inspector's access).",
+  "test": "A signed deletion request for a lead; the next day the client asks to be texted. The write to the record is refused. (The confirmation of the channel change still goes to the client.)"
+ },
+ {
+  "id": "14-11",
+  "rev": 2,
+  "title": "The authorized user records who has access to a property",
+  "when": "The authorized user signs an access grant (for example an inspector's access).",
   "steps": [
    "Agent 14 records only the party, the end of the access window and a custody reference.",
    "It rejects the whole grant if it has any other field, or if a value looks like the code itself."
   ],
-  "never": ["Store an access code in the record."],
+  "never": [
+   "Store an access code in the record."
+  ],
   "why": "A code in the record is a code anyone with record access can read.",
   "you_see": "A rejection for a grant with a code in it; the clean grant kept.",
-  "test": "Three signed grants: one with \"lockbox code 4411\" as the reference (rejected), one with an extra code field (rejected), one clean (kept)."},
- {"id": "14-12", "rev": 1,
+  "test": "Three signed grants: one with \"lockbox code 4411\" as the reference (rejected), one with an extra code field (rejected), one clean (kept)."
+ },
+ {
+  "id": "14-12",
+  "rev": 2,
   "title": "An access window has ended and is still open",
-  "when": "An access window's end date has passed and you have not closed it.",
+  "when": "An access window's end date has passed and the authorized user has not closed it.",
   "steps": [
-   "Agent 14 flags it to you once.",
+   "Agent 14 flags it to the authorized user once.",
    "It does not repeat the flag every day."
   ],
-  "never": ["Repeat the same flag daily."],
-  "why": "You need to know access is still open; a daily repeat trains people to ignore it.",
+  "never": [
+   "Repeat the same flag daily."
+  ],
+  "why": "The authorized user needs to know access is still open; a daily repeat trains people to ignore it.",
   "you_see": "One question saying the access window has ended.",
-  "test": "An inspector's access ends October 16; the daily clock runs on the 17th and 18th. One flag."},
- {"id": "14-13", "rev": 1,
+  "test": "An inspector's access ends October 16; the daily clock runs on the 17th and 18th. One flag."
+ },
+ {
+  "id": "14-13",
+  "rev": 2,
   "title": "A record cannot be filed in the client's drawer",
   "when": "Filing a record in the client's document drawer fails.",
   "steps": [
-   "The refusal is recorded and held for you.",
+   "The refusal is recorded and held for the authorized user.",
    "The CRM entry still stands, and the work goes on."
   ],
-  "never": ["Lose the entry, or hide that filing failed."],
-  "why": "The drawer is the client's file; you need to know when something is missing from it.",
+  "never": [
+   "Lose the entry, or hide that filing failed."
+  ],
+  "why": "The drawer is the client's file; the authorized user needs to know when something is missing from it.",
   "you_see": "A question saying the drawer filing was refused.",
-  "test": "A lead comes in under the client name \"Jane Synth\"; a space is not allowed in a drawer folder name, so filing is refused, and the lead is still captured."},
- {"id": "14-14", "rev": 1,
-  "title": "You sign a client's consent record",
-  "when": "You sign a consent record for a client.",
+  "test": "A lead comes in under the client name \"Jane Synth\"; a space is not allowed in a drawer folder name, so filing is refused, and the lead is still captured."
+ },
+ {
+  "id": "14-14",
+  "rev": 2,
+  "title": "The authorized user signs a client's consent record",
+  "when": "The authorized user signs a consent record for a client.",
   "steps": [
    "Each channel is set as signed.",
    "A channel the client opted out of stays \"no\" unless the record says the client reconfirmed it.",
    "A record that cannot be read is rejected whole."
   ],
-  "never": ["Turn an opt-out back on without the client's reconfirmation."],
-  "why": "Consent is the client's. Your signature records it; it cannot override their opt-out without their word.",
+  "never": [
+   "Turn an opt-out back on without the client's reconfirmation."
+  ],
+  "why": "Consent is the client's. The authorized user's signature records it; it cannot override their opt-out without their word.",
   "you_see": "Questions when a channel stays \"no\" or a record is rejected.",
-  "test": "A lead opted out of texts. You sign text and email \"yes\": text stays no. You sign text \"maybe\": rejected. You sign text \"yes\" marked reconfirmed by the client: text becomes yes."}
+  "test": "A lead opted out of texts. The authorized user signs text and email \"yes\": text stays no. The authorized user signs text \"maybe\": rejected. The authorized user signs text \"yes\" marked reconfirmed by the client: text becomes yes."
+ }
 ]

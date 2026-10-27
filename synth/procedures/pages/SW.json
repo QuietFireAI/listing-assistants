@@ -1,16 +1,23 @@
 [
- {"id": "SW-01", "rev": 1,
+ {
+  "id": "SW-01",
+  "rev": 2,
   "title": "One trigger matches two playbooks",
   "when": "Something happens that would start two different playbooks.",
   "steps": [
    "The dispatcher runs neither.",
-   "It asks you which one, naming both."
+   "It asks the authorized user which one, naming both."
   ],
-  "never": ["Pick a playbook on its own."],
-  "why": "Two playbooks for one event can send conflicting messages. You choose.",
+  "never": [
+   "Pick a playbook on its own."
+  ],
+  "why": "Two playbooks for one event can send conflicting messages. The authorized user chooses.",
   "you_see": "A question naming both playbooks.",
-  "test": ""},
- {"id": "SW-02", "rev": 1,
+  "test": ""
+ },
+ {
+  "id": "SW-02",
+  "rev": 2,
   "title": "A playbook step would cross the closed track",
   "when": "A step in a playbook asks an agent to do something the track does not allow (for example an agent other than 11 messaging a client directly).",
   "steps": [
@@ -18,110 +25,160 @@
    "The playbook is halted and the halt is recorded as a defect in the playbook (an integrity violation).",
    "Nobody decides it on the spot: the playbook itself must be fixed."
   ],
-  "never": ["Let a playbook step override the track, or treat it as a judgment call."],
+  "never": [
+   "Let a playbook step override the track, or treat it as a judgment call."
+  ],
   "why": "A playbook that asks for something forbidden is wrongly written. Fixing the playbook is the only safe answer.",
   "you_see": "The halted playbook and the integrity record naming the defect.",
-  "test": "During an open house playbook, Agent 06 tries to send a client an invitation directly (only Agent 11 may message clients). Stand-in: the test sends it as Agent 06."},
- {"id": "SW-03", "rev": 1,
+  "test": "During an open house playbook, Agent 06 tries to send a client an invitation directly (only Agent 11 may message clients). Stand-in: the test sends it as Agent 06."
+ },
+ {
+  "id": "SW-03",
+  "rev": 2,
   "title": "There is more work than capacity",
   "when": "Work is waiting because the system is at capacity.",
   "steps": [
    "Work is let in by priority: alerts first, then active transaction deadlines, then client requests, then internal and marketing work, then prospecting.",
    "Within the same priority, the older item goes first."
   ],
-  "never": ["Let low-priority work jump the line."],
+  "never": [
+   "Let low-priority work jump the line."
+  ],
   "why": "When everything cannot happen at once, deadlines and people come before marketing and discovery.",
   "you_see": "Nothing to do; the record shows the order.",
-  "test": "Your queue is full with 25 questions, so a withdrawal, two new listings and a prospecting lead wait. Three questions are marked done; the withdrawal goes first, then the two listings (older first), then the prospecting lead."},
- {"id": "SW-04", "rev": 1,
-  "title": "Your signed instruction conflicts with a playbook",
-  "when": "A playbook says to do something and you sign a decision not to.",
+  "test": "The authorized user's queue is full with 25 questions, so a withdrawal, two new listings and a prospecting lead wait. Three questions are marked done; the withdrawal goes first, then the two listings (older first), then the prospecting lead."
+ },
+ {
+  "id": "SW-04",
+  "rev": 2,
+  "title": "The authorized user's signed instruction conflicts with a playbook",
+  "when": "A playbook says to do something and the authorized user signs a decision not to.",
   "steps": [
-   "Your signed decision wins.",
-   "The playbook ends and its after-action report records your decision as a deviation."
+   "The authorized user's signed decision wins.",
+   "The playbook ends and its after-action report records the authorized user's decision as a deviation."
   ],
-  "never": ["Carry on with the playbook against your signed decision."],
-  "why": "Playbooks serve you. Your decision stands, and the report shows where you departed from the standard.",
-  "you_see": "The after-action report listing your decision.",
-  "test": "The weekly seller report playbook (P18) holds this week's report; you cancel it. Nothing is sent to the seller and the report lists your cancellation."},
- {"id": "SW-05", "rev": 1,
+  "never": [
+   "Carry on with the playbook against the authorized user's signed decision."
+  ],
+  "why": "Playbooks serve the authorized user. The signed decision stands, and the report shows where it departed from the standard.",
+  "you_see": "The after-action report listing the authorized user's decision.",
+  "test": "The weekly seller report playbook (P18) holds this week's report; the authorized user cancels it. Nothing is sent to the seller and the report lists the authorized user's cancellation."
+ },
+ {
+  "id": "SW-05",
+  "rev": 2,
   "title": "Data is too old",
   "when": "Data a task needs is older than its freshness limit.",
   "steps": [
    "It is regenerated fresh; stale items are left out and counted."
   ],
-  "never": ["Present old data as current."],
+  "never": [
+   "Present old data as current."
+  ],
   "why": "Old data in a moving market misleads.",
   "you_see": "Fresh data, with a count of what was dropped as stale.",
-  "test": "A comparables request where one sale was retrieved too long ago."},
- {"id": "SW-06", "rev": 1,
+  "test": "A comparables request where one sale was retrieved too long ago."
+ },
+ {
+  "id": "SW-06",
+  "rev": 2,
   "title": "One step fails while others run alongside it",
   "when": "Several independent steps happen together and one of them fails.",
   "steps": [
    "The steps that do not depend on it still finish.",
-   "The failed step is flagged and held for you; anything that depends on it waits.",
+   "The failed step is flagged and held for the authorized user; anything that depends on it waits.",
    "The work is never abandoned silently."
   ],
-  "never": ["Drop the whole job, or hide the failure."],
+  "never": [
+   "Drop the whole job, or hide the failure."
+  ],
   "why": "One broken step should not stop unrelated work, and must not go unnoticed.",
   "you_see": "A question about the failed step; the rest done.",
-  "test": "A lead named \"Jane Synth\": filing into the client drawer fails (a space is not allowed in the folder name); capture, scoring and the CRM log still complete."},
- {"id": "SW-07", "rev": 1,
+  "test": "A lead named \"Jane Synth\": filing into the client drawer fails (a space is not allowed in the folder name); capture, scoring and the CRM log still complete."
+ },
+ {
+  "id": "SW-07",
+  "rev": 2,
   "title": "The same message arrives twice",
   "when": "An identical message (same ID) arrives a second time.",
   "steps": [
    "The dispatcher processes it once.",
    "The second arrival is answered as a duplicate and does nothing."
   ],
-  "never": ["Act on the same message twice."],
+  "never": [
+   "Act on the same message twice."
+  ],
   "why": "A retry that runs twice could double a message to a client or a booking.",
   "you_see": "Nothing; one lead, one capture.",
-  "test": "The test sends one inquiry twice with the same message ID."},
- {"id": "SW-08", "rev": 1,
+  "test": "The test sends one inquiry twice with the same message ID."
+ },
+ {
+  "id": "SW-08",
+  "rev": 2,
   "title": "It is unclear whether a legal line is crossed",
   "when": "An agent cannot tell whether something crosses the legal line.",
   "steps": [
    "It treats it as crossed.",
-   "It stops and raises a legal-line alert for you."
+   "It stops and raises a legal-line alert for the authorized user."
   ],
-  "never": ["Give the benefit of the doubt on a legal question."],
-  "why": "A false alarm costs you a minute; a missed legal problem can cost a license.",
+  "never": [
+   "Give the benefit of the doubt on a legal question."
+  ],
+  "why": "A false alarm costs a minute; a missed legal problem can cost a license.",
   "you_see": "A legal-line alert.",
-  "test": "A closing statement arrives and Agent 08 has no list of expected senders, so it cannot tell if the sender is legitimate: it is quarantined and escalated, and nothing moves the closing."},
- {"id": "SW-09", "rev": 1,
+  "test": "A closing statement arrives and Agent 08 has no list of expected senders, so it cannot tell if the sender is legitimate: it is quarantined and escalated, and nothing moves the closing."
+ },
+ {
+  "id": "SW-09",
+  "rev": 2,
   "title": "No decision exists for the situation",
   "when": "Something happens that no tuple covers.",
   "steps": [
    "The agent stops.",
-   "It asks you and waits."
+   "It asks the authorized user and waits."
   ],
-  "never": ["Improvise."],
-  "why": "A missing decision is a gap in the design, to be decided by you, not filled in on the fly.",
+  "never": [
+   "Improvise."
+  ],
+  "why": "A missing decision is a gap in the design, to be decided by the authorized user, not filled in on the fly.",
   "you_see": "A question saying no rule covers this and the item is held.",
-  "test": "A social media mention reading \"lol\", labeled noise, which no rule covers."},
- {"id": "SW-10", "rev": 1,
+  "test": "A social media mention reading \"lol\", labeled noise, which no rule covers."
+ },
+ {
+  "id": "SW-10",
+  "rev": 2,
   "title": "Keeping the agents on their rules over long runs",
   "when": "An agent has been working for a long time, or reaches a major step.",
   "steps": [
    "At every major step (for example taking in a new listing, going live), the agents are handed the conduct rules again.",
    "If many turns pass without that, a backstop hands them over anyway."
   ],
-  "never": ["Run for long stretches on fading instructions."],
+  "never": [
+   "Run for long stretches on fading instructions."
+  ],
   "why": "Software agents can drift from their instructions over long runs. Re-reading the rules keeps behavior consistent.",
   "you_see": "Nothing; the record shows each re-reading.",
-  "test": "A new listing goes live; the record shows the conduct rules re-read at its phase gates."},
- {"id": "SW-11", "rev": 1,
+  "test": "A new listing goes live; the record shows the conduct rules re-read at its phase gates."
+ },
+ {
+  "id": "SW-11",
+  "rev": 2,
   "title": "Acting when not everything is known yet",
   "when": "The path looks clear but not everything is confirmed.",
   "steps": [
    "Agents go ahead only with steps that can be undone.",
-   "Anything that cannot be undone or that a client or other party will see waits for your full, signed authority."
+   "Anything that cannot be undone or that a client or other party will see waits for the authorized user's full, signed authority."
   ],
-  "never": ["Take an irreversible or public step on partial information."],
+  "never": [
+   "Take an irreversible or public step on partial information."
+  ],
   "why": "Reversible steps keep work moving; irreversible ones need certainty.",
-  "you_see": "The photographer booking and the listing ad waiting for your release.",
-  "test": "A new listing: the photographer booking and the marketing publish are both held for your signed release."},
- {"id": "SW-12", "rev": 1,
+  "you_see": "The photographer booking and the listing ad waiting for the authorized user's release.",
+  "test": "A new listing: the photographer booking and the marketing publish are both held for the authorized user's signed release."
+ },
+ {
+  "id": "SW-12",
+  "rev": 2,
   "title": "Two jobs need the same agent at once",
   "when": "Two running playbooks need the same agent at the same moment.",
   "steps": [
@@ -129,29 +186,42 @@
    "The other waits on a \"siding\" and resumes when the agent is free.",
    "Neither job is cancelled."
   ],
-  "never": ["Abort a job because of a clash."],
-  "why": "Clashes are normal on a busy day; waiting your turn is safe, aborting loses work.",
+  "never": [
+   "Abort a job because of a clash."
+  ],
+  "why": "Clashes are normal on a busy day; waiting the authorized user's turn is safe, aborting loses work.",
   "you_see": "Nothing; the record shows the hold and the resume.",
-  "test": "A withdrawal and two new listings all need Agent 05; the withdrawal goes first and the two listings wait on the siding, then resume in arrival order."},
- {"id": "SW-13", "rev": 1,
+  "test": "A withdrawal and two new listings all need Agent 05; the withdrawal goes first and the two listings wait on the siding, then resume in arrival order."
+ },
+ {
+  "id": "SW-13",
+  "rev": 2,
   "title": "A task would need a route that does not exist",
   "when": "An agent tries to send something on a path the track does not declare.",
   "steps": [
    "The dispatcher refuses it before delivery."
   ],
-  "never": ["Treat a missing route as permission."],
+  "never": [
+   "Treat a missing route as permission."
+  ],
   "why": "An undeclared path is a sign something is wrong, not an opportunity.",
   "you_see": "The refusal in the record.",
-  "test": "Agent 06 asks Agent 14 for a client's record (no such route). Stand-in: the test sends it as Agent 06."},
- {"id": "SW-14", "rev": 1,
+  "test": "Agent 06 asks Agent 14 for a client's record (no such route). Stand-in: the test sends it as Agent 06."
+ },
+ {
+  "id": "SW-14",
+  "rev": 2,
   "title": "A situation comes up that no rule covers, during a playbook",
   "when": "Inside a playbook, an agent meets something no tuple covers.",
   "steps": [
-   "The agent holds it and asks you.",
-   "The playbook's after-action report proposes a new tuple for it, for you to approve."
+   "The agent holds it and asks the authorized user.",
+   "The playbook's after-action report proposes a new tuple for it, for the authorized user to approve."
   ],
-  "never": ["Handle it on the fly."],
-  "why": "Each gap found becomes a new decision. That is how the system gets more complete over time, with you deciding each addition.",
+  "never": [
+   "Handle it on the fly."
+  ],
+  "why": "Each gap found becomes a new decision. That is how the system gets more complete over time, with the authorized user deciding each addition.",
   "you_see": "A question saying no rule covers it; a proposed tuple in the after-action report.",
-  "test": "During an open house, a client asks \"Can you run the ad on Instagram too?\"; Agent 12 has no rule for it. The open house report proposes one."}
+  "test": "During an open house, a client asks \"Can you run the ad on Instagram too?\"; Agent 12 has no rule for it. The open house report proposes one."
+ }
 ]

@@ -114,6 +114,15 @@ class Spoke18CalendarTask:
     def _wait_key(self, agent: str, ctx: str, waiting_on: str) -> str:
         return f"{agent}:{ctx}:{waiting_on}"
 
+    def _not_booked(self, env: Envelope):
+        """Owner decision 2026-10-27: Agent 06 confirms a showing to the buyer
+        only once it is on the calendar. When a showing from 06 is not added
+        (conflict, full day, no day, unconfirmed time zone), 18 tells 06 so;
+        the question to the broker above stands as before."""
+        if env.from_agent == "06" and env.payload.get("event") == "showing":
+            self.hub.send(_env("18", "06", "calendar.conflict", env.client_context_id,
+                               {"time": env.payload.get("time"), "day": env.payload.get("day")}))
+
     def handle(self, env: Envelope):
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
             from .clock import handle_tick
@@ -185,6 +194,7 @@ class Spoke18CalendarTask:
                                    {"reason": "calendar event has no day - not "
                                               "scheduled; name the day",
                                     "event": payload.get("event")}))
+                self._not_booked(env)
                 return
             if payload.get("recurring_task_id"):
                 self.recurring_task_last_seen[payload["recurring_task_id"]] = str(day)
@@ -203,6 +213,7 @@ class Spoke18CalendarTask:
                                    {"reason": "timezone ambiguity on this "
                                              "event - confirm before "
                                              "scheduling"}))
+                self._not_booked(env)
                 return
 
             day_events = self.calendar.setdefault(day, [])
@@ -221,6 +232,7 @@ class Spoke18CalendarTask:
                                              f"{day!r} - priority rules don't "
                                              f"resolve this, human decides, "
                                              f"never silently moving either"}))
+                self._not_booked(env)
                 return
 
             # tuple 5: overloaded day -> propose priority order, human confirms.
@@ -239,6 +251,7 @@ class Spoke18CalendarTask:
                                               "your confirmation (protected "
                                               "deadline blocks first, then by time)",
                                     "day": day, "proposed_order": proposed}))
+                self._not_booked(env)
                 return
 
             event_id = payload.get("event_id", f"{day}-{len(day_events)}")

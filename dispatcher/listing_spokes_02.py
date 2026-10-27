@@ -368,6 +368,23 @@ class Spoke02LeadQualification:
                              env.intent == "lead.rescored")
             return
 
+    def _hot_record(self, ctx: str, payload: dict, score) -> dict:
+        """The hot-lead alert. Owner decision 2026-10-27: a hot lead the
+        broker may not contact (on the Do Not Call list, or no channel with
+        consent "yes": refused, unknown or opted out) is still alerted, so
+        the broker sees the interest, but marked do-not-contact with the
+        reason and with no call deadline."""
+        consent = payload.get("consent") if isinstance(payload.get("consent"), dict) else {}
+        reasons = []
+        if payload.get("dnc"):
+            reasons.append("on your Do Not Call list")
+        if not any(v == "yes" for v in consent.values()):
+            reasons.append("no consent on any channel")
+        if reasons:
+            return {"client_context_id": ctx, "score": score, "do_not_contact": True,
+                    "reason": "DO NOT CONTACT: " + "; ".join(reasons), "consent": consent}
+        return {"client_context_id": ctx, "score": score, "sla_s": self.hot_lead_sla_seconds}
+
     def _apply_tier(self, ctx: str, payload: dict, tier: str, score, notes: list,
                     envelope_id: str, rescored: bool):
 
@@ -402,9 +419,7 @@ class Spoke02LeadQualification:
             self.hub.send(_env("02", "18", "agent.status", ctx,
                                {"waiting_on": "hot_lead_human_response",
                                 "since": payload.get("today")}))
-            self.hub.escalate("escalation.hot_lead",
-                              {"client_context_id": ctx, "score": score,
-                               "sla_s": self.hot_lead_sla_seconds})
+            self.hub.escalate("escalation.hot_lead", self._hot_record(ctx, payload, score))
         elif tier == "WARM":
             # tuple 10 (Agent 03's DECISIONS.md): "two sequences would
             # target one context... newest SIGNED instruction wins" -

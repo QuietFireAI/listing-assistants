@@ -1,23 +1,23 @@
 [
  {
   "id": "05-01",
-  "rev": 1,
+  "rev": 2,
   "title": "A listing change has no matching MLS field",
   "when": "A signed change names a piece of data that has no valid field in the MLS record (for example lot size in acres where the MLS has no such field).",
   "steps": [
    "Agent 05 (MLS & Listing Management) does not enter it anywhere.",
-   "It asks you, naming the data that has no valid MLS field."
+   "It asks the authorized user, naming the data that has no valid MLS field."
   ],
   "never": [
    "Squeeze the data into the nearest-looking field."
   ],
   "why": "Data in the wrong field misleads buyers and agents who search on that field.",
   "you_see": "A question naming the data with no valid MLS field.",
-  "test": "A live listing; you sign a change setting lot_acres to 0.5."
+  "test": "A live listing; the authorized user signs a change setting lot_acres to 0.5."
  },
  {
   "id": "05-02",
-  "rev": 1,
+  "rev": 2,
   "title": "A listing portal shows different data than the MLS",
   "when": "A syndicated portal (for example a public listing site) shows data that differs from the MLS record.",
   "steps": [
@@ -33,12 +33,12 @@
  },
  {
   "id": "05-03",
-  "rev": 1,
+  "rev": 2,
   "title": "Two signed listing changes contradict each other",
   "when": "Two authorized changes to the same listing conflict (for example from two people with signing authority).",
   "steps": [
    "Agent 05 carries out neither change.",
-   "It asks you which one stands."
+   "It asks the authorized user which one stands."
   ],
   "never": [
    "Apply the later one, or either one, without asking."
@@ -49,11 +49,11 @@
  },
  {
   "id": "05-04",
-  "rev": 1,
+  "rev": 2,
   "title": "A portal is still out of date after the check window",
   "when": "A portal still shows old data after the time allowed for it to update.",
   "steps": [
-   "Agent 05 records it and tells you.",
+   "Agent 05 records it and tells the authorized user.",
    "It never marks the update complete."
   ],
   "never": [
@@ -65,44 +65,44 @@
  },
  {
   "id": "05-05",
-  "rev": 1,
+  "rev": 2,
   "title": "A status change arrives without the document it needs",
   "when": "A signed status change needs a supporting document that is missing (for example \"sold\" without the closing document).",
   "steps": [
    "Agent 05 refuses the change.",
-   "It asks you for the missing document, naming it."
+   "It asks the authorized user for the missing document, naming it."
   ],
   "never": [
    "Change a status before the required document is on file."
   ],
   "why": "A status without its proof is a false public statement about the property.",
   "you_see": "A question naming the document the change requires.",
-  "test": "A live listing; you sign a change to \"sold\" with no closing document. No status change is carried out."
+  "test": "A live listing; the authorized user signs a change to \"sold\" with no closing document. No status change is carried out."
  },
  {
   "id": "05-06",
-  "rev": 1,
-  "title": "A status change arrives without your signature",
-  "when": "A status change arrives that you did not sign (for example a verbal or emailed instruction typed in).",
+  "rev": 2,
+  "title": "A status change arrives without the authorized user's signature",
+  "when": "A status change arrives that the authorized user did not sign (for example a verbal or emailed instruction typed in).",
   "steps": [
    "The dispatcher refuses it before Agent 05 sees it.",
-   "It is recorded as an integrity violation and you are alerted."
+   "It is recorded as an integrity violation and the authorized user is alerted."
   ],
   "never": [
    "Treat a verbal or emailed instruction as authority."
   ],
-  "why": "Only your signature can change a listing. Anything else could be a mistake or an impersonation.",
+  "why": "Only the authorized user's signature can change a listing. Anything else could be a mistake or an impersonation.",
   "you_see": "An integrity alert naming the refused change.",
   "test": "A live listing; an unsigned instruction to withdraw it arrives. The status is not changed."
  },
  {
   "id": "05-07",
-  "rev": 1,
+  "rev": 2,
   "title": "The MLS rejects an entry",
   "when": "The MLS refuses an entry on one of its rules.",
   "steps": [
    "Agent 05 records the MLS's rejection exactly as given.",
-   "It tells you."
+   "It tells the authorized user."
   ],
   "never": [
    "Change the data just to get past the MLS's check."
@@ -113,39 +113,39 @@
  },
  {
   "id": "05-08",
-  "rev": 1,
+  "rev": 2,
   "title": "A signed price change disagrees with the amendment on file",
   "when": "The price in a signed change differs from the price in the listing agreement amendment on file.",
   "steps": [
    "Agent 05 stops and does not change the price.",
-   "It asks you, naming both amounts."
+   "It asks the authorized user, naming both amounts."
   ],
   "never": [
    "Pick one of the two prices."
   ],
   "why": "The listing agreement is a contract with the seller. Publishing a price it does not support is a breach risk.",
   "you_see": "A question saying the price conflicts with the agreement amendment.",
-  "test": "A live listing; you sign a price of $440,000 while the amendment on file says $435,000. The price is not changed."
+  "test": "A live listing; the authorized user signs a price of $440,000 while the amendment on file says $435,000. The price is not changed."
  },
  {
   "id": "05-09",
-  "rev": 1,
+  "rev": 2,
   "title": "Someone asks to fill in buyer-broker compensation on the MLS",
   "when": "A change asks to fill in the buyer-broker compensation field.",
   "steps": [
    "Agent 05 leaves the field blank: offers of compensation are not allowed on the MLS since August 17, 2024.",
-   "It raises a legal-line alert for you naming the request."
+   "It raises a legal-line alert for the authorized user naming the request."
   ],
   "never": [
    "Fill in, or work around, the compensation field."
   ],
   "why": "Putting a compensation offer on the MLS breaks the rules that came out of the 2024 national settlement.",
   "you_see": "A legal-line alert about the compensation request.",
-  "test": "A live listing; you sign a change setting buyer_broker_comp to 2.5%."
+  "test": "A live listing; the authorized user signs a change setting buyer_broker_comp to 2.5%."
  },
  {
   "id": "05-10",
-  "rev": 1,
+  "rev": 2,
   "title": "The marketing copy and the MLS record disagree",
   "when": "A released description says something different from the MLS record (for example a different square footage).",
   "steps": [
@@ -163,41 +163,41 @@
  },
  {
   "id": "05-11",
-  "rev": 1,
+  "rev": 2,
   "title": "A withdrawal is asked for while the listing is under contract",
   "when": "A signed withdrawal arrives for a listing that has a signed purchase contract.",
   "steps": [
    "Agent 05 stops; the listing is not withdrawn.",
-   "It sends the matter to Compliance (Agent 17) and raises a legal-line alert for you."
+   "It sends the matter to Compliance (Agent 17) and raises a legal-line alert for the authorized user."
   ],
   "never": [
    "Change a listing's status on its own while a contract is live."
   ],
   "why": "Withdrawing during a contract can breach it. That is a legal decision, not a data change.",
   "you_see": "A legal-line alert saying a withdrawal was requested while under contract.",
-  "test": "A live listing goes to pending with a signed contract; then you sign a withdrawal."
+  "test": "A live listing goes to pending with a signed contract; then the authorized user signs a withdrawal."
  },
  {
   "id": "05-12",
-  "rev": 1,
+  "rev": 2,
   "title": "A vacant listing gets regular property checks",
-  "when": "You mark a listing as vacant.",
+  "when": "The authorized user marks a listing as vacant.",
   "steps": [
    "Agent 05 starts a vacancy watch and records it.",
    "On each daily run it asks Agent 09 (Vendor Coordination) for a property condition check.",
-   "Agent 09 books the first check; the booking waits for your release like any vendor booking.",
-   "While that check is open, Agent 09 does not book another one; it tells you once that it was not booked again."
+   "Agent 09 books the first check; the booking waits for the authorized user's release like any vendor booking.",
+   "While that check is open, Agent 09 does not book another one; it tells the authorized user once that it was not booked again."
   ],
   "never": [
    "Stack up duplicate check bookings while one is open."
   ],
   "why": "Empty houses invite damage and break-ins, and insurance can depend on regular checks. One open booking at a time keeps the vendor schedule honest.",
-  "you_see": "The first check booking waiting for your release; one note that further checks were not booked while it is open.",
-  "test": "A vacant listing goes live. The daily clock runs on days 1, 3 and 8: Agent 05 asks three times, one check is booked, and you are told once."
+  "you_see": "The first check booking waiting for the authorized user's release; one note that further checks were not booked while it is open.",
+  "test": "A vacant listing goes live. The daily clock runs on days 1, 3 and 8: Agent 05 asks three times, one check is booked, and the authorized user is told once."
  },
  {
   "id": "05-13",
-  "rev": 1,
+  "rev": 2,
   "title": "A vacant listing is occupied again",
   "when": "A vacant listing is marked occupied, or the listing ends.",
   "steps": [
@@ -210,6 +210,6 @@
   ],
   "why": "Checks on an occupied home cost money and intrude on the people living there.",
   "you_see": "The watch's end in the client's history.",
-  "test": "A vacant listing goes live; two days later you mark it occupied; the clock runs a week later and no check is asked for."
+  "test": "A vacant listing goes live; two days later the authorized user marks it occupied; the clock runs a week later and no check is asked for."
  }
 ]

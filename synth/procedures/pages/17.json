@@ -1,110 +1,160 @@
 [
- {"id": "17-01", "rev": 1,
+ {
+  "id": "17-01",
+  "rev": 2,
   "title": "The rules do not cover this kind of content",
   "when": "Compliance (Agent 17) is asked to review content of a kind its signed rules do not cover (for example an ad when the rules cover only descriptions and messages).",
   "steps": [
    "Agent 17 flags it as uncovered.",
    "It does not approve it: silence in the rules is not approval."
   ],
-  "never": ["Approve something because no rule says no."],
+  "never": [
+   "Approve something because no rule says no."
+  ],
   "why": "A rule set that does not mention ads has not cleared ads. Approval by omission is how violations slip through.",
   "you_see": "A flagged verdict saying the rules do not address this kind of content.",
-  "test": "You sign rules that cover listing descriptions, nurture sequences, buyer criteria, client messages and social replies; then a Facebook ad \"Open house Sunday, bright kitchen\" is sent for review."},
- {"id": "17-02", "rev": 1,
+  "test": "The authorized user signs rules that cover listing descriptions, nurture sequences, buyer criteria, client messages and social replies; then a Facebook ad \"Open house Sunday, bright kitchen\" is sent for review."
+ },
+ {
+  "id": "17-02",
+  "rev": 2,
   "title": "Flagged content is sent again unchanged",
   "when": "Content that was flagged is resubmitted without changes.",
   "steps": [
    "Agent 17 flags it again.",
-   "It raises a legal-line alert for you that it was resubmitted unchanged."
+   "It raises a legal-line alert for the authorized user that it was resubmitted unchanged."
   ],
-  "never": ["Approve on the second try."],
-  "why": "Resubmitting flagged text unchanged is either a mistake or pressure; either way you should know.",
+  "never": [
+   "Approve on the second try."
+  ],
+  "why": "Resubmitting flagged text unchanged is either a mistake or pressure; either way the authorized user should know.",
   "you_see": "A legal-line alert about the unchanged resubmission.",
-  "test": "The same campaign \"Perfect for young families near the park\" is submitted twice; both are flagged, with one alert."},
- {"id": "17-03", "rev": 1,
+  "test": "The same campaign \"Perfect for young families near the park\" is submitted twice; both are flagged, with one alert."
+ },
+ {
+  "id": "17-03",
+  "rev": 2,
   "title": "A review is taking too long",
   "when": "A review has waited past the expected time (for example because no rules are loaded).",
   "steps": [
    "Agent 17 does not rush a verdict.",
-   "It alerts you to the delay instead, naming what is waiting and who sent it."
+   "It alerts the authorized user to the delay instead, naming what is waiting and who sent it."
   ],
-  "never": ["Approve to meet a deadline."],
-  "why": "A fast wrong verdict is worse than a late right one. You hear about the delay so you can act.",
+  "never": [
+   "Approve to meet a deadline."
+  ],
+  "why": "A fast wrong verdict is worse than a late right one. The authorized user hears about the delay and can act.",
   "you_see": "A question saying no rules are active, then an alert that the review is 2 days late.",
-  "test": "No compliance rules are loaded. A new listing's description waits for review; the daily clock runs that day and two days later."},
- {"id": "17-04", "rev": 1,
+  "test": "No compliance rules are loaded. A new listing's description waits for review; the daily clock runs that day and two days later."
+ },
+ {
+  "id": "17-04",
+  "rev": 2,
   "title": "A state rule is stricter than the federal rule",
   "when": "Content passes the federal rules but breaks a stricter rule for its state.",
   "steps": [
    "The stricter rule wins: Agent 17 flags it.",
    "The verdict names the state and the rule."
   ],
-  "never": ["Approve because the federal rules allow it."],
-  "why": "The strictest rule that applies is the one you can be fined under.",
+  "never": [
+   "Approve because the federal rules allow it."
+  ],
+  "why": "The strictest rule that applies is the one the authorized user can be fined under.",
   "you_see": "A flagged verdict naming the Ohio rule.",
-  "test": "An Ohio ad says \"An exclusive community near the park\"; only the Ohio rule forbids that phrase."},
- {"id": "17-05", "rev": 1,
+  "test": "An Ohio ad says \"An exclusive community near the park\"; only the Ohio rule forbids that phrase."
+ },
+ {
+  "id": "17-05",
+  "rev": 2,
   "title": "Someone asks to pre-approve a whole kind of content",
   "when": "A request asks Compliance to approve a whole class of content in advance (for example all open house invitations).",
   "steps": [
    "Agent 17 refuses; nothing is stored.",
-   "It tells you verdicts are given one item at a time."
+   "It tells the authorized user verdicts are given one item at a time."
   ],
-  "never": ["Give a blanket approval."],
+  "never": [
+   "Give a blanket approval."
+  ],
   "why": "Each piece of text can go wrong in its own way. Only the actual words can be approved.",
   "you_see": "A question saying the pre-approval was refused.",
-  "test": "A signed request to pre-approve \"all open house invitations\"."},
- {"id": "17-06", "rev": 1,
+  "test": "A signed request to pre-approve \"all open house invitations\"."
+ },
+ {
+  "id": "17-06",
+  "rev": 2,
   "title": "Content contains steering language, however soft",
   "when": "Content includes a phrase that steers buyers, even in a mild way.",
   "steps": [
    "Agent 17 requires a change, citing the exact phrase and the rule."
   ],
-  "never": ["Approve with a note attached."],
+  "never": [
+   "Approve with a note attached."
+  ],
   "why": "Soft steering is still steering. An approval with a caveat still puts the phrase in public.",
   "you_see": "A flagged verdict with the phrase and the rule.",
-  "test": "An ad says \"A quiet street, perfect for young families\"; flagged under rule FH-1."},
- {"id": "17-07", "rev": 1,
+  "test": "An ad says \"A quiet street, perfect for young families\"; flagged under rule FH-1."
+ },
+ {
+  "id": "17-07",
+  "rev": 2,
   "title": "An ad is missing the brokerage identification",
-  "when": "An ad does not include your brokerage's name as your signed setting requires.",
+  "when": "An ad does not include the brokerage's name as the authorized user's signed setting requires.",
   "steps": [
    "Agent 17 blocks it until it is corrected.",
    "No exception is made for platforms with little space."
   ],
-  "never": ["Let an ad run without the brokerage identification."],
+  "never": [
+   "Let an ad run without the brokerage identification."
+  ],
   "why": "License law requires ads to identify the brokerage. A short format is not an excuse.",
   "you_see": "A flagged verdict saying the brokerage identification is missing; nothing published.",
-  "test": "A Facebook ad \"Open house Sunday, bright kitchen\" with no brokerage name."},
- {"id": "17-08", "rev": 1,
+  "test": "A Facebook ad \"Open house Sunday, bright kitchen\" with no brokerage name."
+ },
+ {
+  "id": "17-08",
+  "rev": 2,
   "title": "Content is reviewed again",
   "when": "The same content comes back for review.",
   "steps": [
    "Agent 17 reviews it fresh against the rules in force now.",
    "It does not answer from its earlier verdict."
   ],
-  "never": ["Repeat an old verdict without reviewing again."],
+  "never": [
+   "Repeat an old verdict without reviewing again."
+  ],
   "why": "Rules change. A verdict is only as good as the rules it was checked against.",
   "you_see": "A new verdict, naming the rules version it used.",
-  "test": "\"Perfect for young families near the park\" is flagged under rules version r1. You then sign version r2, which drops that rule; the same text is approved under r2."},
- {"id": "17-09", "rev": 1,
+  "test": "\"Perfect for young families near the park\" is flagged under rules version r1. The authorized user then sign version r2, which drops that rule; the same text is approved under r2."
+ },
+ {
+  "id": "17-09",
+  "rev": 2,
   "title": "No reviewed rules exist for the content's state",
-  "when": "Content is for a state your counsel has not reviewed rules for.",
+  "when": "Content is for a state the office's counsel has not reviewed rules for.",
   "steps": [
    "Agent 17 blocks it.",
-   "It raises a legal-line alert for you: the state's rules have not been reviewed by counsel."
+   "It raises a legal-line alert for the authorized user: the state's rules have not been reviewed by counsel."
   ],
-  "never": ["Clear content on general knowledge of a state's law."],
-  "why": "Only rules your counsel reviewed can clear a legal gate.",
+  "never": [
+   "Clear content on general knowledge of a state's law."
+  ],
+  "why": "Only rules the office's counsel reviewed can clear a legal gate.",
   "you_see": "A legal-line alert naming the unreviewed state.",
-  "test": "Counsel has reviewed Ohio only; a Pennsylvania ad \"Bright kitchen\" is submitted."},
- {"id": "17-10", "rev": 1,
+  "test": "Counsel has reviewed Ohio only; a Pennsylvania ad \"Bright kitchen\" is submitted."
+ },
+ {
+  "id": "17-10",
+  "rev": 2,
   "title": "One agent keeps producing near-miss language",
   "when": "Several submissions from the same agent are flagged.",
   "steps": [
-   "Agent 17 reports the pattern to you: which agent and how many times."
+   "Agent 17 reports the pattern to the authorized user: which agent and how many times."
   ],
-  "never": ["Treat each flag as a one-off."],
+  "never": [
+   "Treat each flag as a one-off."
+  ],
   "why": "Single verdicts miss drift. A pattern shows an agent whose drafting needs fixing.",
   "you_see": "A report naming the agent and the count.",
-  "test": "Three Marketing campaigns in a row are flagged (\"perfect for young families\", \"no kids next door\", \"truly perfect for young families\"). One report names Agent 12, count 3."}
+  "test": "Three Marketing campaigns in a row are flagged (\"perfect for young families\", \"no kids next door\", \"truly perfect for young families\"). One report names Agent 12, count 3."
+ }
 ]

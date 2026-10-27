@@ -15,8 +15,8 @@ flowchart LR
         I05["05 MLS and Listing Management"]
         I13["13 Buyer Search and Match"]
         I11["11 Client Communication"]
-        IB(["You (broker)"])
         I18["18 Calendar and Task Management"]
+        IB(["You (broker)"])
         I09["09 Vendor Coordination"]
         IK(["Daily clock"])
     end
@@ -33,8 +33,8 @@ flowchart LR
     I05 -- "shares the listing details<br/>answers with the listing's status" --> A06
     I13 -- "asks for a showing" --> A06
     I11 -- "asks for a showing<br/>reports a no-show<br/>passes on showing feedback" --> A06
+    I18 -- "says the calendar could not take it<br/>reports a no-show" --> A06
     IB -- "your signed settings" --> A06
-    I18 -- "reports a no-show" --> A06
     I09 -- "reports a vendor cancellation" --> A06
     IK -- "the daily clock runs" --> A06
     A06 -- "asks to book a vendor" --> O09

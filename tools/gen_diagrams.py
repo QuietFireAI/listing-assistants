@@ -60,6 +60,7 @@ PHRASE = {
     "client.message.send": "sends the client a message",
     "deadline.alert": "warns that a deadline is near",
     "calendar.event": "puts it on the calendar",
+    "calendar.conflict": "says the calendar could not take it",
     "date.trigger": "flags a date to act on",
     "prospect.opportunity": "brings a possible prospect",
     "lead.signal": "passes on a lead spotted on social media",

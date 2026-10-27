@@ -34,7 +34,7 @@ def build_pdf(html_path: str, pdf_path: str, agent: str = "") -> str:
             browser.close()
             raise SystemExit("page errors while printing: " + "; ".join(errors))
         page.emulate_media(media="print")
-        page.pdf(path=pdf_path, format="Letter", print_background=True,
+        page.pdf(path=pdf_path, format="Letter", print_background=True, outline=True, tagged=True,
                  margin={"top": "14mm", "bottom": "16mm", "left": "12mm", "right": "12mm"},
                  display_header_footer=True, header_template="<div></div>", footer_template=FOOTER)
         browser.close()

@@ -536,6 +536,8 @@ class ReadModel:
                     ld["tier"] = "HOT"
                     ld["hot_since"] = e.get("ts")
                     ld["sla_s"] = e.get("sla_s")
+                    ld["do_not_contact"] = bool(e.get("do_not_contact"))
+                    ld["dnc_reason"] = e.get("reason") if e.get("do_not_contact") else None
             elif k == "hitl.decision.authorized":
                 ld = leads.get(e.get("client_context_id"))
                 if ld:
@@ -553,7 +555,8 @@ class ReadModel:
             ld["ack_id"] = key_of("escalation.hot_lead", rec) if rec else None
             pending = bool(self.d.sw.hitl.get_pending_waits(ld["ctx"]))
             decided = ld.get("decided")
-            ld["status"] = ("Hot - call now" if ld["hot_open"] else
+            ld["status"] = ((ld.get("dnc_reason") or "Hot - do not contact") if ld["hot_open"] and ld.get("do_not_contact") else
+                            "Hot - call now" if ld["hot_open"] else
                             "Hot - handled" if ld["tier"] == "HOT" else
                             "Waiting for your decision" if pending else
                             "Closed by your decision" if decided == "REJECT_AND_ABORT" else

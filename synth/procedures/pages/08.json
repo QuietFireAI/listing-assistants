@@ -1,146 +1,211 @@
 [
- {"id": "08-01", "rev": 1,
+ {
+  "id": "08-01",
+  "rev": 2,
   "title": "The wrong kind of document arrives",
   "when": "Agent 08 (Document Collection) is waiting for one document and a different one arrives (\"close enough\").",
   "steps": [
    "Agent 08 does not file it as the document it was waiting for.",
    "It asks, through Agent 11, for the correct document by name."
   ],
-  "never": ["File a substitute in place of the document that is required."],
+  "never": [
+   "File a substitute in place of the document that is required."
+  ],
   "why": "A transaction file with the wrong document in a required slot looks complete when it is not.",
   "you_see": "A request for the correct document sent to the party; nothing filed.",
-  "test": "Agent 08 is chasing an inspection report; a home warranty brochure arrives."},
- {"id": "08-02", "rev": 1,
+  "test": "Agent 08 is chasing an inspection report; a home warranty brochure arrives."
+ },
+ {
+  "id": "08-02",
+  "rev": 2,
   "title": "A document cannot be opened",
   "when": "A document arrives but cannot be opened or read.",
   "steps": [
    "Agent 08 records the error exactly as it came (for example \"PDF header damaged\").",
    "It asks the party, through Agent 11, to send it again."
   ],
-  "never": ["Treat an unreadable document as received."],
+  "never": [
+   "Treat an unreadable document as received."
+  ],
   "why": "A file nobody can open is not a document on file.",
   "you_see": "The error in the client's history; a re-send request sent.",
-  "test": "An inspection report arrives that will not open: \"PDF header damaged\"."},
- {"id": "08-03", "rev": 1,
+  "test": "An inspection report arrives that will not open: \"PDF header damaged\"."
+ },
+ {
+  "id": "08-03",
+  "rev": 2,
   "title": "Two versions of one document disagree",
   "when": "Two different versions of the same document arrive.",
   "steps": [
    "Agent 08 keeps both.",
-   "It reports the conflict and a legal-line alert reaches you about the two versions."
+   "It reports the conflict and a legal-line alert reaches the authorized user about the two versions."
   ],
-  "never": ["Pick one version."],
+  "never": [
+   "Pick one version."
+  ],
   "why": "Which version governs is a question for the parties, not a filing decision.",
   "you_see": "A legal-line alert naming two versions of the document.",
-  "test": "Two inspection reports with different contents arrive for the same transaction."},
- {"id": "08-04", "rev": 1,
+  "test": "Two inspection reports with different contents arrive for the same transaction."
+ },
+ {
+  "id": "08-04",
+  "rev": 2,
   "title": "A sensitive document comes from someone unexpected",
   "when": "A sensitive document (for example a pre-approval letter or proof of funds) arrives from a sender who is not on the expected list, or no expected senders are set.",
   "steps": [
    "Agent 08 quarantines it; it is not filed.",
-   "It raises a legal-line alert for you to verify the sender."
+   "It raises a legal-line alert for the authorized user to verify the sender."
   ],
-  "never": ["File a sensitive document before the sender is verified."],
-  "why": "Forged financial documents are a common fraud. Verifying the sender protects your client and you.",
+  "never": [
+   "File a sensitive document before the sender is verified."
+  ],
+  "why": "Forged financial documents are a common fraud. Verifying the sender protects the client and the office.",
   "you_see": "A legal-line alert naming the unexpected sender, or saying no expected sender was set.",
-  "test": "A pre-approval letter arrives from someone.else@example.test when only lender@example.test is expected; on another transaction, proof of funds arrives with no expected senders set. Neither is filed."},
- {"id": "08-05", "rev": 1,
+  "test": "A pre-approval letter arrives from someone.else@example.test when only lender@example.test is expected; on another transaction, proof of funds arrives with no expected senders set. Neither is filed."
+ },
+ {
+  "id": "08-05",
+  "rev": 2,
   "title": "Chasing a document has run out of attempts",
   "when": "A required document has been asked for the allowed number of times and has not arrived.",
   "steps": [
    "Agent 08 reports the document as missing.",
-   "It raises one legal-line alert for you: chase attempts exhausted."
+   "It raises one legal-line alert for the authorized user: chase attempts exhausted."
   ],
-  "never": ["Treat silence as \"received\"."],
-  "why": "A missing document near a deadline can sink a transaction. You need to know it is still missing.",
+  "never": [
+   "Treat silence as \"received\"."
+  ],
+  "why": "A missing document near a deadline can sink a transaction. The authorized user needs to know it is still missing.",
   "you_see": "One legal-line alert saying the chase attempts are exhausted.",
-  "test": "An inspection report is requested; the daily clock runs four days in a row and nothing arrives."},
- {"id": "08-06", "rev": 1,
+  "test": "An inspection report is requested; the daily clock runs four days in a row and nothing arrives."
+ },
+ {
+  "id": "08-06",
+  "rev": 2,
   "title": "A document arrives unsigned",
   "when": "A document that needs a signature arrives without one.",
   "steps": [
    "Agent 08 marks it incomplete.",
    "It is not filed as done."
   ],
-  "never": ["File an unsigned document as complete."],
+  "never": [
+   "File an unsigned document as complete."
+  ],
   "why": "An unsigned document has no force. Calling it complete could let a deadline pass on a document that does not count.",
   "you_see": "The document's status shown as incomplete.",
-  "test": "An inspection report that should be signed arrives unsigned."},
- {"id": "08-07", "rev": 1,
+  "test": "An inspection report that should be signed arrives unsigned."
+ },
+ {
+  "id": "08-07",
+  "rev": 2,
   "title": "A newer version of a document arrives",
   "when": "A second version of a document already on file arrives and differs from it.",
   "steps": [
    "The older version stays filed.",
-   "The newer one is kept and flagged; a legal-line alert tells you both are kept."
+   "The newer one is kept and flagged; a legal-line alert tells the authorized user both are kept."
   ],
-  "never": ["Throw away the older version on its own."],
-  "why": "The older version may be the one that was signed or relied on. Only you decide which governs.",
+  "never": [
+   "Throw away the older version on its own."
+  ],
+  "why": "The older version may be the one that was signed or relied on. Only the authorized user decides which governs.",
   "you_see": "A legal-line alert saying both versions are kept.",
-  "test": "An inspection report is filed, then a different version of it arrives. The record shows exactly one document filed and the newer one flagged."},
- {"id": "08-08", "rev": 1,
+  "test": "An inspection report is filed, then a different version of it arrives. The record shows exactly one document filed and the newer one flagged."
+ },
+ {
+  "id": "08-08",
+  "rev": 2,
   "title": "A disclosure deadline is close and the document is missing",
   "when": "A disclosure document has not arrived and its deadline is near.",
   "steps": [
    "Agent 08 reports it to Agent 07 (Transaction Coordinator).",
-   "It raises a legal-line alert for you: disclosure deadline approaching."
+   "It raises a legal-line alert for the authorized user: disclosure deadline approaching."
   ],
-  "never": ["Soften or delay the warning."],
+  "never": [
+   "Soften or delay the warning."
+  ],
   "why": "A late disclosure can let a buyer walk away or bring a claim. The missing document is itself the alert.",
   "you_see": "A legal-line alert saying the disclosure deadline is approaching.",
-  "test": "Seller disclosure due October 20; the daily clock runs October 17 with no disclosure on file."},
- {"id": "08-09", "rev": 1,
+  "test": "Seller disclosure due October 20; the daily clock runs October 17 with no disclosure on file."
+ },
+ {
+  "id": "08-09",
+  "rev": 2,
   "title": "A document shows wire instructions",
   "when": "A document or its message contains wire instructions.",
   "steps": [
    "Agent 11 catches it before it reaches Agent 08: it is quarantined.",
-   "It raises a legal-line alert for you.",
+   "It raises a legal-line alert for the authorized user.",
    "The document is not forwarded and not stored in the general records."
   ],
-  "never": ["Forward or file a document carrying wire instructions."],
+  "never": [
+   "Forward or file a document carrying wire instructions."
+  ],
   "why": "Wire instructions are the target of closing fraud. They are confirmed by phone with a known number, never through documents in the system.",
   "you_see": "A legal-line alert about the wire instructions.",
-  "test": "An inspection report arrives with the note \"updated wire instructions are on page 3\"."},
- {"id": "08-10", "rev": 1,
+  "test": "An inspection report arrives with the note \"updated wire instructions are on page 3\"."
+ },
+ {
+  "id": "08-10",
+  "rev": 2,
   "title": "A document is sent to the wrong transaction",
   "when": "A party sends a document that belongs to a different transaction.",
   "steps": [
    "Agent 08 does not file it.",
-   "It tells you, so you can return it."
+   "It tells the authorized user, so the document can be returned."
   ],
-  "never": ["File a document under the wrong client."],
+  "never": [
+   "File a document under the wrong client."
+  ],
   "why": "Filing it in the wrong place shows one client's private papers to another: a confidentiality breach.",
   "you_see": "A question saying the document came in on the wrong transaction.",
-  "test": "An inspection report arrives marked as belonging to a different transaction."},
- {"id": "08-11", "rev": 1,
+  "test": "An inspection report arrives marked as belonging to a different transaction."
+ },
+ {
+  "id": "08-11",
+  "rev": 2,
   "title": "A question about deleting old files",
   "when": "Someone asks whether old records can be deleted.",
   "steps": [
    "Agent 08 holds everything; nothing is deleted.",
-   "It sends the question to you."
+   "It sends the question to the authorized user."
   ],
-  "never": ["Delete or dispose of records without your authorization."],
-  "why": "Records must be kept for set periods by law and by your broker rules. Disposal is your decision.",
+  "never": [
+   "Delete or dispose of records without the authorized user's authorization."
+  ],
+  "why": "Records must be kept for set periods by law and by the authorized user's broker rules. Disposal is the authorized user's decision.",
   "you_see": "A question about retention and disposal.",
-  "test": "You relay the question \"Can we delete 2019 files?\" as a signed setting."},
- {"id": "08-12", "rev": 1,
+  "test": "The authorized user relays the question \"Can we delete 2019 files?\" as a signed setting."
+ },
+ {
+  "id": "08-12",
+  "rev": 2,
   "title": "The disclosure warning is sent once, not daily",
   "when": "A pending disclosure's deadline is three days or less away.",
   "steps": [
    "Agent 08 raises the \"disclosure deadline approaching\" alert once.",
    "On the following daily runs it does not repeat it."
   ],
-  "never": ["Repeat the same warning every day."],
+  "never": [
+   "Repeat the same warning every day."
+  ],
   "why": "An alert that repeats daily trains people to ignore alerts.",
   "you_see": "One disclosure-deadline alert.",
-  "test": "Seller disclosure due October 20; the daily clock runs October 17, 18 and 19. Exactly one disclosure-deadline alert is raised."},
- {"id": "08-13", "rev": 1,
+  "test": "Seller disclosure due October 20; the daily clock runs October 17, 18 and 19. Exactly one disclosure-deadline alert is raised."
+ },
+ {
+  "id": "08-13",
+  "rev": 2,
   "title": "A disclosure deadline is not a date",
   "when": "A disclosure deadline is written in a way that is not a readable date (for example \"ten days after acceptance\").",
   "steps": [
    "Agent 08 does not work out a date.",
-   "It asks you for the date."
+   "It asks the authorized user for the date."
   ],
-  "never": ["Guess the date."],
+  "never": [
+   "Guess the date."
+  ],
   "why": "A guessed deadline is a made-up deadline. Counting from acceptance needs the real acceptance date.",
   "you_see": "A question saying the deadline is not a date.",
-  "test": "Seller disclosure deadline given as \"ten days after acceptance\"; the daily clock runs October 17."}
+  "test": "Seller disclosure deadline given as \"ten days after acceptance\"; the daily clock runs October 17."
+ }
 ]

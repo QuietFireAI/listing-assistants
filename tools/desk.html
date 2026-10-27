@@ -569,10 +569,14 @@ function leadRow(l) {
   const c = el("div", {class: "card " + (l.hot_open ? "queue" : "")});
   const right = el("div", {});
   if (l.hot_open && l.hot_since) {
-    const left = Math.max(0, Math.round(l.hot_since + (l.sla_s || 300) - Date.now() / 1000));
-    right.append(el("span", {class: "timer"},
-      left > 0 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} to call` : "call window passed"));
-    const done = el("button", {}, "Called");
+    if (l.do_not_contact) {
+      right.append(el("span", {class: "timer"}, "do not contact"));
+    } else {
+      const left = Math.max(0, Math.round(l.hot_since + (l.sla_s || 300) - Date.now() / 1000));
+      right.append(el("span", {class: "timer"},
+        left > 0 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} to call` : "call window passed"));
+    }
+    const done = el("button", {}, l.do_not_contact ? "Seen" : "Called");
     done.onclick = () => act({action: "ack", id: l.ack_id, title: `Hot lead ${l.name || l.ctx}`, ctx: l.ctx});
     right.append(" ", done);
   }

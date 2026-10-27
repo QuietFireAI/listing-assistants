@@ -35,16 +35,16 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 ROUTINE = {"agent.status", "interaction.log", "record.request", "record.response"}
 KIND_WORDS = {
     "envelope.persisted": "a message", "spoke.trace": "a decision the agent records",
-    "escalation.raised": "an alert raised for you", "hitl.decision.authorized": "your signed decision, applied",
-    "absolute_signal.hold": "a message held for your signed release",
-    "absolute_signal.released": "a held message released on your signature",
+    "escalation.raised": "an alert for the authorized user", "hitl.decision.authorized": "a signed decision, applied",
+    "absolute_signal.hold": "a message held for signed release",
+    "absolute_signal.released": "a held message released on a signature",
     "hold.clarification": "a message held because it is on no route", "reject": "a message refused",
     "dead.letter": "a message that could not be delivered", "playbook.started": "a playbook started",
     "playbook.completed": "a playbook finished", "after_action.written": "an after-action report written",
-    "hold.queued": "an item waiting for you", "loop.suspended": "a repeating exchange stopped",
+    "hold.queued": "an item waiting for the authorized user", "loop.suspended": "a repeating exchange stopped",
     "drawer.filed": "a record filed in the client's drawer", "config.unrecognized": "a setting nobody used",
     "sweep.error": "a daily check that failed", "decision.lead": "a lead scored",
-    "human.notified": "a notice to you", "human.notify_failed": "a notice to you that failed to send",
+    "human.notified": "a notice to the authorized user", "human.notify_failed": "a notice to the authorized user that failed to send",
     "integrity.violation": "a tampered or unsigned message refused",
     "playbook.waiting_released": "waiting playbook starts let in, in order",
     "harness.end": "the test's closing note on what the dispatcher did",
@@ -52,13 +52,13 @@ KIND_WORDS = {
     "harness.dropped": "the test's note of a message it dropped on purpose",
     "siding.hold": "a playbook step held on the siding behind another playbook",
     "siding.resume": "a held playbook step resumed",
-    "escalation.realerted": "an alert sent to you a second time",
+    "escalation.realerted": "an alert sent a second time",
     "escalation.owner_paged": "the owner paged about an alert nobody marked done",
     "identity.reload_refused": "a settings reload refused while work is open",
     "identity.reloaded": "a settings reload carried out",
     "drawer.refused": "a filing refused by the client's drawer",
     "ack": "a message accepted",
-    "desk.acknowledged": "an alert you marked done",
+    "desk.acknowledged": "an alert marked done",
     "playbook.start_waiting": "a playbook start held back",
     "clock.skew_hold": "time-driven work held because the clocks disagree",
     "playbook.conflict": "two playbooks in conflict on one client, held",
@@ -72,13 +72,43 @@ KIND_WORDS = {
 }
 
 
+# The manual speaks of "the authorized user", not "you" (owner 2026-10-27);
+# these replace the repository diagrams' second-person phrases.
+MANUAL_PHRASE = {
+    "listing.change.authorized": "signed listing or price change",
+    "clarification.request": "asks the authorized user",
+    "config.update": "signed settings",
+}
+OUTCOME_WORDS = {
+    "held for your signed release": "held for signed release",
+    "sent after your release": "sent after release",
+    "waiting for you": "waiting for the authorized user",
+    "alert for you": "alert",
+    "waiting for your decision": "waiting for a decision",
+}
+
+
+def build_ref() -> str:
+    """The repository commit the manual was built from; "+changes" when the
+    working tree differs from it."""
+    import subprocess
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True,
+                             text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", ".", ":!synth/procedures/site"],
+                               cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        return sha + ("+changes" if dirty else "")
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
 def code_for(tid: str) -> str:
     return f"LA-T-{tid}"
 
 
 def agent_names() -> dict:
     out = {"00": "Dispatcher", "SWARM": "The whole team", "external": "The outside world",
-           "human": "You (the broker)", "clock": "The daily clock", "queue": "Your queue"}
+           "human": "The authorized user", "clock": "The daily clock", "queue": "The queue"}
     for d in sorted(glob.glob(os.path.join(ROOT, "[0-2][0-9]-*"))):
         p = os.path.join(d, "SKILL.md")
         if os.path.isfile(p):
@@ -96,7 +126,7 @@ def describe_check(c: dict, names: dict, phrase: dict) -> str:
     kind = c.get("kind")
     what = KIND_WORDS.get(kind, kind)
     if kind == "envelope.persisted" and c.get("intent"):
-        p = phrase.get(c["intent"])
+        p = MANUAL_PHRASE.get(c["intent"]) or phrase.get(c["intent"])
         what = f"a message “{p}” ({c['intent']})" if p else f"a “{c['intent']}” message"
     elif kind == "spoke.trace" and c.get("agent"):
         what = f"a decision Agent {c['agent']} ({names.get(str(c['agent']), '')}) records"
@@ -178,22 +208,22 @@ def fold_repeats(msgs: list) -> list:
 def words_for(m: dict, phrase: dict) -> str:
     if m["intent"] in ("release.signed", "release.declined"):
         what = phrase.get(m.get("held_intent") or "", "the held message")
-        return ("you release the held message: " if m["intent"] == "release.signed"
-                else "you decline the held message: ") + what
+        return ("signed release of the held message: " if m["intent"] == "release.signed"
+                else "signed decline of the held message: ") + what
     if m["intent"] == "decision.signed":
         d = str(m.get("decision") or "").lower()
-        return "your signed decision" + (f" ({d})" if d else "")
+        return "signed decision" + (f" ({d})" if d else "")
     if m["intent"] == "decision.required":
-        return "holds it and asks you to continue or cancel"
+        return "holds it: continue or cancel"
     if m["intent"].startswith("alert:"):
         q = m["intent"][6:].removeprefix("escalation.").replace("_", " ")
-        return f"raises an alert for you ({q})"
+        return f"raises an alert ({q})"
     if m["intent"] == "clock.tick":
         day = re.search(r"\d{4}-\d\d-\d\d", str(m.get("client") or ""))
         return "the daily clock runs" + (f" ({day.group(0)})" if day else "")
     if m.get("template") == "complaint_hold":
         return "holds every message to this client (complaint); sends nothing"
-    words = phrase.get(m["intent"], m["intent"].replace(".", " "))
+    words = MANUAL_PHRASE.get(m["intent"]) or phrase.get(m["intent"], m["intent"].replace(".", " "))
     if m.get("template"):
         words += f": {m['template'].replace('_', ' ')}"
     return words
@@ -237,13 +267,14 @@ def build_data() -> dict:
                        for c in e.get("checks", [])],
             "flow": [{"from": m["from"], "to": m["to"], "intent": m["intent"],
                       "words": words_for(m, phrase) + (f" (×{m['times']}, clients {m['clients']})" if m.get("times") else ""),
-                      "outcome": m.get("outcome")} for m in main[:40]],
+                      "outcome": OUTCOME_WORDS.get(m.get("outcome"), m.get("outcome"))} for m in main[:40]],
             "flow_more": max(0, len(main) - 40), "routine": len(flow) - len(shown),
             "queues": e.get("queues", []),
             "playbooks": [{"id": p, "name": pbs.get(p, {}).get("name", p)} for p in e.get("playbooks", [])],
         })
     return {
         "built": datetime.date.today().isoformat(), "evidence_date": ev.get("ran_on"),
+        "build_ref": build_ref(),
         "categories": tmap["_categories"], "names": names,
         "tuples": tuples,
     }

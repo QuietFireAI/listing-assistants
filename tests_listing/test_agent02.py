@@ -446,3 +446,22 @@ def test_incomplete_rubric_does_not_clobber_a_prior_good_one(tmp_path):
     incomplete = {"budget_threshold": 500_000}
     hub.send(sign_config_update(signer, incomplete, "v2-bad"))
     assert q.rubric_version == "v1", "a bad update must not replace the good rubric"
+
+
+def test_hot_lead_alert_says_do_not_contact_without_consent_or_on_dnc(tmp_path):
+    # owner decision 2026-10-27: a hot lead the broker may not contact is
+    # still alerted, marked do-not-contact with the reason and no call deadline
+    hub, signer = make_hub(str(tmp_path))
+    Spoke14CRMPipeline(hub)
+    Spoke02LeadQualification(hub)
+    hub.on_turn_start()
+    hub.send(sign_config_update(signer, RUBRIC, "v1"))
+    hot = {"budget": 600_000, "timeline_days": 10, "financing_progress": "preapproved"}
+    hub.send(lead("q-ok", {**hot, "consent": {"call": "yes", "text": "no", "email": "no"}}))
+    hub.send(lead("q-none", {**hot, "consent": {"call": "no", "text": "no", "email": "no"}}))
+    hub.send(lead("q-dnc", {**hot, "consent": {"call": "yes", "text": "yes", "email": "yes"}, "dnc": True}))
+    recs = {r["client_context_id"]: r for r in hub.queues["escalation.hot_lead"]}
+    assert recs["q-ok"]["sla_s"] == 300 and not recs["q-ok"].get("do_not_contact")
+    assert recs["q-none"]["do_not_contact"] and "sla_s" not in recs["q-none"]
+    assert "no consent on any channel" in recs["q-none"]["reason"]
+    assert recs["q-dnc"]["do_not_contact"] and "Do Not Call" in recs["q-dnc"]["reason"]

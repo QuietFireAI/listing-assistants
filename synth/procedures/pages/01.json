@@ -1,5 +1,7 @@
 [
- {"id": "01-01", "rev": 1,
+ {
+  "id": "01-01",
+  "rev": 2,
   "title": "Two inquiries from the same person arrive close together",
   "when": "One person reaches out twice in a short time on different channels (for example a web form, then a phone call), each time giving part of the facts.",
   "steps": [
@@ -7,92 +9,134 @@
    "It ranks the channels: a live call first, then a text, then a web form.",
    "It hands over one lead for that person, carrying the facts from both inquiries."
   ],
-  "never": ["Drop one of the inquiries, or hand over the same person twice."],
+  "never": [
+   "Drop one of the inquiries, or hand over the same person twice."
+  ],
   "why": "Two half-records for one person mean two scores, possibly two follow-ups, and facts missing from each. One complete record is the truth.",
   "you_see": "One lead with everything the person told us.",
-  "test": "A web form gives a name and a $300,000 budget; minutes later a call from the same phone gives a name and a 20-day timeline. Today two separate leads are handed over and neither carries all three facts."},
- {"id": "01-02", "rev": 1,
+  "test": "A web form gives a name and a $300,000 budget; minutes later a call from the same phone gives a name and a 20-day timeline. Today two separate leads are handed over and neither carries all three facts."
+ },
+ {
+  "id": "01-02",
+  "rev": 3,
   "title": "A new lead refuses consent to be contacted",
   "when": "A person reaches out but says no to calls, texts and email.",
   "steps": [
-   "Agent 01 still captures the lead, so you know they reached out.",
+   "Agent 01 still captures the lead, so the authorized user knows they reached out.",
    "It records \"no\" for every channel on the lead.",
-   "No message goes to the person, and the lead is not put into any follow-up sequence."
+   "No message goes to the person, and the lead is not put into any follow-up sequence.",
+   "If the lead scores hot, the authorized user still get a hot-lead alert, marked DO NOT CONTACT with the reason (no consent on any channel) and no call deadline."
   ],
-  "never": ["Send any message to a person who refused consent."],
+  "never": [
+   "Send any message to a person who refused consent."
+  ],
   "why": "Contacting someone who said no can break telemarketing and anti-spam law. Capturing the lead still matters: it is a real inquiry and part of the record.",
-  "you_see": "The lead, marked no consent on every channel.",
-  "test": "A web form with a $500,000 budget and a 20-day timeline, consent \"no\" for call, text and email."},
- {"id": "01-03", "rev": 1,
+  "you_see": "The lead, marked no consent on every channel; if it scores hot, a hot-lead alert marked do not contact.",
+  "test": "A web form with a $500,000 budget and a 20-day timeline, consent \"no\" for call, text and email."
+ },
+ {
+  "id": "01-03",
+  "rev": 2,
   "title": "A caller demands a person right now",
   "when": "Someone reaching out says they want to talk to a person immediately.",
   "steps": [
-   "Agent 01 alerts you at once, quoting what they said (\"demands a human\").",
+   "Agent 01 alerts the authorized user at once, quoting what they said (\"demands a human\").",
    "It still captures whatever the person already gave (name, phone, budget, timeline)."
   ],
-  "never": ["Keep the person in an automated exchange after they asked for a human."],
-  "why": "Someone who asks for a person and gets a machine feels ignored; that costs the lead and your reputation.",
+  "never": [
+   "Keep the person in an automated exchange after they asked for a human."
+  ],
+  "why": "Someone who asks for a person and gets a machine feels ignored; that costs the lead and the office's reputation.",
   "you_see": "An alert naming the person and that they want a human now; their lead is captured.",
-  "test": "A web form says \"I want to talk to a person right now\", with a name, phone, budget and timeline."},
- {"id": "01-04", "rev": 1,
+  "test": "A web form says \"I want to talk to a person right now\", with a name, phone, budget and timeline."
+ },
+ {
+  "id": "01-04",
+  "rev": 2,
   "title": "A lead volunteers details the form does not ask for",
   "when": "A person adds information outside the usual fields (for example \"Has two dogs and works from home\").",
   "steps": [
    "Agent 01 keeps the extra information word for word in the lead's notes.",
    "It does not turn it into any field (no guessed \"pet friendly\" or \"home office\" requirement)."
   ],
-  "never": ["Interpret volunteered words into fields or requirements."],
+  "never": [
+   "Interpret volunteered words into fields or requirements."
+  ],
   "why": "What a person said is a fact; what we infer from it is a guess. Guesses in fields would steer searches and scores the person never asked for.",
   "you_see": "The person's own words in the lead's notes.",
-  "test": "A web form with the note \"Has two dogs and works from home\"."},
- {"id": "01-05", "rev": 1,
+  "test": "A web form with the note \"Has two dogs and works from home\"."
+ },
+ {
+  "id": "01-05",
+  "rev": 2,
   "title": "A new inquiry may be someone already on record",
   "when": "An inquiry comes in with the same phone or email as a person already on record, but nothing confirms it is the same person.",
   "steps": [
    "Agent 01 asks the CRM (Agent 14) whether the person is already on record before creating a lead.",
-   "The match is not confirmed, so it holds the new inquiry and asks you: continue (a separate person, scored as a new lead) or cancel (the thread closes).",
-   "Nothing is merged and the new inquiry is not scored while it waits for you."
+   "The match is not confirmed, so it holds the new inquiry and asks the authorized user: continue (a separate person, scored as a new lead) or cancel (the thread closes).",
+   "Nothing is merged and the new inquiry is not scored while it waits for the authorized user."
   ],
-  "never": ["Merge two people on a guess."],
-  "why": "Merging two different people mixes their consent, budgets and history; separating one person into two doubles the contact. Only you can confirm identity.",
-  "you_see": "A held inquiry asking you to continue or cancel, naming the earlier record.",
-  "test": "A web form from Avery (phone (216) 555-0105), then a call from \"Avery\" at 216-555-0105 under a new client number."},
- {"id": "01-06", "rev": 1,
+  "never": [
+   "Merge two people on a guess."
+  ],
+  "why": "Merging two different people mixes their consent, budgets and history; separating one person into two doubles the contact. Only the authorized user can confirm identity.",
+  "you_see": "A held inquiry asking the authorized user to continue or cancel, naming the earlier record.",
+  "test": "A web form from Avery (phone (216) 555-0105), then a call from \"Avery\" at 216-555-0105 under a new client number."
+ },
+ {
+  "id": "01-06",
+  "rev": 2,
   "title": "A lead is abusive",
   "when": "A person reaching out is rude or abusive.",
   "steps": [
-   "Agent 01 raises a complaint alert for you with the person's words exactly as written.",
+   "Agent 01 raises a complaint alert for the authorized user with the person's words exactly as written.",
    "It finishes capturing the lead with what the person gave."
   ],
-  "never": ["Answer abuse with an automated reply, or soften the person's words in the record."],
+  "never": [
+   "Answer abuse with an automated reply, or soften the person's words in the record."
+  ],
   "why": "An upset person needs a human judgment, and the exact words matter if it becomes a complaint.",
   "you_see": "A complaint alert with the exact words; the captured lead.",
-  "test": "A web form flagged abusive: \"This is useless, you people are idiots\"."},
- {"id": "01-07", "rev": 1,
+  "test": "A web form flagged abusive: \"This is useless, you people are idiots\"."
+ },
+ {
+  "id": "01-07",
+  "rev": 2,
   "title": "A caller refuses to have the call recorded",
   "when": "A caller says no to the call being recorded.",
   "steps": [
    "Agent 01 captures only the contact details and marks the lead so it never enters a follow-up sequence.",
-   "It tells you the caller refused consent to recording.",
+   "It tells the authorized user the caller refused consent to recording.",
    "No message goes to the person."
   ],
-  "never": ["Record, or put into automated follow-up, a caller who refused recording."],
-  "why": "Recording without consent is illegal in many states. Keeping the lead out of automation leaves the next step to you.",
-  "you_see": "A question telling you the caller refused recording; the lead marked \"no nurture\".",
-  "test": "A phone inquiry with consent to call, text and email, but recording consent \"no\"."},
- {"id": "01-08", "rev": 1,
+  "never": [
+   "Record, or put into automated follow-up, a caller who refused recording."
+  ],
+  "why": "Recording without consent is illegal in many states. Keeping the lead out of automation leaves the next step to the authorized user.",
+  "you_see": "A question telling the authorized user the caller refused recording; the lead marked \"no nurture\".",
+  "test": "A phone inquiry with consent to call, text and email, but recording consent \"no\"."
+ },
+ {
+  "id": "01-08",
+  "rev": 3,
   "title": "A new lead is on the Do Not Call list",
-  "when": "A lead's phone number is on your Do Not Call list.",
+  "when": "A lead's phone number is on the authorized user's Do Not Call list.",
   "steps": [
    "Agent 01 captures the lead and marks it as on the Do Not Call list.",
-   "It raises a legal-line alert for you naming the Do Not Call match.",
-   "No outreach goes to the person: the list wins over the opportunity."
+   "It raises a legal-line alert for the authorized user naming the Do Not Call match.",
+   "No outreach goes to the person: the list wins over the opportunity.",
+   "If the lead scores hot, the hot-lead alert is marked DO NOT CONTACT (on the authorized user's Do Not Call list), with no call deadline."
   ],
-  "never": ["Contact a number on the Do Not Call list, however promising the lead."],
+  "never": [
+   "Contact a number on the Do Not Call list, however promising the lead."
+  ],
   "why": "Calling or texting a listed number can bring fines per call. The list always wins.",
-  "you_see": "A legal-line alert naming the Do Not Call match; the lead marked DNC.",
-  "test": "A web form from (330) 555-0190, a number on the signed Do Not Call list."},
- {"id": "01-09", "rev": 1,
+  "you_see": "A legal-line alert naming the Do Not Call match; the lead marked DNC; if it scores hot, a hot-lead alert marked do not contact.",
+  "test": "A web form from (330) 555-0190, a number on the signed Do Not Call list."
+ },
+ {
+  "id": "01-09",
+  "rev": 2,
   "title": "One person asks about two properties",
   "when": "The same person inquires about two different listings.",
   "steps": [
@@ -100,88 +144,127 @@
    "Both properties are recorded inside it.",
    "No second client record is created."
   ],
-  "never": ["Open a second client record for the same person."],
+  "never": [
+   "Open a second client record for the same person."
+  ],
   "why": "Two records for one person split their history and double the contact.",
   "you_see": "One client with both properties of interest.",
-  "test": "Two listings are on file. A person asks about the first by web form, then about the second by text, with the same name and phone."},
- {"id": "01-10", "rev": 1,
-  "title": "A lead says they have worked with you before",
-  "when": "A person says they have a past relationship with your office (for example \"Your agent sold my mother's house in 2019\").",
+  "test": "Two listings are on file. A person asks about the first by web form, then about the second by text, with the same name and phone."
+ },
+ {
+  "id": "01-10",
+  "rev": 2,
+  "title": "A lead says they have worked with the authorized user before",
+  "when": "A person says they have a past relationship with the office (for example \"Your agent sold my mother's house in 2019\").",
   "steps": [
    "Agent 01 records the claim as stated by the person, not as fact.",
-   "It alerts you so you can confirm it before any history is assumed."
+   "It alerts the authorized user to confirm it before any history is assumed."
   ],
-  "never": ["Treat the claim as confirmed history."],
+  "never": [
+   "Treat the claim as confirmed history."
+  ],
   "why": "Acting on an unconfirmed past relationship can mean wrong assumptions about the person, or giving someone access to another client's history.",
   "you_see": "An alert naming the claimed relationship.",
-  "test": "A web form saying \"Your agent sold my mother's house in 2019\"."},
- {"id": "01-11", "rev": 1,
+  "test": "A web form saying \"Your agent sold my mother's house in 2019\"."
+ },
+ {
+  "id": "01-11",
+  "rev": 2,
   "title": "The person reaching out appears to be a minor",
   "when": "An inquiry appears to come from someone under 18.",
   "steps": [
    "Agent 01 records only the fact that contact was made; no lead is captured and the CRM is not searched.",
-   "It alerts you immediately (\"apparent minor\")."
+   "It alerts the authorized user immediately (\"apparent minor\")."
   ],
-  "never": ["Collect a minor's details or put them into any sales process."],
+  "never": [
+   "Collect a minor's details or put them into any sales process."
+  ],
   "why": "Collecting a child's personal information brings legal duties and real risk. A person decides what happens next.",
   "you_see": "A legal-line alert saying an apparent minor made contact.",
-  "test": "A web form flagged as an apparent minor: \"hi im asking for my school project\"."},
- {"id": "01-12", "rev": 1,
+  "test": "A web form flagged as an apparent minor: \"hi im asking for my school project\"."
+ },
+ {
+  "id": "01-12",
+  "rev": 2,
   "title": "A lead gives obviously false contact details",
   "when": "A person gives contact details that are plainly not real (for example (000) 000-0000).",
   "steps": [
    "Agent 01 records the details exactly as given.",
    "It marks them as suspect."
   ],
-  "never": ["Guess or \"correct\" the details."],
+  "never": [
+   "Guess or \"correct\" the details."
+  ],
   "why": "A guessed number could reach a stranger. The record shows what was given and that it looks wrong.",
   "you_see": "The lead with its contact details marked suspect.",
-  "test": "A web form with phone (000) 000-0000, flagged suspect."},
- {"id": "01-13", "rev": 1,
-  "title": "A lead asks about a property your office does not list",
-  "when": "An inquiry is about a property that is not one of your listings.",
+  "test": "A web form with phone (000) 000-0000, flagged suspect."
+ },
+ {
+  "id": "01-13",
+  "rev": 2,
+  "title": "A lead asks about a property the office does not list",
+  "when": "An inquiry is about a property that is not one of the authorized user's listings.",
   "steps": [
    "Agent 01 captures the lead.",
-   "It raises a legal-line alert for you: outside your brokerage's listings.",
+   "It raises a legal-line alert for the authorized user: outside the brokerage's listings.",
    "It never points the person to another brokerage on its own."
   ],
-  "never": ["Send the person to another brokerage unprompted."],
-  "why": "What to do with an inquiry about someone else's listing is a business and legal judgment, and it is yours.",
-  "you_see": "A legal-line alert naming the property as outside your listings.",
-  "test": "A web form about listing OTHER-99, which is not in your list of listings."},
- {"id": "01-14", "rev": 1,
+  "never": [
+   "Send the person to another brokerage unprompted."
+  ],
+  "why": "What to do with an inquiry about someone else's listing is a business and legal judgment, and it is for the authorized user.",
+  "you_see": "A legal-line alert naming the property as outside the authorized user's listings.",
+  "test": "A web form about listing OTHER-99, which is not in the authorized user's list of listings."
+ },
+ {
+  "id": "01-14",
+  "rev": 2,
   "title": "A voicemail transcript is too garbled to trust",
   "when": "A lead comes in by voicemail and the transcription is marked low confidence.",
   "steps": [
    "Agent 01 captures the lead but marks the facts from the transcript as unknown.",
-   "Agent 02 (Lead Qualification) cannot score unknown facts, so it stops and asks you.",
+   "Agent 02 (Lead Qualification) cannot score unknown facts, so it stops and asks the authorized user.",
    "No hot-lead alert is raised from the garbled transcript."
   ],
-  "never": ["Score a lead on a garbled transcript."],
+  "never": [
+   "Score a lead on a garbled transcript."
+  ],
   "why": "A misheard budget or timeline would rank the lead wrongly and send it down the wrong path.",
   "you_see": "A question saying the lead's scoring inputs are unknown.",
-  "test": "A low-confidence voicemail transcript that seems to give a $500,000 budget, a 10-day timeline and pre-approval (enough for a hot score if trusted)."},
- {"id": "01-15", "rev": 1,
+  "test": "A low-confidence voicemail transcript that seems to give a $500,000 budget, a 10-day timeline and pre-approval (enough for a hot score if trusted)."
+ },
+ {
+  "id": "01-15",
+  "rev": 3,
   "title": "A lead asks not to be contacted again",
   "when": "During capture, the person asks to stop all contact.",
   "steps": [
    "Agent 01 suppresses contact at once: the lead is recorded with \"no\" for call, text and email.",
-   "One confirmation that the request was received goes to the person, and no other message."
+   "One confirmation that the request was received goes to the person, and no other message.",
+   "If the lead scores hot, the hot-lead alert is marked DO NOT CONTACT, with no call deadline."
   ],
-  "never": ["Send anything after the confirmation."],
+  "never": [
+   "Send anything after the confirmation."
+  ],
   "why": "A stop request must be honored immediately; ignoring it risks complaints and fines.",
-  "you_see": "The lead marked no contact on every channel; one opt-out confirmation sent.",
-  "test": "A web form saying \"Please stop contacting me\", with every channel revoked."},
- {"id": "01-16", "rev": 1,
+  "you_see": "The lead marked no contact on every channel; one opt-out confirmation sent; any hot-lead alert marked do not contact.",
+  "test": "A web form saying \"Please stop contacting me\", with every channel revoked."
+ },
+ {
+  "id": "01-16",
+  "rev": 2,
   "title": "The CRM does not answer the duplicate check",
   "when": "Agent 01 asks the CRM (Agent 14) whether a new lead is already on record and gets no answer.",
   "steps": [
    "On the next daily run, Agent 01 asks once more.",
-   "If there is still no answer the following day, it holds the lead and tells you the CRM never answered.",
+   "If there is still no answer the following day, it holds the lead and tells the authorized user the CRM never answered.",
    "The lead is not scored until the duplicate check is done."
   ],
-  "never": ["Score a lead that was never checked for duplicates."],
+  "never": [
+   "Score a lead that was never checked for duplicates."
+  ],
   "why": "Scoring an unchecked lead risks a duplicate person getting two follow-ups and two scores.",
   "you_see": "A question saying the CRM never answered after a retry.",
-  "test": "The test stops Agent 14 answering lookups. A hot-looking lead comes in; the daily clock runs the next day and the day after."}
+  "test": "The test stops Agent 14 answering lookups. A hot-looking lead comes in; the daily clock runs the next day and the day after."
+ }
 ]

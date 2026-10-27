@@ -1,137 +1,197 @@
 [
- {"id": "09-01", "rev": 1,
+ {
+  "id": "09-01",
+  "rev": 2,
   "title": "A vendor cancels late",
   "when": "A booked vendor (for example the inspector) cancels close to the appointment.",
   "steps": [
    "Agent 09 (Vendor Coordination) tells Agent 07 (Transaction Coordinator) and Agent 06 (Showing Scheduler) at once.",
-   "Agent 07 raises a legal-line alert for you: the vendor cancelled late.",
-   "Agent 09 asks you about a replacement; a regulated role like an inspector is never rebooked automatically."
+   "Agent 07 raises a legal-line alert for the authorized user: the vendor cancelled late.",
+   "Agent 09 asks the authorized user about a replacement; a regulated role like an inspector is never rebooked automatically."
   ],
-  "never": ["Rebook a regulated vendor without you."],
-  "why": "Inspections and appraisals run on contract deadlines, and who performs them matters. You choose the replacement.",
+  "never": [
+   "Rebook a regulated vendor without the authorized user."
+  ],
+  "why": "Inspections and appraisals run on contract deadlines, and who performs them matters. The authorized user chooses the replacement.",
   "you_see": "A legal-line alert about the late cancellation and a question about rebooking.",
-  "test": "A transaction with an inspection deadline; the inspector cancels the same day."},
- {"id": "09-02", "rev": 1,
+  "test": "A transaction with an inspection deadline; the inspector cancels the same day."
+ },
+ {
+  "id": "09-02",
+  "rev": 2,
   "title": "A vendor's license has expired",
   "when": "A vendor's credential (license, insurance) has expired when new work would be scheduled.",
   "steps": [
    "Agent 09 does not book the vendor.",
-   "It raises a legal-line alert for you naming the vendor and the expired credential."
+   "It raises a legal-line alert for the authorized user naming the vendor and the expired credential."
   ],
-  "never": ["Schedule a vendor whose credential has expired."],
-  "why": "Sending an unlicensed or uninsured vendor into a client's home puts you on the hook for anything that goes wrong.",
+  "never": [
+   "Schedule a vendor whose credential has expired."
+  ],
+  "why": "Sending an unlicensed or uninsured vendor into a client's home puts the office on the hook for anything that goes wrong.",
   "you_see": "A legal-line alert naming the vendor and the expiry.",
-  "test": "The only photographer on the roster has a license that expired December 31, 2027; a listing signed January 15, 2028 needs photos. Nothing is booked."},
- {"id": "09-03", "rev": 1,
+  "test": "The only photographer on the roster has a license that expired December 31, 2027; a listing signed January 15, 2028 needs photos. Nothing is booked."
+ },
+ {
+  "id": "09-03",
+  "rev": 2,
   "title": "A vendor changes the rate in the middle of a job",
   "when": "A vendor proposes a new rate while the job is under way.",
   "steps": [
    "Agent 09 stops and accepts nothing.",
-   "It raises a legal-line alert for you about the rate change."
+   "It raises a legal-line alert for the authorized user about the rate change."
   ],
-  "never": ["Accept or negotiate a rate change."],
-  "why": "Fee arrangements with settlement service providers fall under federal rules (RESPA). Money terms are yours.",
+  "never": [
+   "Accept or negotiate a rate change."
+  ],
+  "why": "Fee arrangements with settlement service providers fall under federal rules (RESPA). Money terms are for the authorized user.",
   "you_see": "A legal-line alert about the rate change.",
-  "test": "The photographer proposes a new rate of $450 mid-job."},
- {"id": "09-04", "rev": 1,
+  "test": "The photographer proposes a new rate of $450 mid-job."
+ },
+ {
+  "id": "09-04",
+  "rev": 2,
   "title": "A vendor delivers only part of the work",
   "when": "A vendor's delivery is partial.",
   "steps": [
    "Agent 09 passes it on marked partial.",
    "Agent 08 (Document Collection) records its status as partial; it is not filed as complete."
   ],
-  "never": ["Mark partial work as collected."],
+  "never": [
+   "Mark partial work as collected."
+  ],
   "why": "A partial inspection report filed as complete could let a deadline pass with half the information.",
   "you_see": "The document's status shown as partial.",
-  "test": "The inspector delivers a partial inspection report."},
- {"id": "09-05", "rev": 1,
+  "test": "The inspector delivers a partial inspection report."
+ },
+ {
+  "id": "09-05",
+  "rev": 2,
   "title": "Two agents want the same vendor slot",
   "when": "Two agents ask for the same vendor at the same time.",
   "steps": [
    "The request tied to a deadline wins.",
-   "If both are equally urgent, it goes to you."
+   "If both are equally urgent, it goes to the authorized user."
   ],
-  "never": ["Pick between two equal requests."],
-  "why": "Deadlines decide priority; anything else is your call.",
+  "never": [
+   "Pick between two equal requests."
+  ],
+  "why": "Deadlines decide priority; anything else is the authorized user's call.",
   "you_see": "A question when two equal requests collide.",
-  "test": ""},
- {"id": "09-06", "rev": 1,
+  "test": ""
+ },
+ {
+  "id": "09-06",
+  "rev": 2,
   "title": "No approved vendor is available",
-  "when": "Work is needed and there is no approved vendor of that kind on your roster.",
+  "when": "Work is needed and there is no approved vendor of that kind on the authorized user's roster.",
   "steps": [
    "Agent 09 books no one.",
-   "It asks you, naming the kind of vendor that is missing, so you can approve one."
+   "It asks the authorized user, naming the kind of vendor that is missing, so one can be approved."
   ],
-  "never": ["Book a vendor who is not on your approved list, however urgent."],
-  "why": "Your approved list is how you control who works for your clients. Urgency does not create approval.",
+  "never": [
+   "Book a vendor who is not on the authorized user's approved list, however urgent."
+  ],
+  "why": "The approved list is how the authorized user controls who works for the office's clients. Urgency does not create approval.",
   "you_see": "A question saying there is no approved vendor for the kind of work.",
-  "test": "A transaction needs an inspection and there is no inspector on the roster."},
- {"id": "09-07", "rev": 1,
+  "test": "A transaction needs an inspection and there is no inspector on the roster."
+ },
+ {
+  "id": "09-07",
+  "rev": 2,
   "title": "A vendor asks for access codes",
   "when": "A vendor asks for a lockbox or door code.",
   "steps": [
    "Agent 09 sends no code.",
-   "It raises a legal-line alert for you; access goes through the custody process only."
+   "It raises a legal-line alert for the authorized user; access goes through the custody process only."
   ],
-  "never": ["Put an access code in a vendor message."],
-  "why": "Codes in messages travel. Access custody is how you know who was inside a client's home.",
+  "never": [
+   "Put an access code in a vendor message."
+  ],
+  "why": "Codes in messages travel. Access custody is how the authorized user knows who was inside a client's home.",
   "you_see": "A legal-line alert about the access code request.",
-  "test": "The photographer asks for the property's access codes."},
- {"id": "09-08", "rev": 1,
+  "test": "The photographer asks for the property's access codes."
+ },
+ {
+  "id": "09-08",
+  "rev": 2,
   "title": "A vendor says the job is done but sends no proof",
   "when": "A vendor reports completion with no proof (for example no photo files).",
   "steps": [
    "Agent 09 keeps the job open.",
    "Nothing is passed on as delivered until the proof arrives."
   ],
-  "never": ["Release a deliverable without its proof."],
+  "never": [
+   "Release a deliverable without its proof."
+  ],
   "why": "A job marked done without proof can leave a listing without photos or a transaction without its report.",
   "you_see": "The job still open.",
-  "test": "A new listing's photographer is booked; you release the booking; the vendor reports completion with no proof attached."},
- {"id": "09-09", "rev": 1,
+  "test": "A new listing's photographer is booked; the authorized user releases the booking; the vendor reports completion with no proof attached."
+ },
+ {
+  "id": "09-09",
+  "rev": 2,
   "title": "An invoice does not match the quote",
   "when": "A vendor's invoice differs from the quoted price.",
   "steps": [
    "Agent 09 records both amounts in the client's history.",
-   "It raises a legal-line alert for you; it never approves the difference."
+   "It raises a legal-line alert for the authorized user; it never approves the difference."
   ],
-  "never": ["Approve a variance."],
+  "never": [
+   "Approve a variance."
+  ],
   "why": "Paying more than quoted is a money decision and can raise questions about the vendor relationship.",
   "you_see": "A legal-line alert saying the invoice differs from the quote, with both amounts.",
-  "test": "Quote $300, invoice $375."},
- {"id": "09-10", "rev": 1,
+  "test": "Quote $300, invoice $375."
+ },
+ {
+  "id": "09-10",
+  "rev": 2,
   "title": "A vendor does not show up for a deadline job",
   "when": "A vendor misses a job that a deadline depends on.",
   "steps": [
-   "Agent 09 tells you at once.",
-   "It offers you the next approved vendors; it never swaps one in itself."
+   "Agent 09 tells the authorized user at once.",
+   "It offers the authorized user the next approved vendors; it never swaps one in itself."
   ],
-  "never": ["Substitute a vendor on its own."],
-  "why": "Who replaces a vendor on a deadline job is your call; the deadline makes it urgent, not automatic.",
+  "never": [
+   "Substitute a vendor on its own."
+  ],
+  "why": "Who replaces a vendor on a deadline job is the authorized user's call; the deadline makes it urgent, not automatic.",
   "you_see": "A question about the no-show with the approved alternatives.",
-  "test": "The photographer misses a deadline-critical job."},
- {"id": "09-11", "rev": 1,
+  "test": "The photographer misses a deadline-critical job."
+ },
+ {
+  "id": "09-11",
+  "rev": 2,
   "title": "The job grows on site",
   "when": "A vendor reports that the work is bigger than what was ordered.",
   "steps": [
    "Agent 09 prepares a stop-work message to the vendor from the template.",
-   "The stop-work message waits for your signed release before it is sent.",
-   "It asks you: changes to the scope are yours to approve."
+   "The stop-work message waits for the authorized user's signed release before it is sent.",
+   "It asks the authorized user: changes to the scope are for the authorized user to approve."
   ],
-  "never": ["Approve extra work on the vendor's word."],
+  "never": [
+   "Approve extra work on the vendor's word."
+  ],
   "why": "Extra work means extra cost and maybe a different job than the client agreed to.",
-  "you_see": "A stop-work message waiting for your release and a question about the scope.",
-  "test": "The photographer reports a scope change on site."},
- {"id": "09-12", "rev": 1,
+  "you_see": "A stop-work message waiting for the authorized user's release and a question about the scope.",
+  "test": "The photographer reports a scope change on site."
+ },
+ {
+  "id": "09-12",
+  "rev": 2,
   "title": "A delivery arrives for a booking that never reached the vendor",
-  "when": "A vendor delivers work for a booking that was still waiting for your release (or that you declined).",
+  "when": "A vendor delivers work for a booking that was still waiting for the authorized user's release (or that was declined).",
   "steps": [
-   "Agent 09 holds the delivery and asks you to continue or cancel.",
+   "Agent 09 holds the delivery and asks the authorized user to continue or cancel.",
    "Continue accepts it and the work moves on (for photos, the listing goes ahead).",
    "Cancel refuses it."
   ],
-  "never": ["Accept work for a booking you never released."],
-  "why": "You did not authorize the job. Accepting the work could commit you to paying for it.",
-  "you_see": "A held delivery asking you to continue or cancel.",
-  "test": "A new listing's photographer booking is still waiting for your release when the photos arrive. You continue: the photos are accepted once and the listing goes live."}
+  "never": [
+   "Accept work for a booking that was never released."
+  ],
+  "why": "The authorized user did not authorize the job. Accepting the work could commit the office to paying for it.",
+  "you_see": "A held delivery asking the authorized user to continue or cancel.",
+  "test": "A new listing's photographer booking is still waiting for the authorized user's release when the photos arrive. The authorized user continues: the photos are accepted once and the listing goes live."
+ }
 ]

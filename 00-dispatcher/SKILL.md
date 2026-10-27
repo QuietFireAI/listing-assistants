@@ -147,6 +147,7 @@ communication in that one guarantee.
 | `client.message.send` | 11 | external (audience: principal) |
 | `deadline.alert` | 07 | 11, 18 |
 | `calendar.event` | 06, 09 | 18 |
+| `calendar.conflict` | 18 | 06 |
 | `date.trigger` | 14 | 16 |
 | `prospect.opportunity` | 19 | human (broker), 13 |
 | `lead.signal` | 20 | 01 |
@@ -184,7 +185,7 @@ communication in that one guarantee.
 | `report.package` | 10, 14, 15, 19 | 18 |
 | `client.message.not_sent` | 11 | 03 |
 
-This table is `identity/routes.json` (version 0.19), the file the hub loads;
+This table is `identity/routes.json` (version 0.20), the file the hub loads;
 `tests_listing/test_docs_agent_tables.py` fails if the two ever differ. Any
 (intent, from, to) tuple not in it is rejected and logged; a well-formed
 envelope whose intent is on no route is held in `clarification.request`. The

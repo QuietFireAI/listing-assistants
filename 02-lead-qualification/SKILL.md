@@ -24,7 +24,7 @@ Nurture, dead leads to archive. This agent scores; it does not advise or sell.
 - Score inbound leads on readiness: timeline, financing status, motivation level.
 - Assign a priority tier to each lead; record the scoring inputs alongside the tier.
 - Weed out tire-kickers (archive with reason, never delete).
-- Flag hot leads for immediate human handoff (`escalation.hot_lead`).
+- Flag hot leads for immediate human handoff (`escalation.hot_lead`). Owner decision 2026-10-27: a hot lead the broker may not contact (on the Do Not Call list, or no channel with consent "yes") is still alerted, marked `do_not_contact` with the reason and no call window.
 - Re-score leads returned by Nurture (03) when behavioral signals change.
 - Apply the human-supplied scoring rubric (delivered via signed `config.update`); the agent applies the rubric, never authors or drifts it - rubric version recorded with every tier assignment.
 - Hot-lead SLA: if the human does not acknowledge an `escalation.hot_lead` within the configured window, re-alert - speed-to-lead decay is measured in minutes. Not yet in the code (checked 2026-10-12): the window (`hot_lead_sla_seconds`, default 300) travels with the page, and nothing re-alerts when it passes - the daily clock cannot measure minutes. The broker closes a hot lead with a signed `resolve_hot_lead`.

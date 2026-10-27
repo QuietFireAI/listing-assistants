@@ -1,125 +1,180 @@
 [
- {"id": "12-01", "rev": 1,
+ {
+  "id": "12-01",
+  "rev": 2,
   "title": "A platform cuts the approved ad short",
   "when": "A platform shortens an approved ad to fit its limits.",
   "steps": [
    "Agent 12 (Marketing Campaign) treats the shortened version as an edit.",
    "It sends the shortened text back to Compliance (Agent 17) for review, as it would any new copy."
   ],
-  "never": ["Run a shortened ad on the strength of the full version's approval."],
+  "never": [
+   "Run a shortened ad on the strength of the full version's approval."
+  ],
   "why": "Cutting text can change its meaning or drop a required disclosure. What runs is what must be approved.",
   "you_see": "The shortened text going through Compliance again.",
-  "test": "A live listing's ad is cut by the platform to \"3 bedrooms, 2 bathrooms, 1800 sq ft...\"."},
- {"id": "12-02", "rev": 1,
+  "test": "A live listing's ad is cut by the platform to \"3 bedrooms, 2 bathrooms, 1800 sq ft...\"."
+ },
+ {
+  "id": "12-02",
+  "rev": 2,
   "title": "A platform rejects an ad",
   "when": "An advertising platform rejects an ad.",
   "steps": [
    "Agent 12 records the rejection exactly as the platform gave it.",
-   "It tells you, and does not change the targeting to get past the filter."
+   "It tells the authorized user, and does not change the targeting to get past the filter."
   ],
-  "never": ["Adjust targeting or wording just to get past a platform's filter."],
+  "never": [
+   "Adjust targeting or wording just to get past a platform's filter."
+  ],
   "why": "Housing ads have special rules on most platforms. Working around a rejection can turn into illegal targeting.",
   "you_see": "A question with the platform's rejection.",
-  "test": "Facebook rejects an ad: \"AD_REJECTED: housing category requires special ad category\"."},
- {"id": "12-03", "rev": 1,
+  "test": "Facebook rejects an ad: \"AD_REJECTED: housing category requires special ad category\"."
+ },
+ {
+  "id": "12-03",
+  "rev": 2,
   "title": "Engagement numbers disagree between sources",
   "when": "Different sources report different engagement numbers for the same listing.",
   "steps": [
    "Agent 12 reports both, each named with its source.",
-   "It records the conflict and asks you."
+   "It records the conflict and asks the authorized user."
   ],
-  "never": ["Pick or blend the numbers."],
-  "why": "Numbers you show a seller must be traceable. Two named sources let you explain the difference.",
+  "never": [
+   "Pick or blend the numbers."
+  ],
+  "why": "Numbers shown to a seller must be traceable. Two named sources let the authorized user explain the difference.",
   "you_see": "A question saying engagement numbers conflict, with both sources.",
-  "test": "Facebook reports engagement 40 and Zillow reports 55 for the same listing. (Today the agent keeps one figure per platform, so the same platform reporting twice replaces the first figure: listed as a finding in the test file.)"},
- {"id": "12-04", "rev": 1,
+  "test": "Facebook reports engagement 40 and Zillow reports 55 for the same listing. (Today the agent keeps one figure per platform, so the same platform reporting twice replaces the first figure: listed as a finding in the test file.)"
+ },
+ {
+  "id": "12-04",
+  "rev": 2,
   "title": "It is not clear the listing may be marketed yet",
   "when": "The listing's status under the Clear Cooperation rule is unclear (not confirmed active on the MLS, and no exemption on file).",
   "steps": [
    "Agent 12 publishes nothing.",
    "The approved ad waits at the gate."
   ],
-  "never": ["Publish marketing before the listing is cleared to be marketed."],
+  "never": [
+   "Publish marketing before the listing is cleared to be marketed."
+  ],
   "why": "Marketing a listing publicly before it is on the MLS can break the MLS's Clear Cooperation rule and bring fines.",
   "you_see": "The ad waiting; nothing published.",
-  "test": "A new listing whose go-live you have not authorized: the description is approved, but the MLS never confirms it active."},
- {"id": "12-05", "rev": 1,
+  "test": "A new listing whose go-live the authorized user has not authorized: the description is approved, but the MLS never confirms it active."
+ },
+ {
+  "id": "12-05",
+  "rev": 2,
   "title": "An ad idea ties into a trending topic",
   "when": "A campaign is built around a trending topic or current event.",
   "steps": [
-   "Agent 12 asks you to approve the idea before anything else happens.",
-   "The copy is not sent for review until you approve."
+   "Agent 12 asks the authorized user to approve the idea before anything else happens.",
+   "The copy is not sent for review until the authorized user approves."
   ],
-  "never": ["Run a trending-topic tie-in without your approval."],
-  "why": "Trending topics can turn sour fast; your name is on the ad.",
+  "never": [
+   "Run a trending-topic tie-in without the authorized user's approval."
+  ],
+  "why": "Trending topics can turn sour fast; the authorized user's name is on the ad.",
   "you_see": "A question about the trending-topic tie-in.",
-  "test": "A signed campaign \"Open house Sunday\" marked as a trending-topic tie-in."},
- {"id": "12-06", "rev": 1,
+  "test": "A signed campaign \"Open house Sunday\" marked as a trending-topic tie-in."
+ },
+ {
+  "id": "12-06",
+  "rev": 2,
   "title": "An ad mentions details not in the listing record",
   "when": "An ad refers to specifics that are not in the listing data.",
   "steps": [
    "Agent 12 pulls the ad."
   ],
-  "never": ["Let marketing say more than the MLS record."],
+  "never": [
+   "Let marketing say more than the MLS record."
+  ],
   "why": "Claims beyond the record are unverified claims in public.",
   "you_see": "The ad pulled.",
-  "test": ""},
- {"id": "12-07", "rev": 1,
+  "test": ""
+ },
+ {
+  "id": "12-07",
+  "rev": 2,
   "title": "The fair housing review is still pending",
   "when": "An ad or listing copy is waiting for Compliance's verdict.",
   "steps": [
    "Nothing publishes while the verdict is pending.",
    "The verdict is a gate, not a race: no deadline lets copy through without it."
   ],
-  "never": ["Publish before the verdict."],
+  "never": [
+   "Publish before the verdict."
+  ],
   "why": "Fair housing violations in ads bring complaints and fines. Review comes first, every time.",
   "you_see": "The copy waiting for review; nothing published.",
-  "test": "No compliance rules are loaded, so Agent 17 returns no verdict: both the listing description and a new \"Open house Sunday\" campaign wait, and nothing publishes."},
- {"id": "12-08", "rev": 1,
+  "test": "No compliance rules are loaded, so Agent 17 returns no verdict: both the listing description and a new \"Open house Sunday\" campaign wait, and nothing publishes."
+ },
+ {
+  "id": "12-08",
+  "rev": 2,
   "title": "A campaign asks to target people by age or other demographics",
   "when": "A campaign's settings include demographic targeting (for example an age range).",
   "steps": [
    "Agent 12 refuses it outright.",
-   "It raises a legal-line alert for you.",
+   "It raises a legal-line alert for the authorized user.",
    "The campaign is not sent for review or run."
   ],
-  "never": ["Target housing ads by age, family status or any protected characteristic."],
+  "never": [
+   "Target housing ads by age, family status or any protected characteristic."
+  ],
   "why": "Demographic targeting of housing ads is illegal under fair housing law. Geography is allowed under farm rules; people are not.",
   "you_see": "A legal-line alert about demographic targeting.",
-  "test": "A signed campaign targeting ages 25 to 40."},
- {"id": "12-09", "rev": 1,
+  "test": "A signed campaign targeting ages 25 to 40."
+ },
+ {
+  "id": "12-09",
+  "rev": 2,
   "title": "A published ad turns out to be out of date",
   "when": "An ad already running is found to be wrong (for example the price changed on the MLS).",
   "steps": [
    "Agent 12 records what changed.",
-   "It prepares the retraction the same day; the retraction is held for your signed release.",
-   "It tells you the retraction is waiting for you."
+   "It prepares the retraction the same day; the retraction is held for the authorized user's signed release.",
+   "It tells the authorized user the retraction is waiting for release."
   ],
-  "never": ["Leave a known-wrong ad running without telling you."],
+  "never": [
+   "Leave a known-wrong ad running without telling the authorized user."
+  ],
   "why": "A wrong price in public is a misrepresentation. It must be fixed the same day.",
-  "you_see": "A question saying the retraction is held for your signed release.",
-  "test": "A live listing's ad is found stale: price $450,000 became $439,000 on the MLS."},
- {"id": "12-10", "rev": 1,
+  "you_see": "A question saying the retraction is held for the authorized user's signed release.",
+  "test": "A live listing's ad is found stale: price $450,000 became $439,000 on the MLS."
+ },
+ {
+  "id": "12-10",
+  "rev": 2,
   "title": "Someone changes the marketing budget by word of mouth",
   "when": "A budget change is reported verbally.",
   "steps": [
    "Agent 12 records the report.",
-   "The budget you signed stays in force until you sign a new figure."
+   "The signed budget stays in force until a new figure is signed."
   ],
-  "never": ["Change the budget on someone's word."],
-  "why": "Spending your money is your signed decision.",
+  "never": [
+   "Change the budget on someone's word."
+  ],
+  "why": "Spending the office's money takes a signed decision.",
   "you_see": "The signed budget unchanged.",
-  "test": "You signed a budget of $500. A report that \"seller said go to 800\" arrives."},
- {"id": "12-11", "rev": 1,
+  "test": "The authorized user signed a budget of $500. A report that \"seller said go to 800\" arrives."
+ },
+ {
+  "id": "12-11",
+  "rev": 2,
   "title": "Compliance flags campaign copy",
   "when": "Compliance (Agent 17) flags a campaign's text.",
   "steps": [
    "Agent 12 publishes nothing.",
-   "It tells you, with Compliance's findings (the phrase and the rule).",
-   "It waits for your corrected, signed copy."
+   "It tells the authorized user, with Compliance's findings (the phrase and the rule).",
+   "It waits for the authorized user's corrected, signed copy."
   ],
-  "never": ["Publish flagged copy, or rewrite it on its own."],
-  "why": "The fix to fair housing language is yours to make and sign.",
+  "never": [
+   "Publish flagged copy, or rewrite it on its own."
+  ],
+  "why": "The fix to fair housing language is for the authorized user to make and sign.",
   "you_see": "A question with the flagged phrase and the rule it broke.",
-  "test": "A campaign says \"Perfect for young families near the park\"; Compliance flags it under rule FH-1."}
+  "test": "A campaign says \"Perfect for young families near the park\"; Compliance flags it under rule FH-1."
+ }
 ]

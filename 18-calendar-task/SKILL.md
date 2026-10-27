@@ -21,7 +21,7 @@ summaries; blocks time for prospecting, showings, and admin work.
 
 ## 2. Job Components
 
-- Manage the human agent's calendar and to-do lists; consume `calendar.event` envelopes from 06, 07, 09.
+- Manage the human agent's calendar and to-do lists; consume `calendar.event` envelopes from 06, 07, 09. A showing from 06 that is not added (conflict, full day, no day, unconfirmed time zone) is answered to 06 with `calendar.conflict`, so 06 does not confirm it to the buyer (owner decision 2026-10-27); the question to the broker stands as before.
 - Maintain daily priorities from human direction plus deadline alerts.
 - Generate morning briefings and end-of-day summaries - built only from logged envelopes and calendar records; a briefing never contains a status the system cannot source.
 - Block time for prospecting, showings, and administrative work per human-set rules.
@@ -72,6 +72,7 @@ Dispatcher returns an `ack`.
 | OUT | → 14 CRM & Pipeline | Schedule logs | `interaction.log` |
 | IN | ← every agent with a wait state | Wait-state signal, started or cleared | `agent.status` |
 | OUT | → 06 Showing Scheduler | No-show detected by calendar (missed slot, no confirmation) | `showing.no_show` |
+| OUT | → 06 Showing Scheduler | A showing not added to the calendar (2026-10-27) | `calendar.conflict` |
 | OUT | → HITL queue | Event with no day, day at capacity, timezone ambiguity, conflicting deadline sources, event conflict, request to move a protected block | `clarification.request` |
 | IN | ← Clock (through the hub) | Daily tick: no-show check, morning briefing | `clock.tick` |
 | IN | ← Broker (signed) | Settings: `move_protected_block` | `config.update` |
