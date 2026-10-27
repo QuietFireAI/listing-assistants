@@ -1,0 +1,181 @@
+[
+ {"id": "02-01", "rev": 1,
+  "title": "A lead's score lands exactly on a tier line",
+  "when": "A lead's score is exactly on the line between two tiers (for example exactly the warm threshold).",
+  "steps": [
+   "Agent 02 (Lead Qualification) gives the lead the lower tier.",
+   "It tells you the score sat on a tier line and the lower tier was given, so you can look at it."
+  ],
+  "never": ["Round a borderline lead up into the higher tier."],
+  "why": "Treating a borderline lead as hotter than it is can mean pressure contact the person did not invite. You decide whether to move it up.",
+  "you_see": "A question saying the score is on a tier line, with the score and the tier given.",
+  "test": "Your signed rubric: budget over $400,000 scores 40, a timeline under 30 days scores 40, pre-approval scores 20; warm starts at 40. A lead with a $450,000 budget, a 90-day timeline and no financing scores exactly 40 and is recorded cold."},
+ {"id": "02-02", "rev": 1,
+  "title": "There is no signed scoring rubric",
+  "when": "A lead arrives to be scored and no signed rubric is in force (none was ever signed, or it cannot be read).",
+  "steps": [
+   "Agent 02 does not score the lead.",
+   "It tells you scoring is stopped because no rubric is active.",
+   "No alert about the lead is raised."
+  ],
+  "never": ["Score from a remembered or default rubric."],
+  "why": "Scores decide who you call first. A score from a rubric you did not sign is a guess with your name on it.",
+  "you_see": "A question saying no rubric is active.",
+  "test": "The system starts without the signed rubric; a lead with a $500,000 budget and a 10-day timeline comes in."},
+ {"id": "02-03", "rev": 1,
+  "title": "A lead demands a person: straight to the hot path",
+  "when": "A lead demands to speak to a person.",
+  "steps": [
+   "Agent 02 treats the lead as hot whatever its score, so you are alerted at once."
+  ],
+  "never": ["Let a low score bury a person who asked for a human."],
+  "why": "Someone who asked for a person must get one quickly, whatever the numbers say.",
+  "you_see": "Today the demand reaches you from Agent 01 directly (see LA-T-01-03).",
+  "test": ""},
+ {"id": "02-04", "rev": 1,
+  "title": "A lead says it is urgent but shows no financing",
+  "when": "A lead says the purchase is urgent but has made no progress on financing.",
+  "steps": [
+   "Agent 02 scores on what can be checked (financing), not on the stated urgency.",
+   "It writes the conflict in the client's history, in plain words: stated urgency \"high\" conflicts with no financing progress."
+  ],
+  "never": ["Raise a score because someone says they are in a hurry."],
+  "why": "Stated urgency costs nothing to say; financing shows real readiness. Scores built on what can be verified rank leads fairly.",
+  "you_see": "The conflict in the lead's history next to its score.",
+  "test": "A lead with \"high\" urgency, no financing, a $450,000 budget and a 60-day timeline. (Its score also lands exactly on the warm line, so it is recorded cold and you are asked, as in LA-T-02-01.)"},
+ {"id": "02-05", "rev": 1,
+  "title": "A lead's tier keeps swinging",
+  "when": "A lead's tier changes direction for the third time (for example hot, then cold, then hot).",
+  "steps": [
+   "Agent 02 scores each inquiry as it comes.",
+   "On the third swing it asks you to review the lead: the swinging itself is the signal."
+  ],
+  "never": ["Treat repeated swings as noise and keep re-tiering silently."],
+  "why": "A lead whose facts keep changing may be confused, testing you, or two people on one record. A person should look.",
+  "you_see": "A question saying the lead's tier swung a third time, with its tier history.",
+  "test": "Three inquiries on one client: a $500,000 budget, 10 days and pre-approval (hot); then $300,000, 90 days, no financing (cold); then hot again. The third also raises a hot-lead alert."},
+ {"id": "02-06", "rev": 1,
+  "title": "A signed rubric tries to change a fixed rule",
+  "when": "A rubric you sign contains settings beyond the scoring weights (for example a weight for \"demands a human\", which is a fixed rule, not a score).",
+  "steps": [
+   "Agent 02 uses only the scoring settings it is allowed to read; the fixed rule stands.",
+   "The extra settings are never read.",
+   "It tells you which settings it ignored, so the rubric can be corrected."
+  ],
+  "never": ["Let a rubric quietly override a fixed rule, or quietly drop what it tried."],
+  "why": "Fixed rules (a person asking for a human, consent) are not up for scoring. A rubric that tries to change one is a mistake you should see.",
+  "you_see": "A question naming the rubric settings that were ignored.",
+  "test": "A signed rubric version \"t-extra\" with the usual weights plus \"demands_human_weight\": 0."},
+ {"id": "02-07", "rev": 1,
+  "title": "A lead's pre-approval letter has expired",
+  "when": "A lead provides a pre-approval letter that has expired.",
+  "steps": [
+   "Agent 02 scores the lead as having no verified financing.",
+   "It notes in the client's history that the pre-approval letter expired."
+  ],
+  "never": ["Count an expired letter as financing."],
+  "why": "An expired letter proves nothing about today's buying power; counting it would put the lead ahead of others unfairly.",
+  "you_see": "The note \"pre-approval letter expired\" with the lead's score.",
+  "test": "A lead with a $500,000 budget, a 20-day timeline and an expired $500,000 pre-approval letter scores 80: budget and timeline only, no financing points."},
+ {"id": "02-08", "rev": 1,
+  "title": "The \"lead\" is another agent shopping for a client",
+  "when": "The inquiry comes from a real estate agent looking on behalf of their client.",
+  "steps": [
+   "Agent 02 does not score it as a consumer lead.",
+   "It flags it as agent-to-agent and asks you how to engage."
+  ],
+  "never": ["Put another agent into your consumer lead process."],
+  "why": "Agent-to-agent business has its own rules and etiquette; treating it as a consumer lead would send the wrong messages.",
+  "you_see": "A question saying this is an agent-to-agent inquiry.",
+  "test": "An inquiry flagged as an agent shopping for a client, with a $700,000 budget, 10 days and pre-approval (hot if scored)."},
+ {"id": "02-09", "rev": 1,
+  "title": "An unsigned rubric change arrives",
+  "when": "A change to the scoring rubric arrives without your signature.",
+  "steps": [
+   "The dispatcher refuses it; Agent 02 never receives it.",
+   "You are alerted to an integrity problem.",
+   "Scoring carries on with the last rubric you signed."
+  ],
+  "never": ["Adopt a scoring change you did not sign."],
+  "why": "Whoever controls the rubric controls who gets called. Only you may change it.",
+  "you_see": "An integrity alert; scores keep using your signed rubric version.",
+  "test": "An unsigned rubric that would make a $100 budget count as high arrives. A lead with a $300,000 budget and a 90-day timeline then scores cold on your signed rubric \"synth-v1\"."},
+ {"id": "02-10", "rev": 1,
+  "title": "A lead's stated budget is higher than their pre-approval",
+  "when": "The budget a lead states is higher than the amount on their pre-approval document.",
+  "steps": [
+   "Agent 02 scores on the document's amount.",
+   "It writes the conflict in the client's history word for word."
+  ],
+  "never": ["Score on the stated budget when a document says otherwise."],
+  "why": "The document is evidence; the stated number is a wish. Scoring on evidence keeps the ranking honest.",
+  "you_see": "The conflict noted with the lead's score.",
+  "test": "A lead says $600,000 but the pre-approval is for $350,000. The score is 60 (timeline and financing, no budget points) and the lead goes to follow-up as warm."},
+ {"id": "02-11", "rev": 1,
+  "title": "A re-score arrives while you are handling a hot lead",
+  "when": "A lead is hot and its alert is still open with you, and a re-score request arrives.",
+  "steps": [
+   "Agent 02 does not re-score it.",
+   "It holds the request and tells you a re-score arrived during an open alert."
+  ],
+  "never": ["Change a lead's tier while you are working it."],
+  "why": "Your read of a lead you are talking to outranks a formula. Re-tiering mid-conversation could pull it out from under you.",
+  "you_see": "A question saying a re-score came in during the open alert.",
+  "test": "A hot lead raises an alert. A re-score request with lower numbers then arrives. Stand-in: Agent 03 only re-scores warm leads, so the test sends it as Agent 03."},
+ {"id": "02-12", "rev": 1,
+  "title": "Nothing is known about a lead's budget, timeline or financing",
+  "when": "A lead gives none of the facts the rubric uses.",
+  "steps": [
+   "Agent 02 records the tier as UNKNOWN, not cold.",
+   "It stops scoring the lead and asks you."
+  ],
+  "never": ["Treat missing facts as a low score."],
+  "why": "Unknown is not cold. Archiving a lead because they did not fill in the form loses real buyers.",
+  "you_see": "A question saying all scoring inputs are unknown; the lead's tier shows UNKNOWN.",
+  "test": "A web form with only a name and an email."},
+ {"id": "02-13", "rev": 1,
+  "title": "The scoring engine is not confident enough",
+  "when": "The decision engine scores a lead but reports a confidence below the floor you signed.",
+  "steps": [
+   "Agent 02 does not act on the uncertain tier; it holds the lead and asks you to continue or cancel.",
+   "Continue: the lead is scored with your signed rubric and acted on (for example a hot-lead alert).",
+   "Cancel: the lead is archived and nothing is sent."
+  ],
+  "never": ["Act on a tier the engine itself is unsure of."],
+  "why": "An uncertain score can send a lead down the wrong path. You decide whether to trust your rubric instead.",
+  "you_see": "A held lead asking you to continue or cancel, naming the confidence and the floor.",
+  "test": "You sign a confidence floor of 0.9. The engine scores a lead at confidence 0.85. You continue: the signed rubric scores it hot and you get a hot-lead alert."},
+ {"id": "02-14", "rev": 1,
+  "title": "Lead data would go to the outside scoring service",
+  "when": "The outside decision engine could be used to score a lead.",
+  "steps": [
+   "Lead data goes to the outside service only when both are true: a service key is installed AND you have signed \"allow external\".",
+   "Otherwise nothing is sent out and the local engine scores the lead."
+  ],
+  "never": ["Send lead data out because a key happens to be installed."],
+  "why": "Personal data leaving your office is your decision, and it must be a signed one.",
+  "you_see": "The lead's score; the record shows the local engine made it.",
+  "test": "You sign \"allow external\" but no key is installed. A lead comes in: nothing is sent out and the local engine scores it."},
+ {"id": "02-15", "rev": 1,
+  "title": "The scoring engine returns a tier nobody knows",
+  "when": "The decision engine returns a tier name Agent 02 does not recognize.",
+  "steps": [
+   "Agent 02 treats it as below the confidence floor.",
+   "It holds the lead and asks you to continue or cancel, as in LA-T-02-13."
+  ],
+  "never": ["Act on, or guess the meaning of, an unknown tier."],
+  "why": "An unrecognized answer is not an answer. Holding is the safe default.",
+  "you_see": "A held lead asking you to continue or cancel.",
+  "test": ""},
+ {"id": "02-16", "rev": 1,
+  "title": "A warm lead goes to follow-up with its scoring facts",
+  "when": "A lead scores warm and is passed to Agent 03 (Lead Nurture) for follow-up.",
+  "steps": [
+   "Agent 02 sends the lead's scoring facts along (budget, timeline, financing).",
+   "Agent 03 uses them to re-score the lead on its schedule."
+  ],
+  "never": ["Pass a warm lead on without the facts needed to re-score it."],
+  "why": "Without the original facts, a later re-score would have to guess. With them, it counts the timeline down honestly.",
+  "you_see": "Nothing extra; the lead starts its follow-up sequence.",
+  "test": "A lead with a $500,000 budget, a 60-day timeline and pre-approval scores warm and goes to follow-up."}
+]

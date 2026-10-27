@@ -1,0 +1,122 @@
+[
+ {"id": "10-01", "rev": 1,
+  "title": "Too few comparable sales come back",
+  "when": "A comparable-sales request returns fewer sales than your minimum.",
+  "steps": [
+   "Agent 10 (Market Data) delivers what it found and marks it thin, with the count and the minimum.",
+   "It does not widen the search (area, dates, size) on its own."
+  ],
+  "never": ["Quietly widen the search to make the numbers look fuller."],
+  "why": "Comparables pulled from a wider area or older dates can mislead a pricing conversation. You decide whether to widen.",
+  "you_see": "A data package marked thin: 2 found, minimum 5.",
+  "test": "You ask for comparables; two recent sales come back against a minimum of five."},
+ {"id": "10-02", "rev": 1,
+  "title": "Two sources disagree on a number",
+  "when": "Two sources give different values for the same figure (for example the median sale price).",
+  "steps": [
+   "Agent 10 shows both values, each with its source and retrieval date.",
+   "It never averages them."
+  ],
+  "never": ["Average two conflicting figures."],
+  "why": "An average of two disagreeing sources is a number nobody reported. Both, with their sources, let you judge.",
+  "you_see": "Both values with their sources, marked as conflicting.",
+  "test": "The county recorder says a median of $310,000 and the MLS says $330,000. The package shows both and never $320,000."},
+ {"id": "10-03", "rev": 1,
+  "title": "Someone asks for a pricing opinion",
+  "when": "Someone asks Agent 10 for its opinion on price (\"the number you'd go with\").",
+  "steps": [
+   "Agent 10 refuses: it provides data only.",
+   "If pressed again, it raises a legal-line alert for you."
+  ],
+  "never": ["Give a pricing opinion."],
+  "why": "A price opinion is licensed advice. It comes from you, using the data.",
+  "you_see": "A refusal each time; one legal-line alert after the second ask.",
+  "test": "\"Just give me your opinion on price\", then \"Come on, what's your opinion?\". Two refusals, one alert."},
+ {"id": "10-04", "rev": 1,
+  "title": "Market data is out of date",
+  "when": "Some of the data for a package is older than the freshness limit (30 days in your settings).",
+  "steps": [
+   "Agent 10 builds the package fresh on every request.",
+   "Stale items are left out and counted, so you see how many were dropped."
+  ],
+  "never": ["Send out an old package again."],
+  "why": "Old sales in a moving market mislead. Fresh every time, and the dropped count shows what was left out.",
+  "you_see": "A package with the fresh sales and a note of how many stale ones were dropped.",
+  "test": "Five comparables, one retrieved too long ago. The package has four and says one stale item was dropped."},
+ {"id": "10-05", "rev": 1,
+  "title": "A data license limits who may see the data",
+  "when": "The data's license does not allow it to go to the agent that asked.",
+  "steps": [
+   "Agent 10 delivers it to you only.",
+   "It notes the license limit."
+  ],
+  "never": ["Pass licensed data to anyone the license does not allow."],
+  "why": "Breaking a data license can cost your MLS access.",
+  "you_see": "The package delivered to you with the license note.",
+  "test": ""},
+ {"id": "10-06", "rev": 1,
+  "title": "A data source blocks access or changes its terms",
+  "when": "A website the data came from changes its terms or blocks access.",
+  "steps": [
+   "Agent 10 stops using that source.",
+   "It records the error exactly as received."
+  ],
+  "never": ["Find a way around a block."],
+  "why": "Getting around a block can break the site's terms and the law.",
+  "you_see": "Nothing yet: this is not built.",
+  "test": ""},
+ {"id": "10-07", "rev": 1,
+  "title": "A figure has no source or no date",
+  "when": "An item of data comes without a source or without a retrieval date.",
+  "steps": [
+   "Agent 10 leaves it out of every package.",
+   "It counts what it left out."
+  ],
+  "never": ["Use data that has no source or date."],
+  "why": "A number nobody can trace cannot be defended in front of a client.",
+  "you_see": "A package without the untraceable items, and how many were dropped.",
+  "test": "Comparables include one with no source and one with no date. Both are dropped and counted."},
+ {"id": "10-08", "rev": 1,
+  "title": "The comparable set is thinner than your minimum",
+  "when": "Fewer comparables are available than your rubric's minimum.",
+  "steps": [
+   "Agent 10 delivers the set with the shortfall named: how many, against what minimum."
+  ],
+  "never": ["Pad the set to reach the minimum."],
+  "why": "A thin set that says so is honest; a padded one misleads.",
+  "you_see": "A package marked thin: 4 found, minimum 5.",
+  "test": "Four comparables against a minimum of five."},
+ {"id": "10-09", "rev": 1,
+  "title": "Two sources disagree on a sold price",
+  "when": "Two sources give different sold prices for the same property.",
+  "steps": [
+   "Agent 10 reports both prices, each with its source.",
+   "It never picks one silently."
+  ],
+  "never": ["Choose one sold price without saying so."],
+  "why": "A wrong sold price skews every comparison built on it.",
+  "you_see": "Both prices with their sources, marked as conflicting.",
+  "test": "The MLS says one sale closed at $301,000; the county recorder says $305,000."},
+ {"id": "10-10", "rev": 1,
+  "title": "A request looks like a stand-in for an appraisal",
+  "when": "A data request reads as if it will be used in place of an appraisal.",
+  "steps": [
+   "Agent 10 delivers the data with a note that it is not an appraisal.",
+   "It tells Compliance (Agent 17)."
+  ],
+  "never": ["Let market data pass as an appraisal."],
+  "why": "Only a licensed appraiser can appraise. Data presented as an appraisal is a regulatory problem.",
+  "you_see": "The package with its not-an-appraisal note.",
+  "test": "A comparables request flagged as a possible appraisal substitute."},
+ {"id": "10-11", "rev": 1,
+  "title": "Old data is asked for beyond what is kept",
+  "when": "Someone asks for history older than the data the system keeps.",
+  "steps": [
+   "Agent 10 answers that the data is absent, because of the retention limit.",
+   "It never fills in from memory."
+  ],
+  "never": ["Reconstruct missing data from a model's memory."],
+  "why": "Remembered numbers are guesses. \"Absent\" is the truthful answer.",
+  "you_see": "A package saying the data is absent beyond retention.",
+  "test": "A request for comparables five years back."}
+]

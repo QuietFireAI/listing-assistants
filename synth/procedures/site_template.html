@@ -53,7 +53,7 @@ p { margin: 0 0 10px; }
 /* index */
 .intro { color: var(--ink-2); max-width: 70ch; }
 .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
-.filters { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.filters { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
 .filters input, .filters select { width: 100%; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); color: var(--ink); }
 @media (max-width: 720px) { .filters { grid-template-columns: 1fr 1fr; } .filters input { grid-column: 1 / -1; } }
 .group { margin-bottom: 22px; }
@@ -142,7 +142,7 @@ const STATUS_WORDS = {
   "IN FORCE": "In force", "NOT BUILT": "Not built yet", "NOT REACHABLE": "No way in yet", "RETIRED": "Retired"
 };
 const RESULT_WORDS = {
-  "PASS": ["Passes its test", "ok"], "VARIANCE": ["Fails its test: open item", "warn"],
+  "PASS": ["Verified", "ok"], "VARIANCE": ["Open item", "warn"],
   "ERROR": ["The test run failed", "bad"], "NOT BUILT": ["Not built yet", ""],
   "NOT REACHABLE": ["Built, but nothing outside can start it yet", ""], "RETIRED": ["Retired", ""]
 };
@@ -153,7 +153,6 @@ function el(html) { const d = document.createElement("div"); d.innerHTML = html;
 function title(t) { return t.page ? t.page.title : null; }
 function agentLabel(a) { return a === "SWARM" ? "The whole team" : `Agent ${a} · ${DATA.names[a] || a}`; }
 function catLabel(c) { return c ? `${c} · ${(DATA.categories[c] || "").split(" - ")[0]}` : "Not mapped"; }
-function tierLabel(n) { return n ? `Tier ${n}` : "No tier"; }
 function resultChip(t) {
   const [w, cls] = RESULT_WORDS[t.result] || [t.result || "Not run", "bad"];
   return `<span class="chip ${cls}">${esc(w)}</span>`;
@@ -242,11 +241,10 @@ function chart(t) {
 }
 
 /* ---------- views ---------- */
-const state = { q: "", agent: "", cat: "", tier: "", result: "" };
+const state = { q: "", agent: "", cat: "", result: "" };
 function matches(t) {
   if (state.agent && t.agent !== state.agent) return false;
   if (state.cat && t.category !== state.cat) return false;
-  if (state.tier && String(t.tier) !== state.tier) return false;
   if (state.result) {
     if (state.result === "UNWRITTEN") { if (t.page) return false; }
     else if (state.result === "UNREVIEWED") { if (marks.mine[t.id]) return false; }
@@ -264,7 +262,7 @@ function rowHtml(t) {
   return `<a class="row" href="#/t/${t.id}">
     <span class="code">${esc(t.code)}</span>
     <span class="t">${name}<span class="rule">${esc(t.rule)}</span></span>
-    <span class="tags">${markChip(t.id)}<span class="chip">${esc(t.category || "?")} · ${esc(tierLabel(t.tier))}</span>${resultChip(t)}</span>
+    <span class="tags">${markChip(t.id)}<span class="chip">${esc(catLabel(t.category))}</span>${resultChip(t)}</span>
   </a>`;
 }
 function renderIndex(app) {
@@ -279,8 +277,8 @@ function renderIndex(app) {
     <p class="intro">One controlled page per tuple: the situation, what the system does step by step, what it must never do, why, what you see, a flowchart of the recorded run, and the proof. ${inForce} tuples are in force and ${T.length - inForce} are retired. Evidence recorded ${esc(DATA.evidence_date)}; site built ${esc(DATA.built)}.</p>
     <div class="stats">
       <span class="chip acc">${written} of ${T.length} pages written</span>
-      <span class="chip ok">${count("PASS")} pass their test</span>
-      <span class="chip warn">${count("VARIANCE")} fail their test</span>
+      <span class="chip ok">${count("PASS")} verified</span>
+      <span class="chip warn">${count("VARIANCE")} open items</span>
       <span class="chip">${count("NOT BUILT")} not built</span>
       <span class="chip">${count("NOT REACHABLE")} no way in</span>
       <span class="chip">${count("RETIRED")} retired</span>
@@ -290,8 +288,7 @@ function renderIndex(app) {
       <input id="q" type="search" placeholder="Search titles, rules and steps" value="${esc(state.q)}">
       <select id="fa">${opt("", "All agents", state.agent)}${agents.map(a => opt(a, a === "SWARM" ? "Whole team" : `${a} ${DATA.names[a] || ""}`, state.agent)).join("")}</select>
       <select id="fc">${opt("", "All categories", state.cat)}${Object.keys(DATA.categories).map(c => opt(c, catLabel(c), state.cat)).join("")}</select>
-      <select id="ft">${opt("", "All tiers", state.tier)}${["1", "2", "3"].map(n => opt(n, `Tier ${n}`, state.tier)).join("")}</select>
-      <select id="fr">${opt("", "Any result", state.result)}${opt("PASS", "Pass", state.result)}${opt("VARIANCE", "Fails its test", state.result)}${opt("NOT BUILT", "Not built", state.result)}${opt("NOT REACHABLE", "No way in", state.result)}${opt("RETIRED", "Retired", state.result)}${opt("UNWRITTEN", "Page not written", state.result)}${marks.ok ? opt("UNREVIEWED", "Not reviewed by you", state.result) : ""}</select>
+      <select id="fr">${opt("", "Any result", state.result)}${opt("PASS", "Verified", state.result)}${opt("VARIANCE", "Open item", state.result)}${opt("NOT BUILT", "Not built", state.result)}${opt("NOT REACHABLE", "No way in", state.result)}${opt("RETIRED", "Retired", state.result)}${opt("UNWRITTEN", "Page not written", state.result)}${marks.ok ? opt("UNREVIEWED", "Not reviewed by you", state.result) : ""}</select>
     </div>
     <div id="list"></div>`;
   const list = app.querySelector("#list");
@@ -303,7 +300,7 @@ function renderIndex(app) {
   };
   draw();
   app.querySelector("#q").addEventListener("input", e => { state.q = e.target.value; draw(); });
-  [["#fa", "agent"], ["#fc", "cat"], ["#ft", "tier"], ["#fr", "result"]].forEach(([sel, k]) =>
+  [["#fa", "agent"], ["#fc", "cat"], ["#fr", "result"]].forEach(([sel, k]) =>
     app.querySelector(sel).addEventListener("change", e => { state[k] = e.target.value; draw(); }));
 }
 function docHtml(t, withReview) {
@@ -320,7 +317,7 @@ function docHtml(t, withReview) {
   const steps = p && p.steps && p.steps.length ? `<ol class="steps">${p.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>` : "";
   const never = p && p.never && p.never.length ? `<ul class="never">${p.never.map(s => `<li>${esc(s)}</li>`).join("")}</ul>` : "";
   const checks = t.checks.length ? `<ul class="checks">${t.checks.map(c => `<li><span class="${c.ok ? "mark-ok" : "mark-bad"}">${c.ok ? "✓" : "✗"}</span><span>${esc(c.text)} <span class="muted">· found ${esc(c.found)}</span></span></li>`).join("")}</ul>` : "";
-  const flow = t.flow.length ? `<div class="chart">${chart(t)}</div><p class="chart-note">Every message for this case in the recorded run, in order (${t.flow.length}${t.flow_more ? ` shown of ${t.flow.length + t.flow_more}` : ""}). Not shown: ${t.routine} background messages (record keeping, status updates, the morning briefing, the clock waking agents with no part in this case). The highlighted lane is the owner agent. Amber arrows are messages that were held or refused and alerts raised for you; the tag says which.</p>` : "";
+  const flow = t.flow.length ? `<div class="chart">${chart(t)}</div><p class="chart-note">Every message for this case in the recorded run, in order (${t.flow.length}${t.flow_more ? ` shown of ${t.flow.length + t.flow_more}` : ""}). Not shown: ${t.routine} background messages (record keeping, status updates, the morning briefing, the clock waking agents with no part in this case). The highlighted lane is the agent that carries out this procedure. Amber arrows are messages that were held, sent only after your release, or refused, and alerts raised for you; the tag says which.</p>` : "";
   const proof = t.result && !["NOT BUILT", "NOT REACHABLE", "RETIRED"].includes(t.result) ? `
       ${p && p.test ? `<p><b>Test scenario.</b> ${esc(p.test)}</p>` : ""}
       <p><b>Result on ${esc(DATA.evidence_date)}:</b> ${resultChip(t)}</p>
@@ -339,16 +336,15 @@ function docHtml(t, withReview) {
     <div class="doctitle"><h1>${esc(name)}</h1><div class="codeline"><span class="code">${esc(t.code)}</span> · Rev ${esc(p ? t.rev : 0)}${p ? "" : " (draft)"}</div></div>
     <table class="control"><tbody>
       <tr><th>Document</th><td><span class="code">${esc(t.code)}</span> · Rev ${esc(p ? t.rev : 0)}</td></tr>
-      <tr><th>Owner</th><td>${esc(agentLabel(t.agent))}</td></tr>
+      <tr><th>Carried out by</th><td>${esc(agentLabel(t.agent))}${t.agent === "00" || t.agent === "SWARM" ? "" : ". The agent that acts in this situation; the steps below say when it hands work to another agent or to you."}</td></tr>
       <tr><th>Category</th><td>${esc(catLabel(t.category))}</td></tr>
-      <tr><th>Risk tier</th><td>${esc(tierLabel(t.tier))}${t.tier ? ": " + esc(DATA.tiers[String(t.tier)]) : ""}</td></tr>
       <tr><th>Status</th><td>${esc(statusWords)} · ${resultChip(t)}</td></tr>
-      <tr><th>Last verified</th><td>${esc(DATA.evidence_date)} (recorded run)</td></tr>
+      <tr><th>Last checked</th><td>${esc(DATA.evidence_date)}: the test for this procedure was run and its record compared to it</td></tr>
       <tr><th>Rule as signed</th><td class="rulebox">${esc(t.rule)}</td></tr>
     </tbody></table>
     ${banner}
     ${sec("When this applies", p && p.when ? `<p>${esc(p.when)}</p>` : "")}
-    ${sec("What happens", steps)}
+    ${sec(t.status === "NOT BUILT" ? "What the rule requires (not built yet)" : t.status === "NOT REACHABLE" ? "What happens (built; nothing outside starts it yet)" : "What happens", steps)}
     ${sec("Never", never)}
     ${sec("Why it matters", p && p.why ? `<p>${esc(p.why)}</p>` : "")}
     ${sec("What you see", p && p.you_see ? `<p>${esc(p.you_see)}</p>` : "")}

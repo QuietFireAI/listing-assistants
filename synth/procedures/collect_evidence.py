@@ -28,6 +28,8 @@ sys.path.insert(0, os.path.join(ROOT, "synth", "tuples"))
 import run_tuples  # noqa: E402
 
 OUT = os.path.join(HERE, "evidence.json")
+# raised by the dispatcher itself (run tracker, hub, HITL protocol), not by an agent
+DISPATCHER_RAISED = {"escalation.queue_full", "escalation.system_error", "escalation.confidence_underflow"}
 OUTCOME_KINDS = {
     "ack": "delivered", "reject": "refused", "dead.letter": "could not be delivered",
     "absolute_signal.hold": "held for your signed release", "hold.queued": "waiting for you",
@@ -50,35 +52,83 @@ def own_part(entries):
     return entries[last + 1:]
 
 
+def _template(e):
+    """The message's template name, when it carries one (which client
+    message, which vendor order): the flowchart shows it in plain words."""
+    p = e.get("payload")
+    t = p.get("template") if isinstance(p, dict) else None
+    return t if isinstance(t, str) and not t.startswith("__") else None
+
+
 def flow(part):
-    """Messages in order, with what became of each. An alert raised for the
-    broker (escalation.raised) is drawn as a message from the agent handling
-    a message at that moment to your queue: the entry does not name its
-    agent, so the handler is the newest persisted message the dispatcher has
-    not yet reported on (hub.reflection "persisted seq=N ...")."""
-    msgs, by_id, open_seq = [], {}, []
+    """Messages in order, with what became of each. Also drawn as messages:
+    an alert raised for the broker (escalation.raised), a hold that waits
+    for the broker's continue or cancel (human.notified on decision_required)
+    and the broker's signed decision on it (hitl.decision.authorized).
+    An alert entry does not always name its agent; then it is the agent
+    handling a message at that moment: the newest recorded message to an
+    agent that the dispatcher has not yet reported delivered (hub.reflection
+    "persisted seq=N ..." comes after the handler returns), else the agent
+    whose decision record (spoke.trace) came last, leaving out the record
+    keepers 14 and 18. Alerts the dispatcher itself raises are drawn from 00."""
+    msgs, by_id, last_actor, released, handling = [], {}, "00", [], []
     for e in part:
         k = e.get("kind")
+        if k == "spoke.trace":
+            if e.get("agent") not in ("14", "18"):
+                last_actor = e.get("agent") or last_actor
+            continue
         if k == "hub.reflection":
             mt = re.search(r"seq=(\d+)", str(e.get("thought", "")))
             if mt:
-                open_seq[:] = [x for x in open_seq if x[0] != int(mt.group(1))]
+                handling[:] = [h for h in handling if h[0] != int(mt.group(1))]
             continue
         if k == "escalation.raised":
-            frm = e.get("agent") or (open_seq[-1][1] if open_seq else "00")
+            agents = [h[1] for h in handling if re.fullmatch(r"\d\d", str(h[1]))]
+            frm = e.get("agent") or (agents[-1] if agents else last_actor)
+            if e.get("queue") in DISPATCHER_RAISED:
+                frm = "00"
             msgs.append({"from": frm, "to": "queue", "intent": "alert:" + str(e.get("queue", "")),
                          "client": e.get("client_context_id"), "outcome": "alert for you"})
             continue
+        if k == "human.notified" and e.get("queue") == "decision_required":
+            msgs.append({"from": e.get("agent") or "00", "to": "queue", "intent": "decision.required",
+                         "client": e.get("client_context_id"), "outcome": "waiting for your decision"})
+            continue
+        if k == "human.notified" and isinstance(e.get("absolute_signal"), dict):
+            # an outbound message held at the gate for your signed release;
+            # the gate holds it before it is recorded as sent, so this
+            # notice is where it shows
+            msgs.append({"from": e.get("from_agent"), "to": e.get("to_agent"), "intent": e.get("intent"),
+                         "client": e.get("client_context_id"), "outcome": "held for your signed release",
+                         "template": _template(e)})
+            continue
+        if k in ("disclosure.authorized", "disclosure.declined"):
+            ok = k == "disclosure.authorized"
+            msgs.append({"from": "human", "to": "00", "intent": "release.signed" if ok else "release.declined",
+                         "client": e.get("client_context_id"), "outcome": None,
+                         "held_intent": e.get("intent")})
+            if ok:
+                released.append(e.get("intent"))
+            continue
+        if k == "hitl.decision.authorized":
+            msgs.append({"from": "human", "to": e.get("agent") or "00", "intent": "decision.signed",
+                         "client": e.get("client_context_id"), "outcome": None,
+                         "decision": e.get("decision")})
+            continue
         if k == "envelope.persisted":
             m = {"from": e.get("from_agent"), "to": e.get("to_agent"), "intent": e.get("intent"),
-                 "client": e.get("client_context_id"), "outcome": None}
+                 "client": e.get("client_context_id"), "outcome": None, "template": _template(e)}
+            if isinstance(e.get("sequence"), int):
+                handling.append((e["sequence"], e.get("to_agent")))
+            if e.get("intent") in released:
+                released.remove(e.get("intent"))
+                m["outcome"] = "sent after your release"
             msgs.append(m)
             by_id[e.get("envelope_id")] = m
-            if isinstance(e.get("sequence"), int):
-                open_seq.append((e["sequence"], e.get("to_agent")))
         elif k in OUTCOME_KINDS and e.get("envelope_id") in by_id:
             m = by_id[e["envelope_id"]]
-            if m["outcome"] is None or k == "absolute_signal.released":
+            if m["outcome"] is None:
                 m["outcome"] = OUTCOME_KINDS[k]
         elif k in ("reject", "hold.clarification") and e.get("from_agent"):
             msgs.append({"from": e.get("from_agent"), "to": e.get("to_agent"), "intent": e.get("intent"),
@@ -116,6 +166,9 @@ def main(argv=None):
         r = run_tuples.run_one(spec, tpl, wd)
         path = os.path.join(wd, spec["id"], "console-audit.jsonl")
         entries = [json.loads(ln) for ln in open(path, encoding="utf-8")] if os.path.exists(path) else []
+        hpath = os.path.join(wd, spec["id"], "harness.jsonl")
+        if os.path.exists(hpath):   # the fault harness's own observations, as run_tuples reads them
+            entries += [json.loads(ln) for ln in open(hpath, encoding="utf-8")]
         return spec["id"], evidence(spec, r, entries)
 
     with ThreadPoolExecutor(8) as ex:

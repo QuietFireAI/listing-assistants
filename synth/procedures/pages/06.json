@@ -1,0 +1,215 @@
+[
+ {
+  "id": "06-01",
+  "rev": 1,
+  "title": "Two showing requests want the same time",
+  "when": "Two buyers ask for showings that overlap on the calendar.",
+  "steps": [
+   "If one of them protects a deadline (for example a hot lead), it wins and you are offered the chance to move the other.",
+   "Otherwise the first one confirmed keeps the slot.",
+   "Agent 06 (Showing Scheduler) does not book the second; it asks you about the calendar conflict."
+  ],
+  "never": [
+   "Book both and hope it works out."
+  ],
+  "why": "A double-booked showing leaves a buyer waiting on a doorstep and an occupant disturbed twice.",
+  "you_see": "A question about the calendar conflict for the second buyer.",
+  "test": "Buyer B1 asks for 10:00 and buyer B2 for 10:15 at the same listing. B1 is confirmed; B2 goes to you. No alternative time is worked out for B2 today (stated in the agent's DECISIONS.md). The protected-deadline case is played in a separate scene (scene 8, showing bump)."
+ },
+ {
+  "id": "06-02",
+  "rev": 1,
+  "title": "The person asking for a showing cannot be identified",
+  "when": "Someone asks for a showing, which means access to a home, and their identity has not been verified.",
+  "steps": [
+   "Agent 06 cancels the showing; it is never confirmed.",
+   "The cancellation and the reason (identity not verified) are written in the client's history."
+  ],
+  "never": [
+   "Give access to a home to someone whose identity is not verified. No exceptions."
+  ],
+  "why": "Showings put strangers inside people's homes. Unverified access is a safety and liability risk.",
+  "you_see": "The cancelled showing in the client's history, with the reason.",
+  "test": "Buyer B1 has a buyer agreement on file but no verified identity, and asks for a 10:00 showing."
+ },
+ {
+  "id": "06-03",
+  "rev": 1,
+  "title": "Someone asks to \"just let them in\"",
+  "when": "A message asks for someone to be let into a property without a scheduled, verified showing.",
+  "steps": [
+   "Agent 11 (Client Communication) catches the request and raises a legal-line alert for you.",
+   "Nobody is let in; no access is arranged."
+  ],
+  "never": [
+   "Arrange access outside the showing process."
+  ],
+  "why": "Access to a home is the line. Letting someone in on a message is how break-ins and liability start.",
+  "you_see": "A legal-line alert quoting the request.",
+  "test": "A client writes: \"We're running late, can you just let them in to the house?\""
+ },
+ {
+  "id": "06-04",
+  "rev": 1,
+  "title": "Someone does not show up for a showing",
+  "when": "A showing is reported as a no-show.",
+  "steps": [
+   "Agent 06 records the no-show.",
+   "It asks Agent 11 to send a feedback request in a neutral tone, with no reproach."
+  ],
+  "never": [
+   "Send a scolding or blaming message about the no-show."
+  ],
+  "why": "People miss appointments for many reasons. A neutral note keeps the relationship and still gets the facts.",
+  "you_see": "The no-show in the client's history; a neutral feedback request sent.",
+  "test": "Buyer B1 has a confirmed 10:00 showing, then writes \"The other agent never showed up\"."
+ },
+ {
+  "id": "06-05",
+  "rev": 1,
+  "title": "A same-day showing is asked for at an occupied home",
+  "when": "A buyer asks for a showing at an occupied home with less notice than the minimum.",
+  "steps": [
+   "Agent 06 reads occupancy from the listing record.",
+   "The notice rule still applies (24 hours in your settings), same day or not.",
+   "Nothing is booked; the buyer is offered the first time that meets the notice rule."
+  ],
+  "never": [
+   "Squeeze in a showing at an occupied home without the required notice."
+  ],
+  "why": "Occupants are entitled to notice. Short-notice showings breed seller complaints.",
+  "you_see": "A message to the buyer offering the first allowed time.",
+  "test": "The listing record says occupied. At 10:00 a buyer asks for 15:00 the same day (5 hours' notice against 24)."
+ },
+ {
+  "id": "06-06",
+  "rev": 1,
+  "title": "Someone asks for a lockbox code or access code in a message",
+  "when": "A message asks for a lockbox combination or an access code.",
+  "steps": [
+   "Agent 11 catches the request and raises a legal-line alert for you.",
+   "The code is never sent in a message; access goes only through the access-custody process."
+  ],
+  "never": [
+   "Send an access code or lockbox combination in any message."
+  ],
+  "why": "A code in a message can be forwarded to anyone. Access stays in the custody process.",
+  "you_see": "A legal-line alert quoting the request.",
+  "test": "A client writes: \"What's the lockbox combo for the house on Elm?\""
+ },
+ {
+  "id": "06-07",
+  "rev": 1,
+  "title": "A showing is asked for inside an occupied home's notice window",
+  "when": "A buyer asks for a time that is too soon under the notice rule for an occupied home.",
+  "steps": [
+   "If the listing record does not say whether the home is occupied, Agent 06 treats it as occupied.",
+   "Nothing is booked; the buyer is offered the first time that meets the notice rule.",
+   "Nobody is asked to waive the notice."
+  ],
+  "never": [
+   "Ask the seller to waive notice unprompted."
+  ],
+  "why": "Pressure on a seller to give up their notice protection is a complaint waiting to happen. If they want to waive it, that is their call.",
+  "you_see": "A message to the buyer offering the first allowed time.",
+  "test": "The listing record says nothing about occupancy. A buyer asks at noon for 08:00 the next day (20 hours against 24)."
+ },
+ {
+  "id": "06-08",
+  "rev": 1,
+  "title": "The same showing agent no-shows twice",
+  "when": "A showing agent has failed to show up twice.",
+  "steps": [
+   "Before confirming a third showing with that agent, Agent 06 flags the pattern to you."
+  ],
+  "never": [
+   "Keep booking an agent who keeps not showing up, without telling you."
+  ],
+  "why": "Repeated no-shows waste sellers' time and your reputation with them.",
+  "you_see": "A flag naming the pattern before the third confirmation.",
+  "test": ""
+ },
+ {
+  "id": "06-09",
+  "rev": 1,
+  "title": "A buyer asks for two showings too close together",
+  "when": "One buyer asks for two showings that fall within the buffer time between appointments.",
+  "steps": [
+   "Agent 06 confirms the first.",
+   "It does not book the second; it asks you about the conflict (inside the 30-minute buffer)."
+  ],
+  "never": [
+   "Double-book and hope the buyer gets there in time."
+  ],
+  "why": "Travel and overruns are real. A late buyer means a waiting occupant and a bad first impression.",
+  "you_see": "A question about the calendar conflict within the 30-minute buffer.",
+  "test": "Buyer B1 asks for one listing at 10:00 and another at 10:20 the same day."
+ },
+ {
+  "id": "06-10",
+  "rev": 1,
+  "title": "A feedback request goes unanswered",
+  "when": "Feedback was asked for after a showing and nobody answers.",
+  "steps": [
+   "Agent 06 asks for feedback through Agent 11 on the daily run after the showing.",
+   "After two asks with no answer, it stops and records that the cap was reached."
+  ],
+  "never": [
+   "Ask a third time."
+  ],
+  "why": "Nagging the people who show your listings burns goodwill with the agent network.",
+  "you_see": "At most two feedback requests per showing.",
+  "test": "A showing on October 17. The daily clock runs every day from the 16th to the 20th. Exactly two feedback requests go out, then the cap stops them."
+ },
+ {
+  "id": "06-11",
+  "rev": 1,
+  "title": "A showing is asked for at a property under contract",
+  "when": "A buyer asks to see a property whose listing record says it is under contract (pending).",
+  "steps": [
+   "Agent 06 checks the listing's current status with Agent 05 (MLS & Listing Management) first.",
+   "The status is not one that allows showings, so nothing is booked.",
+   "It asks you, naming the status."
+  ],
+  "never": [
+   "Assume a listing is active and book the showing."
+  ],
+  "why": "Showing a property under contract can interfere with the deal and mislead the buyer.",
+  "you_see": "A question saying the property status \"pending\" does not allow showings.",
+  "test": "A listing goes live and then pending with a signed contract. A buyer asks to see it."
+ },
+ {
+  "id": "06-12",
+  "rev": 1,
+  "title": "The weekly seller report is due",
+  "when": "The weekday you signed for seller reports arrives.",
+  "steps": [
+   "For each listing in your setting, Agent 06 counts the week's showings and feedback.",
+   "It holds the report and asks you: continue sends it to the seller through Agent 11; cancel skips this week.",
+   "It holds only one report per listing per week, however many times the daily run happens.",
+   "Agent 11 sends to the seller only with the seller's consent on record; without it, it tells you to record the consent."
+  ],
+  "never": [
+   "Send a seller report you have not seen, or send two in one week."
+  ],
+  "why": "The seller report speaks for you to your client. You see it before it goes.",
+  "you_see": "A held report with its counts, asking you to continue or cancel.",
+  "test": "You sign Monday reports for listing SYN-L001 (seller S1), and the seller's consent is on record. One showing happens. On Monday the report is held (1 showing, 0 with feedback); you continue and it is sent to the seller once; the daily run on the same day does not hold a second one."
+ },
+ {
+  "id": "06-13",
+  "rev": 1,
+  "title": "The seller report setting is wrong",
+  "when": "A signed seller report setting cannot be read (for example the weekday \"funday\").",
+  "steps": [
+   "Agent 06 rejects the whole setting; nothing changes.",
+   "It tells you the setting was rejected."
+  ],
+  "never": [
+   "Apply part of a broken setting, or guess what it meant."
+  ],
+  "why": "A half-applied setting gives reports on the wrong day or for the wrong listings.",
+  "you_see": "A question saying the seller report setting was rejected.",
+  "test": "A signed seller report setting with the weekday \"funday\"."
+ }
+]

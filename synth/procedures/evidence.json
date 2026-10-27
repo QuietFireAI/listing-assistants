@@ -80,13 +80,13 @@
       "queue cannot take another item",
       "system_halt"
      ],
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 1
     },
     {
      "kind": "harness.halted_result",
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 1
     },
     {
      "kind": "envelope.persisted",
@@ -110,56 +110,64 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
@@ -173,63 +181,72 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "01",
      "intent": "lead.inbound",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T2",
-     "outcome": "could not be delivered"
+     "outcome": "could not be delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     }
    ],
    "queues": [
@@ -241,7 +258,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 101
+   "entries": 104
   },
   "00-05": {
    "result": "NOT REACHABLE",
@@ -328,6 +345,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -355,11 +379,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -479,6 +511,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -915,7 +954,7 @@
      "outcome": "waiting for you"
     },
     {
-     "from": "queue",
+     "from": "00",
      "to": "queue",
      "intent": "alert:escalation.queue_full",
      "client": "P1",
@@ -1021,6 +1060,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L2",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L2",
@@ -1060,6 +1106,13 @@
      "intent": "vendor.request",
      "client": "L3",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L3",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -1134,7 +1187,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 5
+   "entries": 7
   },
   "00-08": {
    "result": "NOT REACHABLE",
@@ -1254,7 +1307,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 23
+   "entries": 26
   },
   "00-11": {
    "result": "PASS",
@@ -1323,6 +1376,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -1350,11 +1410,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     }
    ],
    "queues": [],
@@ -1753,7 +1821,7 @@
      "outcome": "waiting for you"
     },
     {
-     "from": "queue",
+     "from": "00",
      "to": "queue",
      "intent": "alert:escalation.queue_full",
      "client": "T1",
@@ -1893,13 +1961,13 @@
       "audit log unwritable",
       "system_halt"
      ],
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 1
     },
     {
      "kind": "harness.halted_result",
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 2
     },
     {
      "kind": "envelope.persisted",
@@ -2006,7 +2074,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 55
+   "entries": 59
   },
   "00-14": {
    "result": "PASS",
@@ -2100,7 +2168,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 55
+   "entries": 57
   },
   "00-15": {
    "result": "PASS",
@@ -2187,6 +2255,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -2214,11 +2289,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -2338,6 +2421,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -2467,10 +2557,25 @@
     },
     {
      "from": "00",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "L1",
+     "outcome": "waiting for your decision"
+    },
+    {
+     "from": "00",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "human",
+     "to": "00",
+     "intent": "decision.signed",
+     "client": "L1",
+     "outcome": null,
+     "decision": "APPROVE_WITH_OVERRIDE"
     },
     {
      "from": "00",
@@ -2586,14 +2691,14 @@
     {
      "kind": "harness.end",
      "contains": "plain-language view unwritable",
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 1
     },
     {
      "kind": "harness.end",
      "contains": "\"halted\": null",
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 1
     }
    ],
    "flow": [
@@ -2677,7 +2782,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 56
+   "entries": 58
   },
   "00-17": {
    "result": "PASS",
@@ -2784,7 +2889,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 56
+   "entries": 58
   },
   "01-01": {
    "result": "VARIANCE",
@@ -3083,7 +3188,8 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
@@ -3097,49 +3203,56 @@
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
@@ -3153,7 +3266,8 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     }
    ],
    "queues": [
@@ -3411,6 +3525,13 @@
     },
     {
      "from": "01",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T2",
+     "outcome": "waiting for your decision"
+    },
+    {
+     "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
@@ -3460,7 +3581,7 @@
      "outcome": "delivered"
     },
     {
-     "from": "01",
+     "from": "00",
      "to": "queue",
      "intent": "alert:escalation.complaint",
      "client": "T1",
@@ -3833,6 +3954,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "SYN-L001",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "SYN-L001",
@@ -3872,6 +4000,13 @@
      "intent": "vendor.request",
      "client": "SYN-L002",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "SYN-L002",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -4686,8 +4821,8 @@
      "kind": "harness.dropped",
      "contains": "record.request",
      "count": 2,
-     "ok": false,
-     "found": 0
+     "ok": true,
+     "found": 2
     },
     {
      "kind": "spoke.trace",
@@ -5042,7 +5177,7 @@
     "P11",
     "P16"
    ],
-   "entries": 178
+   "entries": 182
   },
   "02-01": {
    "result": "PASS",
@@ -5342,56 +5477,64 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
@@ -5405,129 +5548,147 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "queue",
      "intent": "clarification.request",
      "client": "T1",
-     "outcome": "waiting for you"
+     "outcome": "waiting for you",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
-     "from": "queue",
+     "from": "02",
      "to": "queue",
      "intent": "alert:escalation.hot_lead",
      "client": "T1",
@@ -5538,7 +5699,8 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     }
    ],
    "queues": [
@@ -6222,73 +6384,98 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "02",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T1",
+     "outcome": "waiting for your decision"
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "human",
+     "to": "02",
+     "intent": "decision.signed",
+     "client": "T1",
+     "outcome": null,
+     "decision": "APPROVE"
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
-     "from": "00",
+     "from": "02",
      "to": "queue",
      "intent": "alert:escalation.hot_lead",
      "client": "T1",
@@ -6299,7 +6486,8 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     }
    ],
    "queues": [
@@ -9946,210 +10134,240 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "03",
      "intent": "lead.nurture",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "17",
      "intent": "content.review",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "03",
      "intent": "content.verdict",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "01",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-01",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "03",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-03",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "11",
      "intent": "client.message.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "11",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
      "to": "external",
      "intent": "client.message.send",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "03",
      "to": "11",
      "intent": "client.message.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "11",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
      "to": "external",
      "intent": "client.message.send",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "03",
      "to": "02",
      "intent": "lead.rescored",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
@@ -10163,280 +10381,320 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "05",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-05",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "06",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-06",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "07",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-07",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-08",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-13",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "14",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-14",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "16",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-16",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "17",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-17",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "18",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-18",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "14",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "15",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "15",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "19",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "19",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "10",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "10",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "01",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-01",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "03",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-03",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "05",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-05",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "06",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-06",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "07",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-07",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-08",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-13",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "14",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-14",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "16",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-16",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "17",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-17",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "18",
      "intent": "clock.tick",
      "client": "clock-2026-10-29-18",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "14",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "15",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "15",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "19",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "19",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "10",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "10",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     }
    ],
    "queues": [
@@ -11605,6 +11863,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -11632,11 +11897,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -11736,6 +12009,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -11763,11 +12043,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -11894,6 +12182,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -12033,6 +12328,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -12060,11 +12362,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -12191,6 +12501,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -12330,6 +12647,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -12357,11 +12681,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -12481,6 +12813,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -12619,6 +12958,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -12646,11 +12992,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -12770,6 +13124,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -12919,6 +13280,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -12946,11 +13314,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -13084,6 +13460,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -13227,6 +13610,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -13254,11 +13644,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -13378,6 +13776,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -13517,6 +13922,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -13544,11 +13956,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -13644,6 +14064,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -13671,11 +14098,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -13795,6 +14230,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -13940,6 +14382,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -13967,11 +14416,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -14112,6 +14569,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -14267,6 +14731,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -14294,11 +14765,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -14418,6 +14897,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -14560,6 +15046,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -14587,11 +15080,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -14718,6 +15219,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -14873,6 +15381,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -14900,11 +15415,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -15034,6 +15557,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -15154,6 +15684,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -15251,6 +15788,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -15339,6 +15883,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -15423,6 +15974,13 @@
      "intent": "vendor.request",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -15554,6 +16112,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -15581,11 +16146,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -15775,6 +16348,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -15940,6 +16520,13 @@
      "intent": "vendor.request",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -16166,6 +16753,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -16219,6 +16813,13 @@
      "intent": "vendor.request",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -16734,6 +17335,13 @@
      "intent": "vendor.request",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -17524,6 +18132,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -17551,11 +18166,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -17675,6 +18298,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -17962,6 +18592,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -17989,11 +18626,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -18113,6 +18758,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -19435,6 +20087,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -19462,11 +20121,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -19586,6 +20253,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -19851,6 +20525,15 @@
      "count": 1,
      "ok": true,
      "found": 1
+    },
+    {
+     "kind": "envelope.persisted",
+     "intent": "client.message.send",
+     "ctx": "S1",
+     "contains": "seller_weekly_report",
+     "count": 1,
+     "ok": true,
+     "found": 1
     }
    ],
    "flow": [
@@ -20010,6 +20693,13 @@
     },
     {
      "from": "06",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "S1",
+     "outcome": "waiting for your decision"
+    },
+    {
+     "from": "06",
      "to": "18",
      "intent": "agent.status",
      "client": "S1",
@@ -20128,6 +20818,14 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "06",
+     "intent": "decision.signed",
+     "client": "S1",
+     "outcome": null,
+     "decision": "APPROVE"
+    },
+    {
      "from": "06",
      "to": "18",
      "intent": "agent.status",
@@ -20157,17 +20855,17 @@
     },
     {
      "from": "11",
-     "to": "14",
-     "intent": "interaction.log",
+     "to": "external",
+     "intent": "client.message.send",
      "client": "S1",
      "outcome": "delivered"
     },
     {
      "from": "11",
-     "to": "queue",
-     "intent": "clarification.request",
+     "to": "14",
+     "intent": "interaction.log",
      "client": "S1",
-     "outcome": "waiting for you"
+     "outcome": "delivered"
     },
     {
      "from": "clock",
@@ -20351,7 +21049,7 @@
     "P16",
     "P18"
    ],
-   "entries": 298
+   "entries": 297
   },
   "06-13": {
    "result": "PASS",
@@ -27815,6 +28513,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -27842,11 +28547,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -28000,6 +28713,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "queue",
      "intent": "clarification.request",
      "client": "T1",
@@ -28073,6 +28793,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -28108,10 +28835,25 @@
     },
     {
      "from": "09",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T1",
+     "outcome": "waiting for your decision"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "human",
+     "to": "09",
+     "intent": "decision.signed",
+     "client": "T1",
+     "outcome": null,
+     "decision": "APPROVE"
     },
     {
      "from": "09",
@@ -28231,6 +28973,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -29909,119 +30658,136 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "03",
      "intent": "lead.nurture",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "17",
      "intent": "content.review",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "03",
      "intent": "content.verdict",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "11",
      "intent": "client.reply",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
@@ -30035,28 +30801,32 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
      "to": "13",
      "intent": "lead.reply",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "13",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "13",
      "to": "queue",
      "intent": "clarification.request",
      "client": "T1",
-     "outcome": "waiting for you"
+     "outcome": "waiting for you",
+     "template": null
     }
    ],
    "queues": [
@@ -30729,294 +31499,336 @@
      "to": "01",
      "intent": "lead.inbound",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "03",
      "intent": "lead.nurture",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "17",
      "intent": "content.review",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "03",
      "intent": "content.verdict",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "11",
      "intent": "client.message.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "record.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "11",
      "intent": "record.response",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
      "to": "external",
      "intent": "client.message.send",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "01",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-01",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "03",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-03",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "05",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-05",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "06",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-06",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "07",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-07",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-08",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-13",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "14",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-14",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "16",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-16",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "17",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-17",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "18",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-18",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "14",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "15",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "15",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "19",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "19",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "10",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "10",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "11",
      "intent": "client.reply",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
@@ -31030,294 +31842,343 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "01",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-01",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "03",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-03",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "11",
      "intent": "client.message.request",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
     },
     {
      "from": "11",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
      "to": "03",
      "intent": "client.message.not_sent",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
+     "from": "00",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T1",
+     "outcome": "waiting for your decision"
     },
     {
      "from": "00",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "05",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-05",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "06",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-06",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "07",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-07",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-08",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-13",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "14",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-14",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "16",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-16",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "17",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-17",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "clock",
      "to": "18",
      "intent": "clock.tick",
      "client": "clock-2026-10-22-18",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "14",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "15",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "15",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "19",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "19",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "10",
      "intent": "briefing.request",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "10",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "01",
      "intent": "lead.inbound",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "record.request",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "14",
      "to": "01",
      "intent": "record.response",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "14",
      "intent": "interaction.log",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "01",
      "to": "02",
      "intent": "lead.captured",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "03",
      "intent": "lead.nurture",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "17",
      "intent": "content.review",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "03",
      "intent": "content.verdict",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "03",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "17",
      "to": "14",
      "intent": "interaction.log",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "02",
      "to": "14",
      "intent": "interaction.log",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "external",
      "to": "11",
      "intent": "client.reply",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
@@ -31331,7 +32192,8 @@
      "to": "14",
      "intent": "interaction.log",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
@@ -31345,14 +32207,16 @@
      "to": "18",
      "intent": "agent.status",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": null
     },
     {
      "from": "11",
      "to": "14",
      "intent": "interaction.log",
      "client": "T2",
-     "outcome": "delivered"
+     "outcome": "delivered",
+     "template": "advice_ack_handoff"
     }
    ],
    "queues": [
@@ -31424,6 +32288,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -31451,11 +32322,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -31575,6 +32454,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -31771,6 +32657,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -31798,11 +32691,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -31922,6 +32823,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -32084,6 +32992,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -32111,11 +33026,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -32235,6 +33158,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -32415,6 +33345,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -32442,11 +33379,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -32671,6 +33616,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -32698,11 +33650,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -32902,6 +33862,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -32929,11 +33896,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -33056,6 +34031,13 @@
     },
     {
      "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "12",
      "to": "14",
      "intent": "interaction.log",
      "client": "T1",
@@ -33144,6 +34126,13 @@
      "intent": "platform.metrics",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -33521,6 +34510,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -33548,11 +34544,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -33672,6 +34676,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -33923,6 +34934,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -33950,11 +34968,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -34074,6 +35100,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -34238,6 +35271,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L2",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L2",
@@ -34265,11 +35305,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L2",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -34389,6 +35437,13 @@
      "intent": "status.update",
      "client": "L2",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L2",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -34553,6 +35608,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L3",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L3",
@@ -34580,11 +35642,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L3",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -34704,6 +35774,13 @@
      "intent": "status.update",
      "client": "L3",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L3",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -34868,6 +35945,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L4",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L4",
@@ -34895,11 +35979,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L4",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -35019,6 +36111,13 @@
      "intent": "status.update",
      "client": "L4",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L4",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -35183,6 +36282,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L5",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L5",
@@ -35210,11 +36316,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L5",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -35334,6 +36448,13 @@
      "intent": "status.update",
      "client": "L5",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L5",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -35498,6 +36619,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L6",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L6",
@@ -35525,11 +36653,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L6",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -35649,6 +36785,13 @@
      "intent": "status.update",
      "client": "L6",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L6",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -36010,6 +37153,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -36037,11 +37187,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -36161,6 +37319,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -36330,6 +37495,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -36357,11 +37529,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -36481,6 +37661,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -36726,6 +37913,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -36753,11 +37947,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -36877,6 +38079,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -37090,6 +38299,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -37117,11 +38333,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -37241,6 +38465,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -37932,6 +39163,13 @@
      "intent": "agent.status",
      "client": "T2",
      "outcome": "delivered"
+    },
+    {
+     "from": "01",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T2",
+     "outcome": "waiting for your decision"
     },
     {
      "from": "01",
@@ -38679,6 +39917,13 @@
      "intent": "agent.status",
      "client": "T2",
      "outcome": "delivered"
+    },
+    {
+     "from": "01",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T2",
+     "outcome": "waiting for your decision"
     },
     {
      "from": "01",
@@ -43660,6 +44905,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -43687,11 +44939,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -44838,6 +46098,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -44865,11 +46132,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -44989,6 +46264,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -45097,6 +46379,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L2",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L2",
@@ -45124,11 +46413,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L2",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -45248,6 +46545,13 @@
      "intent": "status.update",
      "client": "L2",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L2",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -45701,7 +47005,7 @@
     "P11",
     "P16"
    ],
-   "entries": 95
+   "entries": 97
   },
   "18-03": {
    "result": "PASS",
@@ -45772,6 +47076,21 @@
      "intent": "config.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "18",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "T1",
+     "outcome": "waiting for your decision"
+    },
+    {
+     "from": "human",
+     "to": "18",
+     "intent": "decision.signed",
+     "client": "T1",
+     "outcome": null,
+     "decision": "REJECT_AND_ABORT"
     },
     {
      "from": "18",
@@ -46099,6 +47418,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -46126,11 +47452,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -46250,6 +47584,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -47538,6 +48879,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -47565,11 +48913,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -47689,6 +49045,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -49581,6 +50944,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -49608,11 +50978,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -49732,6 +51110,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -49913,6 +51298,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -49940,11 +51332,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -50067,6 +51467,13 @@
     },
     {
      "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "12",
      "to": "14",
      "intent": "interaction.log",
      "client": "L1",
@@ -50500,7 +51907,7 @@
      "outcome": "waiting for you"
     },
     {
-     "from": "queue",
+     "from": "00",
      "to": "queue",
      "intent": "alert:escalation.queue_full",
      "client": "P1",
@@ -50606,6 +52013,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L2",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L2",
@@ -50645,6 +52059,13 @@
      "intent": "vendor.request",
      "client": "L3",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L3",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -50766,6 +52187,13 @@
     },
     {
      "from": "06",
+     "to": "queue",
+     "intent": "decision.required",
+     "client": "S1",
+     "outcome": "waiting for your decision"
+    },
+    {
+     "from": "06",
      "to": "18",
      "intent": "agent.status",
      "client": "S1",
@@ -50882,6 +52310,14 @@
      "intent": "report.package",
      "client": "briefing",
      "outcome": "delivered"
+    },
+    {
+     "from": "human",
+     "to": "06",
+     "intent": "decision.signed",
+     "client": "S1",
+     "outcome": null,
+     "decision": "REJECT_AND_ABORT"
     },
     {
      "from": "06",
@@ -51195,7 +52631,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 59
+   "entries": 62
   },
   "SW-08": {
    "result": "PASS",
@@ -51358,6 +52794,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -51385,11 +52828,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -51509,6 +52960,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -51642,6 +53100,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "T1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "T1",
@@ -51669,11 +53134,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "T1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -51793,6 +53266,13 @@
      "intent": "status.update",
      "client": "T1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "T1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -51961,6 +53441,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -51988,11 +53475,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -52112,6 +53607,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",
@@ -52548,7 +54050,7 @@
      "outcome": "waiting for you"
     },
     {
-     "from": "queue",
+     "from": "00",
      "to": "queue",
      "intent": "alert:escalation.queue_full",
      "client": "P1",
@@ -52654,6 +54156,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L2",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L2",
@@ -52693,6 +54202,13 @@
      "intent": "vendor.request",
      "client": "L3",
      "outcome": "delivered"
+    },
+    {
+     "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L3",
+     "outcome": "held for your signed release"
     },
     {
      "from": "09",
@@ -52808,6 +54324,13 @@
     },
     {
      "from": "09",
+     "to": "external",
+     "intent": "vendor.schedule",
+     "client": "L1",
+     "outcome": "held for your signed release"
+    },
+    {
+     "from": "09",
      "to": "18",
      "intent": "agent.status",
      "client": "L1",
@@ -52835,11 +54358,19 @@
      "outcome": "delivered"
     },
     {
+     "from": "human",
+     "to": "00",
+     "intent": "release.signed",
+     "client": null,
+     "outcome": null,
+     "held_intent": "vendor.schedule"
+    },
+    {
      "from": "09",
      "to": "external",
      "intent": "vendor.schedule",
      "client": "L1",
-     "outcome": "delivered"
+     "outcome": "sent after your release"
     },
     {
      "from": "external",
@@ -52959,6 +54490,13 @@
      "intent": "status.update",
      "client": "L1",
      "outcome": "delivered"
+    },
+    {
+     "from": "12",
+     "to": "external",
+     "intent": "campaign.publish",
+     "client": "L1",
+     "outcome": "held for your signed release"
     },
     {
      "from": "12",

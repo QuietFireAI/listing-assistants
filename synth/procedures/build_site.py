@@ -8,7 +8,7 @@ follow and link both ways.
 
 Sources (nothing on a page is typed twice):
   synth/tuples/specs/*.jsonl       the tuples themselves, as tested
-  synth/tuples/TUPLE_MAP.json      category and risk tier (accepted 2026-10-21)
+  synth/tuples/TUPLE_MAP.json      category (accepted 2026-10-21; its risk tiers are not shown, owner 2026-10-27)
   synth/procedures/pages/*.json    the plain-language procedure for each tuple
   synth/procedures/evidence.json   what each tuple's own run put on the record
                                    (collect_evidence.py): the flowchart and proof
@@ -46,6 +46,29 @@ KIND_WORDS = {
     "sweep.error": "a daily check that failed", "decision.lead": "a lead scored",
     "human.notified": "you were notified", "human.notify_failed": "a notice that did not reach you",
     "integrity.violation": "a tampered or unsigned message refused",
+    "playbook.waiting_released": "waiting playbook starts let in, in order",
+    "harness.end": "the test's closing note on what the dispatcher did",
+    "harness.halted_result": "the dispatcher answering a new message with \"halted\"",
+    "harness.dropped": "the test's note of a message it dropped on purpose",
+    "siding.hold": "a playbook step held on the siding behind another playbook",
+    "siding.resume": "a held playbook step resumed",
+    "escalation.realerted": "an alert sent to you a second time",
+    "escalation.owner_paged": "the owner paged about an alert nobody marked done",
+    "identity.reload_refused": "a settings reload refused while work is open",
+    "identity.reloaded": "a settings reload carried out",
+    "drawer.refused": "a filing refused by the client's drawer",
+    "ack": "a message accepted",
+    "desk.acknowledged": "an alert you marked done",
+    "playbook.start_waiting": "a playbook start held back",
+    "clock.skew_hold": "time-driven work held because the clocks disagree",
+    "playbook.conflict": "two playbooks in conflict on one client, held",
+    "playbook.entry_waiting": "a playbook step waiting its turn",
+    "playbook.sequenced": "playbook steps put in order",
+    "playbook.entries_dropped": "playbook steps dropped",
+    "drafting.mode": "the drafting mode in use",
+    "playbook.integrity_violation": "a playbook table that failed its integrity check",
+    "dedupe.hit": "a duplicate message caught and not delivered again",
+    "manners.reinjection": "the conduct rules handed to an agent again",
 }
 
 
@@ -125,14 +148,53 @@ def chart_messages(flow: list, owner: str) -> list:
     return out
 
 
+def fold_repeats(msgs: list) -> list:
+    """A block of 1-3 messages repeated three or more times in a row, the
+    same except for the client (25 settings, 25 questions), shows once with
+    the count."""
+    key = lambda m: (m["from"], m["to"], m["intent"], m.get("outcome"))
+    out, i = [], 0
+    while i < len(msgs):
+        best = None
+        for k in (1, 2, 3):
+            n = 1
+            while (i + (n + 1) * k <= len(msgs)
+                   and [key(m) for m in msgs[i + n * k:i + (n + 1) * k]] == [key(m) for m in msgs[i:i + k]]):
+                n += 1
+            if n >= 3 and (best is None or n * k > best[0] * best[1]):
+                best = (n, k)
+        if best:
+            n, k = best
+            clients = [msgs[i + j * k].get("client") for j in range(n)]
+            for j, m in enumerate(msgs[i:i + k]):
+                out.append({**m, "times": n, "clients": f"{clients[0]} to {clients[-1]}"})
+            i += n * k
+        else:
+            out.append(msgs[i])
+            i += 1
+    return out
+
+
 def words_for(m: dict, phrase: dict) -> str:
+    if m["intent"] in ("release.signed", "release.declined"):
+        what = phrase.get(m.get("held_intent") or "", "the held message")
+        return ("you release the held message: " if m["intent"] == "release.signed"
+                else "you decline the held message: ") + what
+    if m["intent"] == "decision.signed":
+        d = str(m.get("decision") or "").lower()
+        return "your signed decision" + (f" ({d})" if d else "")
+    if m["intent"] == "decision.required":
+        return "holds it and asks you to continue or cancel"
     if m["intent"].startswith("alert:"):
         q = m["intent"][6:].removeprefix("escalation.").replace("_", " ")
         return f"raises an alert for you ({q})"
     if m["intent"] == "clock.tick":
         day = re.search(r"\d{4}-\d\d-\d\d", str(m.get("client") or ""))
         return "the daily clock runs" + (f" ({day.group(0)})" if day else "")
-    return phrase.get(m["intent"], m["intent"].replace(".", " "))
+    words = phrase.get(m["intent"], m["intent"].replace(".", " "))
+    if m.get("template"):
+        words += f": {m['template'].replace('_', ' ')}"
+    return words
 
 
 def load_pages() -> dict:
@@ -159,28 +221,28 @@ def build_data() -> dict:
         e = ev["tuples"].get(tid, {})
         page = pages.get(tid)
         flow = e.get("flow", [])
-        main = chart_messages(flow, s["agent"])
+        shown = chart_messages(flow, s["agent"])
+        main = fold_repeats(shown)
         tuples.append({
             "id": tid, "code": code_for(tid), "rev": (page or {}).get("rev", 1),
             "agent": s["agent"], "agent_name": names.get(s["agent"], s["agent"]),
             "status": status, "status_why": s.get("why", ""),
             "rule": s["tuple"], "category": tmap["tuples"].get(tid, {}).get("category"),
-            "tier": tmap["tuples"].get(tid, {}).get("tier"),
             "stand_in": s.get("route") == "stand-in", "route": s.get("route"),
             "spec": s.get("_file"), "page": page,
             "result": e.get("result"), "result_why": (e.get("why") or "")[:600],
             "checks": [{"text": describe_check(c, names, phrase), "ok": c.get("ok"), "found": c.get("found")}
                        for c in e.get("checks", [])],
             "flow": [{"from": m["from"], "to": m["to"], "intent": m["intent"],
-                      "words": words_for(m, phrase),
+                      "words": words_for(m, phrase) + (f" (×{m['times']}, clients {m['clients']})" if m.get("times") else ""),
                       "outcome": m.get("outcome")} for m in main[:40]],
-            "flow_more": max(0, len(main) - 40), "routine": len(flow) - len(main),
+            "flow_more": max(0, len(main) - 40), "routine": len(flow) - len(shown),
             "queues": e.get("queues", []),
             "playbooks": [{"id": p, "name": pbs.get(p, {}).get("name", p)} for p in e.get("playbooks", [])],
         })
     return {
         "built": datetime.date.today().isoformat(), "evidence_date": ev.get("ran_on"),
-        "categories": tmap["_categories"], "tiers": tmap["_tiers"], "names": names,
+        "categories": tmap["_categories"], "names": names,
         "tuples": tuples,
     }
 
