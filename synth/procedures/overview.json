@@ -1,0 +1,79 @@
+{
+ "_what": "Level 1 of the Operating Procedures manual: the real estate lifecycle mapped to playbooks, agents and the authorized user's decisions. Drafted 2026-10-27 from docs/PLAYBOOKS.md, identity/playbooks.json and docs/JOB_DESCRIPTIONS.md, for the owner's review. Agents per stage are computed from the playbooks by build_site.py.",
+ "stages": [
+  {
+   "id": "leads", "name": "Leads",
+   "business": "Someone calls, fills in a form, texts or comments online. The office has minutes, not hours, to respond to a ready buyer or seller, and must not contact anyone who has not agreed to it.",
+   "playbooks": ["P11", "P21", "P12", "P24"],
+   "system": "Every inquiry is captured with its consent, checked against the existing records, scored on the signed rubric and routed: hot leads to the authorized user at once, warm leads to follow-up sequences the authorized user wrote, cold leads archived with the reason. Warm leads are re-scored every week. Prospects found in public sources are put in front of the authorized user, never contacted.",
+   "person": ["Calling the hot lead.", "Writing the scoring rubric and the follow-up sequences.", "Deciding whether and how to reach out to any prospect.", "Deciding and paying for any farm campaign."]
+  },
+  {
+   "id": "win", "name": "Winning the listing",
+   "business": "A seller agrees to meet. The agent prepares a comparative market analysis, presents, recommends a price and signs a listing agreement.",
+   "playbooks": ["P15"],
+   "system": "Agent 10 assembles the comparable sales with a source and date on every figure, and Agent 18 puts the appointment on the calendar. Nothing in the package is an opinion.",
+   "person": ["The listing presentation.", "The price opinion and the list price.", "Signing the listing agreement with the seller."]
+  },
+  {
+   "id": "launch", "name": "Launching the listing",
+   "business": "The signed listing goes on the market: photos, description, MLS entry, then marketing.",
+   "playbooks": ["P01"],
+   "system": "The authorized user's signed listing package starts it. Photography is booked from the approved roster (the booking waits for release), the description is drafted from the property data only and checked by Compliance, the MLS record is entered field for field, and public marketing waits for the MLS entry and the authorized user's release.",
+   "person": ["Signing the listing package and the price.", "Releasing the photographer's booking.", "Releasing each publication."]
+  },
+  {
+   "id": "market", "name": "On the market",
+   "business": "Showings, open houses, feedback, the seller's weekly update, price conversations, and keeping vacant homes and access safe.",
+   "playbooks": ["P04", "P18", "P23", "P02", "P19", "P20", "P05"],
+   "system": "Showings are booked and confirmed only with the buyer agreement on file and the calendar's say; feedback is collected and logged. The weekly seller report counts showings and feedback and waits for the authorized user before it goes. For a price conversation the system assembles evidence and never a number; a price change happens only on the authorized user's signature. Vacant homes get a condition check every day; access grants are tracked without the codes themselves. An expired or withdrawn listing stops all marketing at once.",
+   "person": ["Every price change.", "Releasing the weekly seller report.", "Granting and closing property access.", "Talking with the seller about price."]
+  },
+  {
+   "id": "buyers", "name": "Working with buyers",
+   "business": "A buyer signs a written buyer agreement, states what they want, tours homes and gives feedback.",
+   "playbooks": ["P06", "P07", "P22"],
+   "system": "The buyer's criteria are recorded exactly as stated and matched against new listings; matches wait until the written buyer agreement is on file. Tours are booked through the showing agent, feedback updates the criteria only where the buyer said so explicitly.",
+   "person": ["The buyer agreement.", "Recording the buyer's criteria.", "Every piece of advice, including anything about neighborhoods."]
+  },
+  {
+   "id": "offer", "name": "Offer to acceptance",
+   "business": "An offer is written, presented, countered and accepted or rejected.",
+   "playbooks": ["P08"],
+   "system": "The thinnest playbook on purpose. The system tracks the offer's status and its documents for the authorized user; offer status never goes to a client from the system.",
+   "person": ["Writing, presenting and negotiating every offer.", "Advising the client."]
+  },
+  {
+   "id": "contract", "name": "Under contract to closing",
+   "business": "Inspection, appraisal, financing, title, disclosures and repairs, each with a deadline; then closing.",
+   "playbooks": ["P03", "P09"],
+   "system": "The listing goes to pending. The contract's dates, signed by the authorized user, become the timeline; each document is requested, checked (expected sender, file opens) and filed; each deadline is watched and counts as met only with the document on file. Vendors are booked from the roster with release.",
+   "person": ["The contract and its dates.", "Repair negotiation.", "Every movement of money and every wire instruction.", "Every legal question."]
+  },
+  {
+   "id": "after", "name": "Closing and after",
+   "business": "The deal closes; the relationship continues with check-ins, greetings, reviews and referrals. Complaints are handled by a person.",
+   "playbooks": ["P10", "P13", "P14"],
+   "system": "The commission is recorded, and check-ins at 30, 90 and 365 days are scheduled for people on the authorized user's client list. Every touch stops for an opt-out, a hard time on record or a contact that no longer works. A complaint holds every message to that person until the authorized user lifts the hold.",
+   "person": ["Every response to a complaint.", "Whether to reach out during a hard time.", "Any answer about a referral reward."]
+  },
+  {
+   "id": "daily", "name": "Every day",
+   "business": "The day starts with what needs attention and ends with the books.",
+   "playbooks": ["P16", "P17"],
+   "system": "The morning briefing is built only from the record: calendar, open waits, decisions pending, deadlines, overnight leads, yesterday's books, prospects waiting, market changes. In the evening the day's interactions and figures are closed into one report.",
+   "person": ["Reading the briefing and setting the day's priorities."]
+  }
+ ],
+ "always_person": [
+  "Price: every list price, every price change and every price opinion.",
+  "Signatures: listing agreements, buyer agreements, contracts.",
+  "Negotiation: offers, counteroffers, repairs.",
+  "Advice: legal, financial, and anything about a neighborhood.",
+  "Money: the system records commissions and expenses; it has no way to move money.",
+  "Anything that leaves the office for a vendor, the other side or the public: each message is held until the authorized user releases it.",
+  "Complaints and public replies.",
+  "Reaching out to prospects.",
+  "Any situation no rule covers: the agent stops and asks."
+ ]
+}

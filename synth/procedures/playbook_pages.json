@@ -1,0 +1,991 @@
+[
+ {
+  "id": "P01",
+  "rev": 1,
+  "purpose": "Takes a signed listing from the authorized user's signature to a live, marketed listing: photography, description, compliance check, MLS record, and marketing held for release.",
+  "starts": "The authorized user signs the listing package (property data, list price, go-live) to Agent 05.",
+  "ends": "Agent 05 records the listing as active.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the listing package: the property data and the list price, decided before this playbook starts."
+   },
+   {
+    "by": "05",
+    "text": "Checks the package field by field and orders photography from Agent 09."
+   },
+   {
+    "by": "09",
+    "text": "Picks a photographer from the approved roster with current credentials, puts the appointment on the calendar (Agent 18), and prepares the booking message."
+   },
+   {
+    "by": "00",
+    "text": "Holds the booking message: it goes to an outside vendor."
+   },
+   {
+    "by": "user",
+    "text": "Releases the booking."
+   },
+   {
+    "by": "outside",
+    "text": "The photographer delivers the photos."
+   },
+   {
+    "by": "09",
+    "text": "Counts the delivery only with proof, and passes the photos to Agent 05."
+   },
+   {
+    "by": "05",
+    "text": "Sends the listing data to Agent 04."
+   },
+   {
+    "by": "04",
+    "text": "Drafts the description from the property data only and sends it to Compliance."
+   },
+   {
+    "by": "17",
+    "text": "Checks it against the signed rules: approved or flagged. A flagged draft stops the marketing path."
+   },
+   {
+    "by": "04",
+    "text": "Releases the approved description to Agents 05 and 12."
+   },
+   {
+    "by": "05",
+    "text": "Sets the listing active and tells Agent 11 (the seller is told, with consent), Agent 12, Agent 14, and the agents that need listing data (01, 06, 10, 13)."
+   },
+   {
+    "by": "12",
+    "text": "Prepares the listing's publication now that the MLS entry is confirmed (Clear Cooperation)."
+   },
+   {
+    "by": "00",
+    "text": "Holds the publication: it goes to the public."
+   },
+   {
+    "by": "user",
+    "text": "Releases the publication when ready."
+   }
+  ],
+  "user_decides": [
+   "The list price and the property data.",
+   "Releasing the photographer's booking.",
+   "Releasing the publication.",
+   "Any conflict between the photos and the data."
+  ],
+  "never": [
+   "Change the price.",
+   "Publish before the MLS entry is confirmed and the authorized user releases it.",
+   "Describe a feature that is not in the data."
+  ],
+  "run_note": "In the recorded run the publication is still held at the end, as it should be: the run ends when the listing is active, and the release is the authorized user's next act.",
+  "not_built": [
+   "No MLS or portal is connected: \"active\" is Agent 05's own record."
+  ]
+ },
+ {
+  "id": "P02",
+  "rev": 1,
+  "purpose": "Carries out a price change the authorized user decided: the record, the seller's notice, buyers' matches and marketing all follow the new price.",
+  "starts": "The authorized user signs a price change to Agent 05.",
+  "ends": "Agent 05 records the change.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the new price. The decision is made before this playbook starts; nothing in it produces or suggests a number."
+   },
+   {
+    "by": "05",
+    "text": "Records the new price exactly as signed."
+   },
+   {
+    "by": "05",
+    "text": "Tells Agent 11 (the seller is told, with consent), Agent 12 and Agent 14."
+   },
+   {
+    "by": "05",
+    "text": "Sends the new listing data to Agents 13 and 10."
+   },
+   {
+    "by": "13",
+    "text": "Matches the listing again: a buyer whose budget now fits is matched; a buyer already matched is not matched twice."
+   }
+  ],
+  "user_decides": [
+   "The price.",
+   "Any change to marketing that names a price."
+  ],
+  "never": [
+   "Produce, suggest or change a price."
+  ],
+  "run_note": "In the recorded run the listing goes from 450,000 to 440,000. A buyer with a 445,000 budget is matched only after the drop; a buyer matched before is not matched again. The ad carries no price, so the authorized user is not asked about it.",
+  "not_built": [
+   "No MLS or portal is connected."
+  ]
+ },
+ {
+  "id": "P03",
+  "rev": 1,
+  "purpose": "Moves an accepted offer into transaction mode: the listing goes pending, marketing stops, and the contract's timeline starts.",
+  "starts": "The authorized user signs the listing's change to pending, with the executed contract on file.",
+  "ends": "The authorized user signs the contract's timeline to Agent 07; Contract to Close (P09) starts on it.",
+  "steps": [
+   {
+    "by": "outside",
+    "text": "The executed contract arrives; Agent 11 passes it to Agent 08, which checks and files it and tells Agent 07."
+   },
+   {
+    "by": "user",
+    "text": "Signs the status change to pending, naming the filed contract."
+   },
+   {
+    "by": "05",
+    "text": "Sets the listing pending and tells Agents 11 (the seller is told), 12, 14, 06 and 01."
+   },
+   {
+    "by": "12",
+    "text": "An ad still held for release is now for a pending listing: it asks the authorized user to decline it."
+   },
+   {
+    "by": "user",
+    "text": "Signs the contract's dates (inspection, appraisal, financing, closing) to Agent 07."
+   },
+   {
+    "by": "07",
+    "text": "Puts each deadline on the calendar (Agent 18) and asks Agent 08 for each document."
+   },
+   {
+    "by": "08",
+    "text": "Asks the parties for the documents through Agent 11."
+   },
+   {
+    "by": "07",
+    "text": "Asks Agent 09 for the inspector and the appraiser."
+   },
+   {
+    "by": "09",
+    "text": "Books from the approved roster; with no approved vendor of that kind it books nothing and asks the authorized user."
+   }
+  ],
+  "user_decides": [
+   "The status change and the contract.",
+   "The contract's dates.",
+   "Declining an ad that would publish a pending listing.",
+   "Choosing a vendor when the roster has none."
+  ],
+  "never": [
+   "Calculate contract dates.",
+   "Book a vendor who is not on the roster."
+  ],
+  "run_note": "In the recorded run no inspector or appraiser is on the roster, so Agent 09 asks the authorized user both times: \"urgency does not create approval\".",
+  "not_built": []
+ },
+ {
+  "id": "P04",
+  "rev": 1,
+  "purpose": "Runs an open house on a live listing: the calendar, the vendors, the visitors who become leads, and the result.",
+  "starts": "The authorized user signs the open house's start and end to Agent 06.",
+  "ends": "The authorized user signs the open house result (attendance and feedback) to Agent 06.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the open house time."
+   },
+   {
+    "by": "06",
+    "text": "Puts it on the calendar (Agent 18) and asks Agent 09 for what the open house needs (for example signage)."
+   },
+   {
+    "by": "09",
+    "text": "Books from the approved roster, or asks the authorized user when the roster has none."
+   },
+   {
+    "by": "outside",
+    "text": "A visitor leaves their details: an inquiry to Agent 01, which runs Speed to Lead (P11) for that visitor."
+   },
+   {
+    "by": "user",
+    "text": "Signs the result: attendance and the feedback heard."
+   },
+   {
+    "by": "06",
+    "text": "Logs the result to Agent 14."
+   }
+  ],
+  "user_decides": [
+   "The time.",
+   "Vendors when the roster has none.",
+   "Calling a visitor who scores hot."
+  ],
+  "never": [
+   "Book a vendor who is not on the roster."
+  ],
+  "run_note": "In the recorded run a visitor with consent, pre-approval and a 30-day timeline scores hot and the authorized user is alerted; no signage vendor is on the roster, so Agent 09 asks.",
+  "not_built": [
+   "RSVPs and reminders."
+  ]
+ },
+ {
+  "id": "P05",
+  "rev": 1,
+  "purpose": "Winds down an expired or withdrawn listing: marketing stops at once and everyone is told.",
+  "starts": "The authorized user signs the listing's status as withdrawn or expired.",
+  "ends": "Agent 05 records the status.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the status change, naming the seller's confirmation."
+   },
+   {
+    "by": "05",
+    "text": "Sets the status and tells Agents 11 (the seller is told), 12, 14, 06 and 01."
+   },
+   {
+    "by": "12",
+    "text": "Stops all marketing for the listing. An ad still held for release would now publish a withdrawn listing: it asks the authorized user to decline it."
+   }
+  ],
+  "user_decides": [
+   "The status change.",
+   "Declining any held ad."
+  ],
+  "never": [
+   "Publish anything for a listing that is no longer on the market."
+  ],
+  "run_note": "In the recorded run the listing's launch ad is still held when it is withdrawn; Agent 12 asks the authorized user to decline it.",
+  "not_built": []
+ },
+ {
+  "id": "P06",
+  "rev": 1,
+  "purpose": "Starts a buyer's search: criteria recorded exactly as stated, matches held until the written buyer agreement is on file, then sent.",
+  "starts": "The authorized user signs the buyer's first criteria to Agent 13.",
+  "ends": "The first match is sent to the buyer.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the buyer's criteria, word for word."
+   },
+   {
+    "by": "13",
+    "text": "Matches new listings against them."
+   },
+   {
+    "by": "13",
+    "text": "No written buyer agreement on file: the matches are held and the authorized user is told once."
+   },
+   {
+    "by": "user",
+    "text": "Records the signed buyer agreement with Agent 14."
+   },
+   {
+    "by": "clock",
+    "text": "On the next daily run, the held matches go out."
+   },
+   {
+    "by": "13",
+    "text": "Sends the match through Agent 11 (with consent) and logs it to Agent 14."
+   }
+  ],
+  "user_decides": [
+   "The buyer agreement.",
+   "The buyer's criteria, as stated."
+  ],
+  "never": [
+   "Add or infer a criterion.",
+   "Send a match before the buyer agreement is on file."
+  ],
+  "run_note": "In the recorded run a new listing fits the buyer before the agreement is recorded; the match is held, and goes out on the clock run after the agreement is recorded.",
+  "not_built": []
+ },
+ {
+  "id": "P07",
+  "rev": 1,
+  "purpose": "Coordinates a showing from the buyer's request to logged feedback.",
+  "starts": "A showing request reaches Agent 06 (from Agent 13 on a match, or from the buyer through Agent 11).",
+  "ends": "The buyer's feedback is logged; Buyer Feedback and Match Refresh (P22) starts on it.",
+  "steps": [
+   {
+    "by": "outside",
+    "text": "The buyer asks to see a home."
+   },
+   {
+    "by": "11",
+    "text": "Passes the request to Agent 06."
+   },
+   {
+    "by": "06",
+    "text": "Checks the buyer agreement, the requester's identity, the notice period, the listing's status and clashes (see Agent 06)."
+   },
+   {
+    "by": "06",
+    "text": "Puts the showing on the calendar (Agent 18). If the calendar cannot take it, the showing is held for the authorized user."
+   },
+   {
+    "by": "06",
+    "text": "Confirms the showing to the buyer through Agent 11."
+   },
+   {
+    "by": "06",
+    "text": "The day after, asks the buyer for feedback through Agent 11."
+   },
+   {
+    "by": "outside",
+    "text": "The buyer answers."
+   },
+   {
+    "by": "11",
+    "text": "Passes the feedback to Agent 06, which logs it to Agent 14."
+   }
+  ],
+  "user_decides": [
+   "A showing the calendar could not take.",
+   "Clashes."
+  ],
+  "never": [
+   "Confirm a showing without the buyer agreement.",
+   "Authorize access to a property."
+  ],
+  "run_note": "In the recorded run the buyer asks for 10:00, the showing is confirmed, feedback is asked the next day and logged.",
+  "not_built": [
+   "Seller availability is not checked (there is no seller availability data)."
+  ]
+ },
+ {
+  "id": "P08",
+  "rev": 1,
+  "purpose": "Tracks an offer from receipt to its outcome. The thinnest playbook on purpose: the negotiation is entirely the authorized user's.",
+  "starts": "The authorized user records an offer's status with Agent 07.",
+  "ends": "The authorized user records the offer's outcome.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Records the offer received, with its document."
+   },
+   {
+    "by": "07",
+    "text": "Reports the status to the authorized user only, never to a client."
+   },
+   {
+    "by": "user",
+    "text": "Negotiates: presenting, countering, accepting or rejecting is outside the system."
+   },
+   {
+    "by": "user",
+    "text": "Records the outcome."
+   },
+   {
+    "by": "07",
+    "text": "Reports it to the authorized user. An accepted offer leads to Under-Contract Transition (P03)."
+   }
+  ],
+  "user_decides": [
+   "Everything about the offer."
+  ],
+  "never": [
+   "Negotiate.",
+   "Tell a client about an offer's status."
+  ],
+  "run_note": "In the recorded run an offer is received and then rejected; both updates go to the authorized user, none to a client.",
+  "not_built": [
+   "An offer's response deadline is stored with its status, but nothing alerts on it."
+  ]
+ },
+ {
+  "id": "P09",
+  "rev": 1,
+  "purpose": "Runs the contract to closing: every deadline watched, every document checked, and the close held if something is missing.",
+  "starts": "The authorized user signs the contract's timeline to Agent 07.",
+  "ends": "Agent 07 reports the transaction closed; Close and Post-Close Handoff (P10) starts on it.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the contract's dates, and lists the expected senders for sensitive documents (for example the title company for the settlement statement)."
+   },
+   {
+    "by": "07",
+    "text": "Puts each deadline on the calendar and asks Agent 08 for each document."
+   },
+   {
+    "by": "08",
+    "text": "Asks the parties through Agent 11; chases daily; raises a document still missing after three chases."
+   },
+   {
+    "by": "07",
+    "text": "Asks Agent 09 for the inspector; with no approved vendor, Agent 09 asks the authorized user."
+   },
+   {
+    "by": "outside",
+    "text": "Documents arrive."
+   },
+   {
+    "by": "08",
+    "text": "Files a document only from an expected sender and only if it opens; tells Agent 07."
+   },
+   {
+    "by": "07",
+    "text": "A deadline counts as met only with its document on file. Anything unmet at closing is held for the authorized user."
+   },
+   {
+    "by": "user",
+    "text": "Decides whether the close continues."
+   },
+   {
+    "by": "07",
+    "text": "Reports the transaction closed to Agents 14, 15 and 16."
+   }
+  ],
+  "user_decides": [
+   "The dates and the expected senders.",
+   "Whether to continue with something unmet.",
+   "Every movement of money and every wire instruction."
+  ],
+  "never": [
+   "File a document from an unexpected sender.",
+   "Mark a deadline met on someone's word.",
+   "Move money."
+  ],
+  "run_note": "In the recorded run the settlement statement arrives from the listed title company and is filed; the inspection report never came, so the close waits for the authorized user and continues on the signed decision.",
+  "not_built": [
+   "No date arithmetic; warnings ahead of a due date (except the seller disclosure)."
+  ]
+ },
+ {
+  "id": "P10",
+  "rev": 1,
+  "purpose": "Hands a closed deal over to the relationship: the commission recorded, the client record updated, and the follow-up schedule started.",
+  "starts": "Agent 07 reports the transaction closed.",
+  "ends": "The first post-close check-in is sent (or blocked with the reason).",
+  "steps": [
+   {
+    "by": "07",
+    "text": "Reports the close to Agents 16, 14 and 15."
+   },
+   {
+    "by": "15",
+    "text": "Records the commission."
+   },
+   {
+    "by": "14",
+    "text": "Updates the client record."
+   },
+   {
+    "by": "16",
+    "text": "Schedules the check-ins at 30, 90 and 365 days for a client on the authorized user's list."
+   },
+   {
+    "by": "clock",
+    "text": "On the 30th day the check-in is due."
+   },
+   {
+    "by": "16",
+    "text": "Checks opt-out, hard times on record and a working contact; sends through Agent 11, which checks consent."
+   }
+  ],
+  "user_decides": [
+   "The client list.",
+   "Whether to reach out during a hard time."
+  ],
+  "never": [
+   "Contact someone who is not on the list or who opted out."
+  ],
+  "run_note": "In the recorded run the deal closes and the 30-day check-in goes out on the clock.",
+  "not_built": [
+   "Maintenance tips and a self-running referral schedule."
+  ]
+ },
+ {
+  "id": "P11",
+  "rev": 1,
+  "purpose": "Turns any inquiry into a scored, routed lead within minutes.",
+  "starts": "An inquiry reaches Agent 01 (a call, form or text, or a social media lead from Agent 20).",
+  "ends": "Agent 02 has scored and routed the lead.",
+  "steps": [
+   {
+    "by": "outside",
+    "text": "Someone reaches out."
+   },
+   {
+    "by": "01",
+    "text": "Records what they said and their consent, nothing guessed."
+   },
+   {
+    "by": "01",
+    "text": "Asks Agent 14 whether they are already on record; a possible duplicate is held for the authorized user."
+   },
+   {
+    "by": "02",
+    "text": "Scores the lead on the signed rubric."
+   },
+   {
+    "by": "02",
+    "text": "Hot: alerts the authorized user (marked do not contact where that applies). Warm: to Agent 03. Cold: archived with the reason."
+   },
+   {
+    "by": "03",
+    "text": "For a warm lead, starts the sequence the authorized user wrote; its text goes to Compliance first."
+   }
+  ],
+  "user_decides": [
+   "Calling the hot lead.",
+   "Whether a possible duplicate is the same person."
+  ],
+  "never": [
+   "Score a lead before the duplicate check.",
+   "Contact anyone without consent."
+  ],
+  "run_note": "In the recorded run a web form lead with a 60-day timeline scores warm and goes to nurture; the sequence's text is checked by Compliance.",
+  "not_built": [
+   "No phone, form or text system is connected.",
+   "A second alert when a hot lead is not acknowledged in time."
+  ]
+ },
+ {
+  "id": "P12",
+  "rev": 1,
+  "purpose": "Runs a farm campaign (general marketing to an area) the authorized user decided on.",
+  "starts": "The authorized user signs a new campaign (copy, area, targeting) to Agent 12.",
+  "ends": "The campaign is published.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the campaign: the copy, the area and the budget."
+   },
+   {
+    "by": "12",
+    "text": "Checks the targeting: general, by area; no demographic targeting; housing ad rules apply."
+   },
+   {
+    "by": "17",
+    "text": "Checks the copy against the signed rules."
+   },
+   {
+    "by": "00",
+    "text": "Holds the publication."
+   },
+   {
+    "by": "user",
+    "text": "Releases it."
+   }
+  ],
+  "user_decides": [
+   "The campaign, its area and budget.",
+   "Releasing the publication."
+  ],
+  "never": [
+   "Target individual households or demographics.",
+   "Solicit owners whose homes are listed with another broker."
+  ],
+  "run_note": "In the recorded run a market update for zip code 44101 is approved, held and published on release.",
+  "not_built": [
+   "No social or ad platform is connected.",
+   "No farm-area boundary setting."
+  ]
+ },
+ {
+  "id": "P13",
+  "rev": 1,
+  "purpose": "Keeps the relationship going with past clients: greetings and anniversaries from the authorized user's list.",
+  "starts": "Agent 14 sends a date reminder (birthday, anniversary) to Agent 16.",
+  "ends": "The greeting is sent, or blocked with the reason.",
+  "steps": [
+   {
+    "by": "14",
+    "text": "On the date, sends the reminder for a person on the authorized user's client list."
+   },
+   {
+    "by": "16",
+    "text": "Checks opt-out, hard times and a working contact."
+   },
+   {
+    "by": "16",
+    "text": "Sends the greeting through Agent 11, which checks consent."
+   }
+  ],
+  "user_decides": [
+   "The client list and the dates.",
+   "Whether to reach out during a hard time."
+  ],
+  "never": [
+   "Greet someone who is not on the list.",
+   "Offer a referral reward."
+  ],
+  "run_note": "In the recorded run a client's birthday greeting goes out on the day.",
+  "not_built": [
+   "A self-running referral schedule."
+  ]
+ },
+ {
+  "id": "P14",
+  "rev": 1,
+  "purpose": "Handles a complaint: the authorized user is alerted, every message to that person stops, and the response is the authorized user's.",
+  "starts": "A complaint arrives (from social media through Agent 20, or from a client through Agent 11).",
+  "ends": "The authorized user lifts the complaint hold.",
+  "steps": [
+   {
+    "by": "20",
+    "text": "Raises a complaint alert for the authorized user with the words, and asks Agent 11 to hold messages to that person."
+   },
+   {
+    "by": "11",
+    "text": "Holds every routine message to that person; each one is logged, none sent."
+   },
+   {
+    "by": "user",
+    "text": "Responds to the complaint, personally."
+   },
+   {
+    "by": "user",
+    "text": "Lifts the hold."
+   }
+  ],
+  "user_decides": [
+   "The whole response.",
+   "When the hold ends."
+  ],
+  "never": [
+   "Reply to a complaint automatically.",
+   "Send routine messages to someone who complained, while the hold is on."
+  ],
+  "run_note": "In the recorded run a routine feedback request to the same person arrives during the hold and is not sent; the run ends when the authorized user lifts the hold.",
+  "not_built": []
+ },
+ {
+  "id": "P15",
+  "rev": 1,
+  "purpose": "Prepares the data for a listing appointment. The price opinion is the authorized user's.",
+  "starts": "The authorized user asks Agent 10 for comparables on a home that is not one of the office's live listings.",
+  "ends": "Agent 10 delivers the package.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Asks for comparables for the appointment."
+   },
+   {
+    "by": "10",
+    "text": "Checks each figure for a source, a date and freshness; checks there are enough comparables."
+   },
+   {
+    "by": "10",
+    "text": "Delivers the package to the authorized user, with no opinion or value."
+   }
+  ],
+  "user_decides": [
+   "The price opinion and the presentation."
+  ],
+  "never": [
+   "Suggest a price."
+  ],
+  "run_note": "In the recorded run five sourced comparables are delivered.",
+  "not_built": [
+   "No MLS data source is connected; the figures come with the request."
+  ]
+ },
+ {
+  "id": "P16",
+  "rev": 1,
+  "purpose": "Builds the morning briefing from the record.",
+  "starts": "The morning clock: Agent 18 asks for the first section.",
+  "ends": "Agent 18 sends the briefing to the authorized user.",
+  "steps": [
+   {
+    "by": "clock",
+    "text": "The morning run starts."
+   },
+   {
+    "by": "18",
+    "text": "Asks Agent 14 for overnight leads, Agent 15 for yesterday's books, Agent 19 for prospects waiting and Agent 10 for market changes."
+   },
+   {
+    "by": "18",
+    "text": "Adds the calendar, open waits, decisions pending and deadlines; a section with no answer is named as missing."
+   },
+   {
+    "by": "18",
+    "text": "Sends one briefing to the authorized user."
+   }
+  ],
+  "user_decides": [
+   "The day's priorities."
+  ],
+  "never": [
+   "Put an unsourced status in the briefing."
+  ],
+  "run_note": "In the recorded run all four sections answer and one briefing is sent.",
+  "not_built": []
+ },
+ {
+  "id": "P17",
+  "rev": 1,
+  "purpose": "Closes the day's books into one report.",
+  "starts": "The evening clock: Agent 14 sends its end-of-day books to Agent 15.",
+  "ends": "Agent 15 sends one report to the authorized user.",
+  "steps": [
+   {
+    "by": "clock",
+    "text": "The evening run starts."
+   },
+   {
+    "by": "14",
+    "text": "Sends the day's records to Agent 15."
+   },
+   {
+    "by": "15",
+    "text": "Adds the day's commissions and expenses and sends one report to the authorized user."
+   }
+  ],
+  "user_decides": [
+   "Nothing required; the report is for reading."
+  ],
+  "never": [
+   "Mix estimates with recorded figures."
+  ],
+  "run_note": "In the recorded run the evening clock produces one report.",
+  "not_built": []
+ },
+ {
+  "id": "P18",
+  "rev": 1,
+  "purpose": "The seller's weekly update: counted from the record, held for the authorized user, then sent.",
+  "starts": "On the authorized user's signed weekday, Agent 06 prepares each listing's report.",
+  "ends": "The report is sent to the seller (or skipped, with the reason).",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Sets the weekday and the listings to report on."
+   },
+   {
+    "by": "clock",
+    "text": "On that weekday the daily run starts."
+   },
+   {
+    "by": "06",
+    "text": "Counts the week's showings and feedback for each listing and holds the report for the authorized user."
+   },
+   {
+    "by": "user",
+    "text": "Continues (send) or cancels."
+   },
+   {
+    "by": "06",
+    "text": "On continue, sends it through Agent 11 (with consent). Numbers only."
+   }
+  ],
+  "user_decides": [
+   "Whether each report goes."
+  ],
+  "never": [
+   "Send a report the authorized user did not continue.",
+   "Add opinion or advice."
+  ],
+  "run_note": "In the recorded run the report is held, continued by the authorized user and sent to the seller.",
+  "not_built": [
+   "Market movement is not in the report: showings and feedback counts only."
+  ]
+ },
+ {
+  "id": "P19",
+  "rev": 1,
+  "purpose": "Keeps property access (keys, codes, lockboxes) as custody items: who has access, until when, never the code itself.",
+  "starts": "The authorized user signs an access grant to Agent 14.",
+  "ends": "The authorized user signs the grant closed.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Signs the grant: the party, the end of the window, the custody reference (never the code)."
+   },
+   {
+    "by": "14",
+    "text": "Records it; a window that ends without being closed is flagged once."
+   },
+   {
+    "by": "user",
+    "text": "Closes the grant."
+   }
+  ],
+  "user_decides": [
+   "Every grant and every closing."
+  ],
+  "never": [
+   "Send an access code or key in a message."
+  ],
+  "run_note": "In the recorded run an inspector's lockbox access is granted and closed.",
+  "not_built": [
+   "Rotating codes and auditing custody on a schedule."
+  ]
+ },
+ {
+  "id": "P20",
+  "rev": 1,
+  "purpose": "Watches a vacant listing: a condition check every day until it is occupied or the listing ends.",
+  "starts": "Agent 05 records the listing as vacant.",
+  "ends": "Agent 05 records the watch ended (occupied, or the listing ended).",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Marks the listing vacant."
+   },
+   {
+    "by": "clock",
+    "text": "Each daily run, Agent 05 orders a condition check from Agent 09 (no new one while the last is open)."
+   },
+   {
+    "by": "09",
+    "text": "Books it from the roster; the booking waits for release; a check counts only with proof."
+   },
+   {
+    "by": "user",
+    "text": "Marks the listing occupied (or the listing ends)."
+   },
+   {
+    "by": "05",
+    "text": "Ends the watch."
+   }
+  ],
+  "user_decides": [
+   "Vacant or occupied.",
+   "Releasing each booking."
+  ],
+  "never": [
+   "Count a check without proof."
+  ],
+  "run_note": "In the recorded run the listing is marked vacant, a check is ordered on the clock, and the watch ends when it is marked occupied.",
+  "not_built": [
+   "Utility status and activity anomalies."
+  ]
+ },
+ {
+  "id": "P21",
+  "rev": 1,
+  "purpose": "Re-scores nurtured leads every week so a warming lead is not left to go cold.",
+  "starts": "Agent 03 sends a lead back to Agent 02 for a new score.",
+  "ends": "Agent 02 has scored and routed it.",
+  "steps": [
+   {
+    "by": "clock",
+    "text": "Every 7 days, for each warm lead in nurture."
+   },
+   {
+    "by": "03",
+    "text": "Sends it to Agent 02 with its stated timeline counted down by the days passed."
+   },
+   {
+    "by": "02",
+    "text": "Scores it again: hot to the authorized user, still warm back to nurture, otherwise out of the pool."
+   }
+  ],
+  "user_decides": [
+   "Calling a lead that turns hot."
+  ],
+  "never": [
+   "Re-score an opted-out lead or a paused sequence."
+  ],
+  "run_note": "In the recorded run the lead is still warm a week later and returns to nurture.",
+  "not_built": []
+ },
+ {
+  "id": "P22",
+  "rev": 1,
+  "purpose": "Turns a buyer's feedback after a tour into the next round of matches.",
+  "starts": "The buyer's feedback is logged (the end of Tour Day, P07).",
+  "ends": "The next match is sent to the buyer.",
+  "steps": [
+   {
+    "by": "06",
+    "text": "Logs the buyer's feedback."
+   },
+   {
+    "by": "13",
+    "text": "Updates the criteria only from the buyer's explicit words."
+   },
+   {
+    "by": "13",
+    "text": "Matches new listings and sends the next match through Agent 11."
+   }
+  ],
+  "user_decides": [
+   "Anything in the feedback that reads as a discriminatory preference (it is never turned into a criterion).",
+   "When the buyer wants to make an offer (Offer to Acceptance, P08)."
+  ],
+  "never": [
+   "Turn an impression into a criterion."
+  ],
+  "run_note": "In the recorded run the buyer's feedback opens the refresh; the next listing that fits closes it.",
+  "not_built": []
+ },
+ {
+  "id": "P23",
+  "rev": 1,
+  "purpose": "Assembles the evidence for a price conversation on a live listing. It never produces a number.",
+  "starts": "The authorized user asks Agent 10 for comparables on one of the office's live listings.",
+  "ends": "Agent 10 delivers the package.",
+  "steps": [
+   {
+    "by": "user",
+    "text": "Asks for the evidence."
+   },
+   {
+    "by": "10",
+    "text": "Checks each figure for a source, a date and freshness."
+   },
+   {
+    "by": "10",
+    "text": "Delivers the package with no recommended price and no \"should reduce\" language."
+   },
+   {
+    "by": "user",
+    "text": "Decides. A change is a new signed price, which starts Price Adjustment (P02)."
+   }
+  ],
+  "user_decides": [
+   "Whether to talk price, and the price."
+  ],
+  "never": [
+   "Suggest a price or a reduction."
+  ],
+  "run_note": "In the recorded run the package is delivered to the authorized user.",
+  "not_built": [
+   "The automatic signals (days on market, showing-to-offer ratio) that would start it; the authorized user starts it."
+  ]
+ },
+ {
+  "id": "P24",
+  "rev": 1,
+  "purpose": "Puts prospecting opportunities in front of the authorized user. Every case is the authorized user's decision; nobody is contacted by the system.",
+  "starts": "A discovery feed record reaches Agent 19.",
+  "ends": "The prospect reaches the authorized user (or is recorded as suppressed by rule).",
+  "steps": [
+   {
+    "by": "outside",
+    "text": "A feed record arrives."
+   },
+   {
+    "by": "19",
+    "text": "Keeps it only if it is in the monitored zip codes and from an approved source."
+   },
+   {
+    "by": "19",
+    "text": "Records representation and Do Not Call status, and asks Agent 10 for market data."
+   },
+   {
+    "by": "19",
+    "text": "Passes the prospect to the authorized user, with a legal-line alert first for an expired listing or a sale by owner."
+   },
+   {
+    "by": "user",
+    "text": "Decides whether and how to reach out."
+   }
+  ],
+  "user_decides": [
+   "Every outreach."
+  ],
+  "never": [
+   "Contact a prospect.",
+   "Use a source that is not approved."
+  ],
+  "run_note": "In the recorded run a new listing from the approved feed in 44101 reaches the authorized user with its market data.",
+  "not_built": [
+   "No prospecting source is connected."
+  ]
+ }
+]

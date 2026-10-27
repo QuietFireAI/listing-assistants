@@ -1,0 +1,716 @@
+{
+ "_what": "Agent pages for the Operating Procedures manual. Drafted 2026-10-27 from docs/JOB_DESCRIPTIONS.md (generated from each agent's ratified SKILL.md) and the closed track. The 'today' lists are drafted from standard US residential practice and await the owner's review. Routes, playbooks and procedures on each page are computed by build_site.py, not written here.",
+ "agents": [
+  {
+   "id": "00", "name": "Dispatcher", "team": "The hub",
+   "job": "The one place every message passes through. No agent talks to another agent directly: each one hands its message to the dispatcher, which checks it, numbers it, records it and delivers it. The dispatcher judges the path and the authority of a message, not its content. When it stops, everything stops: every agent holds its work and nothing goes to a client.",
+   "steps": [
+    "A message arrives from an agent, from the authorized user, or from outside (an inquiry, a vendor, a platform).",
+    "It checks the message is complete and well formed. A malformed message is refused, with the reason returned to the sender.",
+    "It checks the route: the sender, the kind of message and the receiver must be on the closed track, the fixed list of allowed routes. A route not on the list is refused.",
+    "If the message claims the authorized user's authority (a signed listing, a setting, a release, a decision), it checks the signature against the registered key. Unsigned or wrong: refused and recorded as an integrity violation.",
+    "If the same message (same ID) arrives again, it is answered as a duplicate and does nothing.",
+    "If the same kind of message on the same client repeats too fast (a loop), the route is suspended for that client and the authorized user is asked.",
+    "It numbers the message in order for its client and writes it to the audit log, where each entry is chained to the one before so a change would show.",
+    "A message to a counterparty or the public (a vendor, the other side, an ad) is held until the authorized user signs a release for that one message.",
+    "It delivers the message and acknowledges it only after it is written and delivered.",
+    "If the receiving agent fails, the message goes to the dead-letter queue and the authorized user is paged. Nothing is dropped silently.",
+    "Every question, alert and hold lands in a named queue (legal line, hot lead, complaint, clarification, integrity, system error, dead letter), and each landing notifies the authorized user at once."
+   ],
+   "today": [
+    "There is no single point that sees every hand-off. Work moves by email, text, phone calls, sticky notes and the CRM.",
+    "The broker or office manager is the informal hub, and only for what reaches them.",
+    "Nobody logs every hand-off. A missed one is often found when a client complains or a deadline passes."
+   ],
+   "compare": [
+    "The dispatcher does by rule what a well-run office tries to do by habit: one place where every hand-off is checked, numbered and recorded.",
+    "It fails closed. A partly working office that keeps sending messages is worse than a stopped one, so when the dispatcher stops, every agent holds.",
+    "Afterwards, the audit log answers who sent what, when, and on whose authority."
+   ],
+   "user_part": [
+    "Signing listings, settings, releases and decisions with the registered key.",
+    "Answering every item that lands in a queue.",
+    "Releasing, one at a time, each held message to a vendor, the other side or the public."
+   ],
+   "never": [
+    "Deliver a message on a route that is not on the closed track.",
+    "Accept a claim of the authorized user's authority without a valid signature.",
+    "Let a message to a counterparty or the public out without the authorized user's release.",
+    "Acknowledge a message before it is written and delivered.",
+    "Drop a message silently."
+   ],
+   "process": "The dispatcher is not a real estate step; it is the office's control point. It is what makes every other agent's steps checkable afterwards.",
+   "not_built": [
+    "Scanning a message's contents for another client's ID (client isolation rests today on per-client numbering, the agents' own rules and per-client drawers).",
+    "Automatic retry of a failed delivery (it goes straight to the dead-letter queue and pages the authorized user).",
+    "A heartbeat to an outside watchdog.",
+    "Encryption of the audit log at rest (it is chained and verifiable, not encrypted).",
+    "One dispatcher handles one message at a time; separate offices each run their own."
+   ]
+  },
+  {
+   "id": "01", "name": "Lead Capture", "team": "Leads",
+   "job": "Takes every inbound inquiry (a call, a web form, a text, or a social media lead passed on by Agent 20) and turns it into a structured lead record. It captures. It does not qualify, nurture or advise.",
+   "steps": [
+    "An inquiry arrives.",
+    "It records the name and contact details, the property of interest, the timeline, the budget and the pre-approval status (yes, no or unknown). A field the person did not give stays empty; nothing is guessed.",
+    "It records consent for text, call and email exactly as the person gave it.",
+    "It asks Agent 14 (CRM) whether this person is already on record.",
+    "If the same phone or email is on another record, the whole thread is held for the authorized user: a separate person, or close it. Nothing is merged without the authorized user.",
+    "If Agent 14 does not answer in time, the daily clock asks once more, then holds the lead. A lead is never scored before the duplicate check.",
+    "It hands the lead to Agent 02 for scoring."
+   ],
+   "today": [
+    "The agent, an assistant or an inside sales person answers the call; a web form lands in an inbox or a lead-routing tool.",
+    "Someone types the lead into the CRM, often later and often in part.",
+    "Consent to text or call is frequently not recorded at all. Duplicates are caught by memory."
+   ],
+   "compare": [
+    "The same steps a careful inside sales person follows, done every time: consent recorded at first contact, the duplicate check before anything else.",
+    "An empty field stays empty rather than being filled in from a hunch."
+   ],
+   "user_part": [
+    "Deciding whether a possible duplicate is the same person.",
+    "Adding numbers and emails to the do-not-contact list.",
+    "Setting which listings and addresses the office holds."
+   ],
+   "never": [
+    "Guess a missing field.",
+    "Merge two people without the authorized user.",
+    "Score a lead before the duplicate check.",
+    "Contact anyone."
+   ],
+   "process": "Matches the first step of any lead process: capture, record consent, check for duplicates, pass on. Consent capture follows the federal telephone and email marketing rules (TCPA and CAN-SPAM).",
+   "not_built": [
+    "No phone, web form or text system is connected in this build; a connected system or the console delivers the inquiry."
+   ]
+  },
+  {
+   "id": "02", "name": "Lead Qualification", "team": "Leads",
+   "job": "Scores each captured lead on readiness (timeline, financing, motivation) with the scoring rubric the authorized user signed, and sorts it: hot leads to the authorized user at once, warm leads to nurture, cold leads archived with the reason.",
+   "steps": [
+    "A lead arrives from Agent 01, or comes back from Agent 03 for a new score.",
+    "It scores the lead with the authorized user's rubric and records the inputs and the rubric version.",
+    "If the score's confidence is under the floor, the lead is held for the authorized user.",
+    "Hot: the authorized user is alerted at once. If the person is on the Do Not Call list or has no channel with consent, the alert is marked do not contact, with the reason.",
+    "Warm: the lead goes to Agent 03 for nurture.",
+    "Cold: the lead is archived with the reason. Nothing is deleted."
+   ],
+   "today": [
+    "The agent or inside sales person decides who to call first by feel, or by a simple CRM score.",
+    "A hot lead waits until someone notices it; response times of hours are common."
+   ],
+   "compare": [
+    "The same sort an experienced agent makes in their head, made with the rubric the authorized user signed, the same way for every lead, with the reasons recorded.",
+    "It never writes or adjusts the rubric itself."
+   ],
+   "user_part": [
+    "Writing and signing the scoring rubric.",
+    "Calling the hot lead.",
+    "Clearing a hot lead from the queue."
+   ],
+   "never": [
+    "Change the rubric.",
+    "Delete a lead.",
+    "Contact anyone."
+   ],
+   "process": "Matches standard lead triage: qualify on timeline, financing and motivation, then route.",
+   "not_built": [
+    "A second alert when a hot lead is not acknowledged within its window. The window travels with the alert; nothing re-alerts yet."
+   ]
+  },
+  {
+   "id": "03", "name": "Lead Nurture", "team": "Leads",
+   "job": "Keeps in touch with leads who are not ready yet, using sequences the authorized user wrote and signed, and hands a lead back for a new score when its readiness changes. It warms; it does not advise.",
+   "steps": [
+    "A warm lead arrives from Agent 02.",
+    "It checks consent. No channel marked yes: nothing is sent and the authorized user is told.",
+    "When a sequence starts, its exact text goes to Compliance (Agent 17). A flagged sequence is paused and the authorized user is told.",
+    "On each touch's day, the daily clock sends it once through Agent 11, inside the weekly cap and the contact hours.",
+    "A reply of \"stop\" (or unsubscribe, opt out) halts the sequence, records the opt-out on every channel and sends one confirmation.",
+    "A lead's own question in a reply goes to the authorized user as \"reply needed\". Nothing automatic is sent back.",
+    "Every 7 days it asks Agent 02 to re-score each warm lead. A lead that does not come back warm leaves the pool.",
+    "A spike in a lead's activity reported by marketing pauses the sequence and asks Agent 02 to re-score."
+   ],
+   "today": [
+    "Drip campaigns run from the CRM or an email tool, often written once and left running.",
+    "Opt-outs and contact hours depend on the tool's settings. Many leads are simply forgotten."
+   ],
+   "compare": [
+    "The same idea as a CRM drip, with three differences: the authorized user writes every touch, Compliance checks it first, and consent and opt-outs are checked before every send."
+   ],
+   "user_part": [
+    "Writing and signing each sequence.",
+    "Answering any real question a lead asks."
+   ],
+   "never": [
+    "Send without consent.",
+    "Write its own content.",
+    "Send market data.",
+    "Reach out on its own after an activity spike."
+   ],
+   "process": "Matches standard long-cycle nurture, with consent and a compliance check added before anything is sent.",
+   "not_built": [
+    "No holiday calendar, so legal holidays are not skipped.",
+    "No unsubscribe links: there is no email sender in this build."
+   ]
+  },
+  {
+   "id": "04", "name": "Listing Description", "team": "Listing",
+   "job": "Writes the listing description from the property data alone, sends it to Compliance, and releases it only when Compliance approves.",
+   "steps": [
+    "The listing data arrives from Agent 05.",
+    "It builds the draft from the facts in the data only: beds, baths, square footage with its source, the listed features. A feature not in the data is not mentioned.",
+    "If the photos show something the data does not (or the reverse), the authorized user is asked.",
+    "The draft goes to Compliance (Agent 17).",
+    "On an approved verdict it is released to Agents 05 and 12 and filed with its verdict. A flagged draft is not released."
+   ],
+   "today": [
+    "The agent or a marketing assistant writes the remarks, sometimes with an AI writing tool, and posts them.",
+    "Fair housing review is the writer's own judgment. Square footage often appears without a source."
+   ],
+   "compare": [
+    "The same task with tighter limits: only facts in the data, sources named, and every draft checked by Compliance before anyone sees it."
+   ],
+   "user_part": [
+    "The property data.",
+    "Deciding conflicts between the photos and the data.",
+    "Turning model-written remarks on (off unless signed)."
+   ],
+   "never": [
+    "Describe a feature that is not in the data.",
+    "Release a description without approval.",
+    "Change a description after approval."
+   ],
+   "process": "Matches the writing of MLS remarks, with the MLS and fair housing rules applied before use rather than after.",
+   "not_built": [
+    "Separate social caption, flyer and tour-script versions are not built; one draft is used."
+   ]
+  },
+  {
+   "id": "05", "name": "MLS & Listing Management", "team": "Listing",
+   "job": "Keeps the listing record: the entry, the status, and the authorized user's price changes exactly as signed. It carries out decisions; it never makes a pricing decision.",
+   "steps": [
+    "The authorized user's signed listing package (or price change) arrives.",
+    "Every field is checked against the signed package. Any difference goes to the authorized user.",
+    "Photos are ordered through Agent 09; the booking is held for the authorized user's release.",
+    "The approved description (Agent 04) and the photos (Agent 09) arrive.",
+    "The status is set (active, pending, sold, withdrawn) and the other agents are told.",
+    "A listing marked vacant gets a daily condition check ordered through Agent 09.",
+    "The signed package is filed in the client's drawer."
+   ],
+   "today": [
+    "The agent or an assistant types the listing into the MLS, uploads the photos and changes the status by hand within the MLS deadline.",
+    "The MLS feeds the portals (Zillow, Realtor.com, Redfin)."
+   ],
+   "compare": [
+    "The same steps, checked field for field against what the authorized user signed.",
+    "A price changes only on the authorized user's signature.",
+    "No buyer-broker compensation is ever entered in MLS fields."
+   ],
+   "user_part": [
+    "The price and every price change.",
+    "Signing the listing package.",
+    "Releasing vendor bookings."
+   ],
+   "never": [
+    "Set or change a price on its own.",
+    "Enter buyer-broker compensation in MLS fields (prohibited since August 17, 2024).",
+    "Accept data that differs from the signed package."
+   ],
+   "process": "Matches the listing entry and status-change steps of every MLS, under the 2024 practice change on compensation.",
+   "not_built": [
+    "No MLS, syndication feed or portal is connected. MLS entry, checking the live listing, days-on-market tracking and per-MLS reporting windows do not happen yet; the record is the agent's own."
+   ]
+  },
+  {
+   "id": "06", "name": "Showing Scheduler", "team": "Buyers and showings",
+   "job": "Books showings, confirms them, asks for feedback afterwards, and prepares the weekly seller report. It schedules people; it never authorizes access to a property.",
+   "steps": [
+    "A showing request arrives (from Agent 13, or from a client through Agent 11).",
+    "It checks the buyer agreement flag. Missing: held for the authorized user.",
+    "It checks the requester's identity flag for any appointment that gives access to a property.",
+    "It checks the minimum notice (24 hours unless set otherwise). Too short: the client is told the notice rule.",
+    "It asks Agent 05 the listing's status.",
+    "It checks for a clash with showings already confirmed for that listing or that buyer (30 minutes apart unless set otherwise). A clash goes to the authorized user.",
+    "It sends the entry to the calendar (Agent 18). If the calendar cannot take it, the showing is held and not confirmed until the authorized user says so.",
+    "It confirms the showing to the buyer through Agent 11.",
+    "Afterwards it asks for feedback and logs the answer to Agent 14.",
+    "On the authorized user's signed weekday it counts each listing's showings and feedback, holds the seller report for the authorized user, and sends it through Agent 11 on release."
+   ],
+   "today": [
+    "A showing service (for example ShowingTime) or an assistant takes the request, contacts the seller or tenant, confirms, and sends the feedback request.",
+    "The buyer's agent checks that a written buyer agreement is signed before touring."
+   ],
+   "compare": [
+    "The same flow as a showing service, with checks a service does not make: the buyer agreement on file, the requester's identity, the authorized user's calendar, and the authorized user's say before a held showing is confirmed."
+   ],
+   "user_part": [
+    "Deciding a showing the calendar could not take.",
+    "Deciding clashes.",
+    "Releasing the weekly seller report."
+   ],
+   "never": [
+    "Confirm a showing without the buyer agreement flag.",
+    "Authorize access to a property.",
+    "Confirm a showing the calendar refused without the authorized user."
+   ],
+   "process": "Matches standard showing practice and the written buyer agreement required before touring since August 17, 2024.",
+   "not_built": [
+    "No seller availability data; requests are checked against notice, status and confirmed showings.",
+    "No alternative time is worked out or offered.",
+    "Open house RSVPs and reminders."
+   ]
+  },
+  {
+   "id": "07", "name": "Transaction Coordinator", "team": "Transaction",
+   "job": "Owns the timeline of a deal from offer to closing: every deadline, from dates the authorized user signs. It asks Agent 08 for documents and never chases them itself.",
+   "steps": [
+    "The authorized user signs the contract's dates (the timeline), already calculated.",
+    "It asks Agent 08 for each document the deal needs.",
+    "On each daily clock run it checks every deadline.",
+    "It alerts the authorized user on a due date, and once when a deadline passes unmet.",
+    "A deadline counts as met only when the document or confirmation is on file, not on a party's word.",
+    "Offer status updates go to the authorized user, never to the client.",
+    "At closing it reports the transaction closed to Agents 14, 15 and 16."
+   ],
+   "today": [
+    "A transaction coordinator (on staff or contracted) keeps a checklist and calendar for each deal, chases the parties and reminds the agent of deadlines."
+   ],
+   "compare": [
+    "The same checklist, from dates the authorized user signs. A party saying something is done does not meet a deadline; the document does."
+   ],
+   "user_part": [
+    "The contract and its dates.",
+    "Any date that can be calculated two ways.",
+    "All negotiation and all money."
+   ],
+   "never": [
+    "Calculate contract dates itself.",
+    "Mark a deadline met on someone's word.",
+    "Tell a client about an offer's status."
+   ],
+   "process": "Matches transaction coordination from acceptance to closing.",
+   "not_built": [
+    "No date arithmetic (calendar or business days, holidays, time zones).",
+    "Warnings ahead of a due date, except the seller disclosure warning at Agent 08."
+   ]
+  },
+  {
+   "id": "08", "name": "Document Collection", "team": "Transaction",
+   "job": "Owns the documents of a deal: asks for them, receives them, checks them, files them and chases what is missing. It never sets deadlines.",
+   "steps": [
+    "A document request arrives from Agent 07.",
+    "It asks the right party for it through Agent 11.",
+    "On receipt it checks the sender is one expected for this deal and the file opens and is the right kind.",
+    "An unexpected sender: the document is quarantined and the authorized user alerted.",
+    "It files the document in the client's drawer and tells Agent 07.",
+    "It chases each missing document once a day; after three chases it raises it once and reports it missing.",
+    "A seller disclosure due in three days or less is warned once on the legal line."
+   ],
+   "today": [
+    "The transaction coordinator or an assistant emails the parties, saves the files to a transaction platform (dotloop, SkySlope and similar) and works through the broker's checklist."
+   ],
+   "compare": [
+    "The same, with a sender check every time (wire fraud often starts with a document from a fake sender), and no document counted until it opens."
+   ],
+   "user_part": [
+    "Deciding on quarantined documents.",
+    "Any contact with a party beyond the routine request."
+   ],
+   "never": [
+    "File a document from an unexpected sender.",
+    "Count an email as a document.",
+    "Set a deadline."
+   ],
+   "process": "Matches standard transaction file management.",
+   "not_built": [
+    "Whether a file opens is read from a flag on the submission; the agent does not open it.",
+    "No separate periodic status report."
+   ]
+  },
+  {
+   "id": "09", "name": "Vendor Coordination", "team": "Transaction",
+   "job": "Books photographers, inspectors, stagers and other vendors from the authorized user's approved roster, and collects what they deliver.",
+   "steps": [
+    "A vendor request arrives (from Agent 05, 06 or 07).",
+    "It picks a roster vendor of that kind whose license and insurance are current. Expired or missing: flagged before booking.",
+    "The booking message to the vendor is held for the authorized user's release.",
+    "It puts the appointment on the calendar through Agent 18.",
+    "A deliverable counts only with proof that it is present.",
+    "Photos go to Agent 05; reports go to Agent 08.",
+    "A late cancellation or a no-show is reported to Agents 07 and 06 at once and held for the authorized user with the roster's alternatives."
+   ],
+   "today": [
+    "The agent or an assistant calls the photographer, inspector or stager they know, confirms by text, and chases the deliverables."
+   ],
+   "compare": [
+    "The same, limited to the authorized user's approved roster with current credentials, and nothing goes to a vendor without the authorized user's release."
+   ],
+   "user_part": [
+    "The vendor roster.",
+    "Releasing each booking.",
+    "Picking a replacement vendor."
+   ],
+   "never": [
+    "Book a vendor who is not on the roster.",
+    "Book a vendor whose credentials are expired or missing.",
+    "Send a booking without release."
+   ],
+   "process": "Matches vendor coordination for listing preparation and inspections.",
+   "not_built": [
+    "The calendar entry carries the day of the request, not the appointment day.",
+    "The agent does not open the deliverable file itself."
+   ]
+  },
+  {
+   "id": "10", "name": "Market Data", "team": "Listing",
+   "job": "Assembles market data (comparable sales, neighborhood figures) with a source and a date on every figure, and no opinion. The output has no field for a recommendation, on purpose.",
+   "steps": [
+    "A request arrives (from the authorized user; comparables for Agent 19; briefing sections for Agent 18).",
+    "It builds a comparables or neighborhood package from the figures supplied.",
+    "Each figure is checked for a source, a date and freshness. A figure without a source is dropped; stale ones are left out and counted.",
+    "It checks there are enough comparables (5 unless set otherwise).",
+    "The package is delivered with no opinion, value or characterization."
+   ],
+   "today": [
+    "The agent pulls comparables in the MLS to prepare a comparative market analysis (CMA) and adjusts them by judgment.",
+    "Neighborhood information comes from websites and the agent's own knowledge."
+   ],
+   "compare": [
+    "It assembles the data only. It gives no opinion, no value and no description of a neighborhood. The pricing judgment stays with the authorized user."
+   ],
+   "user_part": [
+    "Every price opinion.",
+    "Interpreting the comparables.",
+    "Deciding what is shared with clients."
+   ],
+   "never": [
+    "Describe a neighborhood (\"safe\", \"good schools\").",
+    "Recommend a price.",
+    "Share MLS data outside the MLS license."
+   ],
+   "process": "Matches the data-gathering half of a CMA, not the opinion half.",
+   "not_built": [
+    "No MLS or data source is connected; figures come with the request.",
+    "Farm-area trend tracking.",
+    "Supplied neighborhood figures are not scanned for characterizations."
+   ]
+  },
+  {
+   "id": "11", "name": "Client Communication", "team": "Clients and records",
+   "job": "The one voice that sends routine updates to clients. Other agents supply the fact; this agent delivers it, word for word, only with consent. Anything that needs judgment goes to the authorized user.",
+   "steps": [
+    "A message request arrives from the agent that owns the fact.",
+    "It asks Agent 14 for the client's consent. No channel marked yes: not sent, logged, and the authorized user told once.",
+    "Inside quiet hours: queued, and the authorized user told.",
+    "A complaint hold on this client: not sent.",
+    "It sends the fact as given and logs it to Agent 14.",
+    "A client reply goes to the agent that owns it. A request for advice, or a reply with no owner, is held for the authorized user. An angry reply raises a complaint alert.",
+    "A request with no message template (a client's own question) goes to the authorized user as \"reply needed\"; nothing is sent."
+   ],
+   "today": [
+    "The agent texts and emails clients personally. How often and how well depends on the agent's memory and the day."
+   ],
+   "compare": [
+    "Every routine update goes out the same way: facts only, only with consent. Anything that needs judgment goes to the authorized user."
+   ],
+   "user_part": [
+    "Every answer that involves advice.",
+    "Responding to complaints and lifting a complaint hold."
+   ],
+   "never": [
+    "Turn a fact into an opinion (\"the appraisal came in\" never becomes \"came in strong\").",
+    "Give advice.",
+    "Message a client without consent.",
+    "Reply to an angry client."
+   ],
+   "process": "Matches routine client updates, with consent and contact hours (TCPA) applied to every message.",
+   "not_built": []
+  },
+  {
+   "id": "12", "name": "Marketing Campaign", "team": "Listing",
+   "job": "Schedules and publishes marketing: listing posts, campaigns and ads, from approved material. Nothing is published before the listing is on the MLS, and nothing is published without the authorized user's release.",
+   "steps": [
+    "The authorized user starts a campaign with signed copy and targeting, or an approved listing description arrives from Agent 04.",
+    "It checks the targeting: no demographic targeting; housing ad rules apply.",
+    "It checks Clear Cooperation: no public marketing until Agent 05 confirms the listing is on the MLS, or the listing is exempt with the seller's signed disclosure on file.",
+    "Copy it did not receive approved goes to Compliance (Agent 17).",
+    "Every publication is held for the authorized user's release.",
+    "Platform figures are reported as the platform measured them, naming the platform."
+   ],
+   "today": [
+    "The agent or a marketing assistant posts \"just listed\" on social media, runs ads and sends newsletters, sometimes before the MLS entry."
+   ],
+   "compare": [
+    "The same channels, with nothing public before the MLS entry, nothing published without the authorized user's release, and no demographic targeting."
+   ],
+   "user_part": [
+    "The copy and the budget.",
+    "Releasing each publication."
+   ],
+   "never": [
+    "Publish before Clear Cooperation is met.",
+    "Change an approved description.",
+    "Target ads by demographics."
+   ],
+   "process": "Matches NAR's Clear Cooperation policy and the platforms' housing ad category rules.",
+   "not_built": [
+    "No social or ad platform is connected.",
+    "It does not write newsletter or ad copy itself.",
+    "No farm-area boundary setting to check geography against."
+   ]
+  },
+  {
+   "id": "13", "name": "Buyer Search & Match", "team": "Buyers and showings",
+   "job": "Keeps each buyer's criteria exactly as the buyer stated them, matches new listings against them, sends matches, and asks for showings when the buyer is interested. It never adds or infers a criterion: inferred preferences are steering.",
+   "steps": [
+    "The authorized user signs the buyer's criteria, word for word.",
+    "A criterion marked fair housing sensitive goes to Compliance (Agent 17); one not approved is not used.",
+    "It checks that the written buyer agreement is on file with Agent 14. Matches wait until it is.",
+    "It matches new listings (Agent 05) and opportunities (Agent 19) against the criteria.",
+    "Up to 5 matches a day go to the buyer one by one through Agent 11; the rest go in one digest. Every match is logged to Agent 14.",
+    "On the buyer's interest it sends a showing request to Agent 06 with the buyer agreement flag.",
+    "Criteria change only from the buyer's own explicit feedback."
+   ],
+   "today": [
+    "The agent sets up an MLS saved search for the buyer and sends listings.",
+    "Criteria often drift with the agent's impressions of what the buyer \"really\" wants."
+   ],
+   "compare": [
+    "The same saved-search idea, with the criteria only as the buyer stated them, and the buyer agreement checked before anything else."
+   ],
+   "user_part": [
+    "Recording the buyer's criteria.",
+    "The buyer agreement.",
+    "Any advice about neighborhoods."
+   ],
+   "never": [
+    "Add or infer a criterion.",
+    "Send neighborhood information.",
+    "Ask for a showing without the buyer agreement."
+   ],
+   "process": "Matches buyer search practice and the written buyer agreement required since August 17, 2024.",
+   "not_built": []
+  },
+  {
+   "id": "14", "name": "CRM & Pipeline", "team": "Clients and records",
+   "job": "The office's system of record: every contact, every interaction, consent and opt-outs, client dates and property access grants. It stores and reports; it never messages clients.",
+   "steps": [
+    "It logs every interaction any agent reports, word for word, with the message it came from.",
+    "It answers record requests: duplicates, consent, the buyer agreement.",
+    "It stores consent and opt-outs and serves them on every request.",
+    "From the authorized user's client list, it sends date reminders (birthdays, anniversaries) to Agent 16.",
+    "It keeps property access grants (who, until when, a custody reference, never the code itself) and flags a window that ended without being closed.",
+    "It files a copy of every entry in the client's drawer.",
+    "Reports go to the authorized user only, built from stored records only."
+   ],
+   "today": [
+    "A CRM (Follow Up Boss, kvCORE and similar) holds the contacts. Agents log some calls; gaps are common."
+   ],
+   "compare": [
+    "Every hand-off is logged automatically, and no report contains a figure that cannot be traced to a record."
+   ],
+   "user_part": [
+    "Signed record updates: consent, client dates, the buyer agreement, access grants, closings and deletions."
+   ],
+   "never": [
+    "Message a client.",
+    "Change a stage by inference.",
+    "Report a figure it cannot trace."
+   ],
+   "process": "Matches the system-of-record role of a brokerage CRM.",
+   "not_built": [
+    "Consent changes are not pushed to Agents 03, 11 and 16 (Agent 11 asks before every send).",
+    "Pipeline stages and referral sources."
+   ]
+  },
+  {
+   "id": "15", "name": "Financial Tracking", "team": "Clients and records",
+   "job": "Tracks the money (commissions, expenses, profit and loss) and reports it to the authorized user only. It records; it never moves money.",
+   "steps": [
+    "A commission is recorded when a transaction closes.",
+    "Expenses and figures the authorized user enters are recorded.",
+    "Tax-relevant expenses are flagged for the accountant.",
+    "Profit and loss and the end-of-day books are built from recorded figures; anything estimated is labeled.",
+    "Reports go to the authorized user only."
+   ],
+   "today": [
+    "A bookkeeper or accounting software (QuickBooks and similar), with commissions tracked in the transaction platform."
+   ],
+   "compare": [
+    "Records only. It has no way to move money: the default build contains no payment, transfer or wire capability."
+   ],
+   "user_part": [
+    "All money.",
+    "Tax and accounting advice, which comes from the accountant."
+   ],
+   "never": [
+    "Move money.",
+    "Advise on taxes.",
+    "Mix estimates with recorded figures."
+   ],
+   "process": "Matches brokerage bookkeeping, record-keeping side only.",
+   "not_built": [
+    "No platform export or accounting system is connected."
+   ]
+  },
+  {
+   "id": "16", "name": "After-Close & Referral", "team": "Clients and records",
+   "job": "Keeps in touch after closing: check-ins at 30, 90 and 365 days, greetings, review and referral requests, only for people on the authorized user's client list, and stopping for opt-outs and hard times.",
+   "steps": [
+    "When a deal closes, the 30, 90 and 365-day check-ins are scheduled.",
+    "Greetings come from Agent 14's date reminders, only for people on the authorized user's client list.",
+    "Before every touch it checks for an opt-out, a hard life event on record and a contact that no longer works. Any of these blocks the touch and records why.",
+    "Each touch goes through Agent 11, which checks consent again.",
+    "A past client mentioning new business is passed on as a new lead.",
+    "A question about a referral reward goes to Compliance (Agent 17), then to the authorized user."
+   ],
+   "today": [
+    "A closing gift, perhaps a card; follow-ups fade after a few months. Client appreciation services automate some of it."
+   ],
+   "compare": [
+    "Every past client gets the same follow-up schedule, and it stops for opt-outs and hard times."
+   ],
+   "user_part": [
+    "Whether to reach out during a hard time.",
+    "Answering referral reward questions.",
+    "The client list."
+   ],
+   "never": [
+    "Greet someone who is not on the list.",
+    "Offer or promise a referral reward.",
+    "Search for new contact details."
+   ],
+   "process": "Matches post-closing relationship practice, with the license and RESPA limits on referral rewards respected.",
+   "not_built": [
+    "Maintenance tips and a self-running referral schedule.",
+    "Routine touch content does not go to Compliance before sending."
+   ]
+  },
+  {
+   "id": "17", "name": "Compliance & Fair Housing", "team": "Oversight",
+   "job": "Checks outbound text against the authorized user's signed rules before it is used. It approves or flags, citing the exact phrase and the rule. It never rewrites: a checker that writes cannot check itself.",
+   "steps": [
+    "Content arrives for review (from Agents 03, 04, 12, 13, 16 and 20).",
+    "It checks the content against the signed rules, including the strictest state rule that applies.",
+    "Verdict: approved, or flagged with each phrase and rule. Never a rewrite.",
+    "The rules version used is recorded with the verdict.",
+    "A review past its turnaround time raises an alert; a pattern of near misses from one agent is reported."
+   ],
+   "today": [
+    "The writer's own judgment, sometimes a broker's review of ads, and fair housing training."
+   ],
+   "compare": [
+    "Every piece of outbound text is checked against the same written rules, the same way. It flags; it does not fix."
+   ],
+   "user_part": [
+    "The rules, reviewed by the office's counsel.",
+    "Fixing flagged text."
+   ],
+   "never": [
+    "Rewrite content.",
+    "Approve because no rule says no.",
+    "Give a blanket approval."
+   ],
+   "process": "Matches a brokerage's advertising and fair housing review, applied to every piece of text.",
+   "not_built": [
+    "Checking that required disclosures are present.",
+    "Detecting from the text alone that a construction is uncovered or a state rule uncertain (the sender marks these)."
+   ]
+  },
+  {
+   "id": "18", "name": "Calendar & Task", "team": "Oversight",
+   "job": "The authorized user's calendar and morning briefing. The briefing is built only from what is on record.",
+   "steps": [
+    "Calendar entries arrive from Agents 06, 07 and 09.",
+    "A showing it cannot add (a clash, a full day, no day, an unconfirmed time zone) is refused and Agent 06 is told, so the buyer is not told it is confirmed.",
+    "Deadline blocks from Agent 07 are protected.",
+    "On the daily clock it builds the morning briefing from logged messages and calendar records, with sections from Agents 14, 15, 19 and 10.",
+    "It checks showings for no-shows.",
+    "It tracks what each agent is waiting on, and since when."
+   ],
+   "today": [
+    "The agent's own calendar and phone; the morning starts by reading email."
+   ],
+   "compare": [
+    "The briefing comes only from what is on record; nothing is in it that the system cannot source."
+   ],
+   "user_part": [
+    "Moving a protected deadline block.",
+    "Setting priorities."
+   ],
+   "never": [
+    "Move a deadline block without the authorized user's signature.",
+    "Put an unsourced status in a briefing."
+   ],
+   "process": "Matches an assistant's calendar and daily planning role.",
+   "not_built": [
+    "To-do lists, time-blocking rules and recurring tasks."
+   ]
+  },
+  {
+   "id": "19", "name": "Prospecting", "team": "Leads",
+   "job": "Finds opportunities (new listings, expired listings, homes for sale by owner) in the authorized user's zip codes and puts them in front of the authorized user. It never contacts anyone.",
+   "steps": [
+    "A record arrives from a discovery feed.",
+    "Outside the monitored zip codes: not recorded. From a source the authorized user has not approved: excluded and flagged.",
+    "It records whether the owner is represented and whether the number is on the Do Not Call list, with the source.",
+    "An expired listing or a home for sale by owner raises a legal-line alert before any contact.",
+    "The prospect goes to the authorized user (and to Agent 13 where a buyer's criteria match).",
+    "It never contacts anyone."
+   ],
+   "today": [
+    "The agent or an inside sales person pulls expireds and for-sale-by-owner lists from a lead service and calls them."
+   ],
+   "compare": [
+    "Discovery only. Outreach is the authorized user's decision, every time, with the legal position shown first."
+   ],
+   "user_part": [
+    "Approving sources.",
+    "Deciding whether and how to reach out."
+   ],
+   "never": [
+    "Contact any party.",
+    "Use a source that is not approved.",
+    "Profile individual households."
+   ],
+   "process": "Matches prospecting research. Contact rules for represented sellers (REALTOR Code of Ethics Article 16) and do-not-call rules are respected by leaving outreach to the authorized user.",
+   "not_built": [
+    "No prospecting source is connected; it does not poll on its own.",
+    "When two sources disagree on a property's status, the later one wins; the disagreement is not flagged."
+   ]
+  },
+  {
+   "id": "20", "name": "Social Media Monitoring", "team": "Oversight",
+   "job": "Listens on the social channels the authorized user designated, and routes what it hears. It never posts a public reply.",
+   "steps": [
+    "A mention arrives from a designated channel, with its sentiment.",
+    "A question or a lead goes to Agent 01 as a lead, with its channel.",
+    "A complaint (or a mixed mention) raises a complaint alert for the authorized user and holds scheduled messages to that person.",
+    "Praise is logged only.",
+    "A suggested reply comes only from the authorized user's signed templates, is checked by Compliance and is held for the authorized user.",
+    "It never posts."
+   ],
+   "today": [
+    "The agent checks notifications and replies personally, or does not."
+   ],
+   "compare": [
+    "It listens and routes; it never replies in public and never confirms who is a client."
+   ],
+   "user_part": [
+    "Every public reply."
+   ],
+   "never": [
+    "Post.",
+    "Confirm or deny that someone is a client.",
+    "Engage automatically, even with praise."
+   ],
+   "process": "Matches reputation monitoring, with the reply left to a person.",
+   "not_built": [
+    "No social platform is connected.",
+    "Sentiment arrives with the mention; the agent does not classify the text itself."
+   ]
+  }
+ ]
+}

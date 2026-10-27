@@ -3387,6 +3387,25 @@
      "absent": true,
      "ok": true,
      "found": 0
+    },
+    {
+     "kind": "escalation.raised",
+     "ctx": "T1",
+     "contains_all": [
+      "escalation.hot_lead",
+      "do not contact",
+      "no consent on any channel"
+     ],
+     "ok": true,
+     "found": 1
+    },
+    {
+     "kind": "escalation.raised",
+     "ctx": "T1",
+     "contains": "sla_s",
+     "absent": true,
+     "ok": true,
+     "found": 0
     }
    ],
    "flow": [
@@ -4182,6 +4201,25 @@
      "contains": "DNC",
      "ok": true,
      "found": 1
+    },
+    {
+     "kind": "escalation.raised",
+     "ctx": "T1",
+     "contains_all": [
+      "escalation.hot_lead",
+      "do not contact",
+      "do not call list"
+     ],
+     "ok": true,
+     "found": 1
+    },
+    {
+     "kind": "escalation.raised",
+     "ctx": "T1",
+     "contains": "sla_s",
+     "absent": true,
+     "ok": true,
+     "found": 0
     }
    ],
    "flow": [
@@ -5150,6 +5188,25 @@
      ],
      "ok": true,
      "found": 1
+    },
+    {
+     "kind": "escalation.raised",
+     "ctx": "T1",
+     "contains_all": [
+      "escalation.hot_lead",
+      "do not contact",
+      "no consent on any channel"
+     ],
+     "ok": true,
+     "found": 1
+    },
+    {
+     "kind": "escalation.raised",
+     "ctx": "T1",
+     "contains": "sla_s",
+     "absent": true,
+     "ok": true,
+     "found": 0
     }
    ],
    "flow": [
@@ -51169,6 +51226,25 @@
      "contains": "event conflict at '2026-10-20t14:00:00'",
      "ok": true,
      "found": 1
+    },
+    {
+     "kind": "envelope.persisted",
+     "intent": "client.message.request",
+     "ctx": "B2",
+     "contains": "showing_confirmation",
+     "absent": true,
+     "ok": true,
+     "found": 0
+    },
+    {
+     "kind": "human.notified",
+     "ctx": "B2",
+     "contains_all": [
+      "not on your calendar",
+      "continue = confirm it to the buyer"
+     ],
+     "ok": true,
+     "found": 1
     }
    ],
    "flow": [
@@ -51989,44 +52065,27 @@
      "template": null
     },
     {
+     "from": "18",
+     "to": "06",
+     "intent": "calendar.conflict",
+     "client": "B2",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "06",
-     "to": "11",
-     "intent": "client.message.request",
+     "to": "queue",
+     "intent": "decision.required",
      "client": "B2",
-     "outcome": "delivered",
-     "template": "showing_confirmation"
+     "outcome": "waiting for your decision"
     },
     {
-     "from": "11",
-     "to": "14",
-     "intent": "record.request",
+     "from": "06",
+     "to": "18",
+     "intent": "agent.status",
      "client": "B2",
      "outcome": "delivered",
      "template": null
-    },
-    {
-     "from": "14",
-     "to": "11",
-     "intent": "record.response",
-     "client": "B2",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "11",
-     "to": "external",
-     "intent": "client.message.send",
-     "client": "B2",
-     "outcome": "delivered",
-     "template": "showing_confirmation"
-    },
-    {
-     "from": "11",
-     "to": "14",
-     "intent": "interaction.log",
-     "client": "B2",
-     "outcome": "delivered",
-     "template": "showing_confirmation"
     },
     {
      "from": "06",
@@ -52042,7 +52101,7 @@
     "P01",
     "P07"
    ],
-   "entries": 554
+   "entries": 543
   },
   "18-02": {
    "result": "PASS",
@@ -52666,6 +52725,25 @@
      ],
      "ok": true,
      "found": 1
+    },
+    {
+     "kind": "envelope.persisted",
+     "intent": "client.message.request",
+     "ctx": "B9",
+     "contains": "showing_confirmation",
+     "absent": true,
+     "ok": true,
+     "found": 0
+    },
+    {
+     "kind": "human.notified",
+     "ctx": "B9",
+     "contains_all": [
+      "not on your calendar",
+      "continue = confirm it to the buyer"
+     ],
+     "ok": true,
+     "found": 1
     }
    ],
    "flow": [
@@ -53950,44 +54028,27 @@
      "template": null
     },
     {
+     "from": "18",
+     "to": "06",
+     "intent": "calendar.conflict",
+     "client": "B9",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "06",
-     "to": "11",
-     "intent": "client.message.request",
+     "to": "queue",
+     "intent": "decision.required",
      "client": "B9",
-     "outcome": "delivered",
-     "template": "showing_confirmation"
+     "outcome": "waiting for your decision"
     },
     {
-     "from": "11",
-     "to": "14",
-     "intent": "record.request",
+     "from": "06",
+     "to": "18",
+     "intent": "agent.status",
      "client": "B9",
      "outcome": "delivered",
      "template": null
-    },
-    {
-     "from": "14",
-     "to": "11",
-     "intent": "record.response",
-     "client": "B9",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "11",
-     "to": "external",
-     "intent": "client.message.send",
-     "client": "B9",
-     "outcome": "delivered",
-     "template": "showing_confirmation"
-    },
-    {
-     "from": "11",
-     "to": "14",
-     "intent": "interaction.log",
-     "client": "B9",
-     "outcome": "delivered",
-     "template": "showing_confirmation"
     },
     {
      "from": "06",
@@ -54003,7 +54064,7 @@
     "P01",
     "P07"
    ],
-   "entries": 852
+   "entries": 843
   },
   "18-06": {
    "result": "PASS",

@@ -127,6 +127,22 @@ pre.cmd { font-family: var(--mono); font-size: 12.5px; background: var(--rule-2)
 table.whos tr.lead-row th, table.whos tr.lead-row td { background: var(--accent-soft); }
 .guide ul { padding-left: 22px; } .guide ul li { margin-bottom: 6px; }
 .cover h1 { font-size: 30px; }
+.part { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); margin: 22px 0 6px; font-weight: 650; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0; }
+.by { display: inline-block; min-width: 92px; font-size: 12px; font-weight: 650; color: var(--ink-2); }
+.by.user { color: var(--warn); }
+ol.pbsteps { padding-left: 22px; margin: 0; }
+ol.pbsteps li { margin-bottom: 7px; padding-left: 4px; }
+ol.pbsteps li.user { background: var(--warn-soft); border-radius: 6px; padding: 4px 8px; margin-left: -4px; }
+.stages { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 4px; }
+.stages a { font-size: 13px; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); color: var(--ink); }
+.stages .arr { color: var(--ink-3); }
+.stage { border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; margin: 12px 0; background: var(--sheet); break-inside: avoid; }
+.stage h3 { margin: 0 0 6px; font-size: 16px; }
+.stage .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 650; margin-top: 8px; }
+.links a { margin-right: 10px; white-space: nowrap; }
+table.routes td:first-child { width: 45%; }
+.draftnote { font-size: 13px; color: var(--ink-3); font-style: italic; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -141,6 +157,22 @@ table.whos tr.lead-row th, table.whos tr.lead-row td { background: var(--accent-
 const DATA = /*__DATA__*/null;
 const T = DATA.tuples;
 const BY = Object.fromEntries(T.map(t => [t.id, t]));
+const AG = DATA.agents || [], PB = DATA.playbooks || [], OV = DATA.overview || { stages: [], always_person: [] };
+const BYA = Object.fromEntries(AG.map(a => [a.id, a])), BYP = Object.fromEntries(PB.map(p => [p.id, p]));
+/* review-mark keys: a procedure by its id (03-01), an agent page A06, a playbook P01, the whole picture W */
+function revOf(key) {
+  if (BY[key]) return BY[key].rev;
+  if (/^A\d\d$/.test(key) && BYA[key.slice(1)]) return BYA[key.slice(1)].rev;
+  if (BYP[key]) return BYP[key].rev;
+  return OV.rev || 1;
+}
+function href(key) {
+  if (PRINT) return "#doc-" + key;
+  if (key === "W") return "#/whole";
+  if (/^A\d\d$/.test(key)) return "#/a/" + key.slice(1);
+  if (/^P\d\d$/.test(key)) return "#/p/" + key;
+  return "#/t/" + key;
+}
 const PRINT = /[?&]print=1/.test(location.search);
 const STATUS_WORDS = {
   "IN FORCE": "In force", "NOT BUILT": "Not built yet", "NOT REACHABLE": "No way in yet", "RETIRED": "Retired"
@@ -181,7 +213,7 @@ async function startMarks() {
 }
 function saveMark(id, mark, note) {
   if (!marks.ok) return;
-  const rev = BY[id].rev;
+  const rev = revOf(id);
   const next = { ...marks.mine, [id]: { mark, note: note || "", rev, at: new Date().toISOString() } };
   if (!mark) delete next[id];
   marks.mine = next;
@@ -192,7 +224,7 @@ function saveMark(id, mark, note) {
 function markChip(id) {
   const m = marks.mine[id];
   if (!m) return "";
-  const stale = m.rev !== BY[id].rev ? " (earlier revision)" : "";
+  const stale = m.rev !== revOf(id) ? " (earlier revision)" : "";
   return m.mark === "approve" ? `<span class="chip ok">Approved${stale}</span>` : `<span class="chip warn">Needs change${stale}</span>`;
 }
 
@@ -244,6 +276,149 @@ function chart(t) {
   return s + "</svg>";
 }
 
+/* ---------- the whole picture, playbooks and agents (levels 1-3) ---------- */
+function byLabel(b) {
+  if (b === "user") return "Authorized user";
+  if (b === "outside") return "Outside";
+  if (b === "clock") return "Daily clock";
+  if (b === "00") return "Dispatcher";
+  return "Agent " + b;
+}
+function agentLink(a) { return BYA[a] ? `<a href="${href("A" + a)}">Agent ${esc(a)} · ${esc(DATA.names[a] || "")}</a>` : `Agent ${esc(a)}`; }
+function pbLink(id) { const b = BYP[id]; return b ? `<a href="${href(id)}">${esc(id)} · ${esc(b.name)}</a>` : esc(id); }
+function tupleRows(ids) {
+  const ts = ids.map(i => BY[i]).filter(Boolean);
+  return ts.length ? `<div class="rows">${ts.map(t => rowHtml(t, PRINT)).join("")}</div>` : "";
+}
+function tupleRefs(ids) {
+  const ts = ids.map(i => BY[i]).filter(Boolean);
+  const groups = [...new Set(ts.map(t => t.agent))].map(a => [a, ts.filter(t => t.agent === a)]);
+  return `<table class="control"><tbody>${groups.map(([a, g]) => `<tr><th>${esc(a === "SWARM" ? "Whole team" : "Agent " + a)}</th><td class="links">${g.map(t => `<a href="${href(t.id)}" title="${esc(title(t) || t.rule)}">${esc(t.id)}</a>`).join(" ")}</td></tr>`).join("")}</tbody></table>`;
+}
+function listHtml(items, cls) { return items && items.length ? `<ul${cls ? ` class="${cls}"` : ""}>${items.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""; }
+function docHead(key, title, code, rev, extraRows) {
+  return `<div class="doctitle"><h1>${esc(title)}</h1><div class="codeline"><span class="code">${esc(code)}</span> · Rev ${esc(rev)}</div></div>
+    <table class="control"><tbody><tr><th>Page code</th><td><span class="code">${esc(code)}</span> · Rev ${esc(rev)}</td></tr>${extraRows}</tbody></table>`;
+}
+function wholeHtml(withReview) {
+  let n = 0;
+  const sec = (h, body) => body ? `<h2><span class="n">${++n}</span>${esc(h)}</h2>${body}` : "";
+  const strip = `<div class="stages">${OV.stages.map((st, i) => `${i ? '<span class="arr">→</span>' : ""}<a href="${PRINT ? "#stage-" + st.id : "#/whole"}" data-stage="${esc(st.id)}">${esc(st.name)}</a>`).join("")}</div>`;
+  const stages = OV.stages.map(st => `<div class="stage" id="stage-${esc(st.id)}"><h3>${esc(st.name)}</h3>
+      <p>${esc(st.business)}</p>
+      <div class="lbl">Playbooks</div><p class="links">${st.playbooks.map(pbLink).join("<br>")}</p>
+      <div class="lbl">What the system does</div><p>${esc(st.system)}</p>
+      <div class="lbl">What the authorized user decides</div>${listHtml(st.person)}
+      <div class="lbl">Agents involved</div><p class="links">${st.agents.map(agentLink).join(" ")}</p></div>`).join("");
+  const p11 = BYP["P11"];
+  return `<article class="doc guide" id="doc-W">
+    ${docHead("W", "The whole picture", "LA-W-01", OV.rev || 1, `<tr><th>Covers</th><td>The real estate process from first inquiry to after closing, the 24 playbooks, the 21 agents, and what stays with the authorized user.</td></tr><tr><th>Drafted from</th><td>The playbooks as ratified, the agents' job descriptions, and standard practice. For the authorized user's review.</td></tr>`)}
+    ${sec("Four levels: zoom in, zoom out", `<p>The manual reads at four levels. Each page links up and down.</p>
+      <ol class="steps"><li><b>The whole picture</b> (this page): the real estate process, stage by stage, with the playbooks, the agents and the authorized user's decisions.</li>
+      <li><b>Playbooks</b> (24): a workflow from its start to its end, with its predefined steps, who does each one, and a recorded run.</li>
+      <li><b>Agents</b> (21): one agent's job, its predefined steps, what a person does today, what stays with the authorized user, and the messages it may send and receive.</li>
+      <li><b>Procedures</b> (${T.length}): one situation, decided in advance, with the proof that the system handles it that way.</li></ol>`)}
+    ${sec("One source: how a message travels", `<p>No agent talks to another directly. Here is a new inquiry, as it travels in the recorded run of ${p11 ? pbLink("P11") : "Speed to Lead"}:</p>
+      <ol class="steps">
+        <li>A web form arrives. It goes to the <b>dispatcher (Agent 00)</b>, not to an agent. The dispatcher checks that "an inquiry from outside to Agent 01" is on the track, numbers it for this client, writes it to the record, and delivers it to Agent 01.</li>
+        <li><b>Agent 01</b> records the inquiry and the consent, then asks Agent 14 whether the person is already on record. That question also goes through the dispatcher: checked, numbered, recorded, delivered.</li>
+        <li><b>Agent 14</b> answers (again through the dispatcher). Not a duplicate.</li>
+        <li><b>Agent 01</b> hands the lead to Agent 02 (through the dispatcher). <b>Agent 02</b> scores it on the authorized user's rubric: warm. It goes to Agent 03 (through the dispatcher).</li>
+        <li><b>Agent 03</b> sends the sequence's text to Compliance (through the dispatcher); <b>Agent 17</b> returns its verdict (through the dispatcher).</li>
+      </ol>
+      <p>Every arrow went through one place, in order, and is on the record. Had any agent tried a route that is not on the track (for example Agent 03 messaging the lead directly), the dispatcher would have refused it. Had the message gone to a vendor or the public, the dispatcher would have held it for the authorized user's release. The flowchart on every page shows these arrows.</p>`)}
+    ${sec("The process, stage by stage", strip + stages)}
+    ${sec("What always stays with a person", listHtml(OV.always_person))}
+    ${withReview ? reviewHtml("W") : ""}
+  </article>`;
+}
+function playbookHtml(b, withReview) {
+  const p = b.page || {};
+  let n = 0;
+  const sec = (h, body) => body ? `<h2><span class="n">${++n}</span>${esc(h)}</h2>${body}` : "";
+  const steps = (p.steps || []).length ? `<ol class="pbsteps">${p.steps.map(st => `<li class="${st.by === "user" ? "user" : ""}"><span class="by ${st.by === "user" ? "user" : ""}">${esc(byLabel(st.by))}</span> ${esc(st.text)}</li>`).join("")}</ol><p class="chart-note">Steps on an amber background are the authorized user's.</p>` : "";
+  const checks = b.checks.length ? `<ul class="checks">${b.checks.map(c => `<li><span class="${c.ok ? "mark-ok" : "mark-bad"}">${c.ok ? "✓" : "✗"}</span><span>${esc(c.text)} <span class="muted">· found ${esc(c.found)}</span></span></li>`).join("")}</ul>` : "";
+  const decided = (b.after_action[0] || {}).your_decisions || [];
+  const flow = b.flow.length ? `<div class="chart">${chart({ flow: b.flow, agent: "" })}</div><p class="chart-note">Every message of the recorded run, in order (${b.flow.length}${b.flow_more ? ` shown of ${b.flow.length + b.flow_more}` : ""}). Not shown: ${b.routine} background messages (record keeping, status updates, the morning briefing). The run first sets up what the playbook needs (for example a live listing), so the chart can begin before the playbook's own start. Amber arrows were held, sent after release, refused, or are alerts and questions for the authorized user.</p>` : "";
+  const proof = b.result ? `<p><b>Result on ${esc(DATA.evidence_date)}:</b> ${resultChip(b)}${b.ended.length ? ` · ended: ${esc(b.ended.map(e => e.outcome + (e.reason ? " (" + e.reason + ")" : "")).join("; "))}` : ""}</p>
+      ${p.run_note ? `<p><b>The recorded run.</b> ${esc(p.run_note)}</p>` : ""}
+      ${checks ? `<p><b>What the record must show</b></p>${checks}` : ""}
+      <p><b>The authorized user's signed decisions in the run:</b> ${decided.length ? esc(decided.join("; ")) : "none needed"}.</p>
+      <pre class="cmd">python synth/tuples/run_tuples.py --set playbooks ${esc(b.id)}</pre>` : "";
+  const confl = b.conflicts_with.length ? b.conflicts_with.map(pbLink).join(", ") : "None";
+  return `<article class="doc" id="doc-${esc(b.id)}">
+    ${docHead(b.id, b.id + " · " + b.name, b.code, b.rev, `
+      <tr><th>Starts when</th><td>${esc(p.starts || "")}</td></tr>
+      <tr><th>Ends when</th><td>${esc(p.ends || "")}</td></tr>
+      <tr><th>Agents</th><td class="links">${b.agents.filter(a => a !== "00").map(agentLink).join(" ")}</td></tr>
+      <tr><th>Cannot run with</th><td>${confl}${b.conflicts_with.length ? ". On the same client, one waits for the authorized user's choice." : ""}</td></tr>
+      <tr><th>Status</th><td>${esc(b.ratified ? "Ratified" : "Proposed")} · ${resultChip(b)}</td></tr>`)}
+    ${sec("What it is for", p.purpose ? `<p>${esc(p.purpose)}</p>` : "")}
+    ${sec("The steps", steps)}
+    ${sec("What the authorized user decides", listHtml(p.user_decides))}
+    ${sec("Never", p.never && p.never.length ? `<ul class="never">${p.never.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "")}
+    ${sec("Not built yet", listHtml(p.not_built))}
+    ${sec("Flowchart of the recorded run", flow)}
+    ${sec("Proof", proof)}
+    ${sec("Zoom in: procedures seen in this playbook", b.tuples.length ? `<p class="muted">The ${b.tuples.length} procedures whose own test runs passed through this playbook, by agent. Many tests first set up a live listing or a client, so the setup playbooks (for example ${pbLink("P01")}) appear in many runs. Each code opens its page.</p>${tupleRefs(b.tuples)}` : "")}
+    ${withReview ? reviewHtml(b.id) : ""}
+  </article>`;
+}
+function agentHtml(a, withReview) {
+  let n = 0;
+  const sec = (h, body) => body ? `<h2><span class="n">${++n}</span>${esc(h)}</h2>${body}` : "";
+  const who = w => w.map(x => x === "human" ? "the authorized user" : x === "external" ? "outside" : x === "clock" ? "the daily clock" : "Agent " + x).join(", ");
+  const routes = (rs, dir) => rs.length ? `<table class="control routes"><tbody>${rs.map(r => `<tr><td>${esc(r.words)} <span class="muted code">${esc(r.intent)}</span></td><td>${dir} ${esc(who(r.who))}</td></tr>`).join("")}</tbody></table>` : "<p>None.</p>";
+  const routesBody = a.id === "00" ? `<p>The dispatcher carries every route on the track; it sends only its own status messages. The track has ${esc(DATA.routes_total)} routes; each agent page lists the ones it may use.</p>`
+    : `<p><b>Receives</b></p>${routes(a.receives, "from")}<p style="margin-top:10px"><b>Sends</b></p>${routes(a.sends, "to")}<p class="chart-note">These are the only messages this agent can send or receive: the dispatcher refuses anything else.</p>`;
+  return `<article class="doc" id="doc-A${esc(a.id)}">
+    ${docHead("A" + a.id, `Agent ${a.id} · ${a.name}`, a.code, a.rev, `
+      <tr><th>Team</th><td>${esc(a.team)}</td></tr>
+      <tr><th>Playbooks</th><td>${a.playbooks.length}</td></tr>
+      <tr><th>Procedures</th><td>${a.tuples.length}</td></tr>`)}
+    ${sec("The job", `<p>${esc(a.job)}</p>`)}
+    ${sec("Its steps", `<ol class="steps">${a.steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`)}
+    ${sec("What a person does today", `<p class="draftnote">Drafted from standard practice, for the authorized user's review.</p>${listHtml(a.today)}`)}
+    ${sec("How the agent compares", listHtml(a.compare))}
+    ${sec("What stays with the authorized user", listHtml(a.user_part))}
+    ${sec("Never", `<ul class="never">${a.never.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`)}
+    ${sec("In line with the real estate process?", `<p>${esc(a.process)}</p>`)}
+    ${sec("Not built yet", listHtml(a.not_built))}
+    ${sec("What it receives and sends", routesBody)}
+    ${sec("Zoom out: its playbooks", a.playbooks.length ? `<p class="links">${a.playbooks.map(b => pbLink(b.id)).join("<br>")}</p>` : "")}
+    ${sec("Zoom in: its procedures", tupleRows(a.tuples))}
+    ${withReview ? reviewHtml("A" + a.id) : ""}
+  </article>`;
+}
+function renderPage(app, key) {
+  let html = "", crumb = "", prev = null, next = null;
+  if (key === "W") { html = wholeHtml(true); crumb = "The whole picture"; }
+  else if (BYP[key]) {
+    const b = BYP[key], i = PB.indexOf(b); html = playbookHtml(b, true); crumb = "Playbooks";
+    prev = PB[i - 1] && [PB[i - 1].id, PB[i - 1].id + " · " + PB[i - 1].name]; next = PB[i + 1] && [PB[i + 1].id, PB[i + 1].id + " · " + PB[i + 1].name];
+  } else if (/^A\d\d$/.test(key) && BYA[key.slice(1)]) {
+    const a = BYA[key.slice(1)], i = AG.indexOf(a); html = agentHtml(a, true); crumb = "Agents";
+    prev = AG[i - 1] && ["A" + AG[i - 1].id, `Agent ${AG[i - 1].id} · ${AG[i - 1].name}`]; next = AG[i + 1] && ["A" + AG[i + 1].id, `Agent ${AG[i + 1].id} · ${AG[i + 1].name}`];
+  } else { app.innerHTML = `<p>No page ${esc(key)}. <a href="#/">Table of Contents</a></p>`; return; }
+  const link = x => `<a href="${href(x[0])}">${esc(x[1])}</a>`;
+  app.innerHTML = `<div class="crumbs"><a href="#/">Table of Contents</a><span>›</span><span>${esc(crumb)}</span></div>${html}
+    <div class="pager">${prev ? "← " + link(prev) : "<span></span>"}${next ? link(next) + " →" : "<span></span>"}</div>`;
+  wireReview(app, key);
+  app.querySelectorAll("[data-stage]").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault(); const t = document.getElementById("stage-" + a.dataset.stage); if (t) t.scrollIntoView({ behavior: "smooth" });
+  }));
+}
+function partsHtml(print) {
+  const L = k => print ? "#doc-" + k : href(k);
+  return `<div class="part">Part 1 · The whole picture</div>
+    <div class="rows"><a class="row" href="${L("W")}"><span class="code">LA-W-01</span><span class="t">The whole picture<span class="rule">The real estate process stage by stage, how a message travels, what stays with a person</span></span><span class="tags">${markChip("W")}</span></a></div>
+    <div class="part">Part 2 · Playbooks (${PB.length})</div>
+    <div class="rows">${PB.map(b => `<a class="row" href="${L(b.id)}"><span class="code">${esc(b.code)}</span><span class="t">${esc(b.id)} · ${esc(b.name)}<span class="rule">${esc((b.page || {}).purpose || "")}</span></span><span class="tags">${markChip(b.id)}${resultChip(b)}</span></a>`).join("")}</div>
+    <div class="part">Part 3 · Agents (${AG.length})</div>
+    <div class="rows">${AG.map(a => `<a class="row" href="${L("A" + a.id)}"><span class="code">${esc(a.code)}</span><span class="t">Agent ${esc(a.id)} · ${esc(a.name)}<span class="rule">${esc(a.job)}</span></span><span class="tags">${markChip("A" + a.id)}<span class="chip">${a.tuples.length} procedures</span></span></a>`).join("")}</div>
+    <div class="part">Part 4 · Procedures (${T.length})</div>`;
+}
+
 /* ---------- views ---------- */
 const state = { q: "", agent: "", cat: "", result: "" };
 function matches(t) {
@@ -280,7 +455,8 @@ function renderIndex(app) {
   app.innerHTML = `
     <h1>Operating Procedures</h1>
     <p class="intro">Last update ${esc(DATA.evidence_date)} · Build ${esc(DATA.build_ref)}</p>
-    <a class="row" href="#/start" style="border:1px solid var(--accent);border-radius:10px;margin:0 0 14px;background:var(--accent-soft)"><span class="code">Start here</span><span class="t"><b>How to read this manual</b><span class="rule">The authorized user, the dispatcher, what a tuple is, how each page reads, who's who</span></span><span class="tags"></span></a>
+    <a class="row" href="#/start" style="border:1px solid var(--accent);border-radius:10px;margin:0 0 14px;background:var(--accent-soft)"><span class="code">Start here</span><span class="t"><b>How to read this manual</b><span class="rule">The authorized user, the dispatcher, the four levels, what a tuple is, how each page reads, who's who</span></span><span class="tags"></span></a>
+    ${partsHtml(false)}
     <div class="filters noprint">
       <input id="q" type="search" placeholder="Search titles, rules and steps" value="${esc(state.q)}">
       <select id="fa">${opt("", "All agents", state.agent)}${agents.map(a => opt(a, a === "SWARM" ? "Whole team" : `${a} ${DATA.names[a] || ""}`, state.agent)).join("")}</select>
@@ -321,7 +497,7 @@ function docHtml(t, withReview) {
       ${checks ? `<p><b>What the record must show</b></p>${checks}` : ""}
       <pre class="cmd">python synth/tuples/run_tuples.py ${esc(t.id)}</pre>
       <p class="muted" style="margin-top:6px">Test file: <span class="code">${esc(t.spec || "")}</span></p>` : (t.status_why ? `<p>${esc(t.status_why)}</p>` : "");
-  const pbs = t.playbooks.length ? `<p>${t.playbooks.map(b => `<span class="chip acc">${esc(b.id)}</span> ${esc(b.name)}`).join("<br>")}</p><p class="muted">The playbook manuals will link here once written.</p>` : "";
+  const pbs = t.playbooks.length ? `<p>${t.playbooks.map(b => `<a href="${href(b.id)}"><span class="chip acc">${esc(b.id)}</span> ${esc(b.name)}</a>`).join("<br>")}</p><p class="muted">Zoom out: each playbook page shows the whole workflow, step by step.</p>` : "";
   const m = marks.mine[t.id] || {};
   const review = withReview && marks.ok ? `<div class="review"><h2>Review</h2>
       <div class="btns"><button class="approve ${m.mark === "approve" ? "on approve" : ""}" data-mark="approve">Approve</button>
@@ -333,7 +509,7 @@ function docHtml(t, withReview) {
     <div class="doctitle"><h1>${esc(name)}</h1><div class="codeline"><span class="code">${esc(t.code)}</span> · Rev ${esc(p ? t.rev : 0)}${p ? "" : " (draft)"}</div></div>
     <table class="control"><tbody>
       <tr><th>Page code</th><td><span class="code">${esc(t.code)}</span> · Rev ${esc(p ? t.rev : 0)}</td></tr>
-      <tr><th>Carried out by</th><td>${esc(agentLabel(t.agent))}${t.agent === "00" || t.agent === "SWARM" ? "" : ". The agent that acts in this situation; the steps below say when it hands work to another agent or to the authorized user."}</td></tr>
+      <tr><th>Carried out by</th><td>${BYA[t.agent] ? `<a href="${href("A" + t.agent)}">${esc(agentLabel(t.agent))}</a>` : esc(agentLabel(t.agent))}${t.agent === "00" || t.agent === "SWARM" ? "" : ". The agent that acts in this situation; the steps below say when it hands work to another agent or to the authorized user."}</td></tr>
       <tr><th>Category</th><td>${esc(catLabel(t.category))}</td></tr>
       <tr><th>Status</th><td>${esc(statusWords)} · ${resultChip(t)}</td></tr>
       <tr><th>Last checked</th><td>${esc(DATA.evidence_date)}: the test for this procedure was run and its record compared to it</td></tr>
@@ -350,6 +526,23 @@ function docHtml(t, withReview) {
     ${sec("Seen in playbooks", pbs)}
     ${review}
   </article>`;
+}
+function reviewHtml(key) {
+  if (!marks.ok) return "";
+  const m = marks.mine[key] || {}, rev = revOf(key);
+  return `<div class="review"><h2>Review</h2>
+    <div class="btns"><button class="approve ${m.mark === "approve" ? "on approve" : ""}" data-mark="approve">Approve</button>
+    <button class="change ${m.mark === "change" ? "on change" : ""}" data-mark="change">Needs change</button>
+    ${m.mark ? `<button data-mark="">Clear</button>` : ""}</div>
+    <textarea id="note" placeholder="What should change? (saved with the mark)">${esc(m.note || "")}</textarea>
+    <p class="muted" id="savestate">${m.mark ? `Marked ${m.mark === "approve" ? "approved" : "needs change"} on Rev ${esc(m.rev)}${m.rev !== rev ? `; this page is now Rev ${rev}` : ""}.` : "Not marked yet."}</p></div>`;
+}
+function wireReview(app, key) {
+  app.querySelectorAll(".review button").forEach(b => b.addEventListener("click", () => {
+    saveMark(key, b.dataset.mark, (app.querySelector("#note") || {}).value);
+  }));
+  const note = app.querySelector("#note");
+  if (note) note.addEventListener("change", () => { const cur = marks.mine[key]; if (cur) saveMark(key, cur.mark, note.value); });
 }
 function renderDoc(app, id) {
   const t = BY[id];
@@ -372,10 +565,12 @@ function renderPrint(app) {
   app.innerHTML = `<section class="cover"><h1>ListingAssistants<br>Operating Procedures</h1>
     <p>Last update ${esc(DATA.evidence_date)} · Build ${esc(DATA.build_ref)}</p></section>
     <section class="toc" id="toc" style="break-before:page;break-after:page"><h1>Table of Contents</h1>
-      ${only ? "" : `<div class="rows"><a class="row" href="#guide"><span class="code">Start here</span><span class="t">How to read this manual</span><span class="tags"></span></a></div>`}
+      ${only ? "" : `<div class="rows"><a class="row" href="#guide"><span class="code">Start here</span><span class="t">How to read this manual</span><span class="tags"></span></a></div>` + partsHtml(true)}
       ${groups.map(([a, ts]) => `<h3 class="tocgroup">${esc(agentLabel(a))}</h3><div class="rows">${ts.map(t => rowHtml(t, true)).join("")}</div>`).join("")}
     </section>
-    ${only ? "" : guideHtml() + TOC_BACK}
+    ${only ? "" : guideHtml() + TOC_BACK + wholeHtml(false) + TOC_BACK
+      + PB.map(b => playbookHtml(b, false) + TOC_BACK).join("")
+      + AG.map(a => agentHtml(a, false) + TOC_BACK).join("")}
     ${shown.map(t => docHtml(t, false) + TOC_BACK).join("")}`;
 }
 /* ---------- How to read this manual (onboarding; on the site and at the front of the PDF) ---------- */
@@ -413,7 +608,14 @@ function guideHtml() {
     <div class="doctitle"><h1>How to read this manual</h1><div class="codeline">Start here</div></div>
 
     <h2><span class="n">1</span>What this manual is</h2>
-    <p>ListingAssistants is one dispatcher (Agent 00) and twenty specialist agents, each with one job. This manual sets out every situation those agents are prepared for, and what they do in it, one page per situation.</p>
+    <p>ListingAssistants is one dispatcher (Agent 00) and twenty specialist agents, each with one job. This manual sets out how they work, at four levels, from the whole picture down to every single situation they are prepared for:</p>
+    <table class="control"><tbody>
+      <tr><th>1 · The whole picture</th><td>The real estate process stage by stage: which playbooks run at each stage, which agents take part, and what the authorized user decides. Page code <span class="code">LA-W</span>.</td></tr>
+      <tr><th>2 · Playbooks (${PB.length})</th><td>A workflow from its start to its end (a new listing, a showing, contract to close): its predefined steps, who does each one, and a recorded run. Page codes <span class="code">LA-P-01</span> to <span class="code">LA-P-24</span>.</td></tr>
+      <tr><th>3 · Agents (${AG.length})</th><td>One agent: its job and predefined steps, what a person does today, how the agent compares, what stays with the authorized user, and the only messages it may send and receive. Page codes <span class="code">LA-A-00</span> to <span class="code">LA-A-20</span>.</td></tr>
+      <tr><th>4 · Procedures (${T.length})</th><td>One situation, decided in advance, with the proof that the system handles it that way. Page codes <span class="code">LA-T-</span>agent<span class="code">-</span>number.</td></tr>
+    </tbody></table>
+    <p>Each page links up (zoom out) and down (zoom in): a procedure names its agent and its playbooks; a playbook lists its agents and procedures; an agent page lists its playbooks and procedures.</p>
     <p>Each situation was decided <b>in advance</b> and signed off by the authorized user, before the system ever met it. When it happens, the system does not improvise and does not have a good or bad day: the same situation is handled the same way for every client, every time. Where the right answer depends on judgment, the decision is that a person makes it, and the page says so.</p>
     <p>Each page is also <b>checked</b>. A test plays the situation through the real product, the way it would really arrive, and the page shows what the record says happened. The page describes what the system actually does, not what it was meant to do.</p>
 
@@ -445,7 +647,8 @@ function guideHtml() {
     <p class="rulebox" style="padding:10px 12px;background:var(--rule-2);border-radius:6px">${esc(ex.rule)}</p>
     <p>Every tuple belongs to one agent and is numbered within it. The tuple is kept word for word on each page under <b>Rule as signed</b>. The rest of the page explains it in plain language: in what situation, step by step, why, and with the proof.</p>
 
-    <h2><span class="n">5</span>How a page reads</h2>
+    <h2><span class="n">5</span>How a procedure page reads</h2>
+    <p>Playbook and agent pages follow the same pattern: a control table, then numbered sections, then the flowchart and proof where there is a recorded run.</p>
     <table class="control"><tbody>
       <tr><th>Title</th><td>The situation in plain words.</td></tr>
       <tr><th>Page code</th><td>For example <span class="code">LA-T-03-01 · Rev 2</span>. LA is ListingAssistants, T is tuple, 03 is the agent, 01 is the tuple's number for that agent. The revision goes up each time the page changes, so a printed page can always be matched to the current one.</td></tr>
@@ -508,11 +711,16 @@ function guideHtml() {
 let lastRoute = null;
 function render() {
   const app = document.getElementById("app");
-  document.getElementById("topsub").textContent = `${T.length} procedures · last checked ${DATA.evidence_date}`;
+  document.getElementById("topsub").textContent = `${PB.length} playbooks · ${AG.length} agents · ${T.length} procedures · last checked ${DATA.evidence_date}`;
   if (PRINT) { if (!app.dataset.done) { renderPrint(app); app.dataset.done = "1"; } return; }
   const h = location.hash.replace(/^#\/?/, "");
-  const route = h.startsWith("t/") ? h.slice(2) : h === "start" ? "start" : "";
-  if (route === "start") {
+  const route = h.startsWith("t/") ? h.slice(2) : h === "start" ? "start" : h === "whole" ? "W"
+    : h.startsWith("p/") ? h.slice(2) : h.startsWith("a/") ? "A" + h.slice(2) : "";
+  if (route === "W" || BYP[route] || /^A\d\d$/.test(route)) {
+    const note = document.getElementById("note");
+    if (route === lastRoute && note && document.activeElement === note) return;
+    renderPage(app, route);
+  } else if (route === "start") {
     app.innerHTML = `<div class="crumbs"><a href="#/">Table of Contents</a><span>›</span><span>How to read this manual</span></div>${guideHtml()}`;
   } else if (route) {
     const note = document.getElementById("note");

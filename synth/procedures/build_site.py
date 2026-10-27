@@ -10,6 +10,11 @@ Sources (nothing on a page is typed twice):
   synth/tuples/specs/*.jsonl       the tuples themselves, as tested
   synth/tuples/TUPLE_MAP.json      category (accepted 2026-10-21; its risk tiers are not shown, owner 2026-10-27)
   synth/procedures/pages/*.json    the plain-language procedure for each tuple
+  synth/procedures/agents.json     the agent pages (job, steps, today, the authorized user's part)
+  synth/procedures/playbook_pages.json  the playbook pages (predefined steps)
+  synth/procedures/overview.json   the whole picture (lifecycle stages)
+  synth/procedures/evidence_playbooks.json  each playbook's recorded run
+  identity/routes.json             what each agent receives and sends
   synth/procedures/evidence.json   what each tuple's own run put on the record
                                    (collect_evidence.py): the flowchart and proof
   identity/playbooks.json          playbook names
@@ -265,19 +270,93 @@ def build_data() -> dict:
             "result": e.get("result"), "result_why": (e.get("why") or "")[:600],
             "checks": [{"text": describe_check(c, names, phrase), "ok": c.get("ok"), "found": c.get("found")}
                        for c in e.get("checks", [])],
-            "flow": [{"from": m["from"], "to": m["to"], "intent": m["intent"],
-                      "words": words_for(m, phrase) + (f" (×{m['times']}, clients {m['clients']})" if m.get("times") else ""),
-                      "outcome": OUTCOME_WORDS.get(m.get("outcome"), m.get("outcome"))} for m in main[:40]],
+            "flow": _flow_words(main, phrase, 40),
             "flow_more": max(0, len(main) - 40), "routine": len(flow) - len(shown),
             "queues": e.get("queues", []),
             "playbooks": [{"id": p, "name": pbs.get(p, {}).get("name", p)} for p in e.get("playbooks", [])],
         })
+    agents = build_agents(tuples, pbs, names, phrase)
+    playbooks = build_playbooks(tuples, pbs, names, phrase)
     return {
         "built": datetime.date.today().isoformat(), "evidence_date": ev.get("ran_on"),
         "build_ref": build_ref(),
         "categories": tmap["_categories"], "names": names,
-        "tuples": tuples,
+        "tuples": tuples, "agents": agents, "playbooks": playbooks,
+        "overview": build_overview(pbs),
+        "routes_total": len(json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]),
     }
+
+
+def _flow_words(main: list, phrase: dict, limit: int) -> list:
+    return [{"from": m["from"], "to": m["to"], "intent": m["intent"],
+             "words": words_for(m, phrase) + (f" (×{m['times']}, clients {m['clients']})" if m.get("times") else ""),
+             "outcome": OUTCOME_WORDS.get(m.get("outcome"), m.get("outcome"))} for m in main[:limit]]
+
+
+def build_agents(tuples: list, pbs: dict, names: dict, phrase: dict) -> list:
+    """One page per agent (00-20): its job and steps from agents.json; what it
+    receives and sends, from the closed track; its playbooks and procedures,
+    computed."""
+    src = json.load(open(os.path.join(HERE, "agents.json"), encoding="utf-8"))["agents"]
+    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
+    word = lambda i: MANUAL_PHRASE.get(i) or phrase.get(i) or i.replace(".", " ")
+    out = []
+    for a in src:
+        aid = a["id"]
+        rin = [{"intent": r["intent"], "words": word(r["intent"]), "who": [x for x in r["senders"]]}
+               for r in routes if aid in r["receivers"]]
+        rout = [{"intent": r["intent"], "words": word(r["intent"]), "who": [x for x in r["receivers"]]}
+                for r in routes if aid in r["senders"]]
+        out.append({**a, "code": f"LA-A-{aid}", "rev": a.get("rev", 1),
+                    "receives": sorted(rin, key=lambda r: r["intent"]),
+                    "sends": sorted(rout, key=lambda r: r["intent"]),
+                    "playbooks": [{"id": k, "name": v["name"]} for k, v in pbs.items() if aid in v.get("agents", [])],
+                    "tuples": [t["id"] for t in tuples if t["agent"] == aid]})
+    return out
+
+
+def build_playbooks(tuples: list, pbs: dict, names: dict, phrase: dict) -> list:
+    """One page per playbook: its predefined steps (playbook_pages.json), its
+    recorded start-to-end run (evidence_playbooks.json, collect_evidence.py
+    --set playbooks) and the procedures whose runs passed through it."""
+    pages_path = os.path.join(HERE, "playbook_pages.json")
+    pages = {p["id"]: p for p in json.load(open(pages_path, encoding="utf-8"))} if os.path.isfile(pages_path) else {}
+    ev_path = os.path.join(HERE, "evidence_playbooks.json")
+    ev = json.load(open(ev_path, encoding="utf-8"))["tuples"] if os.path.isfile(ev_path) else {}
+    out = []
+    for pid, pb in pbs.items():
+        e = ev.get(pid, {})
+        flow = e.get("flow", [])
+        shown = chart_messages(flow, "")
+        main = fold_repeats(shown)
+        page = pages.get(pid)
+        out.append({
+            "id": pid, "code": f"LA-P-{pid[1:]}", "name": pb["name"], "rev": (page or {}).get("rev", 1),
+            "page": page, "agents": pb.get("agents", []),
+            "conflicts_with": pb.get("conflicts_with") or [],
+            "ratified": pb.get("ratified", ""),
+            "result": e.get("result"), "result_why": (e.get("why") or "")[:600],
+            "checks": [{"text": describe_check(c, names, phrase), "ok": c.get("ok"), "found": c.get("found")}
+                       for c in e.get("checks", [])],
+            "flow": _flow_words(main, phrase, 60), "flow_more": max(0, len(main) - 60),
+            "routine": len(flow) - len(shown),
+            "ended": e.get("ended", []), "after_action": e.get("after_action", []),
+            "tuples": [t["id"] for t in tuples if any(b["id"] == pid for b in t["playbooks"])],
+        })
+    return out
+
+
+def build_overview(pbs: dict) -> dict:
+    ov = json.load(open(os.path.join(HERE, "overview.json"), encoding="utf-8"))
+    for st in ov["stages"]:
+        seen = []
+        for pid in st["playbooks"]:
+            for a in pbs[pid].get("agents", []):
+                if a not in seen and a != "00":
+                    seen.append(a)
+        st["agents"] = sorted(seen)
+    ov.pop("_what", None)
+    return ov
 
 
 def main(argv=None) -> int:
