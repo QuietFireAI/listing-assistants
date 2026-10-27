@@ -1,0 +1,181 @@
+[
+ {
+  "id": "13-01",
+  "rev": 1,
+  "title": "A buyer's feedback contradicts their stated criteria",
+  "when": "A buyer says something that goes against the criteria on file (for example \"forget the 3 bedrooms, a big yard matters more\").",
+  "steps": [
+   "Agent 11 passes the reply to Agent 13 (Buyer Search & Match), labeled as a possible change.",
+   "Agent 13 asks the buyer, through Agent 11, to confirm the change.",
+   "Until the buyer confirms, the criteria stay as stated."
+  ],
+  "never": [
+   "Rewrite a buyer's criteria on an offhand remark."
+  ],
+  "why": "A casual comment is not a decision. Changing the search without confirming could hide homes the buyer still wants.",
+  "you_see": "A confirmation request sent to the buyer; the criteria unchanged.",
+  "test": "A buyer with criteria of $500,000 and 3 bedrooms writes \"Honestly forget the 3 bedrooms, a big yard matters more\"."
+ },
+ {
+  "id": "13-02",
+  "rev": 1,
+  "title": "A buyer criterion stands in for a protected class",
+  "when": "A buyer's criteria include something that tracks a protected class (for example a school rating).",
+  "steps": [
+   "Agent 13 refuses that criterion and keeps the others.",
+   "It raises a legal-line alert for you with the criterion word for word."
+  ],
+  "never": [
+   "Search or match on a criterion that stands in for a protected class."
+  ],
+  "why": "Matching on school ratings or similar can steer buyers by race or family status, which fair housing law forbids.",
+  "you_see": "A legal-line alert quoting the criterion.",
+  "test": "A buyer's criteria include \"school rating 9 or higher\" and 3 bedrooms."
+ },
+ {
+  "id": "13-03",
+  "rev": 1,
+  "title": "A listing is missing information on a must-have criterion",
+  "when": "A listing could match, but it says nothing about one of the buyer's must-haves (for example a pool).",
+  "steps": [
+   "Agent 13 holds the match; it is not sent to the buyer.",
+   "It asks you, naming the missing must-have."
+  ],
+  "never": [
+   "Present a listing as a match when a must-have is unknown."
+  ],
+  "why": "Sending a buyer a home that may lack a must-have wastes their time and your credibility.",
+  "you_see": "A question naming the must-have the listing does not state.",
+  "test": "A buyer requires a pool; a new listing that matches on budget and bedrooms says nothing about a pool."
+ },
+ {
+  "id": "13-04",
+  "rev": 1,
+  "title": "A buyer asks \"is this a good price?\"",
+  "when": "A buyer asks whether a price is good.",
+  "steps": [
+   "Agent 13 does not answer.",
+   "It raises a legal-line alert for you with the question."
+  ],
+  "never": [
+   "Give an opinion on price."
+  ],
+  "why": "Price opinions are licensed advice and part of your duty to the buyer.",
+  "you_see": "A legal-line alert quoting the question.",
+  "test": "A buyer writes \"Is this a good price for the place on Elm?\"."
+ },
+ {
+  "id": "13-05",
+  "rev": 1,
+  "title": "Many matches come in on one day",
+  "when": "More listings match a buyer in one day than the daily limit (5 in your settings).",
+  "steps": [
+   "Agent 13 sends up to the daily limit as individual matches.",
+   "The rest go into a digest that the daily run sends.",
+   "Matches are ranked only by how well they fit the buyer's stated criteria."
+  ],
+  "never": [
+   "Rank by guessed preferences, or flood the buyer past the limit."
+  ],
+  "why": "Inferred preferences can carry bias and do not belong to the buyer. Stated criteria and a daily limit respect them.",
+  "you_see": "Five match messages and one digest.",
+  "test": "Six matching listings go live in one day. Five match messages go out; the sixth is in the evening digest; all six are recorded as delivered."
+ },
+ {
+  "id": "13-06",
+  "rev": 1,
+  "title": "A buyer's criteria conflict with each other",
+  "when": "A listing meets some of a buyer's criteria but breaks another (for example the right area, over the budget).",
+  "steps": [
+   "Agent 13 does not send it as a match.",
+   "It asks you, showing the conflict with the numbers."
+  ],
+  "never": [
+   "Quietly relax a criterion to make a match."
+  ],
+  "why": "Whether the buyer would stretch the budget for the area is their choice, made with you.",
+  "you_see": "A question saying the listing exceeds the stated budget, with both figures.",
+  "test": "A buyer wants Northside under $400,000; a Northside listing at $450,000 goes live."
+ },
+ {
+  "id": "13-07",
+  "rev": 1,
+  "title": "A match is on a colleague's listing",
+  "when": "A listing that matches the buyer is listed by someone in your own office.",
+  "steps": [
+   "Agent 13 does not send the match.",
+   "It raises a legal-line alert for you: disclosure rules apply before any showing."
+  ],
+  "never": [
+   "Move toward a showing before the disclosure is handled."
+  ],
+  "why": "In-house deals bring dual agency or disclosure duties that must be handled before anything else.",
+  "you_see": "A legal-line alert naming the colleague's listing.",
+  "test": "A matching listing marked as a colleague's listing goes live."
+ },
+ {
+  "id": "13-08",
+  "rev": 1,
+  "title": "A buyer asks what the seller would accept",
+  "when": "A buyer asks what the seller will take.",
+  "steps": [
+   "Agent 13 refuses.",
+   "It raises a legal-line alert for you with the question."
+  ],
+  "never": [
+   "Share anything about the other party's position."
+  ],
+  "why": "The other side's information is never shared; revealing it can breach duties to the seller.",
+  "you_see": "A legal-line alert quoting the question.",
+  "test": "A buyer writes \"What would the seller take on the Elm Street house?\"."
+ },
+ {
+  "id": "13-09",
+  "rev": 1,
+  "title": "A matching listing has suspect data",
+  "when": "A listing that matches has data that looks wrong (for example two different square footages).",
+  "steps": [
+   "Agent 13 holds it; it is not sent to the buyer.",
+   "It asks you, naming the anomaly."
+  ],
+  "never": [
+   "Present suspect data as available inventory."
+  ],
+  "why": "A buyer who falls for a home on bad data is disappointed and may have a claim.",
+  "you_see": "A question naming the data anomaly.",
+  "test": "A matching listing says 1,800 sq ft on the sheet and 2,400 on the tax record."
+ },
+ {
+  "id": "13-10",
+  "rev": 1,
+  "title": "A buyer's pre-approval expires during the search",
+  "when": "A buyer's pre-approval expires while they are searching.",
+  "steps": [
+   "Agent 13 tells the buyer once that the pre-approval has expired.",
+   "It marks the buyer's financing as unverified.",
+   "Matches keep coming, each flagged as unverified financing."
+  ],
+  "never": [
+   "Stop the search, or present the buyer as financed when they are not."
+  ],
+  "why": "The buyer still needs homes to look at, but sellers and you need to know the financing is not current.",
+  "you_see": "One expiry notice sent; later matches flagged unverified financing.",
+  "test": "A buyer's pre-approval is marked expired; then a matching listing goes live."
+ },
+ {
+  "id": "13-11",
+  "rev": 1,
+  "title": "Compliance does not approve a buyer criterion",
+  "when": "A buyer criterion that may be a fair housing problem is sent to Compliance and is not approved.",
+  "steps": [
+   "Agent 13 does not use those criteria for matching.",
+   "It tells you which criteria were not approved and why."
+  ],
+  "never": [
+   "Match on a criterion Compliance did not approve."
+  ],
+  "why": "A criterion like \"no kids\" is familial-status discrimination. It cannot shape a search.",
+  "you_see": "A question naming the criteria Compliance did not approve.",
+  "test": "A buyer's criteria include household \"no kids\"; Compliance flags it."
+ }
+]

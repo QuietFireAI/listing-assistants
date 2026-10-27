@@ -1,0 +1,102 @@
+[
+ {"id": "18-01", "rev": 1,
+  "title": "Two calendar events clash and the priority rules cannot settle it",
+  "when": "Two events land at the same time and neither outranks the other (for example two showings of two listings at 2 pm).",
+  "steps": [
+   "Agent 18 (Calendar & Task Management) keeps the first event on the calendar.",
+   "It does not put the second one on; it asks you to decide.",
+   "It never moves either event on its own."
+  ],
+  "never": ["Silently move or drop either event."],
+  "why": "Which appointment gives way is a judgment about clients and relationships. That is yours.",
+  "you_see": "A question about the conflict at that time.",
+  "test": "Buyer B1 asks to see listing L1 at 2 pm on October 20; buyer B2 asks to see L2 at the same time. Open finding: Agent 06 (Showing Scheduler) still sends B2 a showing confirmation, because it never hears the calendar's answer. The buyer is told \"confirmed\" while you are asked to decide."},
+ {"id": "18-02", "rev": 1,
+  "title": "A briefing item has no source on record",
+  "when": "Something in the morning briefing points to a message that is not on the record.",
+  "steps": [
+   "The briefing lists it as a gap, naming the missing source.",
+   "Items that rest on real messages are not listed as gaps."
+  ],
+  "never": ["Present an item whose source is missing as if it were sound."],
+  "why": "A briefing item with no record behind it cannot be checked. Saying so keeps the briefing honest.",
+  "you_see": "A gap listed in the briefing.",
+  "test": "The test plants a waiting item (an inspection report) whose source message is not on the record, then asks for the briefing."},
+ {"id": "18-03", "rev": 1,
+  "title": "Your instruction conflicts with a contract deadline",
+  "when": "You ask for something to be scheduled at a time that conflicts with a contract deadline (for example a final walkthrough after closing).",
+  "steps": [
+   "Agent 18 holds it and shows you both: your instruction and the deadline.",
+   "Nothing is scheduled until you decide. Continue goes ahead; cancel drops the instruction.",
+   "An instruction with no conflict goes straight on the calendar."
+  ],
+  "never": ["Act on either the instruction or the deadline before you decide."],
+  "why": "A walkthrough after closing is likely a mistake; the system asks rather than guessing which date you meant.",
+  "you_see": "A held instruction showing the conflict, asking you to continue or cancel.",
+  "test": "Closing is October 22. You ask for the final walkthrough on October 25: held; you cancel and it is dropped. On another transaction a walkthrough before closing goes on the calendar."},
+ {"id": "18-04", "rev": 1,
+  "title": "An agent asks to move a protected deadline block",
+  "when": "An agent asks to move a calendar block that protects a contract deadline.",
+  "steps": [
+   "Agent 18 refuses.",
+   "Only you can move it; it tells you the request was refused."
+  ],
+  "never": ["Move a deadline block at an agent's request."],
+  "why": "Deadline blocks protect contract dates. Only your confirmation moves them.",
+  "you_see": "A question saying the request to move the protected block was refused.",
+  "test": "A closing deadline is on the calendar. You relay, as a signed setting, a request from Agent 06 to move it (agents have no route to ask this themselves)."},
+ {"id": "18-05", "rev": 1,
+  "title": "A day is overbooked",
+  "when": "A day has more events than the daily limit (8 in your settings).",
+  "steps": [
+   "Agent 18 proposes an order of priority for the day.",
+   "You confirm the order."
+  ],
+  "never": ["Reorder or drop events on its own."],
+  "why": "When everything cannot happen, you decide what comes first.",
+  "you_see": "A question saying the day is at capacity, with a proposed order.",
+  "test": "Nine showings are requested on one day; nine calendar requests reach Agent 18 and you are asked about the ninth. Open finding: the ninth buyer is still sent a showing confirmation by Agent 06."},
+ {"id": "18-06", "rev": 1,
+  "title": "Two sources give different dates for the same deadline",
+  "when": "The transaction timeline and a document disagree on a deadline date.",
+  "steps": [
+   "Agent 18 tracks both dates.",
+   "It tells you about the conflict, naming both sources.",
+   "The morning briefing lists the conflict."
+  ],
+  "never": ["Pick the more convenient date."],
+  "why": "Choosing the later date can make a deadline pass unnoticed. Both stay visible until you settle it.",
+  "you_see": "A question about the conflicting dates; the conflict in the briefing.",
+  "test": "The timeline says the inspection is due October 25; the inspection report says October 22."},
+ {"id": "18-07", "rev": 1,
+  "title": "Your calendar clashes with a contract deadline",
+  "when": "A soft item on your calendar (for example a showing) falls on the day of a contract deadline.",
+  "steps": [
+   "The deadline outranks the soft item.",
+   "Agent 18 proposes moving the soft item and asks you."
+  ],
+  "never": ["Move the deadline to fit the calendar."],
+  "why": "Showings can move; closing dates cannot.",
+  "you_see": "A question naming the deadline and the soft items that clash with it.",
+  "test": "A showing at 10:00 on October 20; closing is also October 20."},
+ {"id": "18-08", "rev": 1,
+  "title": "A recurring task quietly stops happening",
+  "when": "A task that should repeat shows no completions.",
+  "steps": [
+   "Agent 18 reports the pattern to you."
+  ],
+  "never": ["Treat a quiet calendar as a sign that all is well."],
+  "why": "A task that silently stopped is a problem nobody sees until it is too late.",
+  "you_see": "A report about the silent task.",
+  "test": ""},
+ {"id": "18-09", "rev": 1,
+  "title": "It is unclear which time zone a party is in",
+  "when": "Someone involved may be in a different time zone and it has not been confirmed.",
+  "steps": [
+   "Agent 18 confirms the time zone before scheduling."
+  ],
+  "never": ["Assume a time zone."],
+  "why": "A closing scheduled in the wrong time zone can miss its window.",
+  "you_see": "A question confirming the time zone.",
+  "test": ""}
+]

@@ -57,7 +57,9 @@ def _template(e):
     message, which vendor order): the flowchart shows it in plain words."""
     p = e.get("payload")
     t = p.get("template") if isinstance(p, dict) else None
-    return t if isinstance(t, str) and not t.startswith("__") else None
+    if t == "__p14_complaint_hold__":
+        return "complaint_hold"
+    return t if isinstance(t, str) and not t.startswith("__") and "." not in t else None
 
 
 def flow(part):
@@ -130,6 +132,13 @@ def flow(part):
             m = by_id[e["envelope_id"]]
             if m["outcome"] is None:
                 m["outcome"] = OUTCOME_KINDS[k]
+        elif k == "reject" and not e.get("from_agent"):
+            # a refused message is never recorded as sent; the refusal names
+            # the route ("tuple illegal: 06 -> record.request -> 14")
+            mt = re.search(r"(\w+) -> ([\w.]+) -> (\w+)", str(e.get("reason", "")))
+            if mt:
+                msgs.append({"from": mt.group(1), "to": mt.group(3), "intent": mt.group(2),
+                             "client": e.get("client_context_id"), "outcome": "refused"})
         elif k in ("reject", "hold.clarification") and e.get("from_agent"):
             msgs.append({"from": e.get("from_agent"), "to": e.get("to_agent"), "intent": e.get("intent"),
                          "client": e.get("client_context_id"), "outcome": OUTCOME_KINDS[k]})

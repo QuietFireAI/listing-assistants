@@ -1,0 +1,113 @@
+[
+ {"id": "16-01", "rev": 1,
+  "title": "Something hard has happened in a past client's life",
+  "when": "A past client's record shows an adverse life event (for example a death or a divorce).",
+  "steps": [
+   "Agent 16 (After-Close & Referral) holds the scheduled check-in.",
+   "It records that the touch was blocked and why. Whether and when to reach out is your decision."
+  ],
+  "never": ["Send a cheerful scheduled message into someone's hard time."],
+  "why": "A routine \"how's the new house?\" after a death or divorce is hurtful and damages the relationship.",
+  "you_see": "The blocked check-in in the client's history.",
+  "test": "A closed client is on your client list; an adverse event is marked; the 30-day check-in date arrives. Nothing is sent."},
+ {"id": "16-02", "rev": 1,
+  "title": "A past client opts out between touches",
+  "when": "A past client opts out while their follow-up schedule is running.",
+  "steps": [
+   "Agent 16 stops every remaining touch for that client the same day.",
+   "Each blocked touch is recorded."
+  ],
+  "never": ["Send any later touch after an opt-out."],
+  "why": "An opt-out must be honored at once and everywhere.",
+  "you_see": "The blocked touches in the client's history.",
+  "test": "The 30-day check-in goes out; the client then opts out. The 90-day check-in and a later review request are both blocked."},
+ {"id": "16-03", "rev": 1,
+  "title": "A past client mentions new business",
+  "when": "A past client says they may buy or sell again.",
+  "steps": [
+   "Agent 16 hands it over as a new lead to Agent 02 (Lead Qualification), marked as a past-client signal.",
+   "It records that it routed the signal.",
+   "It never negotiates or discusses terms."
+  ],
+  "never": ["Negotiate or quote terms with the past client."],
+  "why": "A new deal is new business for you, with its own agreement. The system's job is to make sure you know.",
+  "you_see": "A new lead from the past client.",
+  "test": "A past client writes \"We're thinking of selling next spring, can we talk?\". (The new lead goes to Agent 02 directly, without Agent 01's consent and duplicate checks: listed as a finding in the test file.)"},
+ {"id": "16-04", "rev": 1,
+  "title": "A greeting is due for someone not on your client list",
+  "when": "A date (for example a birthday) comes up for someone who is not on the client list you supplied.",
+  "steps": [
+   "Agent 16 sends nothing.",
+   "It tells you the person is not on the supplied list."
+  ],
+  "never": ["Send a greeting to someone not on your list."],
+  "why": "Your list says who you keep in touch with. Anyone else gets nothing unless you add them.",
+  "you_see": "A question saying the person is not on the supplied list.",
+  "test": "A contact with a birthday on file and email consent, but not on your client list; the daily clock runs on the birthday."},
+ {"id": "16-05", "rev": 1,
+  "title": "A referral gift or incentive comes up",
+  "when": "A past client asks about a gift or reward for sending someone your way.",
+  "steps": [
+   "Agent 16 raises a legal-line alert for you with the message."
+  ],
+  "never": ["Offer or promise a referral gift."],
+  "why": "Referral rewards are restricted by license law and, for settlement services, by RESPA.",
+  "you_see": "A legal-line alert quoting the message.",
+  "test": "A past client writes \"If I send my sister your way, do I get a gift card?\"."},
+ {"id": "16-06", "rev": 1,
+  "title": "An anniversary greeting would land during a hard time",
+  "when": "A purchase anniversary comes up for a client with a known adverse event on record.",
+  "steps": [
+   "Agent 16 suppresses the greeting and records why.",
+   "Whether to reach out is your decision."
+  ],
+  "never": ["Send an anniversary greeting into a known hard time."],
+  "why": "A celebration message at the wrong moment can hurt more than silence.",
+  "you_see": "The suppressed greeting in the client's history.",
+  "test": "A closed client's purchase anniversary arrives a year later; an adverse event is on record."},
+ {"id": "16-07", "rev": 1,
+  "title": "A past client asks about a new purchase",
+  "when": "A past client asks about a new transaction.",
+  "steps": [
+   "Agent 16 opens a new client record for the new deal and routes it as a new lead.",
+   "The old transaction stays closed; the new record notes where it came from."
+  ],
+  "never": ["Reopen the old transaction for new business."],
+  "why": "Each deal has its own record, consent and timeline. Mixing them muddles both.",
+  "you_see": "A new lead linked to the original client.",
+  "test": "A past client writes \"We're looking to buy again, a rental this time. Can you help?\"."},
+ {"id": "16-08", "rev": 1,
+  "title": "A referral reward is mentioned",
+  "when": "A past client's message mentions a referral reward (for example a referral fee).",
+  "steps": [
+   "Agent 16 sends the client's words to Compliance (Agent 17) first.",
+   "Nothing about a reward goes to the client before that."
+  ],
+  "never": ["Answer a reward question before Compliance has looked."],
+  "why": "Inducement rules differ by state. Compliance checks before anyone replies.",
+  "you_see": "The message under review.",
+  "test": "A past client writes \"Is there a referral fee if my friend lists with you?\"."},
+ {"id": "16-09", "rev": 1,
+  "title": "A past client's contact details stop working",
+  "when": "Messages to a past client bounce or their number is disconnected.",
+  "steps": [
+   "Agent 16 marks the contact stale and stops touches.",
+   "It does not search for new contact details.",
+   "Asking them again for permission is your choice."
+  ],
+  "never": ["Hunt down new contact details (skip-tracing)."],
+  "why": "Tracking people down without permission is intrusive and can break privacy rules.",
+  "you_see": "The blocked touch in the client's history, marked stale contact.",
+  "test": "A closed client's contact bounces; the 30-day check-in date arrives. Nothing is sent."},
+ {"id": "16-10", "rev": 1,
+  "title": "Compliance has reviewed a referral reward message",
+  "when": "Compliance returns its verdict on a past client's message about a referral reward.",
+  "steps": [
+   "Agent 16 sends the verdict to you with the client's own words.",
+   "Nothing is sent to the client: the reply is yours."
+  ],
+  "never": ["Reply to the client about a reward."],
+  "why": "Whatever the verdict, how to answer a reward question is a judgment for you.",
+  "you_see": "A question with Compliance's verdict and the client's words.",
+  "test": "A past client asks \"Is there a referral fee if my friend lists with you?\"; Compliance reviews it."}
+]

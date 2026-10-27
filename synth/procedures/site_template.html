@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tuple Procedures</title>
+<title>Operating Procedures</title>
 <style>
 :root {
   --paper: #fbfaf7; --sheet: #ffffff; --ink: #1d2433; --ink-2: #4a5468; --ink-3: #7a8396;
@@ -127,7 +127,7 @@ pre.cmd { font-family: var(--mono); font-size: 12.5px; background: var(--rule-2)
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="brand" href="#/">ListingAssistants · Tuple procedures</a>
+  <a class="brand" href="#/">ListingAssistants · Operating Procedures</a>
   <span class="sub" id="topsub"></span>
   <span class="spacer"></span>
   <span class="sub" id="who"></span>
@@ -144,7 +144,7 @@ const STATUS_WORDS = {
 const RESULT_WORDS = {
   "PASS": ["Verified", "ok"], "VARIANCE": ["Open item", "warn"],
   "ERROR": ["The test run failed", "bad"], "NOT BUILT": ["Not built yet", ""],
-  "NOT REACHABLE": ["Built, but nothing outside can start it yet", ""], "RETIRED": ["Retired", ""]
+  "NOT REACHABLE": ["No way in yet", ""], "RETIRED": ["Retired", ""]
 };
 const LANE_SHORT = { external: "Outside", human: "You", queue: "Your queue", clock: "Clock" };
 
@@ -273,8 +273,9 @@ function renderIndex(app) {
   const agents = [...new Set(T.map(t => t.agent))];
   const opt = (v, l, cur) => `<option value="${esc(v)}"${cur === v ? " selected" : ""}>${esc(l)}</option>`;
   app.innerHTML = `
-    <h1>Tuple procedures</h1>
-    <p class="intro">One controlled page per tuple: the situation, what the system does step by step, what it must never do, why, what you see, a flowchart of the recorded run, and the proof. ${inForce} tuples are in force and ${T.length - inForce} are retired. Evidence recorded ${esc(DATA.evidence_date)}; site built ${esc(DATA.built)}.</p>
+    <h1>Operating Procedures</h1>
+    <p class="intro">Every situation the ListingAssistants agents are prepared for, decided in advance and handled the same way for every client. One controlled page per decision (a "tuple"), with the steps, the limits, a flowchart of the recorded run, and the proof. ${inForce} are in force and ${T.length - inForce} are retired. Last checked ${esc(DATA.evidence_date)}.</p>
+    <a class="row" href="#/start" style="border:1px solid var(--accent);border-radius:10px;margin:0 0 14px;background:var(--accent-soft)"><span class="code">Start here</span><span class="t"><b>How to read this document</b><span class="rule">What a tuple is, how each page reads, the status words, the flowchart, who's who</span></span><span class="tags"></span></a>
     <div class="stats">
       <span class="chip acc">${written} of ${T.length} pages written</span>
       <span class="chip ok">${count("PASS")} verified</span>
@@ -371,20 +372,127 @@ function renderDoc(app, id) {
 function renderPrint(app) {
   const only = (location.search.match(/[?&]agent=([^&]+)/) || [])[1];
   const shown = T.filter(t => (t.page || t.status !== "RETIRED") && (!only || t.agent === only));
-  app.innerHTML = `<section class="cover"><h1>ListingAssistants · Tuple procedures</h1>
+  app.innerHTML = `<section class="cover"><h1>ListingAssistants<br>Operating Procedures</h1>
     <p>${T.filter(t => t.page).length} of ${T.length} procedure pages written · evidence recorded ${esc(DATA.evidence_date)} · built ${esc(DATA.built)}</p>
     <p class="muted">Each page is controlled by its document code and revision. The website copy carries the review marks; this binder is a printout of the same pages.</p></section>
-    <section class="toc" style="break-after:page"><h1>Contents</h1><div class="rows">${shown.map(rowHtml).join("")}</div></section>
+    ${only ? "" : guideHtml()}
+    <section class="toc" style="break-before:page;break-after:page"><h1>Contents</h1><div class="rows">${shown.map(rowHtml).join("")}</div></section>
     ${shown.map(t => docHtml(t, false)).join("")}`;
 }
+/* ---------- How to read this document (onboarding; on the site and at the front of the PDF) ---------- */
+const ROLES = {
+  "00": "The dispatcher. Every message between agents passes through it; it checks each one against the track and the signatures before delivering it.",
+  "01": "Takes in new inquiries (calls, forms, texts) and records who reached out and what they said.",
+  "02": "Scores new leads on your signed rubric and decides which go to you now and which go to follow-up.",
+  "03": "Runs the follow-up sequences you signed for leads that are not ready yet, and re-scores them on a schedule.",
+  "04": "Drafts listing descriptions from verified facts only; every draft goes to Compliance.",
+  "05": "Keeps the MLS record: data entry and status changes; orders photography for new listings.",
+  "06": "Schedules showings and asks for feedback afterwards.",
+  "07": "Tracks every contract deadline from offer to closing.",
+  "08": "Requests, receives, checks and files transaction documents.",
+  "09": "Books approved vendors (photographers, inspectors and others) and checks their work comes back with proof.",
+  "10": "Assembles market data with its sources. Never gives an opinion on price.",
+  "11": "The single voice to clients for routine updates; routes client replies to the right agent or to you.",
+  "12": "Publishes approved marketing, after Compliance and your release.",
+  "13": "Matches new listings to buyers' stated criteria.",
+  "14": "The system of record: every client's history, consent and documents.",
+  "15": "Tracks commissions, expenses and reports. Money questions go to you.",
+  "16": "Keeps in touch with past clients after closing, from the list you supply.",
+  "17": "Compliance and fair housing. Reviews every piece of outgoing text against your signed rules. It only checks; it never writes.",
+  "18": "Your calendar, task list, morning briefing and end-of-day summary.",
+  "19": "Finds possible prospects in public records. Never contacts anyone.",
+  "20": "Watches the social channels you name and routes what it finds. Never replies in public."
+};
+function guideHtml() {
+  const ex = BY["03-01"] || T[0];
+  const cats = Object.entries(DATA.categories).map(([k, v]) => {
+    const [name, ...rest] = v.split(" - ");
+    return `<tr><th>${esc(k)}</th><td><b>${esc(name)}</b>${rest.length ? ". " + esc(rest.join(" - ").replace(/^./, c => c.toUpperCase())) + "." : ""}</td></tr>`;
+  }).join("");
+  const roles = Object.entries(ROLES).map(([k, v]) => `<tr><th>${k === "00" ? "Agent 00" : "Agent " + esc(k)}</th><td><b>${esc(DATA.names[k] || "")}</b>. ${esc(v)}</td></tr>`).join("");
+  return `<article class="doc guide" id="guide">
+    <div class="doctitle"><h1>How to read this document</h1><div class="codeline">Start here</div></div>
+
+    <h2><span class="n">1</span>What this document is</h2>
+    <p>ListingAssistants is a team of twenty software agents, each with one job, and a dispatcher between them. This document is every situation those agents are prepared for, and what they do in it, written down one page at a time.</p>
+    <p>Each of these situations was decided <b>in advance</b> and signed off by you, before the system ever met it. When it happens, the system does not improvise and does not have a good or bad day: the same situation is handled the same way for every client, every time. Where the right answer depends on judgment, the decision is that a person makes it, and the page says so.</p>
+    <p>Each page is also <b>checked</b>. A test plays the situation through the real product, the way it would really arrive, and the page shows what the record says happened. The page describes what the system actually does, not what it was meant to do.</p>
+
+    <h2><span class="n">2</span>What a "tuple" is</h2>
+    <p>Each decision was first written in a short, fixed form called a <b>tuple</b>. In mathematics and programming a tuple is a small group of values that always travel together, in a set order. Here the group is always the same three things:</p>
+    <ol class="steps"><li><b>The situation</b>: what has happened.</li><li><b>What to do</b>: the response, decided ahead of time.</li><li><b>The limit</b>: what must never happen, whatever the pressure.</li></ol>
+    <p>For example, the tuple behind <a href="#/t/${esc(ex.id)}">${esc(ex.code)}</a> reads:</p>
+    <p class="rulebox" style="padding:10px 12px;background:var(--rule-2);border-radius:6px">${esc(ex.rule)}</p>
+    <p>Every tuple belongs to one agent and is numbered within it. The tuple is kept word for word on each page under <b>Rule as signed</b>. The rest of the page explains it in plain language: in what situation, step by step, why, and with the proof.</p>
+
+    <h2><span class="n">3</span>How a page reads</h2>
+    <table class="control"><tbody>
+      <tr><th>Title</th><td>The situation in plain words.</td></tr>
+      <tr><th>Document code</th><td>For example <span class="code">LA-T-03-01 · Rev 1</span>. LA is ListingAssistants, T is tuple, 03 is the agent, 01 is the tuple's number for that agent. The revision goes up each time the page changes, so a printed page can always be matched to the current one.</td></tr>
+      <tr><th>Carried out by</th><td>The agent that acts in this situation. The steps say when it hands work to another agent or to you.</td></tr>
+      <tr><th>Category</th><td>What kind of risk the rule guards against (the seven categories are listed below).</td></tr>
+      <tr><th>Status</th><td>Whether the rule is in force, and the result of its last check (the words are explained below).</td></tr>
+      <tr><th>Last checked</th><td>The date the test was last run and its record compared to the page.</td></tr>
+      <tr><th>Rule as signed</th><td>The tuple, word for word.</td></tr>
+    </tbody></table>
+    <p>Then the sections, always in this order:</p>
+    <ol class="steps">
+      <li><b>When this applies</b>: the situation, in practice.</li>
+      <li><b>What happens</b>: the steps, in order.</li>
+      <li><b>Never</b>: the limit. These are the lines the system will not cross.</li>
+      <li><b>Why it matters</b>: the reason, in business terms.</li>
+      <li><b>What you see</b>: what reaches you, if anything.</li>
+      <li><b>Flowchart of the recorded run</b>: every message in the test, in order (see below).</li>
+      <li><b>Proof</b>: the test scenario, the result, each thing the record must show, and the command to run the test again.</li>
+      <li><b>Seen in playbooks</b>: which of the 24 playbooks (the larger workflows, such as a new listing) the test passed through. Each playbook has its own manual.</li>
+    </ol>
+
+    <h2><span class="n">4</span>The status words</h2>
+    <table class="control"><tbody>
+      <tr><th>In force</th><td>The rule applies today.</td></tr>
+      <tr><th><span class="chip ok">Verified</span></th><td>On the last check, the record showed everything this page says. The date of that check is on the page.</td></tr>
+      <tr><th><span class="chip warn">Open item</span></th><td>On the last check, the system did not yet do what the rule says. The page describes the rule and says plainly what happens instead. These stay on the open-items list until fixed.</td></tr>
+      <tr><th>Not built yet</th><td>The rule is decided, but the part of the system it needs does not exist yet (for example a connection to an outside portal).</td></tr>
+      <tr><th>No way in yet</th><td>The response is built, but nothing from outside can start this situation today. It is tested another way, named on the page.</td></tr>
+      <tr><th>Retired</th><td>You withdrew the rule. The page stays, with the date and the reason, so the history is complete.</td></tr>
+      <tr><th>Stand-in test</th><td>Nothing outside the system starts this case today, so the test sends one message as the agent that would. Everything after that message is the product's own behavior.</td></tr>
+    </tbody></table>
+
+    <h2><span class="n">5</span>The seven categories</h2>
+    <table class="control"><tbody>${cats}</tbody></table>
+
+    <h2><span class="n">6</span>Reading the flowchart</h2>
+    <p>Each column is a participant: <b>Outside</b> (clients, vendors, portals), the <b>Clock</b> (the daily run), the agents by number, <b>You</b>, and <b>Your queue</b> (questions and alerts waiting for you). The highlighted column is the agent that carries out the procedure.</p>
+    <p>Each arrow is one message, numbered in the order it happened in the test. Grey arrows were delivered. <b>Amber</b> arrows were held for your signed release, sent only after you released them, or refused; alerts and questions raised for you are amber too, and the tag on the arrow says which.</p>
+    <p>The chart leaves out background traffic (record keeping, status updates, the morning briefing, the clock waking agents with no part in the case) and says how many messages it left out. It never adds anything that is not on the record.</p>
+
+    <h2><span class="n">7</span>Words used throughout</h2>
+    <table class="control"><tbody>
+      <tr><th>You</th><td>The broker: the licensed person the system works for.</td></tr>
+      <tr><th>Signed</th><td>Sent with your key. Anything that carries your authority (a price change, a release, a setting) must be signed, or it is refused.</td></tr>
+      <tr><th>Held</th><td>Prepared but not sent until you release it with your signature. Today this applies to messages to vendors and other outside parties and to published marketing. Routine updates to your own clients are sent by Agent 11 within the rules on these pages.</td></tr>
+      <tr><th>Legal line</th><td>The kind of question only a licensed person may answer (price opinions, contracts, fair housing, money and wire instructions). Anything on the legal line goes to you word for word, as an alert.</td></tr>
+      <tr><th>The track</th><td>The fixed list of which agent may send which kind of message to which other agent. A message off the track is never delivered.</td></tr>
+      <tr><th>The record</th><td>The tamper-evident log of everything that happened, in order. The pages' proof comes from it.</td></tr>
+      <tr><th>Client record and drawer</th><td>A client's history (kept by Agent 14) and their filed documents.</td></tr>
+      <tr><th>Daily run</th><td>The clock that wakes the agents once a day for scheduled work (follow-ups, deadline checks, reports).</td></tr>
+    </tbody></table>
+
+    <h2><span class="n">8</span>Who's who</h2>
+    <table class="control"><tbody>${roles}</tbody></table>
+  </article>`;
+}
+
 let lastRoute = null;
 function render() {
   const app = document.getElementById("app");
-  document.getElementById("topsub").textContent = `${T.length} tuples · evidence ${DATA.evidence_date}`;
+  document.getElementById("topsub").textContent = `${T.length} procedures · last checked ${DATA.evidence_date}`;
   if (PRINT) { if (!app.dataset.done) { renderPrint(app); app.dataset.done = "1"; } return; }
   const h = location.hash.replace(/^#\/?/, "");
-  const route = h.startsWith("t/") ? h.slice(2) : "";
-  if (route) {
+  const route = h.startsWith("t/") ? h.slice(2) : h === "start" ? "start" : "";
+  if (route === "start") {
+    app.innerHTML = `<div class="crumbs"><a href="#/">All procedures</a><span>›</span><span>How to read this document</span></div>${guideHtml()}`;
+  } else if (route) {
     const note = document.getElementById("note");
     if (route === lastRoute && note && document.activeElement === note) return;
     renderDoc(app, route);

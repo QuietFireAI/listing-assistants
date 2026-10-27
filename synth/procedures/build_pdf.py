@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""build_pdf - prints the tuple procedures site to one PDF binder.
+"""build_pdf - prints the Operating Procedures site (the tuple pages) to one PDF binder.
 
 The same HTML the website uses, opened with ?print=1 (every page in order,
 a cover and contents, no review buttons), printed by Chromium through
@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 FOOTER = ('<div style="font-size:8px;width:100%;padding:0 12mm;color:#555;display:flex;'
           'justify-content:space-between;font-family:Arial,sans-serif">'
-          '<span>ListingAssistants · Tuple procedures</span>'
+          '<span>ListingAssistants · Operating Procedures</span>'
           '<span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>')
 
 

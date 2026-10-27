@@ -44,7 +44,7 @@ KIND_WORDS = {
     "hold.queued": "an item waiting for you", "loop.suspended": "a repeating exchange stopped",
     "drawer.filed": "a record filed in the client's drawer", "config.unrecognized": "a setting nobody used",
     "sweep.error": "a daily check that failed", "decision.lead": "a lead scored",
-    "human.notified": "you were notified", "human.notify_failed": "a notice that did not reach you",
+    "human.notified": "a notice to you", "human.notify_failed": "a notice to you that failed to send",
     "integrity.violation": "a tampered or unsigned message refused",
     "playbook.waiting_released": "waiting playbook starts let in, in order",
     "harness.end": "the test's closing note on what the dispatcher did",
@@ -191,6 +191,8 @@ def words_for(m: dict, phrase: dict) -> str:
     if m["intent"] == "clock.tick":
         day = re.search(r"\d{4}-\d\d-\d\d", str(m.get("client") or ""))
         return "the daily clock runs" + (f" ({day.group(0)})" if day else "")
+    if m.get("template") == "complaint_hold":
+        return "holds every message to this client (complaint); sends nothing"
     words = phrase.get(m["intent"], m["intent"].replace(".", " "))
     if m.get("template"):
         words += f": {m['template'].replace('_', ' ')}"

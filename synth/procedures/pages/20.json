@@ -1,0 +1,66 @@
+[
+ {"id": "20-01", "rev": 1,
+  "title": "A social media mention is mixed or unclear in tone",
+  "when": "A mention of your office is mixed (praise and complaint together) or angry without a label.",
+  "steps": [
+   "Agent 20 (Social Media Monitoring) treats it as a complaint: the protective choice.",
+   "It raises a complaint alert for you with the words.",
+   "All scheduled messages to that person are held until you release them."
+  ],
+  "never": ["Treat a mixed mention as praise."],
+  "why": "Underreacting to a complaint costs more than overreacting to a mixed comment.",
+  "you_see": "A complaint alert quoting the mention.",
+  "test": "\"Great house but the agent never called me back.\" (labeled mixed) and \"Furious with how this listing was handled.\" (no label)."},
+ {"id": "20-02", "rev": 1,
+  "title": "A mention may be from a client, but that is not confirmed",
+  "when": "A mention might involve one of your clients, but nothing confirms who it is.",
+  "steps": [
+   "Agent 20 routes it to you as a complaint.",
+   "The alert says the identity is not confirmed and asserts nothing about who it is."
+  ],
+  "never": ["Name or confirm a client in connection with a public post."],
+  "why": "Confirming a client's identity in response to a public post breaks their confidentiality.",
+  "you_see": "A complaint alert saying the identity is not confirmed.",
+  "test": "\"Still waiting on my closing papers from these people.\", flagged as possibly a client."},
+ {"id": "20-03", "rev": 1,
+  "title": "A negative post is spreading fast",
+  "when": "A negative post about your office is going viral.",
+  "steps": [
+   "Agent 20 raises a complaint alert for you at viral priority.",
+   "It drafts no reply."
+  ],
+  "never": ["Draft or post a public reply."],
+  "why": "A public reply to a viral complaint is a reputation decision. Only you make it.",
+  "you_see": "A complaint alert marked viral.",
+  "test": "\"Worst brokerage in town, do not use them!\", flagged viral."},
+ {"id": "20-04", "rev": 1,
+  "title": "Someone praises your office",
+  "when": "A mention praises your office.",
+  "steps": [
+   "Agent 20 logs it.",
+   "It does not reply, like or engage."
+  ],
+  "never": ["Engage automatically, even with praise."],
+  "why": "Automatic engagement looks automated, and a reply can reveal a client relationship.",
+  "you_see": "The praise in the record.",
+  "test": "\"Loved working with this team!\""},
+ {"id": "20-05", "rev": 1,
+  "title": "Someone asks a question on social media",
+  "when": "Someone asks a question in a public post or a direct message.",
+  "steps": [
+   "Agent 20 passes it to Agent 01 (Lead Capture) as a possible lead, whether it came public or private.",
+   "The channel it came from is recorded with it."
+  ],
+  "never": ["Answer it in public."],
+  "why": "A question is a possible client. It goes through the same intake as any other inquiry.",
+  "you_see": "A new lead from social media, with its channel.",
+  "test": "\"Is the Elm Street house still available?\", once as a public post and once as a direct message."},
+ {"id": "20-06", "rev": 1,
+  "title": "Expanding social media handling",
+  "when": "Retired.",
+  "steps": [],
+  "never": [],
+  "why": "A note that you deferred expanding the social media agent to a later phase. It is not a rule, so there is nothing to run; the five rules above stand.",
+  "you_see": "",
+  "test": ""}
+]
