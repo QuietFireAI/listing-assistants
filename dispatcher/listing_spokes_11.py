@@ -358,6 +358,31 @@ class Spoke11ClientCommunication:
                                    {"kind": "complaint_hold_armed",
                                     "source": "20"}))
                 return
+            if env.intent == "client.message.request" and "template" not in payload:
+                # A request with no template is not a message to send: it is
+                # a client's own question that needs a person's answer (03's
+                # substantive drip reply, tuple 03-11: "a gated
+                # human-reviewed reply"). Fixed 2026-10-27 (found writing the
+                # tuple procedure pages): the template defaulted to the
+                # intent name and the client's own question went back out to
+                # the client with no person in between. Now nothing is sent;
+                # the broker gets the question to answer.
+                verbatim = payload.get("verbatim", "")
+                self.hub.ingest_spoke_trace(
+                    "11", env.envelope_id,
+                    thought=f"no template from {env.from_agent} for {ctx!r} - a question "
+                            f"for a person to answer; nothing sent to the client",
+                    result="held for the broker: reply needed")
+                self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                   {"reason": "reply needed: the client asked a question "
+                                              "that needs your answer; nothing was sent",
+                                    "from_agent": env.from_agent,
+                                    "why": payload.get("reason", ""),
+                                    "verbatim": verbatim}))
+                self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                   {"kind": "reply_needed_from_broker",
+                                    "verbatim": verbatim}))
+                return
             hour = payload.get("hour", 12)
             alert_class = payload.get("alert_class")
 

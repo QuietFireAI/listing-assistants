@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tuple Procedures</title>
+<style>
+:root {
+  --paper: #fbfaf7; --sheet: #ffffff; --ink: #1d2433; --ink-2: #4a5468; --ink-3: #7a8396;
+  --rule: #dcdfe6; --rule-2: #eceef2; --accent: #1f4e8c; --accent-soft: #e6eef9;
+  --ok: #1d7a46; --ok-soft: #e3f3ea; --warn: #9a5b00; --warn-soft: #fbefd9;
+  --bad: #a32a2a; --bad-soft: #f8e4e4; --mute: #6b7280; --mute-soft: #eef0f3;
+  --halo: #ffffff; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12151b; --sheet: #191d25; --ink: #e6e9ef; --ink-2: #b4bccb; --ink-3: #8a93a5;
+    --rule: #2c323e; --rule-2: #232833; --accent: #8db7f2; --accent-soft: #1d2b40;
+    --ok: #6fd39b; --ok-soft: #173326; --warn: #f0b45a; --warn-soft: #3a2a12;
+    --bad: #f08a8a; --bad-soft: #3d1c1c; --mute: #9aa3b2; --mute-soft: #252a34; --halo: #191d25;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12151b; --sheet: #191d25; --ink: #e6e9ef; --ink-2: #b4bccb; --ink-3: #8a93a5;
+  --rule: #2c323e; --rule-2: #232833; --accent: #8db7f2; --accent-soft: #1d2b40;
+  --ok: #6fd39b; --ok-soft: #173326; --warn: #f0b45a; --warn-soft: #3a2a12;
+  --bad: #f08a8a; --bad-soft: #3d1c1c; --mute: #9aa3b2; --mute-soft: #252a34; --halo: #191d25;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--sans); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+header.top { border-bottom: 1px solid var(--rule); background: var(--sheet); }
+header.top .wrap { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding-top: 14px; padding-bottom: 12px; }
+header.top .brand { font-weight: 650; letter-spacing: .01em; }
+header.top .sub { color: var(--ink-3); font-size: 13px; }
+header.top .spacer { flex: 1; }
+main { padding: 20px 0 64px; }
+h1 { font-size: 24px; line-height: 1.25; margin: 0 0 6px; font-weight: 650; text-wrap: balance; }
+h2 { font-size: 15px; margin: 28px 0 8px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+h2 .n { color: var(--ink-3); margin-right: 8px; font-variant-numeric: tabular-nums; }
+p { margin: 0 0 10px; }
+.muted { color: var(--ink-3); }
+.chip { display: inline-block; font-size: 12px; line-height: 1; padding: 4px 7px; border-radius: 999px; background: var(--mute-soft); color: var(--mute); white-space: nowrap; font-weight: 550; }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.acc { background: var(--accent-soft); color: var(--accent); }
+.code { font-family: var(--mono); font-size: 13px; }
+/* index */
+.intro { color: var(--ink-2); max-width: 70ch; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+.filters { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+.filters input, .filters select { width: 100%; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); color: var(--ink); }
+@media (max-width: 720px) { .filters { grid-template-columns: 1fr 1fr; } .filters input { grid-column: 1 / -1; } }
+.group { margin-bottom: 22px; }
+.group h3 { font-size: 14px; margin: 0 0 6px; color: var(--ink-2); font-weight: 650; }
+.rows { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.row { display: grid; grid-template-columns: 92px 1fr auto; gap: 4px 12px; padding: 10px 14px; border-top: 1px solid var(--rule-2); color: var(--ink); align-items: center; }
+.row:first-child { border-top: 0; }
+.row:hover { background: var(--accent-soft); text-decoration: none; }
+.row .t { min-width: 0; }
+.row .t .rule { display: block; color: var(--ink-3); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 600px) { .row { grid-template-columns: 1fr; } .row .tags { justify-content: flex-start; } }
+.pending { color: var(--ink-3); font-style: italic; }
+/* document */
+.crumbs { font-size: 13px; color: var(--ink-3); margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.doc { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 26px 28px 30px; }
+@media (max-width: 600px) { .doc { padding: 18px 16px 22px; } }
+.doctitle { margin-bottom: 16px; }
+.doctitle .codeline { color: var(--ink-3); font-size: 14px; margin-top: 2px; }
+table.control { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0 4px; }
+table.control th, table.control td { border: 1px solid var(--rule); padding: 7px 10px; text-align: left; vertical-align: top; }
+table.control th { background: var(--rule-2); color: var(--ink-2); font-weight: 600; width: 130px; white-space: nowrap; }
+@media (max-width: 600px) { table.control, table.control tbody, table.control tr, table.control th, table.control td { display: block; width: 100%; } table.control th { border-bottom: 0; } }
+.rulebox { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+ol.steps { padding-left: 22px; margin: 0; }
+ol.steps li { margin-bottom: 7px; padding-left: 4px; }
+ul.never { padding-left: 0; list-style: none; margin: 0; }
+ul.never li { padding: 8px 12px; border-left: 3px solid var(--bad); background: var(--bad-soft); border-radius: 0 6px 6px 0; margin-bottom: 6px; color: var(--ink); }
+.banner { padding: 12px 14px; border-radius: 8px; margin: 14px 0 0; font-size: 14px; }
+.banner.warn { background: var(--warn-soft); color: var(--ink); border-left: 3px solid var(--warn); }
+.banner.mute { background: var(--mute-soft); color: var(--ink); border-left: 3px solid var(--mute); }
+.banner.acc { background: var(--accent-soft); color: var(--ink); border-left: 3px solid var(--accent); }
+.chart { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); padding: 6px 0; }
+.chart svg { display: block; }
+@media (max-width: 700px) { .chart svg { max-width: none !important; } }
+.chart-note { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+ul.checks { list-style: none; padding: 0; margin: 0; }
+ul.checks li { display: grid; grid-template-columns: 22px 1fr; gap: 6px; padding: 6px 0; border-top: 1px solid var(--rule-2); font-size: 14px; }
+ul.checks li:first-child { border-top: 0; }
+ul.checks .mark-ok { color: var(--ok); font-weight: 700; }
+ul.checks .mark-bad { color: var(--bad); font-weight: 700; }
+pre.cmd { font-family: var(--mono); font-size: 12.5px; background: var(--rule-2); padding: 8px 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0 0; }
+.review { border-top: 1px solid var(--rule); margin-top: 26px; padding-top: 4px; }
+.review .btns { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.review button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); cursor: pointer; }
+.review button.on.approve { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.review button.on.change { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.review textarea { width: 100%; min-height: 70px; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); color: var(--ink); }
+.pager { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; font-size: 14px; }
+.pager a { max-width: 48%; }
+/* print / PDF */
+.print-only { display: none; }
+@media print {
+  body { background: #fff; color: #000; font-size: 11pt; }
+  header.top, .crumbs, .pager, .review, .filters, .noprint { display: none !important; }
+  .print-only { display: block; }
+  main { padding: 0; }
+  .wrap { max-width: none; padding: 0; }
+  .doc { border: 0; padding: 0; border-radius: 0; break-before: page; }
+  .chart { overflow: visible; border: 0; }
+  .chart svg { max-width: 100%; height: auto; }
+  h2 { break-after: avoid; }
+  ol.steps li, ul.checks li, ul.never li { break-inside: avoid; }
+  .cover { break-after: page; }
+  .toc .row { break-inside: avoid; }
+  a { color: inherit; }
+}
+.cover { padding-top: 30vh; }
+.cover h1 { font-size: 30px; }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#/">ListingAssistants · Tuple procedures</a>
+  <span class="sub" id="topsub"></span>
+  <span class="spacer"></span>
+  <span class="sub" id="who"></span>
+</div></header>
+<main><div class="wrap" id="app"></div></main>
+<script>
+const DATA = /*__DATA__*/null;
+const T = DATA.tuples;
+const BY = Object.fromEntries(T.map(t => [t.id, t]));
+const PRINT = /[?&]print=1/.test(location.search);
+const STATUS_WORDS = {
+  "IN FORCE": "In force", "NOT BUILT": "Not built yet", "NOT REACHABLE": "No way in yet", "RETIRED": "Retired"
+};
+const RESULT_WORDS = {
+  "PASS": ["Passes its test", "ok"], "VARIANCE": ["Fails its test: open item", "warn"],
+  "ERROR": ["The test run failed", "bad"], "NOT BUILT": ["Not built yet", ""],
+  "NOT REACHABLE": ["Built, but nothing outside can start it yet", ""], "RETIRED": ["Retired", ""]
+};
+const LANE_SHORT = { external: "Outside", human: "You", queue: "Your queue", clock: "Clock" };
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function el(html) { const d = document.createElement("div"); d.innerHTML = html; return d; }
+function title(t) { return t.page ? t.page.title : null; }
+function agentLabel(a) { return a === "SWARM" ? "The whole team" : `Agent ${a} · ${DATA.names[a] || a}`; }
+function catLabel(c) { return c ? `${c} · ${(DATA.categories[c] || "").split(" - ")[0]}` : "Not mapped"; }
+function tierLabel(n) { return n ? `Tier ${n}` : "No tier"; }
+function resultChip(t) {
+  const [w, cls] = RESULT_WORDS[t.result] || [t.result || "Not run", "bad"];
+  return `<span class="chip ${cls}">${esc(w)}</span>`;
+}
+
+/* ---------- review marks (db + user capabilities; absent in the PDF) ---------- */
+const marks = { db: null, uid: null, mine: {}, writing: Promise.resolve(), ok: false };
+async function startMarks() {
+  if (PRINT || !window.claude || !window.claude.use) return;
+  try {
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) return;
+    const uid = await user.id();
+    if (!uid) return;
+    marks.db = db; marks.uid = uid; marks.ok = true;
+    document.getElementById("who").textContent = "Your review marks are saved";
+    db.doc("marks/" + uid).onSnapshot(s => {
+      marks.mine = (s.exists && s.data().t) ? s.data().t : {};
+      render();
+    }, () => { marks.ok = false; render(); });
+  } catch (e) { marks.ok = false; }
+}
+function saveMark(id, mark, note) {
+  if (!marks.ok) return;
+  const rev = BY[id].rev;
+  const next = { ...marks.mine, [id]: { mark, note: note || "", rev, at: new Date().toISOString() } };
+  if (!mark) delete next[id];
+  marks.mine = next;
+  marks.writing = marks.writing.then(() => marks.db.doc("marks/" + marks.uid).set({ t: next }))
+    .catch(() => { document.getElementById("savestate") && (document.getElementById("savestate").textContent = "Could not save. Your mark is not stored."); });
+  render();
+}
+function markChip(id) {
+  const m = marks.mine[id];
+  if (!m) return "";
+  const stale = m.rev !== BY[id].rev ? " (earlier revision)" : "";
+  return m.mark === "approve" ? `<span class="chip ok">Approved${stale}</span>` : `<span class="chip warn">Needs change${stale}</span>`;
+}
+
+/* ---------- flowchart: a sequence diagram of the recorded run ---------- */
+const SHORT = { "Lead Qualification": "Qualification", "Listing Description": "Descriptions", "MLS & Listing Management": "MLS & Listings",
+  "Transaction Coordinator": "Transactions", "Document Collection": "Documents", "Vendor Coordination": "Vendors",
+  "Client Communication": "Client Comms", "Marketing Campaign": "Marketing", "Buyer Search & Match": "Buyer Match",
+  "Financial Tracking": "Finances", "After-Close & Referral": "After-Close", "Compliance & Fair Housing": "Compliance",
+  "Calendar & Task Management": "Calendar", "Social Media Monitoring": "Social Media", "Showing Scheduler": "Showings" };
+function short(n) { return SHORT[n] || n; }
+function chart(t) {
+  const msgs = t.flow;
+  if (!msgs.length) return "";
+  const seen = [];
+  const add = p => { if (!seen.includes(p)) seen.push(p); };
+  msgs.forEach(m => { add(m.from); add(m.to); });
+  const first = ["external", "clock"], last = ["queue", "human"];
+  const lanes = [...first.filter(p => seen.includes(p)),
+    ...seen.filter(p => !first.includes(p) && !last.includes(p)),
+    ...last.filter(p => seen.includes(p))];
+  const W = 104, PAD = 14, HEAD = 54, ROW = 36;
+  const width = PAD * 2 + W * lanes.length, height = HEAD + ROW * msgs.length + 18;
+  const x = p => PAD + W * lanes.indexOf(p) + W / 2;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="max-width:100%;height:auto" viewBox="0 0 ${width} ${height}" role="img" aria-label="Messages in the recorded run, in order" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">`;
+  s += `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink-2)"/></marker></defs>`;
+  lanes.forEach(p => {
+    const cx = x(p), isAgent = /^\d\d$/.test(p);
+    s += `<line x1="${cx}" y1="${HEAD}" x2="${cx}" y2="${height - 6}" style="stroke:var(--rule)" stroke-dasharray="3 4"/>`;
+    s += `<rect x="${cx - W / 2 + 6}" y="6" width="${W - 12}" height="40" rx="7" style="fill:${p === t.agent ? "var(--accent-soft)" : "var(--rule-2)"};stroke:${p === t.agent ? "var(--accent)" : "var(--rule)"}"/>`;
+    s += `<text x="${cx}" y="22" text-anchor="middle" font-size="12" font-weight="650" style="fill:var(--ink)">${esc(isAgent ? "Agent " + p : (LANE_SHORT[p] || p))}</text>`;
+    s += `<text x="${cx}" y="38" text-anchor="middle" font-size="10.5" style="fill:var(--ink-3)">${esc(isAgent ? short(DATA.names[p] || "") : "")}</text>`;
+  });
+  msgs.forEach((m, i) => {
+    const y = HEAD + 26 + ROW * i, x1 = x(m.from), x2 = x(m.to);
+    const left = Math.min(x1, x2);
+    const held = m.outcome && m.outcome !== "delivered";
+    const color = held ? "var(--warn)" : "var(--ink-2)";
+    if (x1 === x2) {
+      s += `<path d="M${x1},${y - 6} h24 v12 h-24" fill="none" style="stroke:${color}" stroke-width="1.4" marker-end="url(#ah)"/>`;
+    } else {
+      s += `<line x1="${x1}" y1="${y}" x2="${x2 + (x2 > x1 ? -2 : 2)}" y2="${y}" style="stroke:${color}" stroke-width="1.4" marker-end="url(#ah)"/>`;
+    }
+    const label = `${i + 1}. ${m.words}`;
+    s += `<text x="${left + 8}" y="${y - 6}" font-size="11.5" style="fill:var(--ink);stroke:var(--halo);stroke-width:4;paint-order:stroke"><title>${esc(m.intent)}</title>${esc(label)}</text>`;
+    if (held) {
+      s += `<text x="${Math.max(x1, x2) + 8}" y="${y + 4}" font-size="10.5" font-weight="650" style="fill:var(--warn);stroke:var(--halo);stroke-width:4;paint-order:stroke">${esc(m.outcome)}</text>`;
+    }
+  });
+  return s + "</svg>";
+}
+
+/* ---------- views ---------- */
+const state = { q: "", agent: "", cat: "", tier: "", result: "" };
+function matches(t) {
+  if (state.agent && t.agent !== state.agent) return false;
+  if (state.cat && t.category !== state.cat) return false;
+  if (state.tier && String(t.tier) !== state.tier) return false;
+  if (state.result) {
+    if (state.result === "UNWRITTEN") { if (t.page) return false; }
+    else if (state.result === "UNREVIEWED") { if (marks.mine[t.id]) return false; }
+    else if (t.result !== state.result) return false;
+  }
+  if (state.q) {
+    const hay = [t.id, t.code, title(t), t.rule, t.agent_name, t.page && t.page.when,
+      t.page && (t.page.steps || []).join(" ")].join(" ").toLowerCase();
+    if (!state.q.toLowerCase().split(/\s+/).every(w => hay.includes(w))) return false;
+  }
+  return true;
+}
+function rowHtml(t) {
+  const name = title(t) ? esc(title(t)) : `<span class="pending">Plain-language page not written yet</span>`;
+  return `<a class="row" href="#/t/${t.id}">
+    <span class="code">${esc(t.code)}</span>
+    <span class="t">${name}<span class="rule">${esc(t.rule)}</span></span>
+    <span class="tags">${markChip(t.id)}<span class="chip">${esc(t.category || "?")} · ${esc(tierLabel(t.tier))}</span>${resultChip(t)}</span>
+  </a>`;
+}
+function renderIndex(app) {
+  const written = T.filter(t => t.page).length;
+  const count = k => T.filter(t => t.result === k).length;
+  const inForce = T.filter(t => t.status !== "RETIRED").length;
+  const reviewed = Object.keys(marks.mine).length;
+  const agents = [...new Set(T.map(t => t.agent))];
+  const opt = (v, l, cur) => `<option value="${esc(v)}"${cur === v ? " selected" : ""}>${esc(l)}</option>`;
+  app.innerHTML = `
+    <h1>Tuple procedures</h1>
+    <p class="intro">One controlled page per tuple: the situation, what the system does step by step, what it must never do, why, what you see, a flowchart of the recorded run, and the proof. ${inForce} tuples are in force and ${T.length - inForce} are retired. Evidence recorded ${esc(DATA.evidence_date)}; site built ${esc(DATA.built)}.</p>
+    <div class="stats">
+      <span class="chip acc">${written} of ${T.length} pages written</span>
+      <span class="chip ok">${count("PASS")} pass their test</span>
+      <span class="chip warn">${count("VARIANCE")} fail their test</span>
+      <span class="chip">${count("NOT BUILT")} not built</span>
+      <span class="chip">${count("NOT REACHABLE")} no way in</span>
+      <span class="chip">${count("RETIRED")} retired</span>
+      ${marks.ok ? `<span class="chip acc">${reviewed} reviewed by you</span>` : ""}
+    </div>
+    <div class="filters noprint">
+      <input id="q" type="search" placeholder="Search titles, rules and steps" value="${esc(state.q)}">
+      <select id="fa">${opt("", "All agents", state.agent)}${agents.map(a => opt(a, a === "SWARM" ? "Whole team" : `${a} ${DATA.names[a] || ""}`, state.agent)).join("")}</select>
+      <select id="fc">${opt("", "All categories", state.cat)}${Object.keys(DATA.categories).map(c => opt(c, catLabel(c), state.cat)).join("")}</select>
+      <select id="ft">${opt("", "All tiers", state.tier)}${["1", "2", "3"].map(n => opt(n, `Tier ${n}`, state.tier)).join("")}</select>
+      <select id="fr">${opt("", "Any result", state.result)}${opt("PASS", "Pass", state.result)}${opt("VARIANCE", "Fails its test", state.result)}${opt("NOT BUILT", "Not built", state.result)}${opt("NOT REACHABLE", "No way in", state.result)}${opt("RETIRED", "Retired", state.result)}${opt("UNWRITTEN", "Page not written", state.result)}${marks.ok ? opt("UNREVIEWED", "Not reviewed by you", state.result) : ""}</select>
+    </div>
+    <div id="list"></div>`;
+  const list = app.querySelector("#list");
+  const draw = () => {
+    const shown = T.filter(matches);
+    const groups = agents.map(a => [a, shown.filter(t => t.agent === a)]).filter(g => g[1].length);
+    list.innerHTML = groups.length ? groups.map(([a, ts]) => `<section class="group"><h3>${esc(agentLabel(a))} <span class="muted">· ${ts.length}</span></h3><div class="rows">${ts.map(rowHtml).join("")}</div></section>`).join("")
+      : `<p class="muted">Nothing matches.</p>`;
+  };
+  draw();
+  app.querySelector("#q").addEventListener("input", e => { state.q = e.target.value; draw(); });
+  [["#fa", "agent"], ["#fc", "cat"], ["#ft", "tier"], ["#fr", "result"]].forEach(([sel, k]) =>
+    app.querySelector(sel).addEventListener("change", e => { state[k] = e.target.value; draw(); }));
+}
+function docHtml(t, withReview) {
+  const p = t.page;
+  const name = p ? p.title : t.rule;
+  const statusWords = STATUS_WORDS[t.status] || t.status;
+  let n = 0;
+  const sec = (h, body) => body ? `<h2><span class="n">${++n}</span>${esc(h)}</h2>${body}` : "";
+  let banner = "";
+  if (!p) banner = `<div class="banner mute">The plain-language procedure for this tuple is not written yet. The rule, flowchart and proof below are from the recorded run.</div>`;
+  if (t.result === "VARIANCE") banner += `<div class="banner warn"><b>The system does not yet do what this rule says.</b> At least one check below failed on the recorded run. This is an open item, not a description of today's behavior.</div>`;
+  if (t.status === "NOT BUILT" || t.status === "NOT REACHABLE") banner += `<div class="banner mute"><b>${esc(RESULT_WORDS[t.status][0])}.</b> ${esc(t.status_why)}</div>`;
+  if (t.stand_in) banner += `<div class="banner acc"><b>Stand-in test.</b> Nothing outside the system starts this case today, so the test sends one message as the upstream agent. The rest of the run is the product's own.</div>`;
+  const steps = p && p.steps && p.steps.length ? `<ol class="steps">${p.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>` : "";
+  const never = p && p.never && p.never.length ? `<ul class="never">${p.never.map(s => `<li>${esc(s)}</li>`).join("")}</ul>` : "";
+  const checks = t.checks.length ? `<ul class="checks">${t.checks.map(c => `<li><span class="${c.ok ? "mark-ok" : "mark-bad"}">${c.ok ? "✓" : "✗"}</span><span>${esc(c.text)} <span class="muted">· found ${esc(c.found)}</span></span></li>`).join("")}</ul>` : "";
+  const flow = t.flow.length ? `<div class="chart">${chart(t)}</div><p class="chart-note">Every message for this case in the recorded run, in order (${t.flow.length}${t.flow_more ? ` shown of ${t.flow.length + t.flow_more}` : ""}). Not shown: ${t.routine} background messages (record keeping, status updates, the morning briefing, the clock waking agents with no part in this case). The highlighted lane is the owner agent. Amber arrows are messages that were held or refused and alerts raised for you; the tag says which.</p>` : "";
+  const proof = t.result && !["NOT BUILT", "NOT REACHABLE", "RETIRED"].includes(t.result) ? `
+      ${p && p.test ? `<p><b>Test scenario.</b> ${esc(p.test)}</p>` : ""}
+      <p><b>Result on ${esc(DATA.evidence_date)}:</b> ${resultChip(t)}</p>
+      ${checks ? `<p><b>What the record must show</b></p>${checks}` : ""}
+      <pre class="cmd">python synth/tuples/run_tuples.py ${esc(t.id)}</pre>
+      <p class="muted" style="margin-top:6px">Test file: <span class="code">${esc(t.spec || "")}</span></p>` : (t.status_why ? `<p>${esc(t.status_why)}</p>` : "");
+  const pbs = t.playbooks.length ? `<p>${t.playbooks.map(b => `<span class="chip acc">${esc(b.id)}</span> ${esc(b.name)}`).join("<br>")}</p><p class="muted">The playbook manuals will link here once written.</p>` : "";
+  const m = marks.mine[t.id] || {};
+  const review = withReview && marks.ok ? `<div class="review"><h2>Your review</h2>
+      <div class="btns"><button class="approve ${m.mark === "approve" ? "on approve" : ""}" data-mark="approve">Approve</button>
+      <button class="change ${m.mark === "change" ? "on change" : ""}" data-mark="change">Needs change</button>
+      ${m.mark ? `<button data-mark="">Clear</button>` : ""}</div>
+      <textarea id="note" placeholder="What should change? (saved with your mark)">${esc(m.note || "")}</textarea>
+      <p class="muted" id="savestate">${m.mark ? `Marked ${m.mark === "approve" ? "approved" : "needs change"} on Rev ${esc(m.rev)}${m.rev !== t.rev ? `; this page is now Rev ${t.rev}` : ""}.` : "Not marked yet."}</p></div>` : "";
+  return `<article class="doc" id="doc-${esc(t.id)}">
+    <div class="doctitle"><h1>${esc(name)}</h1><div class="codeline"><span class="code">${esc(t.code)}</span> · Rev ${esc(p ? t.rev : 0)}${p ? "" : " (draft)"}</div></div>
+    <table class="control"><tbody>
+      <tr><th>Document</th><td><span class="code">${esc(t.code)}</span> · Rev ${esc(p ? t.rev : 0)}</td></tr>
+      <tr><th>Owner</th><td>${esc(agentLabel(t.agent))}</td></tr>
+      <tr><th>Category</th><td>${esc(catLabel(t.category))}</td></tr>
+      <tr><th>Risk tier</th><td>${esc(tierLabel(t.tier))}${t.tier ? ": " + esc(DATA.tiers[String(t.tier)]) : ""}</td></tr>
+      <tr><th>Status</th><td>${esc(statusWords)} · ${resultChip(t)}</td></tr>
+      <tr><th>Last verified</th><td>${esc(DATA.evidence_date)} (recorded run)</td></tr>
+      <tr><th>Rule as signed</th><td class="rulebox">${esc(t.rule)}</td></tr>
+    </tbody></table>
+    ${banner}
+    ${sec("When this applies", p && p.when ? `<p>${esc(p.when)}</p>` : "")}
+    ${sec("What happens", steps)}
+    ${sec("Never", never)}
+    ${sec("Why it matters", p && p.why ? `<p>${esc(p.why)}</p>` : "")}
+    ${sec("What you see", p && p.you_see ? `<p>${esc(p.you_see)}</p>` : "")}
+    ${sec("Flowchart of the recorded run", flow)}
+    ${sec("Proof", proof)}
+    ${sec("Seen in playbooks", pbs)}
+    ${review}
+  </article>`;
+}
+function renderDoc(app, id) {
+  const t = BY[id];
+  if (!t) { app.innerHTML = `<p>No tuple ${esc(id)}. <a href="#/">Back to the index</a></p>`; return; }
+  const i = T.indexOf(t), prev = T[i - 1], next = T[i + 1];
+  const link = x => x ? `<a href="#/t/${x.id}">${esc(x.code)} · ${esc(title(x) || "page not written")}</a>` : "<span></span>";
+  app.innerHTML = `<div class="crumbs"><a href="#/">All procedures</a><span>›</span><span>${esc(agentLabel(t.agent))}</span></div>
+    ${docHtml(t, true)}
+    <div class="pager">${prev ? "← " + link(prev) : "<span></span>"}${next ? link(next) + " →" : "<span></span>"}</div>`;
+  app.querySelectorAll(".review button").forEach(b => b.addEventListener("click", () => {
+    saveMark(t.id, b.dataset.mark, (app.querySelector("#note") || {}).value);
+  }));
+  const note = app.querySelector("#note");
+  if (note) note.addEventListener("change", () => { const cur = marks.mine[t.id]; if (cur) saveMark(t.id, cur.mark, note.value); });
+}
+function renderPrint(app) {
+  const only = (location.search.match(/[?&]agent=([^&]+)/) || [])[1];
+  const shown = T.filter(t => (t.page || t.status !== "RETIRED") && (!only || t.agent === only));
+  app.innerHTML = `<section class="cover"><h1>ListingAssistants · Tuple procedures</h1>
+    <p>${T.filter(t => t.page).length} of ${T.length} procedure pages written · evidence recorded ${esc(DATA.evidence_date)} · built ${esc(DATA.built)}</p>
+    <p class="muted">Each page is controlled by its document code and revision. The website copy carries the review marks; this binder is a printout of the same pages.</p></section>
+    <section class="toc" style="break-after:page"><h1>Contents</h1><div class="rows">${shown.map(rowHtml).join("")}</div></section>
+    ${shown.map(t => docHtml(t, false)).join("")}`;
+}
+let lastRoute = null;
+function render() {
+  const app = document.getElementById("app");
+  document.getElementById("topsub").textContent = `${T.length} tuples · evidence ${DATA.evidence_date}`;
+  if (PRINT) { if (!app.dataset.done) { renderPrint(app); app.dataset.done = "1"; } return; }
+  const h = location.hash.replace(/^#\/?/, "");
+  const route = h.startsWith("t/") ? h.slice(2) : "";
+  if (route) {
+    const note = document.getElementById("note");
+    if (route === lastRoute && note && document.activeElement === note) return;
+    renderDoc(app, route);
+  } else {
+    const q = document.getElementById("q");
+    if (route === lastRoute && q && document.activeElement === q) return;
+    renderIndex(app);
+  }
+  if (route !== lastRoute) window.scrollTo(0, 0);
+  lastRoute = route;
+}
+window.addEventListener("hashchange", render);
+render();
+startMarks();
+</script>
+</body>
+</html>

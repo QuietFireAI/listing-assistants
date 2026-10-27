@@ -420,10 +420,14 @@ def test_lead_reply_to_handled_owner_is_delivered(tmp_path, owner):
     assert len(lr) == 1 and lr[0]["envelope_id"] in acks
     # 11 delivered it and did not hold it. (Since 2026-10-11 the receiving
     # agent itself holds a reply no rule of its own covers - 13 and 16 do
-    # for this message - so only 11's own holds are checked here.)
+    # for this message - so only 11's own holds are checked here. Since
+    # 2026-10-27 03 hands a reply it has no rule for back to 11 untemplated,
+    # and 11 puts that question to the broker ("reply needed"); that is the
+    # receiving agent's answer, not 11 holding the delivery.)
     assert not [q for q in hub.queues["clarification.request"]
                 if q["payload"].get("verbatim") == "Thanks, Saturday works"
-                and q.get("from_agent") == "11"]
+                and q.get("from_agent") == "11"
+                and not q["payload"].get("reason", "").startswith("reply needed")]
 
 
 def test_lead_reply_not_acked_is_held_with_the_clients_words(tmp_path):
@@ -558,3 +562,26 @@ def test_unknown_on_every_channel_is_not_consent(tmp_path):
     give_consent(hub, "nc-2", channels=("text",))
     hub.send(status_update("nc-2", {"template": "inspection_scheduled", "variables": {}, "hour": 12}))
     assert len(persisted(hub, "client.message.send")) == 1
+
+
+def test_untemplated_request_is_a_question_for_the_broker_never_sent(tmp_path):
+    # Tuple 03-11 (and 03-01): 03 routes a lead's substantive question to 11
+    # "for a gated human-reviewed reply". Before 2026-10-27 the template
+    # defaulted to the intent name and the question went back out to the
+    # client with no person in between.
+    hub = make_hub(str(tmp_path))
+    Spoke11ClientCommunication(hub)
+    Spoke14CRMPipeline(hub)
+    hub.on_turn_start()
+    give_consent(hub, "c-311")
+    question = "Is the house on Elm still available and does it have a basement?"
+    hub.send(Envelope(from_agent="03", to_agent="11", intent="client.message.request",
+                      client_context_id="c-311",
+                      payload={"reason": "substantive drip reply", "verbatim": question},
+                      provenance={"source": "spoke-03", "captured_at": "runtime",
+                                  "verbatim_available": True}))
+    assert persisted(hub, "client.message.send") == []
+    asks = persisted(hub, "clarification.request")
+    assert asks and asks[0]["to_agent"] == "queue"
+    assert asks[0]["payload"]["verbatim"] == question
+    assert "reply needed" in asks[0]["payload"]["reason"]

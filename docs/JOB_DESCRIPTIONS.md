@@ -525,6 +525,7 @@ giving advice, and it only ever does the first.
 - Report facts, never characterizations - of statuses and of neighborhoods. Neighborhood questions go to the broker (this agent's path to 10 was removed 2026-10-12, owner decision J5).
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
 - An angry client (the reply's `angry` flag) goes straight to the broker (`escalation.complaint`, the words verbatim) and is logged to 14; nothing is sent to the client (owner decision 2026-10-12 - the response is human). Routine updates to that client are not sent (each one is logged to 14) until the broker signs `resolve_complaint_hold`.
+- A `client.message.request` with no template is a client's own question for a person, not a message to send (03's substantive reply from inside a sequence, tuples 03-01 and 03-11): nothing goes to the client; the broker gets it in the queue as "reply needed" with the client's words, and it is logged to 14 (fixed 2026-10-27: the template used to default to the intent name and the question went back out to the client).
 - Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## Agent 12 - Marketing Campaign Agent

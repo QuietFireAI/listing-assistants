@@ -1,0 +1,257 @@
+[
+ {
+  "id": "03-01",
+  "title": "A lead replies in the middle of a follow-up sequence",
+  "when": "A lead is receiving scheduled follow-up messages (a nurture sequence) and writes back before the next one is due.",
+  "steps": [
+   "The reply comes in to Agent 11 (Client Communication), which hands it to Agent 03, the agent running the sequence.",
+   "Agent 03 pauses the sequence for that lead at once. No further scheduled follow-up goes out on its own.",
+   "Agent 03 passes the reply back to Agent 11 as a question for a person. Agent 11 puts it in your queue marked \"reply needed\", with the lead's own words. Nothing is sent to the lead automatically: you answer."
+  ],
+  "never": [
+   "Send the next scheduled follow-up over the top of a reply the lead has just written."
+  ],
+  "why": "A person who has written back expects an answer, not a canned message. A follow-up that ignores their reply looks automated and careless.",
+  "you_see": "The lead's reply in your queue, marked \"reply needed\"; the sequence for that lead paused.",
+  "test": "A warm lead from the web form, with consent to call, text and email, gets the first follow-up on day 0. On day 1 it writes back (\"Thanks - can we talk about the north side next week?\"). The daily clock runs again on day 7.",
+  "rev": 1
+ },
+ {
+  "id": "03-02",
+  "title": "A lead asks for fewer messages, without saying stop",
+  "when": "A lead in a follow-up sequence writes something like \"stop sending so many emails\": a complaint about how often, not a clear request to stop.",
+  "steps": [
+   "Agent 03 reads it as a request for fewer messages, not as an opt-out.",
+   "It slows the sequence down and asks Agent 11 to confirm to the lead that they will hear less often.",
+   "A clear \"stop\" (on its own) is treated differently: a full opt-out on every channel (see 03-06)."
+  ],
+  "never": [
+   "Treat an unclear complaint as a full opt-out and go silent, or ignore it and keep the same pace."
+  ],
+  "why": "Contact rules turn on what the person actually asked for. Too much contact after a complaint, or cutting off someone who only wanted less, both hurt the relationship.",
+  "you_see": "A confirmation message to the lead that the frequency was reduced; no opt-out confirmation.",
+  "test": "A warm lead writes \"Please stop sending so many emails\" the day after it came in.",
+  "rev": 1
+ },
+ {
+  "id": "03-03",
+  "title": "A follow-up would carry out-of-date market figures",
+  "when": "Retired.",
+  "steps": [],
+  "never": [],
+  "why": "Retired on 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data, so this situation cannot arise.",
+  "you_see": "",
+  "test": "",
+  "rev": 1
+ },
+ {
+  "id": "03-04",
+  "title": "Two follow-up sequences would fit the same lead",
+  "when": "A lead already on one sequence is assigned a second, different sequence, so two could run at once.",
+  "steps": [
+   "Agent 03 pauses the sequence the lead is already on and does not start the second one: it runs neither.",
+   "It asks you which sequence the lead should be on, naming both (\"overlapping sequences\")."
+  ],
+  "never": [
+   "Run two sequences on one lead at the same time, or pick one for you."
+  ],
+  "why": "Stacked sequences double the messages a person gets and make the office look disorganized.",
+  "you_see": "A question for you: which sequence this lead should be on.",
+  "test": "A warm lead is on the default sequence; a second assignment to a \"spring buyers\" sequence arrives. Stand-in: today Agent 02 only ever assigns the default sequence, so the test sends the second assignment as Agent 02.",
+  "rev": 1
+ },
+ {
+  "id": "03-05",
+  "title": "A lead in nurture suddenly shows strong interest",
+  "when": "The marketing agent reports a spike of engagement from a lead in a follow-up sequence (for example many opens or clicks).",
+  "steps": [
+   "Agent 12 (Marketing) passes the signal to Agent 03.",
+   "Agent 03 asks Agent 02 (Lead Qualification) to score the lead again, using the lead's own stored answers with the timeline counted down by the days that have passed.",
+   "Agent 02 scores it and the new score is recorded in the client's history."
+  ],
+  "never": [
+   "Reach out to the lead directly because of the signal; the score decides what happens next, not the signal on its own."
+  ],
+  "why": "Interest alone is not consent to more contact. Re-scoring keeps every lead on the same fair, documented scale.",
+  "you_see": "A re-score on the lead's record; if it turns hot, a hot-lead alert for you.",
+  "test": "A warm lead with a 60-day timeline came in on 2026-10-15; on 2026-10-22 an email engagement of 80 is reported. The re-score uses 53 days and the lead stays warm.",
+  "rev": 1
+ },
+ {
+  "id": "03-06",
+  "title": "A lead says STOP",
+  "when": "A lead replies STOP, or anything that clearly means \"do not contact me\".",
+  "steps": [
+   "Agent 03 suppresses the lead on every channel (call, text and email) at once and records the opt-out.",
+   "A confirmation is sent only where the channel's rules allow one.",
+   "No scheduled follow-up goes out after that, including one that was already due."
+  ],
+  "never": [
+   "Send any further marketing message to someone who said stop, on any channel."
+  ],
+  "why": "Ignoring an opt-out can break telemarketing and anti-spam laws and is the fastest way to a complaint.",
+  "you_see": "The opt-out on the client's record, marked for all channels.",
+  "test": "A lead comes in at 22:00, outside contact hours, so the first follow-up waits for morning. The lead replies STOP the next day. The clock runs a week later; no follow-up ever goes out.",
+  "rev": 1
+ },
+ {
+  "id": "03-07",
+  "title": "A follow-up falls due outside contact hours",
+  "when": "A scheduled follow-up would go out at night or another time outside the allowed contact hours.",
+  "steps": [
+   "Agent 03 holds the message and moves it to the next allowed window.",
+   "The daily clock checks again; if it is still outside hours, it waits again."
+  ],
+  "never": [
+   "Send a message outside contact hours because it was due."
+  ],
+  "why": "Contact-hour rules apply to texts and calls; breaking them risks complaints and fines.",
+  "you_see": "The follow-up is listed as waiting, not sent.",
+  "test": "A lead comes in at 22:00; the first follow-up is due at once and the clock runs at 22:00. Legal holidays are not checked: there is no holiday calendar yet (stated in the agent's DECISIONS.md).",
+  "rev": 1
+ },
+ {
+  "id": "03-08",
+  "title": "Strong interest shows up in the middle of a sequence",
+  "when": "A lead is part-way through its follow-ups when a spike of engagement is reported.",
+  "steps": [
+   "Agent 03 pauses the sequence.",
+   "It asks Agent 02 to score the lead again.",
+   "No further scheduled follow-up goes out while the lead's new standing is worked out."
+  ],
+  "never": [
+   "Keep sending the routine drip to someone who is showing hot interest."
+  ],
+  "why": "A hot signal deserves a person's attention, not another automated message.",
+  "you_see": "The re-score; the sequence paused after its first message.",
+  "test": "A warm lead gets its first follow-up on day 0; an engagement of 80 is reported; the clock runs a week later. Only the first follow-up was ever sent.",
+  "rev": 1
+ },
+ {
+  "id": "03-09",
+  "title": "A follow-up mentions a listing whose status has changed",
+  "when": "Retired.",
+  "steps": [],
+  "never": [],
+  "why": "Retired on 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data, so this situation cannot arise.",
+  "you_see": "",
+  "test": "",
+  "rev": 1
+ },
+ {
+  "id": "03-10",
+  "title": "You move a lead to a different sequence",
+  "when": "A newer instruction moves a lead from one sequence to another (a reassignment, for example after a re-score).",
+  "steps": [
+   "The newest instruction wins: the old sequence is closed and the lead moves to the new one.",
+   "The change is written in the client's history (\"sequence reassigned\").",
+   "The new sequence goes to Compliance (Agent 17) before its first message, like any sequence; once cleared, its first message goes out at the next allowed contact time.",
+   "Only the new sequence sends from then on."
+  ],
+  "never": [
+   "Keep the old sequence running alongside the new one."
+  ],
+  "why": "One sequence per person keeps the contact count honest and the history readable.",
+  "you_see": "The reassignment in the client's history.",
+  "test": "You sign two sequences (the default one and \"spring buyers\"). A warm lead starts on the default sequence; the next day it is reassigned to \"spring buyers\" and the daily clock runs, and again a week after the lead came in. The spring message goes out once; the default sequence's day-7 message never does. Stand-in: a reassignment does not arise from intake today, so the test sends it as Agent 02.",
+  "rev": 1
+ },
+ {
+  "id": "03-11",
+  "title": "A lead asks a real question from inside a follow-up sequence",
+  "when": "A lead replies to a follow-up with a substantive question (for example about a property's availability or features).",
+  "steps": [
+   "Agent 03 does not answer it itself, and the sequence stays paused.",
+   "It passes the question to Agent 11, which puts it in your queue marked \"reply needed\", with the lead's own words.",
+   "Nothing is sent to the lead automatically. You answer the question."
+  ],
+  "never": [
+   "Answer a property or legal question automatically from a drip sequence."
+  ],
+  "why": "Questions about availability and features need accurate, checked answers; a wrong automated answer can mislead a buyer.",
+  "you_see": "The lead's question in your queue, marked \"reply needed\".",
+  "test": "A lead writes \"Is the house on Elm still available and does it have a basement?\".",
+  "rev": 1
+ },
+ {
+  "id": "03-12",
+  "title": "It is time to re-score a lead in nurture",
+  "when": "The re-score interval for a lead in a follow-up sequence has passed.",
+  "steps": [
+   "On the daily clock, Agent 03 asks Agent 02 to score the lead again.",
+   "It sends the lead's own stored answers, with the stated timeline counted down by the days that have passed (60 days, a week later, becomes 53)."
+  ],
+  "never": [
+   "Invent or guess any other input for the new score."
+  ],
+  "why": "Scores must rest on what the person told us. Made-up inputs would change who gets called and when.",
+  "you_see": "The re-score in the lead's history.",
+  "test": "A warm lead with a 60-day timeline came in on 2026-10-15; the clock runs on 2026-10-22.",
+  "rev": 1
+ },
+ {
+  "id": "03-13",
+  "title": "A re-score shows the lead is no longer warm",
+  "when": "A re-scored lead comes back hot (or otherwise not warm), so it no longer belongs in nurture.",
+  "steps": [
+   "The hot result raises a hot-lead alert for you.",
+   "On the next cadence Agent 03 takes the lead out of the re-score pool.",
+   "It records that in the client's history (\"left re-score pool\")."
+  ],
+  "never": [
+   "Keep re-scoring and dripping on a lead that has left nurture."
+  ],
+  "why": "A hot lead needs a call from you, not the warm-lead routine.",
+  "you_see": "A hot-lead alert; the lead out of nurture.",
+  "test": "A lead with a 35-day timeline scores warm; a week later the timeline is 28 days and the re-score is hot; the following week's clock takes it out of the pool.",
+  "rev": 1
+ },
+ {
+  "id": "03-14",
+  "title": "A re-score keeps the lead warm",
+  "when": "A lead's re-score comes back warm again, on the same sequence.",
+  "steps": [
+   "The sequence carries on from where it was.",
+   "Agent 03 records that the sequence continues."
+  ],
+  "never": [
+   "Restart the sequence from day 0, which would repeat messages the lead already received."
+  ],
+  "why": "Repeating the first messages makes the office look automated and careless.",
+  "you_see": "Nothing new; the lead's next follow-up comes when it is due.",
+  "test": "A lead with a 90-day timeline gets its first follow-up; a week later the re-score is warm again.",
+  "rev": 1
+ },
+ {
+  "id": "03-15",
+  "title": "No re-score for a lead that opted out or is paused",
+  "when": "A lead in nurture has opted out, or its sequence is paused.",
+  "steps": [
+   "The re-score cadence skips that lead."
+  ],
+  "never": [
+   "Re-score, and so possibly re-contact, someone who opted out."
+  ],
+  "why": "A re-score can lead to new contact; for someone who said stop there must be none.",
+  "you_see": "No re-score on that lead's record.",
+  "test": "A lead says STOP the day after it came in; the clock runs a week later. No re-score is made.",
+  "rev": 1
+ },
+ {
+  "id": "03-16",
+  "title": "Compliance flags a follow-up sequence",
+  "when": "Agent 17 (Compliance and Fair Housing) finds a problem in a sequence's text, for example wording that steers by family status.",
+  "steps": [
+   "The sequence stays paused and nothing from it is sent.",
+   "Agent 03 tells you, with Agent 17's findings.",
+   "It waits for you to sign a corrected sequence."
+  ],
+  "never": [
+   "Send a message that compliance flagged, even once."
+  ],
+  "why": "Fair-housing language problems can cost a license and bring a complaint; the fix must be yours and signed.",
+  "you_see": "A question for you: Compliance (17) flagged the sequence, with what it found.",
+  "test": "A signed sequence says \"This listing is perfect for young families.\" A warm lead comes in and the clock runs; Agent 17 flags it and no follow-up is sent.",
+  "rev": 1
+ }
+]
