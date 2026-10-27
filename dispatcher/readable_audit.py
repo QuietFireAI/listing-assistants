@@ -104,6 +104,35 @@ def describe(kind: str, rec: dict) -> Optional[tuple[str, str, Optional[str], Op
     if kind in ("handoff.failed", "dead.letter", "agentopenmind.tainted", "sweep.error"):
         return ("ALERT", f"{kind}: {rec.get('reason') or rec.get('intent') or rec.get('error') or ''}".strip(),
                 ctx, rec.get("agent") or rec.get("from_agent"))
+    # agent isolation (2026-10-26): the agents behind their portals
+    if kind == "portal.team":
+        return ("SYSTEM", f"Each agent runs alone behind its portal (system {rec.get('system_id')})",
+                None, None)
+    if kind == "portal.violation":
+        what = {"impersonation": "spoke as another agent",
+                "route_not_on_track": "tried a route that is not on the track",
+                "off_menu": "asked for something not on its menu",
+                "record_kind": "tried to write a line only the dispatcher writes",
+                "malformed": "sent something that is not a message",
+                "registration": "started up as the wrong agent"}.get(rec.get("violation"),
+                                                                      rec.get("violation"))
+        return ("ALERT", f"VIOLATION: Agent {rec.get('agent')} {what} - {rec.get('detail')}",
+                None, rec.get("agent"))
+    if kind == "portal.agent_stopped":
+        code = f" Code {rec.get('code')}." if rec.get("code") else ""
+        why = rec.get("violation") or rec.get("reason") or rec.get("stopped_for")
+        return ("ALERT", f"Agent {rec.get('agent')} STOPPED ({rec.get('stopped_for')}: {why}).{code} "
+                         f"Its messages wait for you until you review it and restart it",
+                None, rec.get("agent"))
+    if kind == "portal.agent_held_stopped":
+        return ("ALERT", f"Agent {rec.get('agent')} is still stopped ({rec.get('why')}); not connected",
+                None, rec.get("agent"))
+    if kind == "portal.agent_cleared":
+        return ("SYSTEM", f"Agent {rec.get('agent')} reviewed and cleared by {rec.get('by')}",
+                None, rec.get("agent"))
+    if kind == "portal.agent_restarted":
+        return ("SYSTEM", f"Agent {rec.get('agent')} restarted on a new line with its saved state",
+                None, rec.get("agent"))
     if kind == "loop.suspended":
         return ("HOLD", f"Hub suspended a repeating exchange: {rec.get('reason', '')}".strip(), ctx, None)
     if kind == "pager.sent":

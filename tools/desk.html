@@ -200,6 +200,8 @@ section{margin-bottom:22px}
   .printonly{display:inline !important;font-weight:700}
   .tgroup{box-shadow:none;break-inside:avoid}
 }
+pre.case{white-space:pre-wrap;font-size:13px;max-height:420px;overflow:auto}
+.signbar{position:fixed;left:16px;right:16px;bottom:16px;padding:12px;border-radius:8px;background:#fff8c5;border:1px solid #d4a72c;z-index:50}
 </style>
 </head>
 <body>
@@ -344,15 +346,46 @@ function toast(msg) {
   t.textContent = msg; t.classList.add("on");
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 3200);
 }
+async function post(body) {
+  const r = await fetch("api/act", {method: "POST", headers: {"Content-Type": "application/json", ...H},
+                                    body: JSON.stringify(body)});
+  return r.json();
+}
+// The key in its own signer (owner decision 2026-10-26): an action that
+// needs your signature comes back as needs_signature. The prepared message
+// goes to the signer's own page in its own window; you read it and sign
+// there; the signer hands the signature back to this page, which sends it.
+let signing = null;
+function openSigner(ns, done) {
+  const go = () => {
+    const f = el("form", {method: "POST", action: ns.signer_url, target: "la-signer", style: "display:none"});
+    const i = el("input", {type: "hidden", name: "request"});
+    i.value = JSON.stringify({id: ns.id, envelope: ns.envelope, about: ns.about});
+    f.append(i); document.body.append(f); f.submit(); f.remove();
+  };
+  signing = {id: ns.id, origin: new URL(ns.signer_url).origin, done};
+  const w = window.open("about:blank", "la-signer", "width=560,height=760");
+  if (w) { go(); toast("Sign it in the signer window"); return; }
+  // the browser blocked the window: one more tap opens it
+  const bar = el("div", {class: "signbar"}, "Your signature is needed. ");
+  const b = el("button", {class: "primary"}, "Open the signer");
+  b.onclick = () => { window.open("about:blank", "la-signer", "width=560,height=760"); go(); bar.remove(); };
+  bar.append(b); document.body.append(bar);
+}
+window.addEventListener("message", async ev => {
+  const s = signing, m = ev.data || {};
+  if (!s || ev.origin !== s.origin || m.type !== "la-signed" || m.id !== s.id) return;
+  signing = null;
+  s.done(await post({action: "signed", id: m.id, envelope_id: m.envelope_id, signature: m.signature}));
+});
 async function act(body) {
   if (busy) return; busy = true;
-  try {
-    const r = await fetch("api/act", {method: "POST", headers: {"Content-Type": "application/json", ...H},
-                                      body: JSON.stringify(body)});
-    const j = await r.json();
-    if (j.error) toast("Not done: " + j.error);
-    return j;
-  } finally { busy = false; await load(); }
+  let j;
+  try { j = await post(body); } finally { busy = false; }
+  if (j && j.needs_signature) j = await new Promise(res => openSigner(j.needs_signature, res));
+  if (j && j.error) toast("Not done: " + j.error);
+  await load();
+  return j;
 }
 function kv(obj) {
   if (!obj || typeof obj !== "object") return null;
@@ -469,8 +502,21 @@ function needsCard(i, inGroup) {
     else c.append(details("more", "card:" + i.id, false, "Details", [kv(i.content)]));
     const done = el("button", {}, "Done");
     done.onclick = () => act({action: "ack", id: i.id, title: i.title, ctx: i.ctx});
-    c.append(el("div", {class: "actions"}, done,
-      el("span", {class: "note"}, "Marks it handled on the record; changes nothing in the swarm.")));
+    if ((i.queue === "portal.violation" || i.queue === "portal.crash") && i.content && i.content.agent) {
+      // the review agent's case file (it reads the record; it never acts)
+      c.append(details("more", "case:" + i.id, true, i.case ? "Case file" : "Case file (being written)",
+        [el("pre", {class: "case"}, i.case || "The review agent has not written it yet.")]));
+      // an agent stopped behind its portal: restart it only after you reviewed it
+      const re = el("button", {class: "primary"}, "Reviewed: restart agent " + i.content.agent);
+      re.onclick = () => act({action: "restart_agent", agent: i.content.agent})
+        .then(j => j && !j.error && act({action: "ack", id: i.id, title: i.title, ctx: i.ctx}));
+      c.append(el("div", {class: "actions"}, re, done,
+        el("span", {class: "note"}, "Code " + (i.content.alert_code || "") +
+           ": look it up on the record before you restart it.")));
+    } else {
+      c.append(el("div", {class: "actions"}, done,
+        el("span", {class: "note"}, "Marks it handled on the record; changes nothing in the swarm.")));
+    }
   }
   return c;
 }

@@ -110,7 +110,8 @@ def test_what_the_glossary_says_matches_the_code():
     assert "one of three" in GLOSS and len(CONFIDENCE) == 3
 
     import desk
-    assert len(desk.QUEUE_TITLE) == 6       # the six waiting lists the glossary names
+    assert len(desk.QUEUE_TITLE) == 8       # the eight waiting lists the glossary names
+    assert "an agent that broke a rule and was stopped" in re.sub(r"\s+", " ", GLOSS)
 
     import console
     assert os.path.basename(console.KEY_PATH) == "operator-key.bin" and "`operator-key.bin`" in GLOSS

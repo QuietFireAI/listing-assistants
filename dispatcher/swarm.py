@@ -88,6 +88,9 @@ class Swarm:
         return write_eod(self.hub.audit, self.readable, date_str)
 
     def close(self):
+        team = getattr(self, "team", None)
+        if team is not None:
+            team.close()
         if self.store is not None:
             self.store.close()
 
@@ -173,7 +176,8 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                 model_name: Optional[str] = None,
                 checkpoints_dir: Optional[str] = None,
                 attestation: Optional[dict] = None,
-                playbook_table: Optional[str] = None) -> Swarm:
+                playbook_table: Optional[str] = None,
+                portal: Optional[dict] = None) -> Swarm:
     """attestation: {"state_dir": ..., "verify_bytes": callable,
     "key_fingerprint": ...} makes this swarm refuse to start
     (boot_attest.AttestationRefused) unless what is installed is what the
@@ -190,25 +194,6 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
     from .hub import Hub
     from .hitl_protocol import HITLManager
     from . import state_snapshot as ss
-    from .listing_spokes import Spoke01LeadCapture, Spoke14CRMPipeline
-    from .listing_spokes_02 import Spoke02LeadQualification
-    from .listing_spokes_03 import Spoke03LeadNurture
-    from .listing_spokes_04 import Spoke04ListingDescription
-    from .listing_spokes_05 import Spoke05MLSListingManagement
-    from .listing_spokes_06 import Spoke06ShowingScheduler
-    from .listing_spokes_07 import Spoke07TransactionCoordinator
-    from .listing_spokes_08 import Spoke08DocumentCollection
-    from .listing_spokes_09 import Spoke09VendorCoordination
-    from .listing_spokes_10 import Spoke10MarketData
-    from .listing_spokes_11 import Spoke11ClientCommunication
-    from .listing_spokes_12 import Spoke12MarketingCampaign
-    from .listing_spokes_13 import Spoke13BuyerSearchMatch
-    from .listing_spokes_15 import Spoke15FinancialTracking
-    from .listing_spokes_16 import Spoke16AfterCloseReferral
-    from .listing_spokes_17 import Spoke17ComplianceFairHousing
-    from .listing_spokes_18 import Spoke18CalendarTask
-    from .listing_spokes_19 import Spoke19Prospecting
-    from .listing_spokes_20 import Spoke20SocialMediaMonitoring
 
     from .readable_logger import HumanReadableLogger
     from .readable_audit import ReadableAuditLog
@@ -289,7 +274,58 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
                                      "config_dir": config_dir, "verdict": verdict,
                                      "vendors_loaded": sorted(roster),
                                      "entries_skipped": problems})
-    spokes = {
+    team = None
+    if portal is not None:
+        # agent isolation V1 (owner decision 2026-10-26): every agent runs
+        # alone behind its portal; see dispatcher/portal_dispatcher.py.
+        # portal = {"sockets_dir": ..., "launcher": callable or None,
+        #           "alert": callable or None, "accept_timeout_s": ...}
+        from .portal_dispatcher import Team
+        team = Team(hub, portal["sockets_dir"], base_dir, launcher=portal.get("launcher"),
+                    accept_timeout_s=portal.get("accept_timeout_s", 60.0),
+                    call_timeout_s=portal.get("call_timeout_s", 120.0),
+                    alert=portal.get("alert"))
+        hub.audit.append("portal.team", {"system_id": team.system_id,
+                                         "agents": sorted(AGENT_ORDER),
+                                         "reason": "each agent runs alone behind its portal"})
+        spokes = {aid: team.start_agent(aid, {"roster": roster} if aid == "09" else {})
+                  for aid in AGENT_ORDER}
+    else:
+        spokes = _local_spokes(hub, roster)
+    baseline = {aid: ss.encode(ss.agent_state(sp)) for aid, sp in spokes.items()}
+
+    sw = Swarm(hub, spokes, hitl, store, external, baseline,
+               {"verdict": verdict, "vendors_loaded": sorted(roster), "entries_skipped": problems})
+    sw.team = team
+    return _finish_swarm(sw, hub, readable, state_db, row, ss, playbook_table)
+
+
+AGENT_ORDER = ("01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
+               "11", "12", "13", "14", "15", "16", "17", "18", "19", "20")
+
+
+def _local_spokes(hub, roster) -> dict:
+    """All twenty agents in this process (the way it ran before 2026-10-26)."""
+    from .listing_spokes import Spoke01LeadCapture, Spoke14CRMPipeline
+    from .listing_spokes_02 import Spoke02LeadQualification
+    from .listing_spokes_03 import Spoke03LeadNurture
+    from .listing_spokes_04 import Spoke04ListingDescription
+    from .listing_spokes_05 import Spoke05MLSListingManagement
+    from .listing_spokes_06 import Spoke06ShowingScheduler
+    from .listing_spokes_07 import Spoke07TransactionCoordinator
+    from .listing_spokes_08 import Spoke08DocumentCollection
+    from .listing_spokes_09 import Spoke09VendorCoordination
+    from .listing_spokes_10 import Spoke10MarketData
+    from .listing_spokes_11 import Spoke11ClientCommunication
+    from .listing_spokes_12 import Spoke12MarketingCampaign
+    from .listing_spokes_13 import Spoke13BuyerSearchMatch
+    from .listing_spokes_15 import Spoke15FinancialTracking
+    from .listing_spokes_16 import Spoke16AfterCloseReferral
+    from .listing_spokes_17 import Spoke17ComplianceFairHousing
+    from .listing_spokes_18 import Spoke18CalendarTask
+    from .listing_spokes_19 import Spoke19Prospecting
+    from .listing_spokes_20 import Spoke20SocialMediaMonitoring
+    return {
         "01": Spoke01LeadCapture(hub), "02": Spoke02LeadQualification(hub),
         "03": Spoke03LeadNurture(hub), "04": Spoke04ListingDescription(hub),
         "05": Spoke05MLSListingManagement(hub), "06": Spoke06ShowingScheduler(hub),
@@ -301,10 +337,9 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
         "17": Spoke17ComplianceFairHousing(hub), "18": Spoke18CalendarTask(hub),
         "19": Spoke19Prospecting(hub), "20": Spoke20SocialMediaMonitoring(hub),
     }
-    baseline = {aid: ss.encode(ss.agent_state(sp)) for aid, sp in spokes.items()}
 
-    sw = Swarm(hub, spokes, hitl, store, external, baseline,
-               {"verdict": verdict, "vendors_loaded": sorted(roster), "entries_skipped": problems})
+
+def _finish_swarm(sw, hub, readable, state_db, row, ss, playbook_table):
     sw.readable = readable
     # the playbook run tracker (dispatcher/run_tracker.py, owner decision
     # 2026-10-15): wraps hub.send last, so it sees every message, nested ones
@@ -320,7 +355,7 @@ def build_swarm(audit_path: str, *, state_db: Optional[str] = None,
         else:
             import json
             body = json.loads(row["body"])
-            sw.restored = ss.restore(hub, spokes, hitl, body, baseline)
+            sw.restored = ss.restore(hub, sw.spokes, sw.hitl, body, sw.baseline)
             if body.get("runs"):
                 sw.runs.restore(ss.decode(body["runs"]))
             hub.audit.append("state.restored", {"snapshot_id": row["id"], "sha256": row["sha256"],

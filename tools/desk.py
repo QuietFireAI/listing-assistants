@@ -112,6 +112,9 @@ QUEUE_TITLE = {
     "clarification.request": "A question for you",
     "integrity.violation": "Refused: unsigned or tampered",
     "dead.letter": "Could not be delivered",
+    # agent isolation (2026-10-26): an agent stopped behind its portal
+    "portal.violation": "An agent broke a rule and was stopped",
+    "portal.crash": "An agent stopped working",
 }
 REPLY_AGENTS = ["03", "04", "12", "13", "16", "20"]   # agents with a reply handler (Agent 11)
 
@@ -401,11 +404,19 @@ class ReadModel:
                 if agent == "human":
                     agent = None          # an unsigned "human" sender is not you
                 said = queue_said(q, rec)
+                case = None
+                if q in ("portal.violation", "portal.crash"):
+                    # the review agent's case file for this stop, when it is written
+                    from dispatcher.review_agent import read_case
+                    reviews = os.environ.get("LISTINGASSISTANTS_REVIEWS") or os.path.join(
+                        self.d.state_dir, "reviews")
+                    case = read_case(reviews, rec.get("alert_code"))
                 items.append({
                     "type": "queue", "id": k, "queue": q, "title": QUEUE_TITLE[q],
                     "ctx": rec.get("client_context_id"), "from": agent,
                     "from_name": NAMES.get(agent, agent) if agent else None,
                     "said": short(str(said), 400) if said else None,
+                    "case": case,
                     "content": rec})
         order = {"held": 0, "wait": 1, "hold": 2, "queue": 3}
         prio = {"escalation.legal_line": 0, "escalation.complaint": 1,
@@ -579,10 +590,13 @@ class ReadModel:
         for w in sw.hitl.get_pending_waits():
             you[w["agent_id"]] = you.get(w["agent_id"], 0) + 1
         tiles = []
+        stopped = getattr(getattr(sw, "team", None), "stopped", {}) or {}
         for aid in sorted(NAMES):
             if aid == "00":
                 continue
-            if aid in problem:
+            if aid in stopped:
+                state, note = "problem", "stopped: " + short(stopped[aid]["why"], 110)
+            elif aid in problem:
                 state, note = "problem", problem[aid]
             elif you.get(aid):
                 state, note = "you", f"{you[aid]} waiting for you"
@@ -1011,7 +1025,8 @@ class Desk:
             roster["_status"] = (f"RATIFIED {datetime.date.today().isoformat()} showcase copy of "
                                  f"scenes/config/vendor_panel.json - synthetic vendors")
             json.dump(roster, open(os.path.join(config_dir, "vendor_panel.json"), "w", encoding="utf-8"), indent=1)
-        if not os.path.exists(key):
+        if not (os.path.exists(key) or os.path.exists(os.path.join(state_dir, "operator-public.bin"))):
+            # (the public key alone when the key is in its own signer, 2026-10-26)
             raise SystemExit(f"no key in {state_dir}: run `python tools/console.py init` and "
                              f"`python tools/console.py onboard` first")
         try:
@@ -1165,7 +1180,42 @@ class Desk:
         self.last_action = {"what": what, "result": short(result, 300), "at": now()}
         return result
 
+    SIGNER_URL = os.environ.get("LISTINGASSISTANTS_SIGNER_URL", "http://localhost:8767")
+
     def act(self, body):
+        """Every action. With the key in its own signer (owner decision
+        2026-10-26), an action that needs your signature comes back as
+        needs_signature: the page takes the prepared message to the signer's
+        own page, you sign there, and the page sends {"action": "signed"}
+        with the signature; the action then runs with exactly that message."""
+        from dispatcher.remote_signer import NeedsSignature
+        with self.lock:
+            if body.get("action") == "signed":
+                return self._signed(body)
+            try:
+                return self._act(body)
+            except NeedsSignature as e:
+                rid = secrets.token_urlsafe(12)
+                pending = getattr(self, "_pending_sign", {})
+                pending[rid] = {"body": body, "envelope": e.env.to_record(), "at": time.time()}
+                self._pending_sign = pending
+                return {"needs_signature": {"id": rid, "envelope": e.env.to_record(),
+                                            "signer_url": self.SIGNER_URL.rstrip("/") + "/sign",
+                                            "about": {k: v for k, v in body.items() if k != "action"}}}
+
+    def _signed(self, body):
+        pend = getattr(self, "_pending_sign", {}).pop(str(body.get("id")), None)
+        if pend is None:
+            return {"error": "that signing request is no longer open; press the button again"}
+        rec = {**pend["envelope"], "envelope_id": body.get("envelope_id") or pend["envelope"]["envelope_id"],
+               "signature": body.get("signature")}
+        try:
+            self.signer.supply(rec)          # checked against your public key first
+        except (ValueError, AttributeError) as e:
+            return {"error": f"not signed: {e}"}
+        return self._act(pend["body"])
+
+    def _act(self, body):
         with self.lock:
             kind = body.get("action")
             if kind in ("send", "decline"):
@@ -1212,6 +1262,15 @@ class Desk:
                     "client_context_id": body.get("ctx"),
                     "by": (self.operator or {}).get("login")})
                 return self._done(f"Marked done: {body.get('title')}", {"acknowledged": item})
+            if kind == "restart_agent":
+                # agent isolation (2026-10-26): you reviewed a stopped agent;
+                # it starts on a new line with the state it last reported
+                team = getattr(self.sw, "team", None)
+                aid = str(body.get("agent") or "")
+                if team is None or aid not in team.stopped:
+                    return {"error": f"agent {aid or '?'} is not stopped"}
+                r = team.clear(aid, by=(self.operator or {}).get("login") or "the desk")
+                return self._done(f"Agent {aid} restarted after review", r)
             if kind == "release_hold":
                 ctx = body.get("ctx")
                 s11 = self.sw.spokes.get("11")
@@ -1476,7 +1535,8 @@ def main(argv=None):
             # 2026-10-14 review: it deleted any folder without an operator key
             raise SystemExit(f"--fresh deletes only a showcase folder; {state_dir} is not one")
         shutil.rmtree(state_dir)
-    if not (args.showcase or args.playbooks) and os.path.exists(os.path.join(state_dir, "operator-key.bin")):
+    if not (args.showcase or args.playbooks) and any(
+            os.path.exists(os.path.join(state_dir, f)) for f in ("operator-key.bin", "operator-public.bin")):
         # the install first, before the desk loads anything else of this
         # repository (2026-10-14); a folder with no key gets the desk's own
         # "run init" message below
@@ -1504,7 +1564,11 @@ def main(argv=None):
     tighten_tree(state_dir)                 # a folder an earlier version left readable
     desk = OwnerThread(lambda: Desk(state_dir, args.config_dir, showcase=args.showcase,
                                     scripts=scripts or None, playbooks=args.playbooks))
-    host = "0.0.0.0" if args.lan else "127.0.0.1"
+    # in its container (docker/compose.yml) the Desk listens on the
+    # container's closed network; only the desk door reaches it, and compose
+    # publishes that door on this computer's own address (2026-10-26)
+    in_container = os.environ.get("LISTINGASSISTANTS_IN_CONTAINER") == "1"
+    host = "0.0.0.0" if (args.lan or in_container) else "127.0.0.1"
     token = secrets.token_urlsafe(9) if args.lan else None
     # connections on their own threads; the swarm on one (OwnerThread)
     # the AI assistant's door (MCP, 2026-10-22): live desk on this machine

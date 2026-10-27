@@ -115,10 +115,9 @@ def main(argv=None) -> int:
     except ValueError as e:
         print(json.dumps({"error": str(e)}))
         return 2
-    from dispatcher.signatures import Ed25519Signer, Ed25519Verifier
-    key = os.path.join(state_dir, "operator-key.bin")
-    from dispatcher.boot_attest import fingerprint
-    pub = Ed25519Signer(private_key_bytes=open(key, "rb").read()).public_key_bytes()
+    from dispatcher.signatures import Ed25519Verifier
+    from dispatcher.boot_attest import fingerprint, operator_public_key
+    pub = operator_public_key(state_dir)     # the key here, or the signer's public key
     verifier = Ed25519Verifier(pub)
     try:
         sw = build_swarm(args.audit_log, state_db=args.state_db, config_dir=args.config_dir,

@@ -476,6 +476,9 @@ python tools/verify_update_pack.py --guide   # offline update procedure
 Mounting on Hermes, OpenClaw or Claude Desktop as an MCP server:
 [docs/MOUNTING.md](docs/MOUNTING.md).
 
+Every agent in its own container, reaching nothing but the dispatcher (agent
+isolation V1, in progress): [docs/CONTAINERS.md](docs/CONTAINERS.md).
+
 ## Reading order
 
 1. [docs/START_HERE.md](docs/START_HERE.md) - the 60-second version

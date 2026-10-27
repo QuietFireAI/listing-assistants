@@ -41,6 +41,12 @@ _LOCAL = {"localhost", "127.0.0.1", "::1"}
 
 
 def page_text(queue: str, record: dict) -> str:
+    code = (record or {}).get("alert_code")
+    if code:
+        # an agent stopped (owner decision 2026-10-26): this system's id and
+        # the error code to look up on the record, nothing else
+        return (f"ListingAssistants {record.get('system_id', '')}: {queue} {code}. "
+                f"Agent {record.get('agent', '?')} is stopped until you clear it.").replace("  ", " ")
     ctx = (record or {}).get("client_context_id") or "no client"
     return f"ListingAssistants: {queue} waiting for you ({ctx}). Open the Broker Desk or the console."
 
