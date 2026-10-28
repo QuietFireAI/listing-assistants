@@ -578,10 +578,18 @@ class Spoke06ShowingScheduler:
             return
 
         if env.intent == "showing.feedback_response":
-            for k in [k for k in self.feedback_asks if k == ctx or k.startswith(f"{ctx}|")]:
+            asked = [k for k in self.feedback_asks if k == ctx or k.startswith(f"{ctx}|")]
+            for k in asked:
                 self.feedback_asks.pop(k, None)
+            # 2026-10-28 (manual re-check): only the showings asked about, or
+            # with none asked, those already held, count as answered; every
+            # confirmed showing, future ones too, used to be marked
+            from .clock import local_now_iso
+            today = local_now_iso()[:10]
             for s in self.confirmed_showings.get(ctx, []):   # P18 counts these
-                s["feedback_received"] = True
+                if (self._showing_key(ctx, s) in asked if any("|" in k for k in asked)
+                        else str(s.get("time") or "")[:10] <= today):
+                    s["feedback_received"] = True
             self.hub.send(_env("06", "18", "agent.status", ctx,
                                {"waiting_on": "showing_feedback",
                                 "resolved": True}))

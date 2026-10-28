@@ -37,7 +37,7 @@
  },
  {
   "id": "07-02",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A party says a deadline was extended, with no amendment on file",
    "src": "tuple:07-02"
@@ -56,8 +56,8 @@
     "src": "dispatcher/listing_spokes_07.py:337-344; check:07-02:envelope.persisted:clarification.request"
    },
    {
-    "t": "A claim with an amendment on file changes nothing either. A date changes only by a signed milestone amendment naming the milestone, the new date and the amendment; it changes that one date and nothing else (owner decision of 2026-10-28).",
-    "src": "dispatcher/listing_spokes_07.py:321-345; dispatcher/listing_spokes_07.py::if \"milestone_amendment\" in payload:; dispatcher/listing_spokes_07.py::def _amend_milestone(self, ctx: str, amendment, env: Envelope):; tests_listing/test_owner_decisions_2026_10_28.py::def test_signed_amendment_changes_one_date_and_keeps_the_rest"
+    "t": "A claim with an amendment on file changes nothing either. One date changes by a signed milestone amendment naming the milestone, the new date and the amendment; it changes that one date and nothing else (owner decision of 2026-10-28). Signing the whole timeline again replaces every date.",
+    "src": "dispatcher/listing_spokes_07.py:321-345, 270-275; dispatcher/listing_spokes_07.py::if \"milestone_amendment\" in payload:; dispatcher/listing_spokes_07.py::def _amend_milestone(self, ctx: str, amendment, env: Envelope):"
    },
    {
     "t": "Nothing in the system reads a contract: this reaches Agent 07 only as the authorized user's own signed setting.",
@@ -173,7 +173,7 @@
  },
  {
   "id": "07-05",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "Wire instructions come up",
    "src": "tuple:07-05"
@@ -188,8 +188,8 @@
     "src": "dispatcher/listing_spokes_11.py:578-585; check:07-05:escalation.raised; check:07-05:envelope.persisted:doc.status"
    },
    {
-    "t": "Nothing else is done with the message.",
-    "src": "dispatcher/listing_spokes_11.py:585"
+    "t": "Nothing else is done with the message (if it is also angry or negative, the complaint alert and hold come first, as for any reply).",
+    "src": "dispatcher/listing_spokes_11.py:563-586"
    },
    {
     "t": "Agent 07 runs the same check on every message it receives (except the daily clock). Agent 08 runs it on the documents it receives, after checking the document belongs to the transaction.",
@@ -365,7 +365,7 @@
  },
  {
   "id": "07-10",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "The closing date moves on someone's word",
    "src": "tuple:07-10"
@@ -384,7 +384,7 @@
     "src": "dispatcher/listing_spokes_07.py:361-375; check:07-10:envelope.persisted:clarification.request"
    },
    {
-    "t": "Whether or not a signed amendment exists, this setting never changes the date. The date changes only by a signed milestone amendment, which changes that one date and keeps every other milestone as it is.",
+    "t": "Whether or not a signed amendment exists, this setting never changes the date. One date changes by a signed milestone amendment, which keeps every other milestone as it is; signing the whole timeline again replaces every date.",
     "src": "dispatcher/listing_spokes_07.py:350-376; dispatcher/listing_spokes_07.py::def _amend_milestone(self, ctx: str, amendment, env: Envelope):; tests_listing/test_owner_decisions_2026_10_28.py::def test_signed_amendment_changes_one_date_and_keeps_the_rest"
    },
    {

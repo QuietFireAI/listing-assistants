@@ -72,8 +72,8 @@
     },
     {
      "p": {
-      "t": "The settings the tests start with are made up too (a few tests leave some of them out on purpose): a scoring rubric, follow-up sequences, two prohibited compliance phrases (\"perfect for young families\" and \"no kids\"), the monitored social channels and the brokerage identification \"Synth Realty, Testville OH\".",
-      "src": "synth/tuples/setup.jsonl:1-7; synth/tuples/run_tuples.py:92-102"
+      "t": "The settings the tests start with are made up too (a few tests leave some of them out on purpose): a scoring rubric, follow-up sequences, two prohibited compliance phrases (\"perfect for young families\" and \"no kids\"), the monitored social channels, Agent 01's service area, the brokerage identification \"Synth Realty, Testville OH\", and a made-up vendor roster.",
+      "src": "synth/tuples/setup.jsonl:1-7; synth/tuples/run_tuples.py:92-102, 186-191; synth/tuples/config/vendor_panel.json"
      }
     },
     {
@@ -437,8 +437,8 @@
     },
     {
      "p": {
-      "t": "Each arrow is one message, numbered in the order it happened in the test. Amber arrows did not simply go through: held for signed release, released on a signature, refused, held because they are on no route, stopped as repeating, duplicates, or undeliverable; alerts and questions for the authorized user are amber too, and the tag on the arrow says which. Grey arrows are the rest: delivered, or the authorized user's own signed release or decision.",
-      "src": "synth/procedures/collect_evidence.py:34-39, 130-150; synth/procedures/site_template.html"
+      "t": "Each arrow is one message, numbered in the order it happened in the test (a run of three or more identical messages is drawn once, tagged with how many). Amber arrows did not simply go through: held for signed release, released on a signature, refused, held because they are on no route, stopped as repeating, duplicates, or undeliverable; alerts and questions for the authorized user are amber too, and the tag on the arrow says which. Grey arrows are the rest: delivered, or the authorized user's own signed release or decision.",
+      "src": "synth/procedures/collect_evidence.py:34-39, 130-150; synth/procedures/site_template.html; synth/procedures/build_site.py:186-210"
      }
     },
     {
@@ -532,7 +532,7 @@
       {
        "k": "01",
        "t": "Takes in new inquiries, records the person and their consent, and asks Agent 14 whether they are already on record.",
-       "src": "dispatcher/listing_spokes.py:1117-1122; run:P11:01->14 record.request"
+       "src": "dispatcher/listing_spokes.py:1118-1123; run:P11:01->14 record.request"
       },
       {
        "k": "02",
@@ -557,7 +557,7 @@
       {
        "k": "06",
        "t": "Schedules showings, checks notice and conflicts, and asks for feedback afterwards.",
-       "src": "dispatcher/listing_spokes_06.py:636-789, 314-363"
+       "src": "dispatcher/listing_spokes_06.py:644-797, 314-363"
       },
       {
        "k": "07",
@@ -587,12 +587,12 @@
       {
        "k": "12",
        "t": "Prepares marketing: the approved listing description and campaigns the authorized user signs, each held for release.",
-       "src": "dispatcher/listing_spokes_12.py:106-137, 268-300"
+       "src": "dispatcher/listing_spokes_12.py:106-137, 278-310"
       },
       {
        "k": "13",
        "t": "Matches new listings to buyers' stated criteria, once the buyer agreement is on file.",
-       "src": "dispatcher/listing_spokes_13.py:118-279, 281-316"
+       "src": "dispatcher/listing_spokes_13.py:119-280, 282-317"
       },
       {
        "k": "14",

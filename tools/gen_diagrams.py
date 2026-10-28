@@ -35,6 +35,10 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tests_listing"))
+# the same pinned clock as the test suite (tests_listing/conftest.py, owner
+# decision D-A4): run at night, the captured tests held client messages for
+# quiet hours and the generator failed (found 2026-10-28)
+os.environ.setdefault("LISTING_CLOCK_NOW", "2026-10-15T12:00:00")
 
 PLAY_BY_PLAY = os.path.join(ROOT, "docs", "PLAY-BY-PLAY.md")
 

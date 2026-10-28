@@ -72,7 +72,7 @@
   },
   "test": {
    "t": "The roster's only photographer is licensed and insured to December 31, 2027; a listing signed January 15, 2028 needs photos.",
-   "src": "spec:09-02; synth/tuples/config/vendor_panel.json:8"
+   "src": "spec:09-02; synth/tuples/config/vendor_panel.json:7-8"
   }
  },
  {

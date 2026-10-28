@@ -89,7 +89,7 @@
    },
    {
     "t": "Agent 01 passes the demand on with the captured lead (owner decision of 2026-10-28), so the lead goes to the hot-lead queue whatever its score, with the call clock.",
-    "src": "dispatcher/listing_spokes.py:1042-1043; dispatcher/listing_spokes_02.py:319-341; check:02-03:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:1043-1044; dispatcher/listing_spokes_02.py:319-341; check:02-03:escalation.raised"
    }
   ],
   "never": [

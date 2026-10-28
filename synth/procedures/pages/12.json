@@ -8,16 +8,16 @@
   },
   "when": {
    "t": "A report arrives that a platform truncated an approved ad.",
-   "src": "dispatcher/listing_spokes_12.py:425"
+   "src": "dispatcher/listing_spokes_12.py:435"
   },
   "steps": [
    {
     "t": "Agent 12 treats the cut as an edit and sends the cut copy back to Compliance (Agent 17).",
-    "src": "dispatcher/listing_spokes_12.py:426-447; check:12-01:envelope.persisted:content.review; check:12-01:spoke.trace"
+    "src": "dispatcher/listing_spokes_12.py:436-457; check:12-01:envelope.persisted:content.review; check:12-01:spoke.trace"
    },
    {
     "t": "Compliance checks the cut copy as the platform reports it. In the test the cut drops the brokerage identification, so Compliance flags it (no exceptions for format limits, 17-07) and Agent 12 asks the authorized user for corrected copy.",
-    "src": "flow:12-01:17->12 content.verdict; flow:12-01:12->queue clarification.request; dispatcher/listing_spokes_17.py:269-280; dispatcher/listing_spokes_12.py:405-419"
+    "src": "flow:12-01:17->12 content.verdict; flow:12-01:12->queue clarification.request; dispatcher/listing_spokes_17.py:269-280; dispatcher/listing_spokes_12.py:415-429"
    },
    {
     "t": "If Compliance approves the cut copy, that copy is what is published, held for the authorized user's release (fixed 2026-10-27: the approval used to publish nothing).",
@@ -25,7 +25,7 @@
    },
    {
     "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
-    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-01"
+    "src": "dispatcher/listing_spokes_12.py:435, 453, 466; dispatcher/listing_spokes_12.py:12-13; spec:12-01"
    }
   ],
   "never": [
@@ -52,16 +52,16 @@
   },
   "when": {
    "t": "A report arrives that a platform rejected an ad.",
-   "src": "dispatcher/listing_spokes_12.py:449"
+   "src": "dispatcher/listing_spokes_12.py:459"
   },
   "steps": [
    {
     "t": "Agent 12 logs the rejection word for word and asks the authorized user. It changes nothing to get past the platform's filter.",
-    "src": "dispatcher/listing_spokes_12.py:450-460; check:12-02:envelope.persisted:interaction.log; check:12-02:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes_12.py:460-470; check:12-02:envelope.persisted:interaction.log; check:12-02:envelope.persisted:clarification.request"
    },
    {
     "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
-    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-02"
+    "src": "identity/routes.json:541-547; dispatcher/listing_spokes_12.py:435-576"
    }
   ],
   "never": [
@@ -88,20 +88,20 @@
   },
   "when": {
    "t": "Engagement figures for one listing have arrived from more than one platform and they differ.",
-   "src": "dispatcher/listing_spokes_12.py:534-541"
+   "src": "dispatcher/listing_spokes_12.py:547-554"
   },
   "steps": [
    {
     "t": "Agent 12 logs both, named by platform, and asks the authorized user.",
-    "src": "dispatcher/listing_spokes_12.py:541-550; check:12-03:envelope.persisted:interaction.log; check:12-03:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes_12.py:554-563; check:12-03:envelope.persisted:interaction.log; check:12-03:envelope.persisted:clarification.request"
    },
    {
     "t": "Figures are kept per platform: different numbers from two platforms count as a disagreement, and a second figure from the same platform replaces the first.",
-    "src": "dispatcher/listing_spokes_12.py:535-541; spec:12-03"
+    "src": "dispatcher/listing_spokes_12.py:548-554; spec:12-03"
    },
    {
     "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
-    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-03"
+    "src": "identity/routes.json:541-547; dispatcher/listing_spokes_12.py:435-576"
    }
   ],
   "never": [
@@ -121,7 +121,7 @@
  },
  {
   "id": "12-04",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "The listing is not confirmed active on the MLS",
    "src": "tuple:12-04"
@@ -133,15 +133,15 @@
   "steps": [
    {
     "t": "Agent 12 publishes nothing and keeps the ad.",
-    "src": "dispatcher/listing_spokes_12.py:279-298, 384-402; check:12-04:spoke.trace; check:12-04:human.notified"
+    "src": "dispatcher/listing_spokes_12.py:289-308, 394-412; check:12-04:spoke.trace; check:12-04:human.notified"
    },
    {
-    "t": "The ad goes forward on its own once the listing goes active, or an exempt status with its disclosure on file is recorded; it then waits for the authorized user's release, because the dispatcher holds every publish.",
-    "src": "dispatcher/listing_spokes_12.py:139-153, 182-186, 314-316; dispatcher/listing_spokes_12.py:95-99; dispatcher/hub.py:609-631"
+    "t": "The ad goes forward on its own once the listing goes active, or an exempt status with its disclosure on file is recorded (with no brokerage identification on file it waits for that first, and the authorized user is asked); it then waits for the authorized user's release, because the dispatcher holds every publish.",
+    "src": "dispatcher/listing_spokes_12.py:139-153, 182-186, 324-326, 95-99, 106-123; dispatcher/hub.py:609-631"
    },
    {
     "t": "An ad from Agent 04 that is waiting for the gate is on the calendar's list of waits, like a campaign the authorized user started (fixed 2026-10-28; before, nobody was told it was waiting).",
-    "src": "dispatcher/listing_spokes_12.py:285-291; flow:12-04:12->18 agent.status"
+    "src": "dispatcher/listing_spokes_12.py:295-301; flow:12-04:12->18 agent.status; dispatcher/listing_spokes_18.py:169-183"
    }
   ],
   "never": [
@@ -168,12 +168,12 @@
   },
   "when": {
    "t": "A signed new campaign is marked as tying into a trending topic.",
-   "src": "dispatcher/listing_spokes_12.py:336"
+   "src": "dispatcher/listing_spokes_12.py:346"
   },
   "steps": [
    {
     "t": "Agent 12 asks the authorized user to approve it first; it is not sent to Compliance.",
-    "src": "dispatcher/listing_spokes_12.py:336-342; check:12-05:envelope.persisted:clarification.request; check:12-05:envelope.persisted:content.review"
+    "src": "dispatcher/listing_spokes_12.py:346-352; check:12-05:envelope.persisted:clarification.request; check:12-05:envelope.persisted:content.review"
    }
   ],
   "never": [
@@ -200,12 +200,12 @@
   },
   "when": {
    "t": "An ad from Agent 04 is marked as citing facts not in the listing record.",
-   "src": "dispatcher/listing_spokes_12.py:270-272"
+   "src": "dispatcher/listing_spokes_12.py:280-282"
   },
   "steps": [
    {
     "t": "The rule: pull it and ask. The code does this.",
-    "src": "dispatcher/listing_spokes_12.py:270-278"
+    "src": "dispatcher/listing_spokes_12.py:280-288"
    },
    {
     "t": "No way in: Agent 04 drafts only from the listing record and never sets the mark.",
@@ -236,12 +236,12 @@
   },
   "when": {
    "t": "Copy is waiting for Compliance's verdict.",
-   "src": "dispatcher/listing_spokes_12.py:356-364"
+   "src": "dispatcher/listing_spokes_12.py:366-374"
   },
   "steps": [
    {
     "t": "Nothing publishes until the verdict arrives.",
-    "src": "dispatcher/listing_spokes_12.py:377-404; check:12-07:envelope.persisted:content.verdict; check:12-07:human.notified"
+    "src": "dispatcher/listing_spokes_12.py:387-414; check:12-07:envelope.persisted:content.verdict; check:12-07:human.notified"
    },
    {
     "t": "Without a ruleset loaded, Compliance gives no verdict and asks the authorized user instead.",
@@ -272,16 +272,16 @@
   },
   "when": {
    "t": "A signed new campaign carries demographic targeting.",
-   "src": "dispatcher/listing_spokes_12.py:326"
+   "src": "dispatcher/listing_spokes_12.py:336"
   },
   "steps": [
    {
     "t": "Agent 12 refuses it and raises a legal-line alert; it is not sent to Compliance.",
-    "src": "dispatcher/listing_spokes_12.py:326-334; check:12-08:escalation.raised; check:12-08:envelope.persisted:content.review"
+    "src": "dispatcher/listing_spokes_12.py:336-344; check:12-08:escalation.raised; check:12-08:envelope.persisted:content.review"
    },
    {
     "t": "A farm campaign (an area, no listing) may only use general targeting; anything else raises the same alert.",
-    "src": "dispatcher/listing_spokes_12.py:343-351"
+    "src": "dispatcher/listing_spokes_12.py:353-361"
    }
   ],
   "never": [
@@ -301,31 +301,31 @@
  },
  {
   "id": "12-09",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A published ad is out of date",
    "src": "tuple:12-09"
   },
   "when": {
    "t": "A report arrives that an ad is stale, saying whether to retract or correct it.",
-   "src": "dispatcher/listing_spokes_12.py:462-497"
+   "src": "dispatcher/listing_spokes_12.py:472-510"
   },
   "steps": [
    {
     "t": "To retract: Agent 12 sends a retraction, which the dispatcher holds for the authorized user's release, logs what changed, and tells the authorized user.",
-    "src": "dispatcher/listing_spokes_12.py:497-515; check:12-09:envelope.persisted:interaction.log; check:12-09:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes_12.py:510-528; check:12-09:envelope.persisted:interaction.log; check:12-09:envelope.persisted:clarification.request"
    },
    {
     "t": "To correct (the default): it reopens the ad for correction, logs the change and tells the authorized user; the corrected copy goes back through Compliance and release.",
-    "src": "dispatcher/listing_spokes_12.py:516-531"
+    "src": "dispatcher/listing_spokes_12.py:529-544"
    },
    {
-    "t": "Only an ad that was released is retracted (in the test it was). An ad still held for release is not retracted: the authorized user is asked to decline it; with no ad ever published there is nothing to retract, and the authorized user is told so (fixed 2026-10-28).",
-    "src": "dispatcher/listing_spokes_12.py::if payload.get(\"retract_requested\") and (not published or held):; dispatcher/listing_spokes_12.py:486-491; flow:12-09:12->external campaign.publish; tests_listing/test_owner_decisions_2026_10_28.py::def test_no_retraction_for_an_ad_still_held_for_release"
+    "t": "Only an ad that was released is retracted (in the test it was). An ad still held for release is not retracted: the authorized user is asked to decline it; an ad the authorized user declined, or none ever published, is treated as never published: nothing to retract, and the authorized user is told so (fixed 2026-10-28).",
+    "src": "dispatcher/listing_spokes_12.py::if payload.get(\"retract_requested\") and (not published or held):; dispatcher/listing_spokes_12.py:499-504; flow:12-09:12->external campaign.publish; tests_listing/test_owner_decisions_2026_10_28.py::def test_no_retraction_for_an_ad_still_held_for_release"
    },
    {
     "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
-    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-09"
+    "src": "identity/routes.json:541-547; dispatcher/listing_spokes_12.py:435-576"
    }
   ],
   "never": [
@@ -378,12 +378,12 @@
   },
   "when": {
    "t": "Compliance returns a flagged verdict on campaign copy.",
-   "src": "dispatcher/listing_spokes_12.py:405"
+   "src": "dispatcher/listing_spokes_12.py:415"
   },
   "steps": [
    {
     "t": "Agent 12 publishes nothing and tells the authorized user, with Compliance's findings, to send corrected copy as a new signed campaign.",
-    "src": "dispatcher/listing_spokes_12.py:405-419; check:12-11:envelope.persisted:clarification.request; check:12-11:human.notified"
+    "src": "dispatcher/listing_spokes_12.py:415-429; check:12-11:envelope.persisted:clarification.request; check:12-11:human.notified"
    }
   ],
   "never": [

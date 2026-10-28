@@ -8,7 +8,7 @@
   },
   "when": {
    "t": "A buyer asks to see a listing less than 30 minutes from a showing already confirmed there for another buyer.",
-   "src": "dispatcher/listing_spokes_06.py:662-670"
+   "src": "dispatcher/listing_spokes_06.py:670-678"
   },
   "steps": [
    {
@@ -17,7 +17,7 @@
    },
    {
     "t": "Agent 06 does not book the second; it asks the authorized user about the calendar conflict.",
-    "src": "dispatcher/listing_spokes_06.py:671-679; check:06-01:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes_06.py:679-687; check:06-01:envelope.persisted:clarification.request"
    },
    {
     "t": "No other time is worked out for the second buyer.",
@@ -25,7 +25,7 @@
    },
    {
     "t": "A request that claims to protect a deadline goes differently: if Agent 14's record says the lead is hot, moving the confirmed showing is held for the authorized user to confirm; otherwise it is the same conflict question. The claim alone never moves a confirmed showing.",
-    "src": "dispatcher/listing_spokes_06.py:680-735; spec:06-01"
+    "src": "dispatcher/listing_spokes_06.py:688-743; spec:06-01"
    }
   ],
   "never": [
@@ -45,14 +45,14 @@
  },
  {
   "id": "06-02",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "The person asking for a showing is not verified",
    "src": "tuple:06-02"
   },
   "when": {
    "t": "A showing request reaches Agent 06 and the client's record at Agent 14 does not mark the requester's identity as verified.",
-   "src": "dispatcher/listing_spokes_11.py:759-787; dispatcher/listing_spokes_06.py:515-517"
+   "src": "dispatcher/listing_spokes_11.py:768-796; dispatcher/listing_spokes_06.py:515-517"
   },
   "steps": [
    {
@@ -64,12 +64,12 @@
     "src": "dispatcher/listing_spokes_06.py:526-528; check:06-02:envelope.persisted:interaction.log"
    },
    {
-    "t": "The authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer that identity must be verified first is requested from Agent 11. That message's wording waits for the authorized user's signature; until then Agent 11 holds it, as in this test (owner decision of 2026-10-28).",
+    "t": "The authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer that identity must be verified first is requested from Agent 11. That message's wording waits for the authorized user's signature; until then Agent 11 does not send it (it is logged), and signing later does not send it (owner decision of 2026-10-28).",
     "src": "dispatcher/listing_spokes_06.py::showing cancelled: the requester's identity; dispatcher/listing_spokes_06.py::{\"template\": \"identity_verification_needed\"}; check:06-02:envelope.persisted:clarification.request; check:06-02:envelope.persisted:client.message.request; check:06-02:envelope.persisted:client.message.send"
    },
    {
     "t": "Identity counts as verified only when the client's record at Agent 14 says so: the authorized user records it with a signed setting, or an agent's log entry carries it. Agent 06 does no checking of its own.",
-    "src": "dispatcher/listing_spokes_11.py:762-763, 780-787; dispatcher/listing_spokes.py::if \"requester_identity_verified\" in payload:; dispatcher/listing_spokes.py::or \"requester_identity_verified\" in env.payload):; spec:06-02"
+    "src": "dispatcher/listing_spokes_11.py:771-772, 789-796; dispatcher/listing_spokes.py::if \"requester_identity_verified\" in payload:; dispatcher/listing_spokes.py::or \"requester_identity_verified\" in env.payload):; spec:06-02"
    }
   ],
   "never": [
@@ -125,27 +125,27 @@
  },
  {
   "id": "06-04",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A showing is reported as a no-show",
    "src": "tuple:06-04"
   },
   "when": {
    "t": "A client's message marked as a no-show report arrives, or the calendar finds a showing with nothing reported after it.",
-   "src": "dispatcher/listing_spokes_11.py:724-728; dispatcher/listing_spokes_18.py:445-488"
+   "src": "dispatcher/listing_spokes_11.py::if payload.get(\"about_showing\"):; dispatcher/listing_spokes_18.py:445-488"
   },
   "steps": [
    {
     "t": "Agent 06 logs the no-show.",
-    "src": "dispatcher/listing_spokes_06.py:600-601; check:06-04:envelope.persisted:interaction.log"
+    "src": "dispatcher/listing_spokes_06.py:608-609; check:06-04:envelope.persisted:interaction.log"
    },
    {
     "t": "It asks Agent 11 to send a feedback request marked neutral, with no reproach.",
-    "src": "dispatcher/listing_spokes_06.py:602; dispatcher/listing_spokes_06.py::{\"template\": \"feedback_request\",; check:06-04:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_06.py:610; dispatcher/listing_spokes_06.py::{\"template\": \"feedback_request\",; check:06-04:envelope.persisted:client.message.request"
    },
    {
-    "t": "Agent 11 routes on the no-show marker in the message, not on its words.",
-    "src": "dispatcher/listing_spokes_11.py:724-728"
+    "t": "Agent 11 routes on the showing and no-show markers on the message, not on its words.",
+    "src": "dispatcher/listing_spokes_11.py:756-762"
    }
   ],
   "never": [
@@ -172,7 +172,7 @@
   },
   "when": {
    "t": "A buyer asks to see one of the office's listings whose record says occupied, with less notice than the minimum.",
-   "src": "dispatcher/listing_spokes_06.py:285-290, 639-643"
+   "src": "dispatcher/listing_spokes_06.py:285-290, 647-651"
   },
   "steps": [
    {
@@ -181,11 +181,11 @@
    },
    {
     "t": "The minimum is 24 hours, the tuning default; it applies whether the request is for the same day or not.",
-    "src": "dispatcher/listing_spokes_06.py:90, 637-643; docs/TUNING_MANUAL.md:322"
+    "src": "dispatcher/listing_spokes_06.py:90, 645-651; docs/TUNING_MANUAL.md:322"
    },
    {
     "t": "Nothing is booked. Agent 11 is asked to send the buyer the next-legal-slot message, which carries the required notice (24 hours). No time is worked out.",
-    "src": "dispatcher/listing_spokes_06.py:644-655; 06-showing-scheduler/DECISIONS.md:33-35; check:06-05:envelope.persisted:client.message.request; check:06-05:envelope.persisted:calendar.event"
+    "src": "dispatcher/listing_spokes_06.py:652-663; 06-showing-scheduler/DECISIONS.md:33-35; check:06-05:envelope.persisted:client.message.request; check:06-05:envelope.persisted:calendar.event"
    }
   ],
   "never": [
@@ -252,7 +252,7 @@
   },
   "when": {
    "t": "A buyer asks to see one of the office's listings with less than the minimum notice, and the record says occupied or says nothing about occupancy.",
-   "src": "dispatcher/listing_spokes_06.py:285-290, 639-643"
+   "src": "dispatcher/listing_spokes_06.py:285-290, 647-651"
   },
   "steps": [
    {
@@ -261,11 +261,11 @@
    },
    {
     "t": "Nothing is booked; Agent 11 is asked to send the buyer the next-legal-slot message with the required notice (24 hours).",
-    "src": "dispatcher/listing_spokes_06.py:644-655; check:06-07:envelope.persisted:client.message.request; check:06-07:envelope.persisted:calendar.event"
+    "src": "dispatcher/listing_spokes_06.py:652-663; check:06-07:envelope.persisted:client.message.request; check:06-07:envelope.persisted:calendar.event"
    },
    {
     "t": "No message asks the seller to waive the notice.",
-    "src": "dispatcher/listing_spokes_06.py:644-655; check:06-07:envelope.persisted:client.message.request (no message containing waive)"
+    "src": "dispatcher/listing_spokes_06.py:652-663; check:06-07:envelope.persisted:client.message.request (no message containing waive)"
    }
   ],
   "never": [
@@ -301,11 +301,11 @@
    },
    {
     "t": "Agent 06 counts no-shows per named showing agent and asks the authorized user at two.",
-    "src": "dispatcher/listing_spokes_06.py:603-613"
+    "src": "dispatcher/listing_spokes_06.py:611-621"
    },
    {
     "t": "No way in yet: a client's no-show report names no showing agent, and the calendar's no-show report says it was not the agent, so the count never starts.",
-    "src": "dispatcher/listing_spokes_11.py:726-728; dispatcher/listing_spokes_18.py:484-487; spec:06-08"
+    "src": "dispatcher/listing_spokes_11.py:756-762; dispatcher/listing_spokes_18.py:484-487; spec:06-08"
    }
   ],
   "never": [
@@ -332,7 +332,7 @@
   },
   "when": {
    "t": "One buyer asks for a showing less than 30 minutes from another showing already confirmed for them, at any listing.",
-   "src": "dispatcher/listing_spokes_06.py:662-670"
+   "src": "dispatcher/listing_spokes_06.py:670-678"
   },
   "steps": [
    {
@@ -341,11 +341,11 @@
    },
    {
     "t": "It does not book the second; it asks the authorized user about the conflict inside the 30-minute buffer.",
-    "src": "dispatcher/listing_spokes_06.py:671-679; check:06-09:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes_06.py:679-687; check:06-09:envelope.persisted:clarification.request"
    },
    {
     "t": "The 30 minutes is the default; no message sets another buffer.",
-    "src": "dispatcher/listing_spokes_06.py:663; dispatcher/listing_spokes_11.py:780-787"
+    "src": "dispatcher/listing_spokes_06.py::buffer_minutes = payload.get(\"buffer_minutes\", 30); dispatcher/listing_spokes_11.py:812-819; dispatcher/listing_spokes_13.py:653-688"
    }
   ],
   "never": [
@@ -365,7 +365,7 @@
  },
  {
   "id": "06-10",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A feedback request goes unanswered",
    "src": "tuple:06-10"
@@ -381,15 +381,15 @@
    },
    {
     "t": "Agent 18 never records a no-show on the showing's own day (owner decision of 2026-10-28). From the next day it could, but Agent 06's feedback request on that day's run comes first and tells Agent 18 the showing is being followed up, so it records none for a showing Agent 06 confirmed.",
-    "src": "dispatcher/listing_spokes_18.py::return \"same_day_waits\"; dispatcher/listing_spokes_18.py:148-154; dispatcher/clock.py:47-62; check:06-10:envelope.persisted:showing.no_show"
+    "src": "dispatcher/listing_spokes_18.py::return \"same_day_waits\"; dispatcher/listing_spokes_18.py:148-154; dispatcher/listing_spokes_06.py:346-349; dispatcher/sweep_runner.py:62-65; dispatcher/clock.py:47-62; check:06-10:envelope.persisted:showing.no_show"
    },
    {
     "t": "After two requests with no answer it stops and records that the cap was reached.",
     "src": "dispatcher/listing_spokes_06.py:314-340; check:06-10:spoke.trace; check:06-10:envelope.persisted:client.message.request"
    },
    {
-    "t": "The count is kept per showing (fixed 2026-10-28: it was per buyer, so a buyer's second showing was never asked about); any answer from the buyer resets it for that buyer's showings.",
-    "src": "dispatcher/listing_spokes_06.py::def _showing_key(ctx: str, showing: dict) -> str:; dispatcher/listing_spokes_06.py::for k in [k for k in self.feedback_asks if k == ctx or k.startswith(f\"{ctx}|\")]:"
+    "t": "The count is kept per showing (fixed 2026-10-28: it was per buyer, so a buyer's second showing was never asked about). An answer from the buyer closes the showings it was asked about (with none asked, the showings already held); a showing still to come is asked about after it happens (fixed 2026-10-28).",
+    "src": "dispatcher/listing_spokes_06.py::def _showing_key(ctx: str, showing: dict) -> str:; dispatcher/listing_spokes_06.py:580-600"
    }
   ],
   "never": [
@@ -445,7 +445,7 @@
  },
  {
   "id": "06-12",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "The weekly seller report is due",
    "src": "tuple:06-12"
@@ -468,8 +468,8 @@
     "src": "dispatcher/listing_spokes_06.py:213-219, 234; check:06-12:envelope.persisted:client.message.request"
    },
    {
-    "t": "Agent 11 sends it only if the seller's consent is on record; otherwise it is not sent and the authorized user is told once to record the consent.",
-    "src": "dispatcher/listing_spokes_11.py:319-359; check:06-12:envelope.persisted:client.message.send"
+    "t": "Agent 11 sends it only if the seller's consent is on record on some channel. With no consent on record it is not sent and the authorized user is told once to record it; with an opt-out on every channel it is not sent and only logged.",
+    "src": "dispatcher/listing_spokes_11.py:320-360; check:06-12:envelope.persisted:client.message.send"
    }
   ],
   "never": [

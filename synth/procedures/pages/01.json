@@ -17,7 +17,7 @@
    },
    {
     "t": "Open item: today each inquiry is handed over as its own lead, and neither carries all the facts. Combining works only while the first inquiry is still waiting for Agent 14, and Agent 14 answers at once.",
-    "src": "result:01-01:VARIANCE; dispatcher/listing_spokes.py:974-977, 1178; synth/tuples/REPORT.md 01-01 VARIANCE"
+    "src": "result:01-01:VARIANCE; dispatcher/listing_spokes.py:979-982, 1183; dispatcher/listing_spokes.py:546-551; synth/tuples/REPORT.md 01-01 VARIANCE"
    }
   ],
   "never": [
@@ -53,7 +53,7 @@
    },
    {
     "t": "It records \"no\" for every channel.",
-    "src": "dispatcher/listing_spokes.py:924-926, 1035-1036; check:01-02:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:925-927, 1036-1037; check:01-02:envelope.persisted"
    },
    {
     "t": "No message goes to the person, and the lead is not put into a follow-up sequence.",
@@ -93,11 +93,11 @@
   "steps": [
    {
     "t": "Agent 01 passes the request, in the person's words, on to Agent 02 with the captured lead, and raises no alert of its own (one item per person; owner decision of 2026-10-28).",
-    "src": "dispatcher/listing_spokes.py:871-888, 1042-1043; check:01-03:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:872-889, 1043-1044; check:01-03:envelope.persisted"
    },
    {
     "t": "It still captures what the person gave.",
-    "src": "dispatcher/listing_spokes.py:871-874; check:01-03:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:872-875; check:01-03:envelope.persisted"
    },
    {
     "t": "Agent 02 puts the person in the hot-lead queue, quoting the request, with the call clock; a person who may not be called is marked do not contact, with no clock.",
@@ -112,7 +112,7 @@
   ],
   "you_see": {
    "t": "A hot-lead alert quoting the request for a person, with the call clock; no legal-line alert; the lead is captured.",
-   "src": "check:01-03:escalation.raised; check:01-03:envelope.persisted"
+   "src": "check:01-03:escalation.raised; check:01-03:envelope.persisted; dispatcher/listing_spokes_02.py:336-339"
   },
   "test": {
    "t": "A web form says \"I want to talk to a person right now\", with a name, phone, budget and timeline.",
@@ -133,11 +133,11 @@
   "steps": [
    {
     "t": "Agent 01 keeps the extra words exactly as given, in the lead's notes.",
-    "src": "dispatcher/listing_spokes.py:1012-1015; check:01-04:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:1013-1016; check:01-04:envelope.persisted"
    },
    {
     "t": "It does not turn them into any field.",
-    "src": "tuple:01-04; dispatcher/listing_spokes.py:1023-1041"
+    "src": "tuple:01-04; dispatcher/listing_spokes.py:1024-1042"
    }
   ],
   "never": [
@@ -164,20 +164,20 @@
   },
   "when": {
    "t": "An inquiry carries the same phone or email as a lead already on record under another client.",
-   "src": "dispatcher/listing_spokes.py:1149-1155"
+   "src": "dispatcher/listing_spokes.py:1154-1160, 60-71, 529-537"
   },
   "steps": [
    {
     "t": "Agent 01 asks Agent 14 whether the person is on record before handing anything on.",
-    "src": "check:01-05:envelope.persisted; dispatcher/listing_spokes.py:1120-1122"
+    "src": "check:01-05:envelope.persisted; dispatcher/listing_spokes.py:1121-1123"
    },
    {
     "t": "Agent 14 reports the match; the whole inquiry is held for the authorized user: continue treats it as a separate person, cancel closes it.",
-    "src": "flow:01-05:01->queue decision.required; dispatcher/listing_spokes.py:1182-1205"
+    "src": "flow:01-05:01->queue decision.required; dispatcher/listing_spokes.py:1183-1206"
    },
    {
     "t": "Nothing is merged, and the held inquiry is not scored.",
-    "src": "dispatcher/listing_spokes.py:1184-1186"
+    "src": "dispatcher/listing_spokes.py:1186-1215; check:01-05:envelope.persisted"
    }
   ],
   "never": [
@@ -188,7 +188,7 @@
   ],
   "you_see": {
    "t": "A held inquiry asking continue or cancel, naming the earlier record.",
-   "src": "dispatcher/listing_spokes.py:1195-1204"
+   "src": "dispatcher/listing_spokes.py:1196-1205"
   },
   "test": {
    "t": "A web form from Avery (phone (216) 555-0105), then a second inquiry from the same phone under a new client record.",
@@ -204,12 +204,12 @@
   },
   "when": {
    "t": "An inquiry is marked abusive.",
-   "src": "dispatcher/listing_spokes.py:864"
+   "src": "dispatcher/listing_spokes.py::abusive = bool(payload.get(\"abusive\"))"
   },
   "steps": [
    {
     "t": "Agent 01 raises a complaint alert with the person's words exactly as written.",
-    "src": "dispatcher/listing_spokes.py:864-869; check:01-06:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:865-870; check:01-06:escalation.raised"
    },
    {
     "t": "It finishes capturing the lead.",
@@ -233,23 +233,23 @@
  },
  {
   "id": "01-07",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A caller refuses to have the call recorded",
    "src": "tuple:01-07"
   },
   "when": {
    "t": "A caller says no to recording.",
-   "src": "dispatcher/listing_spokes.py:955"
+   "src": "dispatcher/listing_spokes.py:956"
   },
   "steps": [
    {
-    "t": "Agent 01 keeps the contact details only, marks every channel \"no\", and marks the lead never to enter follow-up.",
-    "src": "dispatcher/listing_spokes.py:1023-1037; check:01-07:envelope.persisted"
+    "t": "Agent 01 drops the name, timeline and budget, marks every channel \"no\", and marks the lead never to enter follow-up (property interests and notes it was given are kept). With every channel \"no\", no follow-up can go.",
+    "src": "dispatcher/listing_spokes.py:1027-1048; check:01-07:envelope.persisted"
    },
    {
     "t": "The authorized user is told.",
-    "src": "dispatcher/listing_spokes.py:964-969; check:01-07:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:965-970; check:01-07:envelope.persisted"
    },
    {
     "t": "No message goes to the person and no follow-up starts.",
@@ -264,7 +264,7 @@
   ],
   "you_see": {
    "t": "A question saying the caller refused recording.",
-   "src": "dispatcher/listing_spokes.py:966-969"
+   "src": "dispatcher/listing_spokes.py:970-975; check:01-07:envelope.persisted:clarification.request"
   },
   "test": {
    "t": "A phone inquiry with consent to call, text and email, but recording consent \"no\".",
@@ -280,16 +280,16 @@
   },
   "when": {
    "t": "A lead's phone or email is on the office's Do Not Call list.",
-   "src": "dispatcher/listing_spokes.py:890-898"
+   "src": "dispatcher/listing_spokes.py:891-899"
   },
   "steps": [
    {
     "t": "Agent 01 captures the lead, marked as on the list.",
-    "src": "dispatcher/listing_spokes.py:1038; check:01-08:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:1039; check:01-08:envelope.persisted"
    },
    {
     "t": "It raises a legal-line alert saying the lead is on the list (not which contact matched).",
-    "src": "dispatcher/listing_spokes.py:1096-1101; check:01-08:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:1097-1102; check:01-08:escalation.raised"
    },
    {
     "t": "No message goes to the person.",
@@ -333,7 +333,7 @@
   "steps": [
    {
     "t": "Agent 01 keeps one client record and adds both properties to it.",
-    "src": "dispatcher/listing_spokes.py:1017-1021, 1170-1176; check:01-09:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:1018-1022, 1171-1177; check:01-09:envelope.persisted"
    },
    {
     "t": "No second client record is opened.",
@@ -369,11 +369,11 @@
   "steps": [
    {
     "t": "Agent 01 records the claim as stated by the person.",
-    "src": "dispatcher/listing_spokes.py:1040; check:01-10:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py::\"prior_relationship_claim\": payload.get(\"prior_relationship_claim\"),; check:01-10:envelope.persisted"
    },
    {
     "t": "It raises a legal-line alert so the authorized user confirms it before any history is assumed.",
-    "src": "dispatcher/listing_spokes.py:1074-1081; check:01-10:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:1075-1082; check:01-10:escalation.raised"
    }
   ],
   "never": [
@@ -400,16 +400,16 @@
   },
   "when": {
    "t": "An inquiry is marked as from an apparent minor.",
-   "src": "dispatcher/listing_spokes.py:833"
+   "src": "dispatcher/listing_spokes.py::if payload.get(\"apparent_minor\"):"
   },
   "steps": [
    {
     "t": "Agent 01 captures nothing: no lead and no record lookup.",
-    "src": "dispatcher/listing_spokes.py:833-845; check:01-11:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:834-846; check:01-11:envelope.persisted"
    },
    {
     "t": "It raises a legal-line alert at once: an apparent minor, fact of contact only.",
-    "src": "dispatcher/listing_spokes.py:840-844; check:01-11:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:841-845; check:01-11:escalation.raised"
    }
   ],
   "never": [
@@ -429,19 +429,19 @@
  },
  {
   "id": "01-12",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A lead gives contact details marked suspect",
    "src": "tuple:01-12"
   },
   "when": {
    "t": "An inquiry arrives with its contact details marked suspect.",
-   "src": "dispatcher/listing_spokes.py:1008-1010"
+   "src": "dispatcher/listing_spokes.py::contact_valid_flag = payload.get(\"contact_data_suspect\")"
   },
   "steps": [
    {
-    "t": "Agent 01 records the details exactly as given, with the suspect mark.",
-    "src": "dispatcher/listing_spokes.py:1026-1027; check:01-12:envelope.persisted"
+    "t": "Agent 01 records the contact exactly as given (the phone, or the email when no phone is given), with the suspect mark.",
+    "src": "dispatcher/listing_spokes.py:902, 1031-1032; check:01-12:envelope.persisted"
    }
   ],
   "never": [
@@ -468,16 +468,16 @@
   },
   "when": {
    "t": "An inquiry names a property that is not in the office's listings or signed scope.",
-   "src": "dispatcher/listing_spokes.py:900-905"
+   "src": "dispatcher/listing_spokes.py:901-906"
   },
   "steps": [
    {
     "t": "Agent 01 raises a legal-line alert: outside the brokerage's scope.",
-    "src": "dispatcher/listing_spokes.py:906-918; check:01-13:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:907-919; check:01-13:escalation.raised"
    },
    {
     "t": "It still captures the lead.",
-    "src": "dispatcher/listing_spokes.py:919-920; check:01-13:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:920-921; check:01-13:envelope.persisted"
    }
   ],
   "never": [
@@ -504,12 +504,12 @@
   },
   "when": {
    "t": "A call's transcript is marked low confidence.",
-   "src": "dispatcher/listing_spokes.py:1001-1002"
+   "src": "dispatcher/listing_spokes.py:1002-1003"
   },
   "steps": [
    {
     "t": "Agent 01 empties the name, timeline, budget and pre-approval taken from it.",
-    "src": "dispatcher/listing_spokes.py:1001-1006, 1065-1068"
+    "src": "dispatcher/listing_spokes.py:1006-1011, 1070-1073; check:01-14:envelope.persisted"
    },
    {
     "t": "Agent 02 has nothing to score, so it asks the authorized user; no hot-lead alert is raised.",
@@ -540,16 +540,16 @@
   },
   "when": {
    "t": "During capture the person revokes all contact.",
-   "src": "dispatcher/listing_spokes.py:931"
+   "src": "dispatcher/listing_spokes.py:932"
   },
   "steps": [
    {
     "t": "Agent 01 sets consent to \"no\" on every channel at once.",
-    "src": "dispatcher/listing_spokes.py:931-932; check:01-15:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:932-933; check:01-15:envelope.persisted"
    },
    {
     "t": "No confirmation goes: the one confirmation goes only on the channel the request came in on, and only if a message can go on it (call, text or email). This request came by web form, so the authorized user is asked instead (owner decision of 2026-10-28).",
-    "src": "dispatcher/listing_spokes.py:931-949; check:01-15:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes.py:932-950; check:01-15:envelope.persisted:clarification.request"
    },
    {
     "t": "If the lead scores hot, the hot-lead alert is marked do not contact, with no call window.",
@@ -585,11 +585,11 @@
   "steps": [
    {
     "t": "On the next daily run (after a day, the default), Agent 01 asks once more.",
-    "src": "dispatcher/listing_spokes.py:1264-1290, 743-747; check:01-16:spoke.trace"
+    "src": "dispatcher/listing_spokes.py:1265-1291, 744-748; check:01-16:spoke.trace"
    },
    {
     "t": "Still no answer on the following run: the lead is held and the authorized user is told.",
-    "src": "dispatcher/listing_spokes.py:1292-1309; check:01-16:envelope.persisted"
+    "src": "dispatcher/listing_spokes.py:1296-1317; check:01-16:envelope.persisted"
    },
    {
     "t": "The lead is not handed on for scoring.",

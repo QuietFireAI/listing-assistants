@@ -297,7 +297,7 @@
  },
  {
   "id": "15-09",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A disbursement instruction arrives by email",
    "src": "tuple:15-09"
@@ -312,8 +312,8 @@
     "src": "dispatcher/listing_spokes_15.py:234-244; check:15-09:escalation.raised"
    },
    {
-    "t": "Text containing \"earnest money\", \"trust account\", \"escrow\", \"wire the funds\" or \"disbursement\" raises a legal-line alert as out of scope. Only text given directly in the setting is read; a mention inside a nested field is not caught.",
-    "src": "dispatcher/listing_spokes_15.py:18-19, 99-105, 230-233"
+    "t": "Text anywhere in the setting, nested fields included, that contains \"earnest money\", \"trust account\", \"escrow\" or \"wire the funds\" raises a legal-line alert as out of scope; \"disbursement\" raises one as a wire-adjacent instruction for a voice-verified person. Nothing is recorded (fixed 2026-10-28: a mention inside a nested field was not caught).",
+    "src": "dispatcher/listing_spokes_15.py:18-19, 99-105, 230-254; dispatcher/listing_spokes_08.py:47-55"
    },
    {
     "t": "The authorized user passes the email on as a signed setting; that is the only way text reaches Agent 15.",

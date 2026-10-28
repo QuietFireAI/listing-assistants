@@ -132,7 +132,7 @@ def test_stop_with_no_channel_gets_no_confirmation_and_asks_the_owner(tmp_path):
     assert not [e for e in persisted(hub, "client.message.request", "s-2")
                 if e["payload"].get("template") == "opt_out_confirmed"]
     assert any("no confirmation was sent" in r for r in queue_reasons(hub, "s-2"))
-    assert spoke.active_sequences["s-2"]["consent"] == {"email": "no"}
+    assert spoke.active_sequences["s-2"]["consent"] == {"call": "no", "text": "no", "email": "no"}
 
 
 def test_agent_11_sends_the_stop_confirmation_on_the_named_channel(tmp_path):
@@ -211,6 +211,25 @@ def test_quiet_hours_hold_is_sent_on_the_next_daily_run_after_8(tmp_path):
         == ["milestone_update"]
     assert "q-1" not in spoke.quiet_held
 
+
+
+def test_the_watch_and_evening_runs_release_quiet_hours_holds(tmp_path):
+    """Found 2026-10-28 re-checking the manual: the documented daily run is at
+    07:00, inside quiet hours, so held messages never went out."""
+    from dispatcher.sweep_runner import run_quiet_hours_release
+    hub = make_hub(tmp_path)
+    s11 = Spoke11ClientCommunication(hub)
+    Spoke14CRMPipeline(hub)
+    hub.on_turn_start()
+    give_consent(hub, "q-3")
+    assert run_quiet_hours_release(hub, {"11": s11}, "2026-10-16", "2026-10-16T09:00:00") == []
+    hub.send(env("05", "11", "status.update", "q-3",
+                 {"template": "milestone_update", "variables": {}, "hour": 23}))
+    run_quiet_hours_release(hub, {"11": s11}, "2026-10-16", "2026-10-16T07:00:00")
+    assert not persisted(hub, "client.message.send", "q-3")
+    run_quiet_hours_release(hub, {"11": s11}, "2026-10-16", "2026-10-16T08:05:00")
+    assert [e["payload"]["template"] for e in persisted(hub, "client.message.send", "q-3")] \
+        == ["milestone_update"]
 
 def test_a_held_message_is_not_released_into_a_complaint_hold(tmp_path):
     hub = make_hub(tmp_path)
@@ -739,3 +758,123 @@ def test_agent_19_no_longer_talks_to_agent_10(tmp_path):
     assert not [e for e in persisted(hub, "agent.status")
                 if e["payload"].get("waiting_on") == "market_context_enrichment"]
     assert s19.opportunities["LW"]["market_context"] == "none - no comp source connected"
+
+
+# ------------------------------------------------- found re-checking the manual
+def _held_ad(hub, ctx):
+    hub.send(env("05", "12", "status.update", ctx, {"status": "active"}))
+    hub.send(signed(hub, "12", ctx, {"new_campaign": {"body": "x"}}))
+    hub.send(env("17", "12", "content.verdict", ctx, {"verdict": "approved"}))
+    (held_id,) = list(hub._absolute_holds)
+    auth = Envelope(from_agent="human", to_agent="12", intent="disclosure.authority",
+                    client_context_id=ctx,
+                    payload={"held_envelope_id": held_id, "decision": "decline"},
+                    provenance={"source": "human", "captured_at": "runtime",
+                                "verbatim_available": True})
+    hub._test_signer.sign(auth)
+    assert hub.decline_disclosure(auth)["status"] == "declined"
+
+
+def test_a_declined_ad_is_never_retracted_or_halted(tmp_path):
+    hub = make_hub(tmp_path)
+    _s12(hub)
+    hub.on_turn_start()
+    _held_ad(hub, "rc-2")
+    hub.send(env("external", "12", "platform.metrics", "rc-2",
+                 {"event_kind": "stale_detected", "delta": "price", "retract_requested": True}))
+    hub.send(env("05", "12", "status.update", "rc-2", {"status": "withdrawn"}))
+    sent = [e["payload"] for e in persisted(hub, "campaign.publish", "rc-2")]
+    held = [e.payload for e in hub._absolute_holds.values()]
+    assert not [p for p in sent + held if p.get("action") in ("retract", "halt")]
+
+
+def test_the_duplicate_check_retry_carries_the_contact_and_asks_you_once(tmp_path):
+    hub = make_hub(tmp_path)
+    s01 = Spoke01LeadCapture(hub, record_response_timeout_days=1)
+    hub.register("14", lambda e: None)          # Agent 14 never answers
+    hub.on_turn_start()
+    hub.send(env("external", "01", "lead.inbound", "rc-3",
+                 {"channel": "web_form", "name": "Waiting", "phone": "(330) 555-0111",
+                  "today": "2026-07-01", "consent": {"email": "yes"}}))
+    assert s01.check_record_response_timeout("rc-3", "2026-07-03") == "retried"
+    retry = persisted(hub, "record.request", "rc-3")[-1]["payload"]
+    assert retry["identifiers"]
+    assert s01.check_record_response_timeout("rc-3", "2026-07-05") == "handoff.failed"
+    assert s01.check_record_response_timeout("rc-3", "2026-07-06") == "already_failed"
+    assert len([r for r in queue_reasons(hub, "rc-3") if "lead held undeduped" in r]) == 1
+
+
+def test_stop_with_no_running_sequence_opts_out_every_channel(tmp_path):
+    hub = make_hub(tmp_path)
+    Spoke03LeadNurture(hub)
+    hub.on_turn_start()
+    hub.send(env("11", "03", "lead.reply", "rc-4", {"message": "STOP", "channel": "text"}))
+    logs = [e["payload"] for e in persisted(hub, "interaction.log", "rc-4")
+            if e["payload"].get("kind") == "opt_out"]
+    assert logs and logs[0]["consent"] == {"call": "no", "text": "no", "email": "no"}
+
+
+def test_a_channel_change_naming_no_channel_is_not_confirmed(tmp_path):
+    hub = make_hub(tmp_path)
+    Spoke14CRMPipeline(hub)
+    Spoke11ClientCommunication(hub)
+    hub.on_turn_start()
+    give_consent(hub, "rc-5")
+    hub.send(env("external", "11", "client.reply", "rc-5",
+                 {"message": "reach me some other way", "requests_channel_change": True,
+                  "hour": 14}))
+    assert not persisted(hub, "client.message.send", "rc-5")
+    assert any("named no channel" in r for r in queue_reasons(hub, "rc-5"))
+
+
+def test_a_day_s_digest_is_sent_before_the_next_day_starts(tmp_path):
+    hub = make_hub(tmp_path)
+    s13 = _s13(hub)
+    hub.on_turn_start()
+    hub.send(signed(hub, "13", "rc-6", {"buyer_criteria": [{"field": "beds", "value": 2}]}))
+    for i in range(7):
+        _listing(hub, "rc-6", {"listing_id": f"D{i}", "beds": 3, "today": "2026-10-16"})
+    assert len(s13.matches_today["rc-6"]["overflow"]) == 2
+    _listing(hub, "rc-6", {"listing_id": "N1", "beds": 3, "today": "2026-10-17"})
+    digests = [e["payload"] for e in persisted(hub, "client.message.request", "rc-6")
+               if e["payload"].get("template") == "match_digest"]
+    assert digests and digests[0]["count"] == 2
+
+
+def test_feedback_does_not_mark_a_showing_not_yet_held(tmp_path, monkeypatch):
+    from dispatcher.listing_spokes_06 import Spoke06ShowingScheduler
+    monkeypatch.setenv("LISTING_CLOCK_NOW", "2026-10-17T12:00:00")
+    hub = make_hub(tmp_path)
+    s06 = Spoke06ShowingScheduler(hub)
+    hub.on_turn_start()
+    s06.confirmed_showings["rc-7"] = [
+        {"time": "2026-10-16T10:00:00", "listing_id": "L1", "confirmed": True},
+        {"time": "2026-10-25T10:00:00", "listing_id": "L2", "confirmed": True}]
+    assert s06.clock_showing_feedback("rc-7", "2026-10-17") == "asked"
+    hub.send(env("11", "06", "showing.feedback_response", "rc-7", {"message": "liked it"}))
+    assert s06.confirmed_showings["rc-7"][0].get("feedback_received") is True
+    assert not s06.confirmed_showings["rc-7"][1].get("feedback_received")
+
+
+def test_a_criterion_from_buyer_feedback_is_checked_for_protected_class(tmp_path):
+    hub = make_hub(tmp_path)
+    s13 = _s13(hub)
+    hub.on_turn_start()
+    hub.send(env("11", "13", "lead.reply", "rc-8",
+                 {"message": "more of these please", "explicit_feedback_field": "school rating",
+                  "explicit_feedback_value": "high"}))
+    assert not s13.buyer_criteria.get("rc-8")
+    assert hub.queues["escalation.legal_line"]
+
+
+def test_the_buyer_s_answer_to_a_criteria_question_reaches_you(tmp_path):
+    hub = make_hub(tmp_path)
+    _s13(hub)
+    hub.on_turn_start()
+    for msg in ("forget the 3 bedrooms", "yes, forget the 3 bedrooms"):
+        hub.send(env("11", "13", "lead.reply", "rc-9",
+                     {"message": msg, "contradicts_stated_criteria": True}))
+    asks = [e for e in persisted(hub, "client.message.request", "rc-9")
+            if e["payload"].get("template") == "confirm_criteria_update"]
+    assert len(asks) == 1
+    assert any("buyer answered the criteria question" in r for r in queue_reasons(hub, "rc-9"))

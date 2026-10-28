@@ -1,7 +1,7 @@
 [
  {
   "id": "13-01",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A buyer's feedback contradicts their stated criteria",
    "src": "tuple:13-01"
@@ -13,11 +13,11 @@
   "steps": [
    {
     "t": "Agent 13 asks the buyer, through Agent 11, to confirm the change, quoting their words.",
-    "src": "dispatcher/listing_spokes_13.py:582-587; check:13-01:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:588-605; check:13-01:envelope.persisted:client.message.request"
    },
    {
-    "t": "Agent 13 changes nothing: the criteria stay as stated. Only the authorized user changes them, with a signed setting: adding a criterion, or since 2026-10-28 replacing the whole list. The buyer's answer itself is a reply that reaches the authorized user.",
-    "src": "dispatcher/listing_spokes_13.py:582-587; dispatcher/listing_spokes_13.py::if \"buyer_criteria_replace\" in payload:; dispatcher/listing_spokes_13.py:608-617; check:13-01:envelope.persisted:interaction.log"
+    "t": "Agent 13 changes nothing: the criteria stay as stated. Only the authorized user changes them, with a signed setting: adding a criterion, or since 2026-10-28 replacing the whole list. The buyer's answer reaches the authorized user (since 2026-10-28 also when it repeats the change; it used to be asked again).",
+    "src": "dispatcher/listing_spokes_13.py:588-620; dispatcher/listing_spokes_13.py::if \"buyer_criteria_replace\" in payload:; dispatcher/listing_spokes_13.py:634-660; check:13-01:envelope.persisted:interaction.log"
    },
    {
     "t": "The listed phrases are caught, and a label from an upstream classifier is honored too.",
@@ -48,16 +48,16 @@
   },
   "when": {
    "t": "A signed criterion contains one of these words: \"school quality\", \"school rating\", \"demographics\", \"families with\", \"no children\", \"race\", \"religion\", \"national origin\", \"ethnic\", \"families only\".",
-   "src": "dispatcher/listing_spokes_13.py:18-20, 111-116, 329-330"
+   "src": "dispatcher/listing_spokes_13.py:18-20, 112-117, 330-331"
   },
   "steps": [
    {
     "t": "Agent 13 refuses that criterion and raises a legal-line alert quoting it; the other criteria are kept.",
-    "src": "dispatcher/listing_spokes_13.py:326-345, 449-450; check:13-02:escalation.raised"
+    "src": "dispatcher/listing_spokes_13.py:327-346, 455-456; check:13-02:escalation.raised"
    },
    {
     "t": "Only the listed words are caught; a criterion marked as sensitive goes to Compliance instead (13-11).",
-    "src": "dispatcher/listing_spokes_13.py:18-20, 449-454"
+    "src": "dispatcher/listing_spokes_13.py:18-20, 455-460"
    }
   ],
   "never": [
@@ -77,27 +77,27 @@
  },
  {
   "id": "13-03",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A listing lacks data on a must-have",
    "src": "tuple:13-03"
   },
   "when": {
    "t": "A listing otherwise matches, but has no value for a criterion the buyer marked must-have.",
-   "src": "dispatcher/listing_spokes_13.py:186-191"
+   "src": "dispatcher/listing_spokes_13.py:187-192"
   },
   "steps": [
    {
-    "t": "Unless the buyer has a standing preference to receive such listings marked unknown, Agent 13 does not send it. It keeps the match, asks the authorized user (naming the missing must-have), and asks the buyer once for that listing whether to send listings like it marked unknown; that question's wording waits for the authorized user's signature, so Agent 11 holds it for now (owner decision of 2026-10-28; before, only the authorized user was asked and the match was dropped).",
-    "src": "dispatcher/listing_spokes_13.py:191-220; check:13-03:envelope.persisted:clarification.request; check:13-03:envelope.persisted:client.message.request; check:13-03:envelope.persisted:client.message.send"
+    "t": "Unless the buyer has a standing preference to receive such listings marked unknown, Agent 13 does not send it. It keeps the match, asks the authorized user (naming the missing must-have), and asks the buyer once for that listing whether to send listings like it marked unknown; that question's wording waits for the authorized user's signature, so Agent 11 does not send it, and signing later does not send it (owner decision of 2026-10-28; before, only the authorized user was asked and the match was dropped).",
+    "src": "dispatcher/listing_spokes_13.py:192-221; check:13-03:envelope.persisted:clarification.request; check:13-03:envelope.persisted:client.message.request; check:13-03:envelope.persisted:client.message.send"
    },
    {
     "t": "The buyer's answer is a reply, and it reaches the authorized user. When the authorized user records the buyer's standing preference, the kept matches are checked again and go to the buyer marked unknown.",
-    "src": "dispatcher/listing_spokes_13.py::if \"deliver_unknown_standing_preference\" in payload:; dispatcher/listing_spokes_13.py::def _recheck_kept(self, ctx: str, env: Envelope):; dispatcher/listing_spokes_13.py:608-617; tests_listing/test_owner_decisions_2026_10_28.py::def test_missing_must_have_keeps_the_match_and_asks_the_buyer"
+    "src": "dispatcher/listing_spokes_13.py::if \"deliver_unknown_standing_preference\" in payload:; dispatcher/listing_spokes_13.py::def _recheck_kept(self, ctx: str, env: Envelope):; dispatcher/listing_spokes_13.py:634-643; tests_listing/test_owner_decisions_2026_10_28.py::def test_missing_must_have_keeps_the_match_and_asks_the_buyer"
    },
    {
-    "t": "The standing preference, and a replacement of the buyer's whole criteria list, are signed settings; either one checks the kept matches again.",
-    "src": "dispatcher/listing_spokes_13.py:470-475; dispatcher/listing_spokes_13.py::if \"buyer_criteria_replace\" in payload:"
+    "t": "The standing preference and a replacement of the buyer's whole criteria list are signed settings. A replacement always checks the kept matches again; the preference does so when it says to send them.",
+    "src": "dispatcher/listing_spokes_13.py:476-481; dispatcher/listing_spokes_13.py::if \"buyer_criteria_replace\" in payload:"
    }
   ],
   "never": [
@@ -107,7 +107,7 @@
    }
   ],
   "you_see": {
-   "t": "A question naming the missing must-have; the match kept; the question to the buyer held, its wording not yet signed.",
+   "t": "A question naming the missing must-have; the match kept; no message to the buyer yet: its wording is not signed, so Agent 11 does not send it.",
    "src": "check:13-03:envelope.persisted:clarification.request; check:13-03:envelope.persisted:interaction.log; check:13-03:envelope.persisted:client.message.send"
   },
   "test": {
@@ -124,12 +124,12 @@
   },
   "when": {
    "t": "A buyer's reply reaching Agent 13 contains \"is this a good price\", \"good deal\", \"worth the price\" or \"should i pay\".",
-   "src": "dispatcher/listing_spokes_13.py:23-24, 556-559"
+   "src": "dispatcher/listing_spokes_13.py:23-24, 562-565"
   },
   "steps": [
    {
     "t": "Agent 13 raises a legal-line alert with the message. Nothing is sent to the buyer.",
-    "src": "dispatcher/listing_spokes_13.py:559-565; check:13-04:escalation.raised"
+    "src": "dispatcher/listing_spokes_13.py:565-571; check:13-04:escalation.raised"
    }
   ],
   "never": [
@@ -156,24 +156,24 @@
   },
   "when": {
    "t": "A buyer gets more than 5 matches in one day.",
-   "src": "dispatcher/listing_spokes_13.py:88-91, 370-391"
+   "src": "dispatcher/listing_spokes_13.py:88-91, 371-397"
   },
   "steps": [
    {
     "t": "The first 5 go to the buyer one by one through Agent 11.",
-    "src": "dispatcher/listing_spokes_13.py:392-394; check:13-05:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:398-400; check:13-05:envelope.persisted:client.message.request"
    },
    {
     "t": "The rest wait for the daily run, which sends them as one digest ranked by how many of the buyer's stated criteria each meets.",
-    "src": "dispatcher/listing_spokes_13.py:377-391, 414-431; dispatcher/clock.py:56-57; check:13-05:envelope.persisted:client.message.request (the digest)"
+    "src": "dispatcher/listing_spokes_13.py:383-397, 420-437; dispatcher/clock.py:56-57; check:13-05:envelope.persisted:client.message.request (the digest)"
    },
    {
     "t": "Every match is logged either way. The digest is ranked only by how many of the buyer's stated criteria each match meets; ties go newest first.",
-    "src": "dispatcher/listing_spokes_13.py:375-376, 396-412, 422-423; check:13-05:envelope.persisted:interaction.log"
+    "src": "dispatcher/listing_spokes_13.py:381-382, 402-418, 428-429; check:13-05:envelope.persisted:interaction.log"
    },
    {
     "t": "Before any match goes out, Agent 14 must show the buyer agreement on file; without it the matches are held and the authorized user is told once.",
-    "src": "dispatcher/listing_spokes_13.py:269-316"
+    "src": "dispatcher/listing_spokes_13.py:270-317"
    }
   ],
   "never": [
@@ -200,16 +200,16 @@
   },
   "when": {
    "t": "A listing is in the buyer's stated area but priced over the buyer's stated budget.",
-   "src": "dispatcher/listing_spokes_13.py:126-130"
+   "src": "dispatcher/listing_spokes_13.py:127-131"
   },
   "steps": [
    {
     "t": "Agent 13 does not send it and asks the authorized user, with the budget and the price.",
-    "src": "dispatcher/listing_spokes_13.py:131-138; check:13-06:envelope.persisted:clarification.request; check:13-06:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:132-139; check:13-06:envelope.persisted:clarification.request; check:13-06:envelope.persisted:client.message.request"
    },
    {
     "t": "A listing over budget and outside the area is simply not a match.",
-    "src": "dispatcher/listing_spokes_13.py:139-148"
+    "src": "dispatcher/listing_spokes_13.py:140-149"
    }
   ],
   "never": [
@@ -236,16 +236,16 @@
   },
   "when": {
    "t": "A matching listing is marked as a colleague's own listing.",
-   "src": "dispatcher/listing_spokes_13.py:224"
+   "src": "dispatcher/listing_spokes_13.py:225"
   },
   "steps": [
    {
     "t": "Agent 13 raises a legal-line alert for the disclosure rules; the match is not sent.",
-    "src": "dispatcher/listing_spokes_13.py:224-231; check:13-07:escalation.raised; check:13-07:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:225-232; check:13-07:escalation.raised; check:13-07:envelope.persisted:client.message.request"
    },
    {
     "t": "This is a mark on the listing record (colleague_listing); Agent 13 does not work it out.",
-    "src": "dispatcher/listing_spokes_13.py:224; spec:13-07"
+    "src": "dispatcher/listing_spokes_13.py:225; spec:13-07"
    }
   ],
   "never": [
@@ -272,12 +272,12 @@
   },
   "when": {
    "t": "A buyer's reply reaching Agent 13 contains \"what would the seller take\", \"seller's bottom line\", \"what will they accept\" or \"seller's minimum\".",
-   "src": "dispatcher/listing_spokes_13.py:21-22, 567"
+   "src": "dispatcher/listing_spokes_13.py:21-22, 573"
   },
   "steps": [
    {
     "t": "Agent 13 raises a legal-line alert with the message. Nothing is sent to the buyer.",
-    "src": "dispatcher/listing_spokes_13.py:567-573; check:13-08:escalation.raised"
+    "src": "dispatcher/listing_spokes_13.py:573-579; check:13-08:escalation.raised"
    }
   ],
   "never": [
@@ -304,16 +304,16 @@
   },
   "when": {
    "t": "A matching listing is marked with a data anomaly.",
-   "src": "dispatcher/listing_spokes_13.py:152"
+   "src": "dispatcher/listing_spokes_13.py:153"
   },
   "steps": [
    {
     "t": "Agent 13 does not send it and asks the authorized user, quoting the anomaly.",
-    "src": "dispatcher/listing_spokes_13.py:152-158; check:13-09:envelope.persisted:clarification.request; check:13-09:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:153-159; check:13-09:envelope.persisted:clarification.request; check:13-09:envelope.persisted:client.message.request"
    },
    {
     "t": "This is a mark on the listing record (data_anomaly); Agent 13 does not work it out.",
-    "src": "dispatcher/listing_spokes_13.py:152; spec:13-09"
+    "src": "dispatcher/listing_spokes_13.py:153; spec:13-09"
    }
   ],
   "never": [
@@ -340,16 +340,16 @@
   },
   "when": {
    "t": "The authorized user records, as a signed setting, that the buyer's pre-approval expired.",
-   "src": "dispatcher/listing_spokes_13.py:476"
+   "src": "dispatcher/listing_spokes_13.py:482"
   },
   "steps": [
    {
     "t": "Agent 13 sends the buyer a notice through Agent 11.",
-    "src": "dispatcher/listing_spokes_13.py:476-481; check:13-10:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:482-487; check:13-10:envelope.persisted:client.message.request"
    },
    {
     "t": "Matches keep going, each marked as unverified financing.",
-    "src": "dispatcher/listing_spokes_13.py:269-271; check:13-10:envelope.persisted:client.message.request"
+    "src": "dispatcher/listing_spokes_13.py:270-272; check:13-10:envelope.persisted:client.message.request"
    }
   ],
   "never": [
@@ -376,16 +376,16 @@
   },
   "when": {
    "t": "A signed criterion is marked as fair-housing sensitive.",
-   "src": "dispatcher/listing_spokes_13.py:339"
+   "src": "dispatcher/listing_spokes_13.py:340"
   },
   "steps": [
    {
     "t": "Agent 13 sends it to Compliance (Agent 17) and does not use it meanwhile.",
-    "src": "dispatcher/listing_spokes_13.py:343-350; check:13-11:envelope.persisted:content.review"
+    "src": "dispatcher/listing_spokes_13.py:344-351; check:13-11:envelope.persisted:content.review"
    },
    {
     "t": "If Compliance does not approve it, it is never used for matching, and the authorized user is told which criterion and why.",
-    "src": "dispatcher/listing_spokes_13.py:484-503; check:13-11:envelope.persisted:clarification.request"
+    "src": "dispatcher/listing_spokes_13.py:490-509; check:13-11:envelope.persisted:clarification.request"
    }
   ],
   "never": [

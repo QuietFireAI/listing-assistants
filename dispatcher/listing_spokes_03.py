@@ -559,8 +559,13 @@ class Spoke03LeadNurture:
                 # to the client. Nothing ever actually told the client the
                 # stop was received. Reuses Agent 01's opt_out_confirmed
                 # template (same underlying confirmation, same wording).
+                # every channel, whether or not the sequence named it, and
+                # with no running sequence too (2026-10-28, manual re-check:
+                # an empty consent went to Agent 14 and changed nothing)
+                all_no = {k: "no" for k in ("call", "text", "email",
+                                            *((seq or {}).get("consent") or {}))}
                 if seq:
-                    seq["consent"] = {k: "no" for k in seq.get("consent", {})}
+                    seq["consent"] = dict(all_no)
                     seq["paused"] = True
                     seq["paused_for"] = "opt_out"
                 self.hub.ingest_spoke_trace(
@@ -581,7 +586,7 @@ class Spoke03LeadNurture:
                     channel = None
                 self.hub.send(_env("03", "14", "interaction.log", ctx,
                                    {"kind": "opt_out", "scope": "all_channels",
-                                    "consent": seq["consent"] if seq else {},
+                                    "consent": all_no,
                                     "confirmation_channel": channel}))
                 if channel:
                     self.hub.send(_env("03", "11", "client.message.request", ctx,

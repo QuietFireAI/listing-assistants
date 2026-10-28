@@ -102,3 +102,23 @@ def run_evening_sweep(hub, spokes: dict, today: str, now_iso: str | None = None)
                      {"today": today, "evening": True, "sweeps_run": len(results),
                       "errors": sum(1 for r in results if r.get("error"))})
     return results
+
+
+def run_quiet_hours_release(hub, spokes: dict, today: str, now_iso: str) -> list[dict]:
+    """Messages Agent 11 held for quiet hours (owner decision D-A4) go out on
+    the first clock run outside quiet hours. The documented daily run is at
+    07:00, inside the ratified quiet hours (21:00 to 8:00), so a daily run
+    alone never released them (found 2026-10-28 re-checking the manual).
+    The every-few-minutes watch run and the evening run call this too; it
+    sends a tick only when Agent 11 is holding something."""
+    from .clock import send_tick
+    s11 = spokes.get("11")
+    if s11 is None or not getattr(s11, "quiet_held", None):
+        return []
+    out = send_tick(hub, "11", today, now_iso, checks=["quiet_hours_release"])
+    status = out["hub"].get("status")
+    if status != "ack":
+        err = f"clock.tick to 11 not acked: {status} {out['hub'].get('reason', '')}".strip()
+        hub.audit.append("sweep.error", {"agent": "11", "sweep": "clock.tick", "error": err})
+        return [{"agent": "11", "sweep": "clock.tick", "result": None, "error": err}]
+    return out["results"]

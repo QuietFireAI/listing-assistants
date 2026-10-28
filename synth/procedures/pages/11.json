@@ -1,7 +1,7 @@
 [
  {
   "id": "11-01",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A client's reply mixes a routine question with an advice question",
    "src": "tuple:11-01"
@@ -12,20 +12,20 @@
   },
   "steps": [
    {
-    "t": "Agent 11 answers neither. It raises a legal-line alert naming the advice phrase.",
-    "src": "dispatcher/listing_spokes_11.py:623-626; check:11-01:escalation.raised"
+    "t": "Agent 11 answers neither. It raises a legal-line alert quoting the whole message.",
+    "src": "dispatcher/listing_spokes_11.py:156-160, 623-626; check:11-01:escalation.raised"
    },
    {
-    "t": "It forwards the whole message to the agent that owns the client, labelled routine only; that agent holds it for the authorized user.",
-    "src": "dispatcher/listing_spokes_11.py:627-630; check:11-01:envelope.persisted:lead.reply; flow:11-01:13->queue clarification.request"
+    "t": "It forwards the whole message, labelled routine only, to the agent named as owning the client; that agent holds it for the authorized user. (With no valid owner named, Agent 11 holds it for the authorized user itself.)",
+    "src": "dispatcher/listing_spokes_11.py:167-195, 627-630; check:11-01:envelope.persisted:lead.reply; flow:11-01:13->queue clarification.request"
    },
    {
     "t": "Whether there is a routine part is a mark on the incoming message; Agent 11 does not work it out.",
     "src": "dispatcher/listing_spokes_11.py:620; spec:11-01"
    },
    {
-    "t": "Advice is recognized by these phrases only: \"what would you do\", \"should i offer\", \"what's it worth\", \"negotiate\", \"legal opinion\", \"pricing strategy\". A reply with \"what would you do\" is caught first by its own rule (11-05): a legal-line alert, nothing else.",
-    "src": "dispatcher/listing_spokes_11.py:19-20, 155-159; dispatcher/listing_spokes_11.py::if \"what would you do\" in low:"
+    "t": "Advice is recognized by these phrases only: \"what would you do\", \"should i offer\", \"what's it worth\", \"negotiate\", \"legal opinion\", \"pricing strategy\". A reply with \"what would you do\" is caught first by its own rule (11-05): a legal-line alert and nothing more (an angry or negative reply still gets its complaint alert and hold first).",
+    "src": "dispatcher/listing_spokes_11.py:19-20, 156-160, 563-576; dispatcher/listing_spokes_11.py::if \"what would you do\" in low:"
    }
   ],
   "never": [
@@ -71,7 +71,7 @@
  },
  {
   "id": "11-03",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "Two agents report different statuses for the same thing",
    "src": "tuple:11-03"
@@ -82,8 +82,8 @@
   },
   "steps": [
    {
-    "t": "The rule: send the client nothing and ask the authorized user. The code does this.",
-    "src": "dispatcher/listing_spokes_11.py:519-536"
+    "t": "The rule: send the client nothing and ask the authorized user. The code sends the first status that arrives; when a second, different one for the same milestone arrives, it sends nothing more and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_11.py:526-550"
    },
    {
     "t": "No way in yet: no agent sets the comparison key, and no two agents report on the same thing to Agent 11.",
@@ -175,7 +175,7 @@
  },
  {
   "id": "11-06",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A client asks a pricing or strategy question",
    "src": "tuple:11-06"
@@ -186,8 +186,8 @@
   },
   "steps": [
    {
-    "t": "Agent 11 raises a legal-line alert naming the phrase.",
-    "src": "dispatcher/listing_spokes_11.py:633-636; check:11-06:escalation.raised"
+    "t": "Agent 11 raises a legal-line alert quoting the whole message.",
+    "src": "dispatcher/listing_spokes_11.py:156-160, 633-636; check:11-06:escalation.raised"
    },
    {
     "t": "It sends the client the hand-off acknowledgement, if the client's consent is on record and no complaint hold is open; in quiet hours it is held until 08:00 (11-07).",
@@ -198,8 +198,8 @@
     "src": "dispatcher/listing_spokes_11.py:637-640, 442-447"
    },
    {
-    "t": "Advice is recognized by these phrases only: \"what would you do\", \"should i offer\", \"what's it worth\", \"negotiate\", \"legal opinion\", \"pricing strategy\". A reply with \"what would you do\" is caught first by its own rule (11-05): a legal-line alert, nothing else.",
-    "src": "dispatcher/listing_spokes_11.py:19-20, 155-159; dispatcher/listing_spokes_11.py::if \"what would you do\" in low:"
+    "t": "Advice is recognized by these phrases only: \"what would you do\", \"should i offer\", \"what's it worth\", \"negotiate\", \"legal opinion\", \"pricing strategy\". A reply with \"what would you do\" is caught first by its own rule (11-05): a legal-line alert and nothing more (an angry or negative reply still gets its complaint alert and hold first).",
+    "src": "dispatcher/listing_spokes_11.py:19-20, 156-160, 563-576; dispatcher/listing_spokes_11.py::if \"what would you do\" in low:"
    }
   ],
   "never": [
@@ -219,7 +219,7 @@
  },
  {
   "id": "11-07",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A reply would go out in quiet hours",
    "src": "tuple:11-07"
@@ -234,12 +234,12 @@
     "src": "dispatcher/listing_spokes_11.py:282-317; check:11-07:envelope.persisted:clarification.request"
    },
    {
-    "t": "On the first daily run outside quiet hours the held message goes, if the client's consent is still on record and no complaint hold is open (owner decision of 2026-10-28; before, it was dropped although the note said \"queued\"). Agent 03's follow-up touches are not held here: Agent 03 tries them again on its own clock.",
-    "src": "dispatcher/listing_spokes_11.py::def release_quiet_held(self, ctx: str, now_iso: str | None = None):; dispatcher/listing_spokes_11.py:291-300; dispatcher/clock.py::\"11\": [(\"quiet_hours_release\"; check:11-07:envelope.persisted:client.message.send"
+    "t": "On the first clock run at or after 08:00 the held message goes, if the client's consent is still on record and no complaint hold is open (owner decision of 2026-10-28; before, it was dropped although the note said \"queued\"). That is the daily run when it runs at 08:00 or later, or else the watch run every few minutes or the evening run (the suggested 07:00 daily run is inside quiet hours). Agent 03's follow-up touches are not held here: Agent 03 tries them again on its own clock.",
+    "src": "dispatcher/listing_spokes_11.py::def release_quiet_held(self, ctx: str, now_iso: str | None = None):; dispatcher/listing_spokes_11.py:291-300; dispatcher/clock.py::\"11\": [(\"quiet_hours_release\"; dispatcher/sweep_runner.py::def run_quiet_hours_release(hub, spokes: dict, today: str, now_iso: str) -> list[dict]:; tools/run_sweeps.py:9-19, 148-154; check:11-07:envelope.persisted:client.message.send"
    },
    {
     "t": "A message that carries no hour is judged by this computer's clock (before 2026-10-28 it counted as noon). The test runs pin that clock at noon.",
-    "src": "dispatcher/listing_spokes_11.py::def _hour(self, value) -> tuple[int, str]:; dispatcher/listing_spokes_11.py:499; synth/tuples/run_tuples.py::CLOCK_NOW = "
+    "src": "dispatcher/listing_spokes_11.py::def _hour(self, value) -> tuple[int, str]:; dispatcher/listing_spokes_11.py:500; synth/tuples/run_tuples.py::CLOCK_NOW = "
    }
   ],
   "never": [
@@ -249,7 +249,7 @@
    }
   ],
   "you_see": {
-   "t": "A note that the reply is held until 08:00; it goes out on the next daily run after 08:00.",
+   "t": "A note that the reply is held until 08:00; in the test it goes out on the daily run at 09:00 the next day.",
    "src": "check:11-07:envelope.persisted:clarification.request; check:11-07:envelope.persisted:client.message.send"
   },
   "test": {
@@ -302,16 +302,16 @@
   },
   "when": {
    "t": "A client's reply is marked as referring to a conversation not on the record.",
-   "src": "dispatcher/listing_spokes_11.py:697-699"
+   "src": "dispatcher/listing_spokes_11.py::if payload.get(\"references_unlogged_conversation\"):"
   },
   "steps": [
    {
     "t": "Agent 11 sends the client a message asking for the particulars, if consent is on record. It never claims to remember.",
-    "src": "dispatcher/listing_spokes_11.py:699-702; check:11-09:envelope.persisted:client.message.send"
+    "src": "dispatcher/listing_spokes_11.py:730-733; check:11-09:envelope.persisted:client.message.send"
    },
    {
     "t": "The mark is on the incoming message; Agent 11 does not check the record itself.",
-    "src": "dispatcher/listing_spokes_11.py:699; spec:11-09"
+    "src": "dispatcher/listing_spokes_11.py::if payload.get(\"references_unlogged_conversation\"):; spec:11-09"
    }
   ],
   "never": [
@@ -331,7 +331,7 @@
  },
  {
   "id": "11-10",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A client's reply is negative",
    "src": "tuple:11-10"
@@ -346,8 +346,8 @@
     "src": "dispatcher/listing_spokes_11.py:565-575; dispatcher/listing_spokes_11.py::if ctx in self.complaint_hold and template != \"opt_out_confirmed\":; check:11-10:escalation.raised"
    },
    {
-    "t": "It forwards the reply to the owning agent marked for complaint intake.",
-    "src": "dispatcher/listing_spokes_11.py:657-661; check:11-10:envelope.persisted:lead.reply"
+    "t": "It forwards the reply, marked for complaint intake, to the agent named as owning the client (with no valid owner named, Agent 11 holds it for the authorized user).",
+    "src": "dispatcher/listing_spokes_11.py:167-195, 657-661; check:11-10:envelope.persisted:lead.reply"
    },
    {
     "t": "The hold ends only when the authorized user releases it.",
@@ -387,21 +387,21 @@
   "steps": [
    {
     "t": "Agent 11 records the change and consent for the new channel at Agent 14.",
-    "src": "dispatcher/listing_spokes_11.py:666-674; check:11-11:envelope.persisted:interaction.log"
+    "src": "dispatcher/listing_spokes_11.py:666-683; check:11-11:envelope.persisted:interaction.log"
    },
    {
     "t": "If Agent 14 now shows consent for that channel, the client gets one confirmation.",
-    "src": "dispatcher/listing_spokes_11.py:679-680, 693-695; check:11-11:envelope.persisted:client.message.send"
+    "src": "dispatcher/listing_spokes_11.py::self._send_client_message(ctx, \"channel_change_confirmed\", {},; check:11-11:envelope.persisted:client.message.send"
    },
    {
     "t": "If the client had opted out of that channel earlier, the opt-out stands: nothing is confirmed and the authorized user is asked to record a reconfirmation.",
-    "src": "dispatcher/listing_spokes_11.py:680-692"
+    "src": "dispatcher/listing_spokes_11.py:703-723"
    }
   ],
   "never": [
    {
     "t": "Confirm a change Agent 14 does not record.",
-    "src": "dispatcher/listing_spokes_11.py:675-678"
+    "src": "dispatcher/listing_spokes_11.py:689-723"
    }
   ],
   "you_see": {
@@ -415,7 +415,7 @@
  },
  {
   "id": "11-12",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A client has no consent on record",
    "src": "tuple:11-12"
@@ -430,7 +430,7 @@
     "src": "dispatcher/listing_spokes_11.py:334-343; check:11-12:envelope.persisted:interaction.log; check:11-12:envelope.persisted:client.message.send"
    },
    {
-    "t": "It tells the authorized user once per client to record the consent.",
+    "t": "With no consent on record at all, it tells the authorized user once per client to record the consent (an opt-out on every channel is only logged).",
     "src": "dispatcher/listing_spokes_11.py:344-350; check:11-12:envelope.persisted:clarification.request"
    }
   ],
@@ -467,7 +467,7 @@
    },
    {
     "t": "The one opt-out confirmation still goes, on the channel the request came in on (text here).",
-    "src": "dispatcher/listing_spokes_11.py:325; dispatcher/listing_spokes.py:931-942; check:11-13:envelope.persisted:client.message.send"
+    "src": "dispatcher/listing_spokes_11.py:325; dispatcher/listing_spokes.py:932-943; check:11-13:envelope.persisted:client.message.send"
    }
   ],
   "never": [
@@ -478,7 +478,7 @@
   ],
   "you_see": {
    "t": "The opt-out confirmation sent once, on text; the blocked message in the history.",
-   "src": "check:11-13:envelope.persisted:interaction.log; check:11-13:envelope.persisted:client.message.send"
+   "src": "check:11-13:envelope.persisted:interaction.log; check:11-13:envelope.persisted:client.message.send; dispatcher/listing_spokes.py:931-950; dispatcher/listing_spokes_11.py:354-356; spec:11-13"
   },
   "test": {
    "t": "A lead asks by text on intake to stop all contact, then refers to an unlogged conversation.",

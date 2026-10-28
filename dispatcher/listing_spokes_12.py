@@ -200,6 +200,8 @@ class Spoke12MarketingCampaign:
                 if pub is not None and prior is not None and _mentions_amount(pub.get("content"), prior):
                     state = (self.hub.outbound_state(pub["envelope_id"])
                              if pub.get("envelope_id") else "sent")
+                    if state == "not sent":   # declined: it never went out (2026-10-28)
+                        return
                     where = "held for your release" if state == "held" else "live"
                     self.hub.send(_env("12", "queue", "clarification.request", ctx,
                                        {"reason": f"the ad for this listing ({where}) shows the old "
@@ -228,8 +230,16 @@ class Spoke12MarketingCampaign:
                 # to halt; but released after this, it would publish an ad
                 # for a listing that is no longer active. You are asked to
                 # decline it, and no halt message is sent for it.
-                held = bool(halted.get("envelope_id")) and \
-                    self.hub.outbound_state(halted["envelope_id"]) == "held"
+                state = (self.hub.outbound_state(halted["envelope_id"])
+                         if halted.get("envelope_id") else "sent")
+                held = state == "held"
+                if state == "not sent":
+                    # 2026-10-28 (manual re-check): you declined it, so it never
+                    # went out; nothing to halt and nothing to decline
+                    self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                       {"kind": "marketing_halted", "status": new_status,
+                                        "ad": "declined, never published"}))
+                    return
                 self.hub.ingest_spoke_trace(
                     "12", env.envelope_id,
                     thought=(f"status.update {new_status!r} consumed - the ad is still held "
@@ -475,8 +485,11 @@ class Spoke12MarketingCampaign:
             # was never published, or still held for the broker's release.
             # Now the same check as the status path: nothing published,
             # nothing to retract; still held, the broker is asked to decline.
-            held = bool(published and published.get("envelope_id")) and \
-                self.hub.outbound_state(published["envelope_id"]) == "held"
+            pstate = (self.hub.outbound_state(published["envelope_id"])
+                      if published and published.get("envelope_id") else None)
+            held = pstate == "held"
+            if pstate == "not sent":   # declined (2026-10-28): it never went out
+                published = None
             if payload.get("retract_requested") and (not published or held):
                 self.hub.send(_env("12", "14", "interaction.log", ctx,
                                    {"kind": "stale_signal_no_live_ad",

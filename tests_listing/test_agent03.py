@@ -216,7 +216,8 @@ def test_explicit_stop_suppresses_all_channels(tmp_path):
                   provenance={"source": "spoke-11", "captured_at": "runtime",
                               "verbatim_available": True})
     hub.send(env)
-    assert spoke.active_sequences["n-008"]["consent"] == {"call": "no", "text": "no"}
+    # every channel, the ones the sequence did not name too (2026-10-28)
+    assert spoke.active_sequences["n-008"]["consent"] == {"call": "no", "text": "no", "email": "no"}
     # THE FIX: tuple 6 requires an actual client-facing confirmation, not
     # just the internal interaction.log system-of-record entry.
     confirmations = persisted(hub, "client.message.request")

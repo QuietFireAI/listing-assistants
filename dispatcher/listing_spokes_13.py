@@ -106,6 +106,7 @@ class Spoke13BuyerSearchMatch:
         # buyer's standing preference or criteria change. ctx -> {listing_id:
         # listing}
         self.unknown_kept: dict[str, dict[str, dict]] = {}
+        self.criteria_confirm_asked: set[str] = set()   # buyers asked to confirm a change
         register_spoke(hub, "13", self)
 
     def _protected_class_hit(self, text: str) -> str | None:
@@ -370,6 +371,11 @@ class Spoke13BuyerSearchMatch:
         state = self.matches_today.setdefault(ctx, {"day": day, "count": 0,
                                                     "overflow": []})
         if day != state["day"]:
+            # the day before's digest goes first (2026-10-28, manual re-check:
+            # matches waiting for it were dropped when a new day's match came
+            # in before the daily run sent the digest)
+            if state["overflow"]:
+                self.flush_match_digest(ctx)
             state.update({"day": day, "count": 0, "overflow": []})
         state["count"] += 1
         self.hub.send(_env("13", "14", "interaction.log", ctx,
@@ -580,7 +586,19 @@ class Spoke13BuyerSearchMatch:
                 return
 
             if payload.get("contradicts_stated_criteria"):
+                if ctx in self.criteria_confirm_asked:
+                    # the buyer's answer to our question (2026-10-28, manual
+                    # re-check: an answer that repeated the change was asked
+                    # again, forever); the change is yours to sign
+                    self.criteria_confirm_asked.discard(ctx)
+                    self.hub.send(_env("13", "queue", "clarification.request", ctx,
+                                       {"reason": "the buyer answered the criteria question - "
+                                                  "record any change with a signed "
+                                                  "buyer_criteria_replace",
+                                        "verbatim": payload.get("message")}))
+                    return
                 # tuple 1: ask via 11, never rewrite the profile silently
+                self.criteria_confirm_asked.add(ctx)
                 self.hub.send(_env("13", "11", "client.message.request", ctx,
                                    {"template": "confirm_criteria_update",
                                     "verbatim": payload.get("message")}))
@@ -591,6 +609,14 @@ class Spoke13BuyerSearchMatch:
                 # the only kind that is
                 field = payload["explicit_feedback_field"]
                 value = payload.get("explicit_feedback_value")
+                hit = self._protected_class_hit(f"{field} {value}")
+                if hit:   # 2026-10-28 (manual re-check): this path skipped the check
+                    self.hub.escalate("escalation.legal_line",
+                                      {"client_context_id": ctx,
+                                       "trigger": f"criterion correlates with protected "
+                                                  f"class: {hit!r} - refused",
+                                       "agent": "13"})
+                    return
                 self.buyer_criteria.setdefault(ctx, []).append(
                     {"field": field, "value": value, "source": STATED_BY_PARTY})
                 self.hub.send(_env("13", "14", "interaction.log", ctx,

@@ -73,7 +73,7 @@
  },
  {
   "id": "05-03",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "Two signed changes to the same field disagree",
    "src": "tuple:05-03"
@@ -84,7 +84,7 @@
   },
   "steps": [
    {
-    "t": "The first change was already carried out when it arrived. Agent 05 holds the second, undoes nothing, and asks the authorized user.",
+    "t": "The first change was already carried out when it arrived. Agent 05 does not carry out the second, undoes nothing, and asks the authorized user; the second change is not kept, so it must be signed again if wanted.",
     "src": "dispatcher/listing_spokes_05.py::already-executed {field}=; dispatcher/listing_spokes_05.py:536-546; dispatcher/listing_spokes_05.py:409-418"
    },
    {
@@ -337,7 +337,7 @@
    },
    {
     "t": "Agent 04 sends each approved draft to Agent 12 as well as to Agent 05. In the test the first (1,800 sq ft) draft reached Agent 12 before the listing was active, so Agent 12 only kept it; the copy it later published, held for the authorized user's release, says 2,000 sq ft.",
-    "src": "flow:05-10:04->12 asset.release; dispatcher/listing_spokes_12.py:279-299; flow:05-10:12->external campaign.publish"
+    "src": "flow:05-10:04->12 asset.release; dispatcher/listing_spokes_12.py:278-310, 139-153, 181-185; check:05-10:envelope.persisted:asset.release; flow:05-10:12->external campaign.publish"
    }
   ],
   "never": [

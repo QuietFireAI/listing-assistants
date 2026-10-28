@@ -468,7 +468,7 @@
   ],
   "you_see": {
    "t": "A hot-lead alert (this test's re-score is hot; a lead that leaves warm by scoring cold raises no alert).",
-   "src": "check:03-13:escalation.raised; dispatcher/listing_spokes_02.py::self.hub.escalate(\"escalation.hot_lead\", self._hot_record(ctx, payload, score))"
+   "src": "check:03-13:escalation.raised; dispatcher/listing_spokes_02.py:425-451"
   },
   "test": {
    "t": "A lead with a 35-day timeline scores warm; a week later it is 28 days and the re-score is hot; the next week's run removes it from the pool.",
@@ -572,7 +572,7 @@
   ],
   "you_see": {
    "t": "A question naming Compliance's findings.",
-   "src": "check:03-16:envelope.persisted:clarification.request; dispatcher/listing_spokes_03.py:758"
+   "src": "check:03-16:envelope.persisted:clarification.request; dispatcher/listing_spokes_03.py:763"
   },
   "test": {
    "t": "A signed sequence says \"This listing is perfect for young families.\" (a prohibited phrase in the test rules). A warm lead comes in and the daily run runs.",

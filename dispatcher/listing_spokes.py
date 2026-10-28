@@ -670,6 +670,7 @@ class Spoke14CRMPipeline:
                                               "event name -> MM-DD (yearly) or YYYY-MM-DD (once)"}))
                 return
             self.client_dates[ctx] = dict(d)
+            self._append(ctx, "config.update", env)   # on the record too (2026-10-28)
             self.hub.ingest_spoke_trace("14", env.envelope_id,
                                         thought=f"broker-signed client dates for {ctx!r}: {sorted(d)}",
                                         result="client dates set")
@@ -1289,9 +1290,16 @@ class Spoke01LeadCapture:
                         f"after {elapsed_days}d - retrying record.request "
                         f"once before giving up, per this tuple",
                 result="retried: record.request resent")
+            # the contact identifiers ride along, as on the first request
+            # (2026-10-28, manual re-check: the retry skipped the check for
+            # the same phone or email on another client)
             self.hub.send(_env("01", "14", "record.request", ctx,
-                               {"dedupe_key": ctx}))
+                               {"dedupe_key": ctx,
+                                "identifiers": pending.get("identifiers") or []}))
             return "retried"
+        if pending.get("handoff_failed"):
+            return "already_failed"   # you were told once (2026-10-28)
+        pending["handoff_failed"] = True
 
         # already retried once and STILL nothing - hold, never tier undeduped
         self.hub.ingest_spoke_trace(

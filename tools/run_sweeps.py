@@ -13,7 +13,10 @@ Deployment (any ONE of these):
             figures for the day, owner decision 9, 2026-10-21)
             */5 * * * *  cd /path/to/listing-assistants && python tools/run_sweeps.py --watch
             (the second re-alerts an escalation nobody has marked done at 30
-            minutes and pages you at 60; once a day is too slow for that)
+            minutes and pages you at 60; once a day is too slow for that. It
+            and the evening run also send client messages Agent 11 held for
+            quiet hours, once it is 08:00 or later: the 07:00 daily run is
+            inside quiet hours, owner decision D-A4)
   systemd:  a timer unit invoking the same command
   console:  {"do": "sweep", "today": "..."} inside a session script
 
@@ -64,7 +67,7 @@ def main(argv=None) -> int:
     ap.add_argument("--evening", action="store_true",
                     help="the evening clock: end-of-day books (14) with the day's figures (15)")
     ap.add_argument("--watch", action="store_true",
-                    help="only re-alert unanswered escalations (run every few minutes)")
+                    help="re-alert unanswered escalations and send quiet-hours holds (run every few minutes)")
     args = ap.parse_args(argv)
     if os.name != "nt":
         # private by default (2026-10-14, integration snapshot finding 2):
@@ -106,7 +109,7 @@ def main(argv=None) -> int:
         return 2
     from dispatcher.private_file import tighten_tree
     tighten_tree(state_dir)                 # a folder an earlier version left readable
-    from dispatcher.sweep_runner import run_daily_sweeps, run_evening_sweep
+    from dispatcher.sweep_runner import run_daily_sweeps, run_evening_sweep, run_quiet_hours_release
     from dispatcher.swarm import build_swarm
     from dispatcher.state_snapshot import StateIntegrityError
     from dispatcher.core import AuditLogBusy, AuditLogDamaged
@@ -145,8 +148,10 @@ def main(argv=None) -> int:
             from dispatcher.escalation_watch import check_unacknowledged
             results = [{"agent": "00", "sweep": "unacknowledged_escalations",
                         "result": check_unacknowledged(hub)}]
+            results += run_quiet_hours_release(hub, spokes, today, now_iso)
         elif args.evening:
             results = run_evening_sweep(hub, spokes, today=today, now_iso=now_iso)
+            results += run_quiet_hours_release(hub, spokes, today, now_iso)
         else:
             # a run on this machine's own clock is checked for skew; a run
             # with --today / --now-iso is a replay and is not

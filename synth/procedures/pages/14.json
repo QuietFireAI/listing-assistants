@@ -48,12 +48,12 @@
   },
   "when": {
    "t": "A new inquiry has the same phone or email (in any format) as a lead already on record under another thread; the name plays no part.",
-   "src": "dispatcher/listing_spokes.py:60-71, 443-452"
+   "src": "dispatcher/listing_spokes.py:46-71, 524-537"
   },
   "steps": [
    {
     "t": "Nothing is merged. Agent 01 holds the new inquiry and asks the authorized user: continue treats it as a separate person and scores it; cancel closes it.",
-    "src": "dispatcher/listing_spokes.py:1182-1205, 1233-1262; check:14-02:envelope.persisted:agent.status; check:14-02:envelope.persisted:lead.captured"
+    "src": "dispatcher/listing_spokes.py:1183-1206, 1234-1263; check:14-02:envelope.persisted:agent.status; check:14-02:envelope.persisted:lead.captured"
    },
    {
     "t": "Phone numbers are compared as digits, so different formatting still matches.",
@@ -129,7 +129,7 @@
    },
    {
     "t": "Agent 11 does not confirm the change to the client; it asks the authorized user to record a reconfirmation if the client really wants it.",
-    "src": "dispatcher/listing_spokes_11.py:679-692; check:14-04:envelope.persisted:clarification.request; check:14-04:envelope.persisted:client.message.send"
+    "src": "dispatcher/listing_spokes_11.py:688-701; check:14-04:envelope.persisted:clarification.request; check:14-04:envelope.persisted:client.message.send"
    },
    {
     "t": "Only the authorized user's signed consent record marked as reconfirmed by the client lifts a no.",
@@ -165,11 +165,11 @@
   "steps": [
    {
     "t": "Agent 14 deletes nothing. It freezes the record and raises a legal-line alert.",
-    "src": "dispatcher/listing_spokes.py:722-734; check:14-05:escalation.raised"
+    "src": "dispatcher/listing_spokes.py:723-735; check:14-05:escalation.raised"
    },
    {
     "t": "While frozen, an opt-out still takes effect and is recorded; any other change waits until the freeze is lifted, nothing changes meanwhile, and the authorized user is told; a write that changes nothing is refused and the authorized user is told of each attempt. Only a signed release lifts the freeze, and the waiting changes are then applied in the order they came (owner decision of 2026-10-28).",
-    "src": "dispatcher/listing_spokes.py::def _frozen_write(self, ctx: str, env: Envelope):; dispatcher/listing_spokes.py:187-206; dispatcher/listing_spokes.py::if env.intent == \"config.update\" and env.payload.get(\"action\") == \"release_record_freeze\":; dispatcher/listing_spokes.py:718-719"
+    "src": "dispatcher/listing_spokes.py::def _frozen_write(self, ctx: str, env: Envelope):; dispatcher/listing_spokes.py:187-206; dispatcher/listing_spokes.py::if env.intent == \"config.update\" and env.payload.get(\"action\") == \"release_record_freeze\":; dispatcher/listing_spokes.py:719-720"
    }
   ],
   "never": [
@@ -196,16 +196,16 @@
   },
   "when": {
    "t": "A new inquiry has the same phone or email (in any format) as a lead already on record under another thread; the name plays no part.",
-   "src": "dispatcher/listing_spokes.py:60-71, 443-452"
+   "src": "dispatcher/listing_spokes.py:46-71, 524-537"
   },
   "steps": [
    {
     "t": "Agent 01 holds the new inquiry and asks the authorized user, naming the earlier record.",
-    "src": "dispatcher/listing_spokes.py:1182-1205; check:14-06:envelope.persisted:agent.status; check:14-06:envelope.persisted:lead.captured"
+    "src": "dispatcher/listing_spokes.py:1183-1206; check:14-06:envelope.persisted:agent.status; check:14-06:envelope.persisted:lead.captured"
    },
    {
     "t": "There is no way to merge two records: continue treats it as a separate person, cancel closes the new thread.",
-    "src": "dispatcher/listing_spokes.py:1233-1262"
+    "src": "dispatcher/listing_spokes.py:1234-1263"
    }
   ],
   "never": [
@@ -237,7 +237,7 @@
   "steps": [
    {
     "t": "Agent 14 adds a new entry; it has no way to edit or overwrite an entry.",
-    "src": "dispatcher/listing_spokes.py:187-258; spec:14-07; check:14-07:spoke.trace"
+    "src": "dispatcher/listing_spokes.py:187-258, 659-680; spec:14-07; check:14-07:spoke.trace"
    }
   ],
   "never": [
@@ -472,7 +472,7 @@
   },
   "when": {
    "t": "The authorized user signs a consent record for a client.",
-   "src": "dispatcher/listing_spokes.py:615"
+   "src": "dispatcher/listing_spokes.py::if env.intent == \"config.update\" and \"consent_record\" in env.payload:"
   },
   "steps": [
    {

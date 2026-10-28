@@ -140,7 +140,7 @@ class Spoke11ClientCommunication:
         self._consent_check_open: str | None = None
         self._last_block = None   # why the last client message did not go (P11, 2026-10-21)
         # D-A4 (owner, 2026-10-28): client messages held for quiet hours,
-        # sent on the next daily run outside quiet hours (ctx -> [held])
+        # sent on the first clock run outside quiet hours (ctx -> [held])
         self.quiet_held: dict[str, list] = {}
         self.templates_awaiting_signature: set[str] = set(TEMPLATES_AWAITING_SIGNATURE)
         self.frozen_seen: dict[str, bool] = {}   # 14's record frozen, as last reported
@@ -282,7 +282,7 @@ class Spoke11ClientCommunication:
 
         # tuple 4/7: quiet hours / legal contact hours gate. D-A4 (owner
         # decision 2026-10-28, findings AI and M): the message is HELD and
-        # sent on the next daily run outside quiet hours (if consent is on
+        # sent on the first clock run outside quiet hours (if consent is on
         # record and no complaint hold is open then). Before, it was dropped
         # while the note said "send queued", and a message with no hour was
         # taken as noon. Agent 03's nurture touches are not held here: 03
@@ -302,7 +302,7 @@ class Spoke11ClientCommunication:
                         f"{hour_from}) and alert_class={alert_class!r} is not "
                         f"exempt - " + ("Agent 03 tries it again on its own clock"
                                         if from_03 else
-                                        f"held, sent on the next daily run at or after "
+                                        f"held, sent on the first clock run at or after "
                                         f"{end:02d}:00"),
                 result="held: quiet_hours")
             if not from_03:
@@ -311,8 +311,8 @@ class Spoke11ClientCommunication:
                                     "hour": hour}))
                 self.hub.send(_env("11", "queue", "clarification.request", ctx,
                                    {"reason": f"{template!r} held until {end:02d}:00 - quiet "
-                                              f"hours (hour {hour}); it goes on the next daily "
-                                              f"run at or after {end:02d}:00",
+                                              f"hours (hour {hour}); it goes on the first clock "
+                                              f"run (watch, daily or evening) at or after {end:02d}:00",
                                     "template": template}))
             self._last_block = "quiet_hours"
             return False
@@ -664,6 +664,15 @@ class Spoke11ClientCommunication:
             # tuple 11: contact-channel change -> honor, record, confirm once
             if payload.get("requests_channel_change"):
                 new_channel = payload.get("new_channel")
+                if new_channel not in MESSAGE_CHANNELS:
+                    # 2026-10-28 (manual re-check): a request naming no channel
+                    # (or none we send on) was confirmed with no consent check
+                    self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                       {"reason": f"client asked to change how they are reached "
+                                                  f"but named no channel we send on "
+                                                  f"({new_channel!r}); nothing changed or confirmed",
+                                        "verbatim": message}))
+                    return
                 # A client explicitly asking to be reached via a channel
                 # clearly implies consent for it - log the event AND
                 # update 14's authoritative consent record, or a system
