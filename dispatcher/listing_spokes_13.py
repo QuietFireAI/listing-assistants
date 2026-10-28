@@ -101,6 +101,11 @@ class Spoke13BuyerSearchMatch:
         # record.response that shows the agreement, re-asked on the clock.
         self.held_matches: dict[str, list[dict]] = {}
         self._held_notified: set[str] = set()
+        # D-A12 (owner decision 2026-10-28, finding AS): a listing missing a
+        # must-have field is kept, not dropped; it is checked again when the
+        # buyer's standing preference or criteria change. ctx -> {listing_id:
+        # listing}
+        self.unknown_kept: dict[str, dict[str, dict]] = {}
         register_spoke(hub, "13", self)
 
     def _protected_class_hit(self, text: str) -> str | None:
@@ -184,12 +189,34 @@ class Spoke13BuyerSearchMatch:
         missing_hard = [k for k in hard_criteria if k not in listing
                        or listing.get(k) is None]
         if missing_hard and not self.deliver_unknown_ok.get(ctx, False):
+            # D-A12 (owner decision 2026-10-28, finding AS): the signed rule
+            # says ask the client. The match is kept, the buyer is asked once
+            # per listing (template wording awaits the owner's signature;
+            # Agent 11 holds it until then), and the owner records the
+            # answer as the buyer's standing preference, which re-checks the
+            # kept matches. Before, only the owner was asked and the match
+            # was dropped.
+            lid = listing.get("listing_id")
+            kept = self.unknown_kept.setdefault(ctx, {})
+            first = lid not in kept
+            kept[lid] = listing
+            if not first:
+                return
             self.hub.send(_env("13", "queue", "clarification.request", ctx,
                                {"reason": f"listing incomplete on hard "
                                          f"criteria {missing_hard} - no "
                                          f"standing preference for "
                                          f"unknown-flagged delivery, "
-                                         f"holding to ask"}))
+                                         f"holding to ask; the match is kept and the "
+                                         f"buyer is asked. Record the buyer's answer with "
+                                         f"a signed deliver_unknown_standing_preference",
+                                "listing_id": lid}))
+            self.hub.send(_env("13", "11", "client.message.request", ctx,
+                               {"template": "unknown_criterion_ask",
+                                "field": ", ".join(missing_hard), "listing_id": lid}))
+            self.hub.send(_env("13", "14", "interaction.log", ctx,
+                               {"kind": "match_kept_unknown_criterion", "listing_id": lid,
+                                "missing": missing_hard}))
             return
 
         # tuple 7: match on a colleague's own listing -> disclosure to
@@ -288,6 +315,40 @@ class Spoke13BuyerSearchMatch:
                                           "matches go out on the next check after that",
                                 "held_listings": [h["match"]["listing_id"] for h in held]}))
 
+    def _recheck_kept(self, ctx: str, env: Envelope):
+        """D-A12/D-A20: kept matches are checked again after the buyer's
+        standing preference or criteria change."""
+        kept = self.unknown_kept.pop(ctx, {})
+        for listing in kept.values():
+            self._match_one(ctx, listing, env)
+        return len(kept)
+
+    def _clean_criteria(self, ctx: str, criteria, today):
+        sensitive, clean = [], []
+        for c in criteria:
+            hit = self._protected_class_hit(str(c.get("field", "")) + " " +
+                                            str(c.get("value", "")))
+            if hit:
+                self.hub.escalate("escalation.legal_line",
+                                  {"client_context_id": ctx,
+                                   "trigger": f"criterion correlates "
+                                             f"with protected class: "
+                                             f"{hit!r} - refused",
+                                   "agent": "13"})
+                continue  # tuple 2: refuse the criterion, never add it
+            if c.get("fair_housing_sensitive"):
+                sensitive.append(c)
+            else:
+                clean.append({**c, "source": STATED_BY_PARTY})
+        if sensitive:
+            self.criteria_pending_review.setdefault(ctx, []).extend(sensitive)
+            self.hub.send(_env("13", "17", "content.review", ctx,
+                               {"criteria": sensitive}))
+            self.hub.send(_env("13", "18", "agent.status", ctx,
+                               {"waiting_on": "criteria_compliance_review",
+                                "since": today}))
+        return clean
+
     def recheck_held_matches(self, ctx: str):
         """Clock check: ask 14 again for each buyer with held matches."""
         if not self.held_matches.get(ctx):
@@ -385,36 +446,32 @@ class Spoke13BuyerSearchMatch:
 
         if env.intent == "config.update":
             if "buyer_criteria" in payload:
-                criteria = payload["buyer_criteria"]
-                sensitive = []
-                clean = []
-                for c in criteria:
-                    hit = self._protected_class_hit(str(c.get("field", "")) + " " +
-                                                    str(c.get("value", "")))
-                    if hit:
-                        self.hub.escalate("escalation.legal_line",
-                                          {"client_context_id": ctx,
-                                           "trigger": f"criterion correlates "
-                                                     f"with protected class: "
-                                                     f"{hit!r} - refused",
-                                           "agent": "13"})
-                        continue  # tuple 2: refuse the criterion, never add it
-                    if c.get("fair_housing_sensitive"):
-                        sensitive.append(c)
-                    else:
-                        clean.append({**c, "source": STATED_BY_PARTY})
+                clean = self._clean_criteria(ctx, payload["buyer_criteria"], payload.get("today"))
                 self.buyer_criteria.setdefault(ctx, []).extend(clean)
-                if sensitive:
-                    self.criteria_pending_review.setdefault(ctx, []).extend(sensitive)
-                    self.hub.send(_env("13", "17", "content.review", ctx,
-                                       {"criteria": sensitive}))
-                    self.hub.send(_env("13", "18", "agent.status", ctx,
-                                       {"waiting_on": "criteria_compliance_review",
-                                        "since": payload.get("today")}))
+                return
+            if "buyer_criteria_replace" in payload:
+                # D-A20 (owner decision 2026-10-28): criteria could only be
+                # added to; a criterion the buyer dropped stayed forever.
+                # A signed replace sets the whole list; old and new go on
+                # the record; kept matches are checked against the new list.
+                old = [dict(c) for c in self.buyer_criteria.get(ctx, [])]
+                clean = self._clean_criteria(ctx, payload["buyer_criteria_replace"],
+                                             payload.get("today"))
+                self.buyer_criteria[ctx] = clean
+                self.hub.send(_env("13", "14", "interaction.log", ctx,
+                                   {"kind": "buyer_criteria_replaced", "old": old,
+                                    "new": clean, "signed_envelope": env.envelope_id}))
+                self.hub.ingest_spoke_trace(
+                    "13", env.envelope_id,
+                    thought=f"signed criteria replace for {ctx!r}: {len(old)} -> "
+                            f"{len(clean)} criteria; kept matches re-checked",
+                    result=f"criteria replaced; rechecked {self._recheck_kept(ctx, env)}")
                 return
             if "deliver_unknown_standing_preference" in payload:
                 self.deliver_unknown_ok[ctx] = bool(
                     payload["deliver_unknown_standing_preference"])
+                if self.deliver_unknown_ok[ctx]:
+                    self._recheck_kept(ctx, env)   # D-A12
                 return
             if "preapproval_expired" in payload:
                 # tuple 10: notify + mark; matches continue flagged

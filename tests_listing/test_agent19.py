@@ -184,14 +184,18 @@ def test_farm_data_individual_level_refused(tmp_path):
     assert not persisted(hub, "data.request")
 
 
-def test_farm_data_aggregate_level_requests_neighborhood_package(tmp_path):
+def test_farm_data_aggregate_request_says_no_source_is_connected(tmp_path):
+    """Owner decision D-A16 (2026-10-28): the neighborhood request handed
+    Agent 10 nothing, so the package was always empty. No request now;
+    the owner is told no source is connected."""
     hub, signer = make_hub(str(tmp_path))
     Spoke19Prospecting(hub)
     hub.on_turn_start()
     hub.send(config_update(signer, "d-012", {"farm_data_request": {
         "individual_level": False}}))
-    req = persisted(hub, "data.request")
-    assert req and req[0]["payload"]["mode"] == "neighborhood"
+    assert not persisted(hub, "data.request")
+    assert any("no neighborhood data source connected" in e["payload"]["reason"]
+               for e in persisted(hub, "clarification.request"))
 
 
 def test_bulk_outreach_instruction_never_triggers_actual_outreach(tmp_path):
@@ -203,7 +207,7 @@ def test_bulk_outreach_instruction_never_triggers_actual_outreach(tmp_path):
     assert sent_intents <= {"config.update"}
 
 
-def test_request_market_context_sends_data_request(tmp_path):
+def test_request_market_context_records_that_no_comp_source_is_connected(tmp_path):
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke19Prospecting(hub)
     hub.on_turn_start()
@@ -211,8 +215,9 @@ def test_request_market_context_sends_data_request(tmp_path):
     hub.send(discovery("d-014", {"listing_id": "L14", "zip_code": "44811",
                                  "status": "new", "source": "mls_feed"}))
     spoke.request_market_context("L14")
-    req = persisted(hub, "data.request")
-    assert req and req[-1]["to_agent"] == "10"
+    # D-A16 (2026-10-28): no empty request to Agent 10, no wait opened
+    assert not persisted(hub, "data.request")
+    assert spoke.opportunities["L14"]["market_context"] == "none - no comp source connected"
 
 
 def test_REGRESSION_property_data_forwarded_enables_real_matching_in_13(tmp_path):

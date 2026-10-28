@@ -1,94 +1,232 @@
 [
  {
   "id": "20-01",
-  "rev": 2,
-  "title": "A social media mention is mixed or unclear in tone",
-  "when": "A mention of the office is mixed (praise and complaint together) or angry without a label.",
+  "rev": 3,
+  "title": {
+   "t": "A mention is mixed",
+   "src": "tuple:20-01"
+  },
+  "when": {
+   "t": "A mention on a monitored channel is labelled mixed, or has no label and contains an angry or negative phrase.",
+   "src": "dispatcher/listing_spokes_20.py:145-152"
+  },
   "steps": [
-   "Agent 20 (Social Media Monitoring) treats it as a complaint: the protective choice.",
-   "It raises a complaint alert for the authorized user with the words.",
-   "All scheduled messages to that person are held until the authorized user releases them."
+   {
+    "t": "Agent 20 treats it as a complaint.",
+    "src": "dispatcher/listing_spokes_20.py:152; check:20-01:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "For a complaint, Agent 20 logs the mention word for word, raises a complaint alert quoting it, and asks Agent 11 to hold every message to that thread except the one opt-out confirmation.",
+    "src": "dispatcher/listing_spokes_20.py:154-158, 160-195; dispatcher/listing_spokes_11.py::if ctx in self.complaint_hold and template != \"opt_out_confirmed\":"
+   },
+   {
+    "t": "The hold stays until the authorized user releases it.",
+    "src": "dispatcher/listing_spokes_11.py:458-473, 448-454; check:20-01:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "The kind of mention (question, complaint, praise, lead, mixed) is a label on the incoming mention; without one, Agent 20 checks only for angry or negative phrases, which make it a complaint.",
+    "src": "dispatcher/listing_spokes_20.py:136-148; dispatcher/message_tags.py:22-30"
+   }
   ],
   "never": [
-   "Treat a mixed mention as praise."
+   {
+    "t": "Treat a mixed mention as praise.",
+    "src": "tuple:20-01"
+   }
   ],
-  "why": "Underreacting to a complaint costs more than overreacting to a mixed comment.",
-  "you_see": "A complaint alert quoting the mention.",
-  "test": "\"Great house but the agent never called me back.\" (labeled mixed) and \"Furious with how this listing was handled.\" (no label)."
+  "you_see": {
+   "t": "A complaint alert quoting the post.",
+   "src": "check:20-01:escalation.raised"
+  },
+  "test": {
+   "t": "\"Great house but the agent never called me back.\" labelled mixed; \"Furious with how this listing was handled.\" with no label.",
+   "src": "spec:20-01"
+  }
  },
  {
   "id": "20-02",
-  "rev": 2,
-  "title": "A mention may be from a client, but that is not confirmed",
-  "when": "A mention might involve one of the authorized user's clients, but nothing confirms who it is.",
+  "rev": 3,
+  "title": {
+   "t": "A mention may involve a client",
+   "src": "tuple:20-02"
+  },
+  "when": {
+   "t": "A complaint is marked as possibly involving a client whose identity is not confirmed.",
+   "src": "dispatcher/listing_spokes_20.py:139, 174"
+  },
   "steps": [
-   "Agent 20 routes it to the authorized user as a complaint.",
-   "The alert says the identity is not confirmed and asserts nothing about who it is."
+   {
+    "t": "The complaint alert says the identity is not confirmed or asserted, and names no one.",
+    "src": "dispatcher/listing_spokes_20.py:174-179; check:20-02:escalation.raised"
+   },
+   {
+    "t": "A question with the same mark goes to Agent 11 as a \"team will follow up\" message with the same note, not to Agent 01 as a lead.",
+    "src": "dispatcher/listing_spokes_20.py:202-221"
+   },
+   {
+    "t": "For a complaint, Agent 20 logs the mention word for word, raises a complaint alert quoting it, and asks Agent 11 to hold every message to that thread except the one opt-out confirmation.",
+    "src": "dispatcher/listing_spokes_20.py:154-158, 160-195; dispatcher/listing_spokes_11.py::if ctx in self.complaint_hold and template != \"opt_out_confirmed\":"
+   }
   ],
   "never": [
-   "Name or confirm a client in connection with a public post."
+   {
+    "t": "Confirm or suggest that the person is a client.",
+    "src": "tuple:20-02"
+   }
   ],
-  "why": "Confirming a client's identity in response to a public post breaks their confidentiality.",
-  "you_see": "A complaint alert saying the identity is not confirmed.",
-  "test": "\"Still waiting on my closing papers from these people.\", flagged as possibly a client."
+  "you_see": {
+   "t": "A complaint alert noting the identity is not confirmed.",
+   "src": "check:20-02:escalation.raised"
+  },
+  "test": {
+   "t": "\"Still waiting on my closing papers from these people.\", labelled complaint and marked as possibly a client.",
+   "src": "spec:20-02"
+  }
  },
  {
   "id": "20-03",
-  "rev": 2,
-  "title": "A negative post is spreading fast",
-  "when": "A negative post about the office is going viral.",
+  "rev": 3,
+  "title": {
+   "t": "A negative thread is going viral",
+   "src": "tuple:20-03"
+  },
+  "when": {
+   "t": "A complaint is marked viral.",
+   "src": "dispatcher/listing_spokes_20.py:138, 169"
+  },
   "steps": [
-   "Agent 20 raises a complaint alert for the authorized user at viral priority.",
-   "It drafts no reply."
+   {
+    "t": "The complaint alert carries viral priority.",
+    "src": "dispatcher/listing_spokes_20.py:169-170; check:20-03:escalation.raised"
+   },
+   {
+    "t": "No reply is drafted, even with reply templates set.",
+    "src": "dispatcher/listing_spokes_20.py:160-195; check:20-03:envelope.persisted:content.review"
+   },
+   {
+    "t": "For a complaint, Agent 20 logs the mention word for word, raises a complaint alert quoting it, and asks Agent 11 to hold every message to that thread except the one opt-out confirmation.",
+    "src": "dispatcher/listing_spokes_20.py:154-158, 160-195; dispatcher/listing_spokes_11.py::if ctx in self.complaint_hold and template != \"opt_out_confirmed\":"
+   }
   ],
   "never": [
-   "Draft or post a public reply."
+   {
+    "t": "Draft a reply to a viral negative thread (Agent 20 drafts no reply to any complaint).",
+    "src": "tuple:20-03; dispatcher/listing_spokes_20.py:160-195"
+   }
   ],
-  "why": "A public reply to a viral complaint is a reputation decision. Only the authorized user makes it.",
-  "you_see": "A complaint alert marked viral.",
-  "test": "\"Worst brokerage in town, do not use them!\", flagged viral."
+  "you_see": {
+   "t": "A complaint alert marked viral.",
+   "src": "check:20-03:escalation.raised"
+  },
+  "test": {
+   "t": "\"Worst brokerage in town, do not use them!\" labelled complaint and viral, with reply templates set.",
+   "src": "spec:20-03"
+  }
  },
  {
   "id": "20-04",
-  "rev": 2,
-  "title": "Someone praises the office",
-  "when": "A mention praises the office.",
+  "rev": 3,
+  "title": {
+   "t": "Someone praises the office",
+   "src": "tuple:20-04"
+  },
+  "when": {
+   "t": "A mention is labelled praise.",
+   "src": "dispatcher/listing_spokes_20.py:233"
+  },
   "steps": [
-   "Agent 20 logs it.",
-   "It does not reply, like or engage."
+   {
+    "t": "Agent 20 logs it. Nothing is posted.",
+    "src": "dispatcher/listing_spokes_20.py:154-158, 233-246; check:20-04:envelope.persisted:interaction.log; check:20-04:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "With a praise reply template set, it drafts the template's reply, sends it to Compliance, and if cleared holds it for the authorized user to post themselves; a template with pricing or legal words is refused with a legal-line alert instead. Without a template, nothing else.",
+    "src": "dispatcher/listing_spokes_20.py:238-245, 278-304, 92-122; check:20-04:spoke.trace"
+   }
   ],
   "never": [
-   "Engage automatically, even with praise."
+   {
+    "t": "Reply or engage on its own.",
+    "src": "tuple:20-04"
+   }
   ],
-  "why": "Automatic engagement looks automated, and a reply can reveal a client relationship.",
-  "you_see": "The praise in the record.",
-  "test": "\"Loved working with this team!\""
+  "you_see": {
+   "t": "The praise in the history.",
+   "src": "check:20-04:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "\"Loved working with this team!\", with no praise template set.",
+   "src": "spec:20-04"
+  }
  },
  {
   "id": "20-05",
-  "rev": 2,
-  "title": "Someone asks a question on social media",
-  "when": "Someone asks a question in a public post or a direct message.",
+  "rev": 3,
+  "title": {
+   "t": "A question comes in publicly or by direct message",
+   "src": "tuple:20-05"
+  },
+  "when": {
+   "t": "A mention labelled question arrives on a monitored channel, public or direct message.",
+   "src": "dispatcher/listing_spokes_20.py:197"
+  },
   "steps": [
-   "Agent 20 passes it to Agent 01 (Lead Capture) as a possible lead, whether it came public or private.",
-   "The channel it came from is recorded with it."
+   {
+    "t": "Either way Agent 20 sends it to Agent 01 as a lead signal, with the channel and the words, and consent unknown.",
+    "src": "dispatcher/listing_spokes_20.py:222-228; check:20-05:envelope.persisted:lead.signal"
+   },
+   {
+    "t": "The channel rides in the message itself.",
+    "src": "spec:20-05"
+   },
+   {
+    "t": "Agent 01 captures it and Agent 02, with nothing to score, asks the authorized user.",
+    "src": "flow:20-05:01->02 lead.captured; flow:20-05:02->queue clarification.request; dispatcher/listing_spokes_20.py:222-228; dispatcher/lead_rubric.py:86"
+   },
+   {
+    "t": "With a question template set, a draft reply also goes to Compliance; if Compliance clears it, it goes to the authorized user to post (a flagged draft is dropped, and a template with pricing or legal words is refused before review).",
+    "src": "dispatcher/listing_spokes_20.py:229-230, 278-304, 92-112"
+   }
   ],
   "never": [
-   "Answer it in public."
+   {
+    "t": "Answer the question on its own.",
+    "src": "tuple:20-05"
+   }
   ],
-  "why": "A question is a possible client. It goes through the same intake as any other inquiry.",
-  "you_see": "A new lead from social media, with its channel.",
-  "test": "\"Is the Elm Street house still available?\", once as a public post and once as a direct message."
+  "you_see": {
+   "t": "A new lead held by Agent 02 for the authorized user.",
+   "src": "flow:20-05:02->queue clarification.request"
+  },
+  "test": {
+   "t": "\"Is the Elm Street house still available?\" on Facebook publicly and by direct message.",
+   "src": "spec:20-05"
+  }
  },
  {
   "id": "20-06",
-  "rev": 2,
-  "title": "Expanding social media handling",
-  "when": "Retired.",
+  "rev": 3,
+  "title": {
+   "t": "Social media expansion",
+   "src": "tuple:20-06"
+  },
+  "when": {
+   "t": "Retired.",
+   "src": "spec:20-06"
+  },
   "steps": [],
   "never": [],
-  "why": "A note that the authorized user deferred expanding the social media agent to a later phase. It is not a rule, so there is nothing to run; the five rules above stand.",
-  "you_see": "",
-  "test": ""
+  "why": {
+   "t": "An owner deferral note, not a decision: the social phase comes later.",
+   "src": "spec:20-06"
+  },
+  "you_see": {
+   "t": "",
+   "src": "spec:20-06"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:20-06"
+  }
  }
 ]

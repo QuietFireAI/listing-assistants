@@ -14,14 +14,12 @@ flowchart LR
         direction TB
         I05["05 MLS and Listing Management"]
         IB(["You (broker)"])
-        I19["19 Prospecting"]
         I18["18 Calendar and Task Management"]
     end
     A10(("10 Market Data"))
     subgraph OUT["Talks to"]
         direction TB
         OB(["You (broker)"])
-        O19["19 Prospecting"]
         O14["14 CRM and Pipeline"]
         OB(["You (broker)"])
         O17["17 Compliance and Fair Housing"]
@@ -29,10 +27,8 @@ flowchart LR
     end
     I05 -- "shares the listing details" --> A10
     IB -- "asks for market data<br/>your signed settings" --> A10
-    I19 -- "asks for market data" --> A10
     I18 -- "asks for its part of the morning briefing" --> A10
     A10 -- "delivers the market data" --> OB
-    A10 -- "delivers the market data" --> O19
     A10 -- "logs it in the CRM" --> O14
     A10 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
     A10 -- "sends it for a compliance check" --> O17
@@ -56,11 +52,9 @@ Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs
 - [P08 - Offer to Acceptance](../docs/PLAY-BY-PLAY.md#p08---offer-to-acceptance)
 - [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
 - [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
-- [P12 - Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12---geographic-farm-campaign)
 - [P15 - CMA / Listing Appointment Prep](../docs/PLAY-BY-PLAY.md#p15---cma--listing-appointment-prep)
 - [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
 - [P23 - Price Review Evidence](../docs/PLAY-BY-PLAY.md#p23---price-review-evidence)
-- [P24 - Prospecting Outreach (probation mode)](../docs/PLAY-BY-PLAY.md#p24---prospecting-outreach-probation-mode)
 
 ## The rules it follows
 

@@ -1,148 +1,338 @@
 [
  {
   "id": "18-01",
-  "rev": 3,
-  "title": "Two calendar events clash and the priority rules cannot settle it",
-  "when": "Two events land at the same time and neither outranks the other (for example two showings of two listings at 2 pm).",
+  "rev": 4,
+  "title": {
+   "t": "Two events want the same time",
+   "src": "tuple:18-01"
+  },
+  "when": {
+   "t": "An event arrives for a day that already has an event at exactly the same time.",
+   "src": "dispatcher/listing_spokes_18.py:228-229"
+  },
   "steps": [
-   "Agent 18 (Calendar & Task Management) keeps the first event on the calendar.",
-   "It does not put the second one on; it asks the authorized user about the conflict, and tells Agent 06 (Showing Scheduler) the showing was not added.",
-   "Agent 06 does not tell that buyer the showing is confirmed. It holds the showing for the authorized user: continue confirms it to the buyer, cancel sends nothing (the authorized user offers another time).",
-   "Neither event is moved on its own."
+   {
+    "t": "Agent 18 does not add it, moves neither, and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_18.py:229-236; check:18-01:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "When the event is a showing from Agent 06, Agent 18 tells Agent 06 it was not added; Agent 06 then holds the showing for the authorized user instead of confirming it to the buyer: continue confirms it, cancel sends nothing.",
+    "src": "dispatcher/listing_spokes_18.py:117-124; dispatcher/listing_spokes_06.py:752-768, 244-262"
+   },
+   {
+    "t": "Only an exact time match counts; events at different times on the same day do not conflict here.",
+    "src": "dispatcher/listing_spokes_18.py:228-229"
+   }
   ],
   "never": [
-   "Silently move or drop either event."
+   {
+    "t": "Move either event on its own.",
+    "src": "tuple:18-01"
+   }
   ],
-  "why": "Which appointment gives way is a judgment about clients and relationships. That is for the authorized user.",
-  "you_see": "A question about the conflict, and the second showing held for the authorized user's continue or cancel.",
-  "test": "Buyer B1 asks to see listing L1 at 2 pm on October 20; buyer B2 asks to see L2 at the same time. B1 is confirmed; B2 gets no confirmation and is held for the authorized user."
+  "you_see": {
+   "t": "A question about the conflict, and the second showing held for continue or cancel.",
+   "src": "check:18-01:human.notified"
+  },
+  "test": {
+   "t": "Buyer B1 asks to see L1 at 14:00 on October 20; buyer B2 asks to see L2 at the same time. B1 is on the calendar; B2 is not confirmed to the buyer.",
+   "src": "spec:18-01"
+  }
  },
  {
   "id": "18-02",
-  "rev": 2,
-  "title": "A briefing item has no source on record",
-  "when": "Something in the morning briefing points to a message that is not on the record.",
+  "rev": 3,
+  "title": {
+   "t": "A briefing item has no source on record",
+   "src": "tuple:18-02"
+  },
+  "when": {
+   "t": "The morning briefing is built and a waiting item's source message is not on the audit log.",
+   "src": "dispatcher/listing_spokes_18.py:524-533"
+  },
   "steps": [
-   "The briefing lists it as a gap, naming the missing source.",
-   "Items that rest on real messages are not listed as gaps."
+   {
+    "t": "The briefing lists it under gaps, with the missing source; items with a source on record are not listed as gaps.",
+    "src": "dispatcher/listing_spokes_18.py:530-533, 548-553; check:18-02:envelope.persisted:report.package"
+   },
+   {
+    "t": "A section an agent did not answer is listed as missing, never left out quietly.",
+    "src": "dispatcher/listing_spokes_18.py:541-547"
+   }
   ],
   "never": [
-   "Present an item whose source is missing as if it were sound."
+   {
+    "t": "Present an unsourced item as sourced.",
+    "src": "tuple:18-02"
+   }
   ],
-  "why": "A briefing item with no record behind it cannot be checked. Saying so keeps the briefing honest.",
-  "you_see": "A gap listed in the briefing.",
-  "test": "The test plants a waiting item (an inspection report) whose source message is not on the record, then asks for the briefing."
+  "you_see": {
+   "t": "A gap in the briefing naming the item and its missing source.",
+   "src": "check:18-02:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "A test harness restores a waiting item without its message on the log; the briefing is built.",
+   "src": "spec:18-02"
+  }
  },
  {
   "id": "18-03",
-  "rev": 2,
-  "title": "The authorized user's instruction conflicts with a contract deadline",
-  "when": "The authorized user asks for something to be scheduled at a time that conflicts with a contract deadline (for example a final walkthrough after closing).",
+  "rev": 3,
+  "title": {
+   "t": "An instruction conflicts with a contract deadline",
+   "src": "tuple:18-03"
+  },
+  "when": {
+   "t": "The authorized user signs an instruction to put an event on a day after the contract deadline it must come before.",
+   "src": "dispatcher/listing_spokes_18.py:392-406"
+  },
   "steps": [
-   "Agent 18 holds it and shows the authorized user both: the authorized user's instruction and the deadline.",
-   "Nothing is scheduled until the authorized user decides. Continue goes ahead; cancel drops the instruction.",
-   "An instruction with no conflict goes straight on the calendar."
+   {
+    "t": "Agent 18 puts both to the authorized user and acts on neither: continue places the event where instructed and leaves the deadline as it is; cancel drops it.",
+    "src": "dispatcher/listing_spokes_18.py:406-418, 430-443; check:18-03:human.notified; check:18-03:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "An instruction with no conflict goes straight on the calendar.",
+    "src": "dispatcher/listing_spokes_18.py:419-428; check:18-03:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The deadline itself is never moved.",
+    "src": "dispatcher/listing_spokes_18.py:393-398"
+   }
   ],
   "never": [
-   "Act on either the instruction or the deadline before the authorized user decides."
+   {
+    "t": "Act on either until the authorized user decides.",
+    "src": "tuple:18-03"
+   }
   ],
-  "why": "A walkthrough after closing is likely a mistake; the system asks rather than guessing which date was meant.",
-  "you_see": "A held instruction showing the conflict, asking the authorized user to continue or cancel.",
-  "test": "Closing is October 22. The authorized user asks for the final walkthrough on October 25: held; the authorized user cancels and it is dropped. On another transaction a walkthrough before closing goes on the calendar."
+  "you_see": {
+   "t": "A held instruction showing the event day and the deadline.",
+   "src": "check:18-03:human.notified"
+  },
+  "test": {
+   "t": "Closing October 22; an instruction puts the final walkthrough on October 25; the authorized user cancels and it is dropped. A second deal with the walkthrough on October 20 goes on the calendar.",
+   "src": "spec:18-03"
+  }
  },
  {
   "id": "18-04",
-  "rev": 2,
-  "title": "An agent asks to move a protected deadline block",
-  "when": "An agent asks to move a calendar block that protects a contract deadline.",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks to move a protected deadline",
+   "src": "tuple:18-04"
+  },
+  "when": {
+   "t": "A signed setting asks to move a protected deadline block on behalf of an agent.",
+   "src": "dispatcher/listing_spokes_18.py:332-340"
+  },
   "steps": [
-   "Agent 18 refuses.",
-   "Only the authorized user can move it; it tells the authorized user the request was refused."
+   {
+    "t": "Agent 18 refuses: only the authorized user's own confirmation can.",
+    "src": "dispatcher/listing_spokes_18.py:340-346; check:18-04:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "With the authorized user's own confirmation naming a new day, the block moves to that day and stays protected; the move is logged with both days. A confirmation that names no day is refused and nothing moves (owner decision of 2026-10-28; before, only the block's name was taken off the protected list and the entry stayed on the old day). The contract date itself is Agent 07's and changes only by a signed milestone amendment.",
+    "src": "dispatcher/listing_spokes_18.py:347-384; tests_listing/test_mutation_hardening.py::def test_18_protected_block_move_decision_table"
+   },
+   {
+    "t": "Agents have no route to ask this; the authorized user relays the ask as a signed setting.",
+    "src": "spec:18-04"
+   }
   ],
   "never": [
-   "Move a deadline block at an agent's request."
+   {
+    "t": "Move a protected deadline for an agent.",
+    "src": "tuple:18-04"
+   }
   ],
-  "why": "Deadline blocks protect contract dates. Only the authorized user's confirmation moves them.",
-  "you_see": "A question saying the request to move the protected block was refused.",
-  "test": "A closing deadline is on the calendar. The authorized user relays, as a signed setting, a request from Agent 06 to move it (agents have no route to ask this themselves)."
+  "you_see": {
+   "t": "A note that the request was refused.",
+   "src": "check:18-04:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Closing October 15 is on the calendar; a request to move it on behalf of Agent 06.",
+   "src": "spec:18-04"
+  }
  },
  {
   "id": "18-05",
-  "rev": 3,
-  "title": "A day is overbooked",
-  "when": "A day has more events than the daily limit (8 in the authorized user's settings).",
+  "rev": 4,
+  "title": {
+   "t": "A day is full",
+   "src": "tuple:18-05"
+  },
+  "when": {
+   "t": "An event arrives for a day that already has 8 events (the tuning default).",
+   "src": "dispatcher/listing_spokes_18.py:88-99, 243"
+  },
   "steps": [
-   "Agent 18 proposes an order of priority for the day; the authorized user confirms the order.",
-   "The event over the limit is not added; Agent 06 holds that showing for the authorized user instead of confirming it to the buyer."
+   {
+    "t": "Agent 18 does not add it and proposes an order for the authorized user to confirm: protected deadlines first, then by time.",
+    "src": "dispatcher/listing_spokes_18.py:243-255; check:18-05:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "When the event is a showing from Agent 06, Agent 18 tells Agent 06 it was not added; Agent 06 then holds the showing for the authorized user instead of confirming it to the buyer: continue confirms it, cancel sends nothing.",
+    "src": "dispatcher/listing_spokes_18.py:117-124; dispatcher/listing_spokes_06.py:752-768, 244-262"
+   }
   ],
   "never": [
-   "Reorder or drop events on its own."
+   {
+    "t": "Drop or reorder events on its own.",
+    "src": "tuple:18-05"
+   }
   ],
-  "why": "When everything cannot happen, the authorized user decides what comes first.",
-  "you_see": "A question saying the day is at capacity, with a proposed order; the extra showing held for the authorized user's continue or cancel.",
-  "test": "Nine showings are requested on one day; nine calendar requests reach Agent 18. The ninth is not added: the authorized user is asked, and the ninth buyer gets no confirmation."
+  "you_see": {
+   "t": "A proposed order, and the ninth showing held for continue or cancel.",
+   "src": "check:18-05:human.notified"
+  },
+  "test": {
+   "t": "Nine buyers ask to see L1 on October 20, hourly from 09:00 to 17:00.",
+   "src": "spec:18-05"
+  }
  },
  {
   "id": "18-06",
-  "rev": 2,
-  "title": "Two sources give different dates for the same deadline",
-  "when": "The transaction timeline and a document disagree on a deadline date.",
+  "rev": 3,
+  "title": {
+   "t": "Two sources give different dates for one deadline",
+   "src": "tuple:18-06"
+  },
+  "when": {
+   "t": "Deadline notices for the same milestone arrive with different dates from different sources (the timeline and a document).",
+   "src": "dispatcher/listing_spokes_18.py:269-283"
+  },
   "steps": [
-   "Agent 18 tracks both dates.",
-   "It tells the authorized user about the conflict, naming both sources.",
-   "The morning briefing lists the conflict."
+   {
+    "t": "Agent 18 keeps both and asks the authorized user, naming each source and date.",
+    "src": "dispatcher/listing_spokes_18.py:283-290; check:18-06:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "The morning briefing lists the conflict while it stands.",
+    "src": "dispatcher/listing_spokes_18.py:567-570; check:18-06:envelope.persisted:report.package"
+   }
   ],
   "never": [
-   "Pick the more convenient date."
+   {
+    "t": "Pick the friendlier date.",
+    "src": "tuple:18-06"
+   }
   ],
-  "why": "Choosing the later date can make a deadline pass unnoticed. Both stay visible until the authorized user settles it.",
-  "you_see": "A question about the conflicting dates; the conflict in the briefing.",
-  "test": "The timeline says the inspection is due October 25; the inspection report says October 22."
+  "you_see": {
+   "t": "A question showing both dates and their sources.",
+   "src": "check:18-06:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The timeline says inspection October 25; the inspection report says October 22.",
+   "src": "spec:18-06"
+  }
  },
  {
   "id": "18-07",
-  "rev": 2,
-  "title": "The authorized user's calendar clashes with a contract deadline",
-  "when": "A soft item on the authorized user's calendar (for example a showing) falls on the day of a contract deadline.",
+  "rev": 3,
+  "title": {
+   "t": "A calendar item falls on a contract deadline",
+   "src": "tuple:18-07"
+  },
+  "when": {
+   "t": "A contract deadline lands on a day that has ordinary (not protected) items.",
+   "src": "dispatcher/listing_spokes_18.py:313-317"
+  },
   "steps": [
-   "The deadline outranks the soft item.",
-   "Agent 18 proposes moving the soft item and asks the authorized user."
+   {
+    "t": "The deadline stays; Agent 18 asks the authorized user to move the ordinary items, naming them.",
+    "src": "dispatcher/listing_spokes_18.py:317-326; check:18-07:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Any ordinary item on that day counts, whatever its time.",
+    "src": "dispatcher/listing_spokes_18.py:315-316"
+   }
   ],
   "never": [
-   "Move the deadline to fit the calendar."
+   {
+    "t": "Move the deadline.",
+    "src": "tuple:18-07"
+   }
   ],
-  "why": "Showings can move; closing dates cannot.",
-  "you_see": "A question naming the deadline and the soft items that clash with it.",
-  "test": "A showing at 10:00 on October 20; closing is also October 20."
+  "you_see": {
+   "t": "A question naming the items on the deadline day.",
+   "src": "check:18-07:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A showing is on the calendar for October 20; a closing on October 20 is loaded; the daily run runs that day.",
+   "src": "spec:18-07"
+  }
  },
  {
   "id": "18-08",
-  "rev": 2,
-  "title": "A recurring task quietly stops happening",
-  "when": "A task that should repeat shows no completions.",
+  "rev": 3,
+  "title": {
+   "t": "A recurring task stops reporting",
+   "src": "tuple:18-08"
+  },
+  "when": {
+   "t": "A recurring task has had no completion for longer than its cadence.",
+   "src": "dispatcher/listing_spokes_18.py:490-500"
+  },
   "steps": [
-   "Agent 18 reports the pattern to the authorized user."
+   {
+    "t": "The rule: surface the pattern. The check exists.",
+    "src": "dispatcher/listing_spokes_18.py:490-509"
+   },
+   {
+    "t": "No way in: no agent names a recurring task, and the daily run does not call the check.",
+    "src": "spec:18-08; dispatcher/clock.py:63-64"
+   }
   ],
   "never": [
-   "Treat a quiet calendar as a sign that all is well."
+   {
+    "t": "Treat a quiet calendar as a healthy one.",
+    "src": "tuple:18-08"
+   }
   ],
-  "why": "A task that silently stopped is a problem nobody sees until it is too late.",
-  "you_see": "A report about the silent task.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not reachable.",
+   "src": "spec:18-08"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:18-08"
+  }
  },
  {
   "id": "18-09",
-  "rev": 2,
-  "title": "It is unclear which time zone a party is in",
-  "when": "Someone involved may be in a different time zone and it has not been confirmed.",
+  "rev": 3,
+  "title": {
+   "t": "An event's time zone is unclear",
+   "src": "tuple:18-09"
+  },
+  "when": {
+   "t": "An event arrives without a confirmed time zone.",
+   "src": "dispatcher/listing_spokes_18.py:208-211"
+  },
   "steps": [
-   "Agent 18 confirms the time zone before scheduling."
+   {
+    "t": "The rule: confirm before scheduling. The check exists.",
+    "src": "dispatcher/listing_spokes_18.py:208-217"
+   },
+   {
+    "t": "No way in: both agents that send calendar events mark every one as time-zone confirmed.",
+    "src": "spec:18-09; dispatcher/listing_spokes_06.py:750; dispatcher/listing_spokes_09.py:293-295"
+   }
   ],
   "never": [
-   "Assume a time zone."
+   {
+    "t": "Assume a time zone.",
+    "src": "tuple:18-09"
+   }
   ],
-  "why": "A closing scheduled in the wrong time zone can miss its window.",
-  "you_see": "A question confirming the time zone.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not reachable.",
+   "src": "spec:18-09"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:18-09"
+  }
  }
 ]

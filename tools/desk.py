@@ -512,7 +512,8 @@ class ReadModel:
                         "status": r.get("status_at_retrieval"),
                         "found": r.get("retrieval_timestamp"),
                         "do_not_call": r.get("dnc_status") == "on_dnc",
-                        # the comps 10 found for it; None = no package yet
+                        # the comps 10 found for it; None = no package (owner
+                        # decision D-A16, 2026-10-28: no comp source is connected)
                         "comps": (r["market_context"].get("comp_count")
                                   if isinstance(r.get("market_context"), dict) else None)})
         return out

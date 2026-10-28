@@ -33,8 +33,9 @@ itself goes through Compliance (17) before publication.
 - Every publication waits for the broker's signed release: the hub holds each `campaign.publish` (audience: public) until the broker releases that one message.
 
 How the code does it today (checked 2026-10-12): the broker starts a campaign
-with a signed `new_campaign` (copy and targeting), sets `exempt_status` and
-`signed_budget`; this agent checks the copy, the targeting and the Clear
+with a signed `new_campaign` (copy and targeting) and sets `exempt_status`
+(campaign budgets were retired 2026-10-28, owner decision D-A17: no ad
+carries a cost); this agent checks the copy, the targeting and the Clear
 Cooperation gate, sends self-written copy to 17, and publishes. It does not
 write newsletter or ad copy itself, and no social or ad platform is
 connected; publications leave only through the held external route. Copy 17
@@ -83,7 +84,7 @@ Dispatcher returns an `ack`.
 | OUT | → 18 Calendar & Task | Wait-state signal (CCP compliance gate pending) | `agent.status` |
 | OUT | → HITL queue | Demographic targeting | `escalation.legal_line` |
 | OUT | → HITL queue | Asset with unverified specifics, trending-topic tie-in, engagement numbers conflict, platform rejected an ad, copy flagged by 17, stale published asset, client reply about marketing | `clarification.request` |
-| IN | ← Broker (signed) | Settings: `new_campaign`, `exempt_status`, `signed_budget` (a reported `budget_change_verbal` changes nothing until a signed budget arrives) | `config.update` |
+| IN | ← Broker (signed) | Settings: `new_campaign`, `exempt_status` (`signed_budget` and `budget_change_verbal` are refused since 2026-10-28) | `config.update` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

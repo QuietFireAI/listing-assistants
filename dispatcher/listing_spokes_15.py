@@ -19,6 +19,11 @@ _TRUST_ESCROW_WORDS = ("earnest money", "trust account", "escrow",
                       "wire the funds", "disbursement")
 
 
+def _estimate(rec: dict) -> bool:
+    """A commission that is not a recorded figure: unsigned, or computed."""
+    return not rec.get("signed") or str(rec.get("source", "")).startswith("computed")
+
+
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
     return Envelope(from_agent=frm, to_agent=to, intent=intent,
                     client_context_id=ctx, payload=payload,
@@ -83,6 +88,10 @@ class Spoke15FinancialTracking:
             return sum(vals) if vals else 0
         return {"date": day,
                 "commissions": comms, "commission_total": total(comms, "amount"),
+                # 2026-10-28: estimates (unsigned, or computed at the default
+                # rate) apart from recorded figures; the total above has both
+                "commission_total_recorded": total([r for r in comms if not _estimate(r)], "amount"),
+                "commission_total_estimated": total([r for r in comms if _estimate(r)], "amount"),
                 "commissions_unsigned": sum(1 for r in comms if not r.get("signed")),
                 "commissions_without_amount": sum(1 for r in comms if r.get("amount") is None),
                 "expenses": exps, "expense_total": total(exps, "amount"),
@@ -219,8 +228,8 @@ class Spoke15FinancialTracking:
             return
 
         if env.intent == "config.update":
-            text_fields = " ".join(str(v) for v in payload.values()
-                                   if isinstance(v, str))
+            from .listing_spokes_08 import _flatten_strings   # nested values too (2026-10-28:
+            text_fields = " ".join(_flatten_strings(payload))  # inside add_expense was missed)
             hit = self._trust_escrow_hit(text_fields)
             if hit and "disbursement" in text_fields.lower():
                 # tuple 9: disbursement by email, wire-adjacent -> full

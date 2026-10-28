@@ -296,6 +296,14 @@ class Spoke18CalendarTask:
             # from 07's alert, rather than expecting 07 to send a
             # calendar.event it structurally cannot send.
             block_id = f"deadline-{ctx}-{milestone}" + ("" if source == "07" else f"-{source}")
+            # D-A5 (2026-10-28): a signed amendment moved this date - the
+            # block leaves its old day instead of staying on both
+            old_day = payload.get("amended_from")
+            if old_day and old_day != deadline and old_day in self.calendar:
+                self.calendar[old_day] = [e for e in self.calendar[old_day]
+                                          if e["event_id"] != block_id]
+                if not self.calendar[old_day]:
+                    del self.calendar[old_day]
             day_events = self.calendar.setdefault(deadline, [])
             if not any(e["event_id"] == block_id for e in day_events):
                 day_events.append({"event_id": block_id, "source": "07",
@@ -337,10 +345,41 @@ class Spoke18CalendarTask:
                                              f"human confirmation only"}))
                 return
             if event_id in self.protected_blocks:
-                del self.protected_blocks[event_id]
+                # D-A21 (owner decision 2026-10-28, re-check 18-04): a move
+                # moves. It must name to_day; the block leaves its old day
+                # and goes on to_day, still protected; old day, new day and
+                # who moved it are on the record. It used to delete only the
+                # id from the protected list: the entry stayed on the old
+                # day, still marked protected. A contract date itself is
+                # Agent 07's and changes only by a signed amendment.
+                import datetime
+                to_day = payload["move_protected_block"].get("to_day")
+                try:
+                    datetime.date.fromisoformat(str(to_day))
+                except ValueError:
+                    self.hub.send(_env("18", "queue", "clarification.request", ctx,
+                                       {"reason": f"move of protected block {event_id!r} "
+                                                  f"refused: no to_day (YYYY-MM-DD) named; "
+                                                  f"nothing moved"}))
+                    return
+                old_day = self.protected_blocks[event_id]["day"]
+                moved = [e for e in self.calendar.get(old_day, []) if e["event_id"] == event_id]
+                self.calendar[old_day] = [e for e in self.calendar.get(old_day, [])
+                                          if e["event_id"] != event_id]
+                if not self.calendar[old_day]:
+                    del self.calendar[old_day]
+                entry = moved[0] if moved else {"event_id": event_id, "source": "human",
+                                                "protected": True}
+                self.calendar.setdefault(to_day, []).append({**entry, "protected": True})
+                self.protected_blocks[event_id] = {**self.protected_blocks[event_id],
+                                                   "day": to_day}
+                self.hub.send(_env("18", "14", "interaction.log", ctx,
+                                   {"kind": "protected_block_moved", "event_id": event_id,
+                                    "old_day": old_day, "new_day": to_day, "by": "human"}))
                 self.hub.ingest_spoke_trace(
                     "18", env.envelope_id,
-                    thought=f"human-confirmed move of protected block {event_id!r} - removed",
+                    thought=f"human-confirmed move of protected block {event_id!r}: "
+                            f"{old_day} -> {to_day}, still protected",
                     result="protected block moved")
                 return
             self.hub.ingest_spoke_trace(
@@ -427,6 +466,12 @@ class Spoke18CalendarTask:
         elapsed_min = (now - slot).total_seconds() / 60.0
         if elapsed_min < self.no_show_grace_minutes:
             return "within_grace"
+        # D-A3 (owner decision 2026-10-28, finding Y): never on the day of
+        # the showing. Agent 06 asks for feedback only from the next day, so
+        # a same-day run logged a no-show for a showing nobody had reported
+        # on yet. A calendar no-show is marked from the day after.
+        if now.date() <= slot.date():
+            return "same_day_waits"
         self.no_shows_reported.add(ctx)
         self.hub.ingest_spoke_trace(
             "18", f"no-show-{ctx}",
@@ -467,7 +512,9 @@ class Spoke18CalendarTask:
     # each asked of the agent that owns the facts (briefing.request) and
     # answered through the hub (report.package)
     BRIEF_SECTIONS = (("14", "overnight_leads"), ("15", "yesterdays_books"),
-                      ("19", "prospects_waiting"), ("10", "market_changes"))
+                      ("19", "prospects_waiting"), ("10", "market_changes"),
+                      # owner decisions D-A18, D-A19 (2026-10-28)
+                      ("14", "record_conflicts"), ("17", "compliance_notices"))
 
     def generate_briefing(self, briefing_type: str = "morning", today: str | None = None):
         """Job component: briefings built ONLY from logged envelopes and

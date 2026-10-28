@@ -58,7 +58,8 @@ def test_every_spec_without_a_run_says_why():
 # the specs whose code changed during the 2026-10-14 runs (the last three
 # by the plumbing pass the same day)
 FIXED = ["03-05", "03-08", "05-10", "06-03", "06-06", "06-10", "07-11", "09-02",
-         "10-04", "12-09", "14-01", "14-03", "15-06", "15-10", "17-03", "19-08",
+         # 14-03 left: NOT REACHABLE since owner decision D-A6 (2026-10-28)
+         "10-04", "12-09", "14-01", "15-06", "15-10", "17-03", "19-08",
          "07-03", "14-04", "18-06",
          # wired by the owner's decisions of 2026-10-14
          "06-05", "06-07", "06-11", "11-14", "13-01", "16-08", "16-10",

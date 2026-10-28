@@ -31,7 +31,7 @@ giving advice, and it only ever does the first.
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
 - An angry client (the reply's `angry` flag) goes straight to the broker (`escalation.complaint`, the words verbatim) and is logged to 14; nothing is sent to the client (owner decision 2026-10-12 - the response is human). Routine updates to that client are not sent (each one is logged to 14) until the broker signs `resolve_complaint_hold`.
 - A `client.message.request` with no template is a client's own question for a person, not a message to send (03's substantive reply from inside a sequence, tuples 03-01 and 03-11): nothing goes to the client; the broker gets it in the queue as "reply needed" with the client's words, and it is logged to 14 (fixed 2026-10-27: the template used to default to the intent name and the question went back out to the client).
-- Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
+- Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is held and the broker is told "held until 08:00"; it goes on the first daily run outside quiet hours, if consent is on record and no complaint hold is open then. A message that carries no hour uses this computer's clock (owner decision D-A4, 2026-10-28; before, it was dropped, and a message with no hour counted as noon). Agent 03's nurture touches are not held here: 03 tries them again on its own clock. the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## 3. HITL Handoff - The Legal Line
 
@@ -85,7 +85,8 @@ Dispatcher returns an `ack`.
 | OUT | → 14 CRM & Pipeline | Consent check before every client send; facts for a client-requested showing | `record.request` |
 | IN | ← 14 CRM & Pipeline | Record match / no-match | `record.response` (`in_reply_to`) |
 | OUT | → 18 Calendar & Task | Wait-state signal (advice-response pending) | `agent.status` |
-| IN | ← Broker (signed) | Settings: `resolve_advice_response`, `resolve_complaint_hold` | `config.update` |
+| IN | ← Broker (signed) | Settings: `resolve_advice_response`, `resolve_complaint_hold`; `template_signed` (the wording of a template that waits for your signature, owner decisions 2026-10-28) | `config.update` |
+| IN | ← Clock (through the hub) | Daily tick: messages held for quiet hours go on the first run outside quiet hours (owner decision D-A4, 2026-10-28) | `clock.tick` |
 
 This agent has no other edges. If a task appears to require any other
 communication path, that is an ambiguity condition (section 6) - stop and ask

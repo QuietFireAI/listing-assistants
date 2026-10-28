@@ -4,7 +4,7 @@
 
 **ACCEPTED 2026-10-21 by Jeff Phillips as placed (every tuple read and placed by hand by Claude; the owner's corrections are made here).**
 
-A tuple is one rule for one hard case: the situation, what the agent does, and what it must never do. There are 273 (269 in force, 4 retired). Each is sorted below by what it protects (category) and how bad a failure would be (tier).
+A tuple is one rule for one hard case: the situation, what the agent does, and what it must never do. There are 273 (268 in force, 5 retired). Each is sorted below by what it protects (category) and how bad a failure would be (tier).
 
 Columns: **status** is RUNS (it runs through the console and is checked), NOT REACHABLE (nothing in the product can produce the situation yet), NOT BUILT (the agent does not do it yet) or RETIRED. **Playbooks** are the playbooks whose agents include the tuple's agent, so where the rule can fire; it is not a record of a run firing it.
 
@@ -30,12 +30,12 @@ Columns: **status** is RUNS (it runs through the console and is checked), NOT RE
 |---|---|---|---|---|---|---|---|
 | Legal line | 51 | 12 | 0 | 63 | 60 | 2 | 1 |
 | Consent and contact | 18 | 10 | 1 | 29 | 28 | 1 | 0 |
-| Truth of the record | 5 | 52 | 16 | 73 | 65 | 5 | 3 |
-| Your authority | 17 | 8 | 1 | 26 | 26 | 0 | 0 |
+| Truth of the record | 5 | 52 | 16 | 73 | 64 | 6 | 3 |
+| Your authority | 17 | 7 | 1 | 25 | 25 | 0 | 0 |
 | Choices that are yours | 4 | 18 | 12 | 34 | 28 | 5 | 1 |
 | Time and reliability | 9 | 17 | 6 | 32 | 30 | 2 | 0 |
-| People moments | 1 | 8 | 3 | 12 | 10 | 2 | 0 |
-| **All** | 105 | 125 | 39 | 269 | 247 | 17 | 5 |
+| People moments | 1 | 8 | 3 | 12 | 11 | 1 | 0 |
+| **All** | 105 | 124 | 39 | 268 | 246 | 17 | 5 |
 
 ## Legal line
 
@@ -223,7 +223,7 @@ Missing, stale, unverified or contradicting facts; unknown stays unknown, nothin
 | 13-10 | buyer pre-approval expires mid-search, notify + mark; matches continue flagged unverified-financing | RUNS | P01, P06, P07, P22, P24 |
 | 14-01 | two agents logged conflicting facts for one event, keep both + flag; the record system never merges truth | RUNS | P01, P02, P03, P04, P05, P06, P07, P10, P11, P13, P14, P16, P17, P18, P19, P20, P21, P22, P23, P24 |
 | 14-02 | merge candidate with unconfirmed identity, no merge | RUNS | P01, P02, P03, P04, P05, P06, P07, P10, P11, P13, P14, P16, P17, P18, P19, P20, P21, P22, P23, P24 |
-| 14-03 | report requested over a known logging gap, state the gap; never smooth | RUNS | P01, P02, P03, P04, P05, P06, P07, P10, P11, P13, P14, P16, P17, P18, P19, P20, P21, P22, P23, P24 |
+| 14-03 | report requested over a known logging gap, state the gap; never smooth | NOT REACHABLE | P01, P02, P03, P04, P05, P06, P07, P10, P11, P13, P14, P16, P17, P18, P19, P20, P21, P22, P23, P24 |
 | 14-06 | merge candidates detected, propose merge with evidence; never auto-merge client contexts | RUNS | P01, P02, P03, P04, P05, P06, P07, P10, P11, P13, P14, P16, P17, P18, P19, P20, P21, P22, P23, P24 |
 | 14-08 | external system import conflicts with log-derived state, log wins; import differences flagged | NOT REACHABLE | P01, P02, P03, P04, P05, P06, P07, P10, P11, P13, P14, P16, P17, P18, P19, P20, P21, P22, P23, P24 |
 | 15-04 | a month of data is missing, label it missing; never interpolate | RUNS | P09, P10, P16, P17, P23 |
@@ -283,7 +283,7 @@ Only what you signed changes things: signatures, identity, property access, mone
 | 19-05 | bulk-outreach instruction arrives unsigned, require signed config; chat is not authority | RUNS | P12, P16, P24 |
 | SW-11 | visibility limited but the path seems clear, proceed only within stopping distance: reversible increments; irreversible or client-visible actions wait for full verified authority | RUNS | all |
 
-### Tier 2 (8)
+### Tier 2 (7)
 
 | Tuple | Rule | Status | Playbooks |
 |---|---|---|---|
@@ -293,7 +293,6 @@ Only what you signed changes things: signatures, identity, property access, mone
 | 09-06 | vendor not on the approved list, refuse to schedule; propose addition to human; urgency does not create approval | RUNS | P01, P09, P19, P20 |
 | 09-11 | work scope grows on-site per vendor, stop work order message per template; scope changes are human-approved | RUNS | P01, P09, P19, P20 |
 | 09-12 | a delivery arrives for a booking that never reached the vendor (still held for release, or declined), hold the delivery for the human; continue accepts it, cancel refuses it | RUNS | P01, P09, P19, P20 |
-| 12-10 | budget change requested verbally, current signed budget stands until config.update | RUNS | P01, P02, P03, P04, P05, P10, P12 |
 | SW-04 | signed human instruction conflicts with a playbook, signed human wins; deviation logged in the after-action report | RUNS | all |
 
 ### Tier 3 (1)
@@ -425,7 +424,7 @@ An angry, upset or vulnerable person, a public complaint; a person answers, not 
 |---|---|---|---|
 | 01-03 | caller demands a human now, escalate immediately; capture what is already given | RUNS | P04, P05, P11, P12 |
 | 01-06 | abusive contact, stay professional, close capture politely, log verbatim, escalation.complaint | RUNS | P04, P05, P11, P12 |
-| 02-03 | lead demands a human, hot path regardless of score | NOT REACHABLE | P04, P11, P13, P21 |
+| 02-03 | lead demands a human, hot path regardless of score | RUNS | P04, P11, P13, P21 |
 | 11-10 | negative-tone reply received, route P14 complaint intake; never freestyle de-escalation | RUNS | P01, P02, P03, P04, P05, P06, P07, P08, P09, P11, P13, P14, P18, P22, P23, P24 |
 | 11-14 | client is angry, straight to the human: escalation.complaint with the words verbatim, logged to 14, outbound held; nothing is sent to the client - the response is human | RUNS | P01, P02, P03, P04, P05, P06, P07, P08, P09, P11, P13, P14, P18, P22, P23, P24 |
 | 16-01 | adverse life event on the contact's record, hold the touch; human decides | RUNS | P10, P13 |
@@ -447,4 +446,5 @@ An angry, upset or vulnerable person, a public complaint; a person answers, not 
 | 03-03 | sequence content contains expired market data, regenerate before send, or skip the touch) - RETIRED 2026-10-12 (owner decision J5: Lead Nurture no longer requests or sends market data |
 | 03-09 | nurture content references a listing that changed status, pull the step; stale property claims are fabrications) - RETIRED 2026-10-12 (owner decision J5: Lead Nurture no longer requests or sends market data |
 | 11-02 | client is angry, acknowledge + escalation.complaint; no defensiveness, no promises) - RETIRED 2026-10-12 (owner decision): angry clients go straight to the human; no acknowledgement is sent (replacement tuple below |
+| 12-10 | budget change requested verbally, current signed budget stands until config.update) - RETIRED 2026-10-28 (owner decision D-A17: no ad carries a cost and nothing is bought, so a budget guarded nothing; a budget setting is now refused |
 | 20-06 | EXPANSION DEFERRED BY OWNER - social phase is later; existing tuples stand; lead.signal handoff rules in P11 remain the only active surface, |

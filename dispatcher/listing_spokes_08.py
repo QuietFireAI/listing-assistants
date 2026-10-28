@@ -240,6 +240,14 @@ class Spoke08DocumentCollection:
         pending = self.pending_requests.get(ctx, {}).get(doc_type)
         if pending is None:
             return None
+        q = pending.get("unsigned_question")
+        if q:
+            # D-A11: paused while the owner's "arrived unsigned" item is open
+            acked = {e.get("item") for e in self.hub.audit.read()
+                     if e.get("kind") == "desk.acknowledged"}
+            if q is True or q not in acked:
+                return "paused: unsigned copy question open"
+            pending.pop("unsigned_question")
         if pending.get("escalated"):
             # escalated once already - the broker has it; no daily repeat
             # (fixed 2026-10-11: re-escalated on every sweep after the cap)
@@ -439,6 +447,25 @@ class Spoke08DocumentCollection:
                                {"doc_type": doc_type,
                                 "milestone": DOC_MILESTONE_MAP.get(doc_type),
                                 "status": "incomplete"}))
+            # D-A11 (owner decision 2026-10-28, finding AF): the owner is
+            # asked once, the sender is asked for a signed copy (template
+            # wording awaits the owner's signature; Agent 11 holds it until
+            # then), and the chase for this document pauses until the owner
+            # marks the question done. Before, nobody was told.
+            self.hub.send(_env("08", "queue", "clarification.request", ctx,
+                               {"reason": f"{doc_type} arrived UNSIGNED where a signature "
+                                          f"is expected - get a signed copy; the reminder "
+                                          f"chase for it is paused until you mark this done",
+                                "doc_type": doc_type}))
+            pending = self.pending_requests.get(ctx, {}).get(doc_type)
+            if pending is not None:
+                from .escalation_watch import key_of
+                recs = [r for r in self.hub.queues.get("clarification.request", [])
+                        if isinstance(r, dict) and r.get("client_context_id") == ctx]
+                pending["unsigned_question"] = (key_of("clarification.request", recs[-1])
+                                                if recs else True)
+            self.hub.send(_env("08", "11", "client.message.request", ctx,
+                               {"template": "doc_unsigned_resend", "doc_type": doc_type}))
             return
 
         existing = self.filed_documents.setdefault(ctx, [])
@@ -492,8 +519,13 @@ class Spoke08DocumentCollection:
             status_payload["stated_deadline"] = payload["stated_deadline"]
         if doc_type == "inspection_report":
             status_payload["report_received"] = True
-            status_payload["repair_requests_present"] = \
-                payload.get("repair_requests_present", True)
+            # D-A15 (2026-10-28, finding AG): passed on as stated - true,
+            # false, or not stated (None). Agent 07 treats not stated as
+            # possibly present (fail-safe) and says so; it used to be
+            # turned into true here.
+            status_payload["repair_requests_present"] = payload.get("repair_requests_present")
+            if payload.get("today"):
+                status_payload["today"] = payload["today"]
         if doc_type == "appraisal_report":
             status_payload["appraised_value"] = payload.get("appraised_value")
             status_payload["contract_price"] = payload.get("contract_price")

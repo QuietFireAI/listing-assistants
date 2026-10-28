@@ -25,6 +25,19 @@ from __future__ import annotations
 
 from typing import Any
 
+
+def local_now_iso() -> str:
+    """The time of day agents use when a message carries none (owner
+    decisions 7 and D-A4): this computer's clock. A synthetic run (the tuple
+    runner, the test suite) pins it with LISTING_CLOCK_NOW (an ISO datetime)
+    so its results do not depend on when it was run (finding T)."""
+    import datetime
+    import os
+    pinned = os.environ.get("LISTING_CLOCK_NOW")
+    if pinned:
+        return datetime.datetime.fromisoformat(pinned).isoformat(timespec="seconds")
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
 # agent -> [(check name, method, context source, args, daily)]
 #   context source: attribute holding the contexts to walk, None = run once
 #   args: names resolved from the tick ("ctx", "today", "now_iso", "doc_type")
@@ -39,6 +52,7 @@ CHECKS: dict[str, list[tuple]] = {
            ("vendor_holdups", "check_vendor_holdups", "timelines", ("ctx", "today"), True)],
     "08": [("chase_timeout", "check_chase_timeout", "pending_requests", ("ctx", "doc_type"), True),
            ("disclosure_deadline", "check_disclosure_deadlines", "pending_requests", ("ctx", "today"), True)],
+    "11": [("quiet_hours_release", "release_quiet_held", "quiet_held", ("ctx", "now_iso"), True)],
     "13": [("held_match_recheck", "recheck_held_matches", "held_matches", ("ctx",), True),
            ("match_digest_flush", "flush_match_digest", "matches_today", ("ctx",), True)],
     "14": [("eod_report", "generate_report", None, ("eod", "today"), False),

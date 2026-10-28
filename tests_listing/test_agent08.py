@@ -290,4 +290,7 @@ def test_REGRESSION_missing_repair_requests_present_fails_closed(tmp_path):
                                       "opens_correctly": True,
                                       "content_hash": "insp-2"}))  # field omitted
     status = persisted(hub, "doc.status")
-    assert status[-1]["payload"]["repair_requests_present"] is True
+    # D-A15 (owner, 2026-10-28): passed on as "not stated" (None); Agent 07
+    # still fails closed on it (legal-line alert, "repair requests not
+    # stated") - see test_owner_decisions_2026_10_28.py
+    assert status[-1]["payload"]["repair_requests_present"] is None

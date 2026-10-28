@@ -24,6 +24,7 @@ flowchart LR
         I05["05 MLS and Listing Management"]
         IB(["You (broker)"])
         IX[/"Outside world"/]
+        IK(["Daily clock"])
     end
     A11(("11 Client Communication"))
     subgraph OUT["Talks to"]
@@ -53,6 +54,7 @@ flowchart LR
     I05 -- "reports the listing's status" --> A11
     IB -- "your signed settings" --> A11
     IX -- "the client replies" --> A11
+    IK -- "the daily clock runs" --> A11
     A11 -- "asks for a showing<br/>reports a no-show<br/>passes on showing feedback" --> O06
     A11 -- "sends the client a message" --> OX
     A11 -- "logs it in the CRM<br/>looks up the CRM record" --> O14
@@ -70,7 +72,7 @@ flowchart LR
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
     class A11 me
     class IB,OB you
-    class IX,OX out
+    class IX,IK,OX out
 ```
 
 ## Where it shows up

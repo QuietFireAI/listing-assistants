@@ -243,9 +243,13 @@ def test_caller_demands_human_now_escalates_and_still_captures(tmp_path):
 
     hub.send(signal("lead-021", {"channel": "call", "name": "Urgent Caller",
                                  "message": "I want to talk to a human right now"}))
-    assert hub.queues["escalation.legal_line"]
-    assert persisted(hub, "lead.captured"), \
+    # owner decision D-A10 (2026-10-28): the demand rides on lead.captured
+    # to Agent 02 (hot-lead queue); 01 no longer raises its own legal-line item
+    assert not hub.queues["escalation.legal_line"]
+    captured = persisted(hub, "lead.captured")
+    assert captured, \
         "demanding a human must not drop the capture of what's already given"
+    assert "talk to a human" in captured[-1]["payload"]["demands_human"]
 
 
 # ------------------------------ THE FIX: tuple 7, recording consent refused

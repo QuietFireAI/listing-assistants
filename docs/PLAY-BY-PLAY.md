@@ -477,6 +477,7 @@ sequenceDiagram
     A08->>A11: asks for a message to the client
     A11->>A08: passes on a document the client sent
     A08->>A07: reports where a document stands
+    A07->>B: asks you - Inspection report received (2026-07-15) - no repair reque...
     K->>A01: the daily clock runs
     K->>A03: the daily clock runs
     K->>A05: the daily clock runs
@@ -485,6 +486,7 @@ sequenceDiagram
     A07->>A11: warns that a deadline is near
     A07->>A18: warns that a deadline is near
     K->>A08: the daily clock runs
+    K->>A11: the daily clock runs
     K->>A13: the daily clock runs
     K->>A14: the daily clock runs
     K->>A16: the daily clock runs
@@ -498,6 +500,10 @@ sequenceDiagram
     A19->>A18: delivers a report
     A18->>A10: asks for its part of the morning briefing
     A10->>A18: delivers a report
+    A18->>A14: asks for its part of the morning briefing
+    A14->>A18: delivers a report
+    A18->>A17: asks for its part of the morning briefing
+    A17->>A18: delivers a report
     A18->>B: delivers a report
 ```
 
@@ -546,8 +552,8 @@ sequenceDiagram
     participant A03 as 03 Lead Nurture
     participant A05 as 05 MLS and Listing Management
     participant A06 as 06 Showing Scheduler
-    participant A13 as 13 Buyer Search and Match
     participant A11 as 11 Client Communication
+    participant A13 as 13 Buyer Search and Match
     participant A17 as 17 Compliance and Fair Housing
     participant A19 as 19 Prospecting
     participant A10 as 10 Market Data
@@ -564,6 +570,7 @@ sequenceDiagram
     K->>A06: the daily clock runs
     K->>A07: the daily clock runs
     K->>A08: the daily clock runs
+    K->>A11: the daily clock runs
     K->>A13: the daily clock runs
     K->>A14: the daily clock runs
     K->>A16: the daily clock runs
@@ -579,6 +586,10 @@ sequenceDiagram
     A19->>A18: delivers a report
     A18->>A10: asks for its part of the morning briefing
     A10->>A18: delivers a report
+    A18->>A14: asks for its part of the morning briefing
+    A14->>A18: delivers a report
+    A18->>A17: asks for its part of the morning briefing
+    A17->>A18: delivers a report
     A18->>B: delivers a report
 ```
 
@@ -856,16 +867,11 @@ sequenceDiagram
     autonumber
     actor B as You (broker)
     participant A19 as 19 Prospecting
-    participant A10 as 10 Market Data
     participant X as Outside world
     B->>A19: your signed settings (x3)
     X->>A19: public records come in
-    A19->>A10: asks for market data
-    A10->>A19: delivers the market data
     A19->>B: brings a possible prospect
     X->>A19: public records come in
-    A19->>A10: asks for market data
-    A10->>A19: delivers the market data
     A19->>B: brings a possible prospect
 ```
 
@@ -890,14 +896,11 @@ sequenceDiagram
     actor B as You (broker)
     participant A17 as 17 Compliance and Fair Housing
     participant A19 as 19 Prospecting
-    participant A10 as 10 Market Data
     participant A12 as 12 Marketing Campaign
     participant X as Outside world
     B->>A17: your signed settings
     B->>A19: your signed settings (x2)
     X->>A19: public records come in
-    A19->>A10: asks for market data
-    A10->>A19: delivers the market data
     A19->>B: brings a possible prospect
     B->>A12: your signed settings (x2)
     A12->>A17: sends a draft for fair-housing review
@@ -934,6 +937,7 @@ sequenceDiagram
     participant A15 as 15 Financial Tracking
     participant A19 as 19 Prospecting
     participant A10 as 10 Market Data
+    participant A17 as 17 Compliance and Fair Housing
     A18->>A14: asks for its part of the morning briefing
     A14->>A18: delivers a report
     A18->>A15: asks for its part of the morning briefing
@@ -942,6 +946,10 @@ sequenceDiagram
     A19->>A18: delivers a report
     A18->>A10: asks for its part of the morning briefing
     A10->>A18: delivers a report
+    A18->>A14: asks for its part of the morning briefing
+    A14->>A18: delivers a report
+    A18->>A17: asks for its part of the morning briefing
+    A17->>A18: delivers a report
     A18->>B: delivers a report
     A14->>A15: delivers a report
     A15->>B: delivers a report

@@ -305,28 +305,20 @@ function wholeHtml(withReview) {
   const sec = (h, body) => body ? `<h2><span class="n">${++n}</span>${esc(h)}</h2>${body}` : "";
   const strip = `<div class="stages">${OV.stages.map((st, i) => `${i ? '<span class="arr">→</span>' : ""}<a href="${PRINT ? "#stage-" + st.id : "#/whole"}" data-stage="${esc(st.id)}">${esc(st.name)}</a>`).join("")}</div>`;
   const stages = OV.stages.map(st => `<div class="stage" id="stage-${esc(st.id)}"><h3>${esc(st.name)}</h3>
-      <p>${esc(st.business)}</p>
       <div class="lbl">Playbooks</div><p class="links">${st.playbooks.map(pbLink).join("<br>")}</p>
       <div class="lbl">What the system does</div><p>${esc(st.system)}</p>
       <div class="lbl">What the authorized user decides</div>${listHtml(st.person)}
       <div class="lbl">Agents involved</div><p class="links">${st.agents.map(agentLink).join(" ")}</p></div>`).join("");
   const p11 = BYP["P11"];
   return `<article class="doc guide" id="doc-W">
-    ${docHead("W", "The whole picture", "LA-W-01", OV.rev || 1, `<tr><th>Covers</th><td>The real estate process from first inquiry to after closing, the 24 playbooks, the 21 agents, and what stays with the authorized user.</td></tr><tr><th>Drafted from</th><td>The playbooks as ratified, the agents' job descriptions, and standard practice. For the authorized user's review.</td></tr>`)}
+    ${docHead("W", "The whole picture", "LA-W-01", OV.rev || 1, `<tr><th>Covers</th><td>The real estate process from first inquiry to after closing, the 24 playbooks, the 21 agents, and what stays with the authorized user.</td></tr><tr><th>Checked against</th><td>Every statement on this page is traced to the code, a recorded run, or a signed decision, listed in the audit ledger.</td></tr>`)}
     ${sec("Four levels: zoom in, zoom out", `<p>The manual reads at four levels. Each page links up and down.</p>
       <ol class="steps"><li><b>The whole picture</b> (this page): the real estate process, stage by stage, with the playbooks, the agents and the authorized user's decisions.</li>
       <li><b>Playbooks</b> (24): a workflow from its start to its end, with its predefined steps, who does each one, and a recorded run.</li>
       <li><b>Agents</b> (21): one agent's job, its predefined steps, what a person does today, what stays with the authorized user, and the messages it may send and receive.</li>
       <li><b>Procedures</b> (${T.length}): one situation, decided in advance, with the proof that the system handles it that way.</li></ol>`)}
-    ${sec("One source: how a message travels", `<p>No agent talks to another directly. Here is a new inquiry, as it travels in the recorded run of ${p11 ? pbLink("P11") : "Speed to Lead"}:</p>
-      <ol class="steps">
-        <li>A web form arrives. It goes to the <b>dispatcher (Agent 00)</b>, not to an agent. The dispatcher checks that "an inquiry from outside to Agent 01" is on the track, numbers it for this client, writes it to the record, and delivers it to Agent 01.</li>
-        <li><b>Agent 01</b> records the inquiry and the consent, then asks Agent 14 whether the person is already on record. That question also goes through the dispatcher: checked, numbered, recorded, delivered.</li>
-        <li><b>Agent 14</b> answers (again through the dispatcher). Not a duplicate.</li>
-        <li><b>Agent 01</b> hands the lead to Agent 02 (through the dispatcher). <b>Agent 02</b> scores it on the authorized user's rubric: warm. It goes to Agent 03 (through the dispatcher).</li>
-        <li><b>Agent 03</b> sends the sequence's text to Compliance (through the dispatcher); <b>Agent 17</b> returns its verdict (through the dispatcher).</li>
-      </ol>
-      <p>Every arrow went through one place, in order, and is on the record. Had any agent tried a route that is not on the track (for example Agent 03 messaging the lead directly), the dispatcher would have refused it. Had the message gone to a vendor or the public, the dispatcher would have held it for the authorized user's release. The flowchart on every page shows these arrows.</p>`)}
+    ${sec("One source: how a message travels", `<p>No agent talks to another directly. Here is a new inquiry as it travelled in the recorded run of ${p11 ? pbLink("P11") : "Speed to Lead"}:</p>
+      <ol class="steps">${OV.story.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`)}
     ${sec("The process, stage by stage", strip + stages)}
     ${sec("What always stays with a person", listHtml(OV.always_person))}
     ${withReview ? reviewHtml("W") : ""}
@@ -378,7 +370,7 @@ function agentHtml(a, withReview) {
       <tr><th>Procedures</th><td>${a.tuples.length}</td></tr>`)}
     ${sec("The job", `<p>${esc(a.job)}</p>`)}
     ${sec("Its steps", `<ol class="steps">${a.steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`)}
-    ${sec("What a person does today", `<p class="draftnote">Drafted from standard practice, for the authorized user's review.</p>${listHtml(a.today)}`)}
+    ${sec("What a person does today", a.today && a.today.length ? listHtml(a.today) : "")}
     ${sec("How the agent compares", listHtml(a.compare))}
     ${sec("What stays with the authorized user", listHtml(a.user_part))}
     ${sec("Never", `<ul class="never">${a.never.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`)}
@@ -573,138 +565,34 @@ function renderPrint(app) {
       + AG.map(a => agentHtml(a, false) + TOC_BACK).join("")}
     ${shown.map(t => docHtml(t, false) + TOC_BACK).join("")}`;
 }
-/* ---------- How to read this manual (onboarding; on the site and at the front of the PDF) ---------- */
-const ROLES = [
-  ["00", "In charge of every exchange. No agent talks to another directly: every message goes through the dispatcher, which checks it, records it and only then delivers it (see section 3)."],
-  ["01", "Takes in new inquiries (calls, forms, texts) and records who reached out and what they said."],
-  ["02", "Scores new leads on the signed rubric and decides which go to the authorized user now and which go to follow-up."],
-  ["03", "Runs the signed follow-up sequences for leads that are not ready yet, and re-scores them on a schedule."],
-  ["04", "Drafts listing descriptions from verified facts only; every draft goes to Compliance."],
-  ["05", "Keeps the MLS record: data entry and status changes; orders photography for new listings."],
-  ["06", "Schedules showings and asks for feedback afterwards."],
-  ["07", "Tracks every contract deadline from offer to closing."],
-  ["08", "Requests, receives, checks and files transaction documents."],
-  ["09", "Books approved vendors (photographers, inspectors and others) and checks their work comes back with proof."],
-  ["10", "Assembles market data with its sources. Never gives an opinion on price."],
-  ["11", "The single voice to clients for routine updates; routes client replies to the right agent or to the authorized user."],
-  ["12", "Publishes approved marketing, after Compliance and a signed release."],
-  ["13", "Matches new listings to buyers' stated criteria."],
-  ["14", "The system of record: every client's history, consent and documents."],
-  ["15", "Tracks commissions, expenses and reports. Money questions go to the authorized user."],
-  ["16", "Keeps in touch with past clients after closing, from the supplied client list."],
-  ["17", "Compliance and fair housing. Reviews every piece of outgoing text against the signed rules. It only checks; it never writes."],
-  ["18", "The authorized user's calendar, task list, morning briefing and end-of-day summary."],
-  ["19", "Finds possible prospects in public records. Never contacts anyone."],
-  ["20", "Watches the named social channels and routes what it finds. Never replies in public."]
-];
+/* ---------- How to read this manual (onboarding; on the site and at the front of the PDF) ----------
+   The text is synth/procedures/guide.json: every statement carries its source
+   and is listed in the audit ledger, like every other page. */
+function guideText(v) {
+  const t = typeof v === "string" ? v : (v && v.t) || "";
+  return esc(t.replace(/\{PB\}/g, PB.length).replace(/\{AG\}/g, AG.length).replace(/\{T\}/g, T.length));
+}
+function guideBlock(b) {
+  if (b.p) return `<p>${guideText(b.p)}</p>`;
+  if (b.ul) return `<ul>${b.ul.map(x => `<li>${guideText(x)}</li>`).join("")}</ul>`;
+  if (b.ol) return `<ol class="steps">${b.ol.map(x => `<li>${guideText(x)}</li>`).join("")}</ol>`;
+  if (b.table) return `<table class="control"><tbody>${b.table.map(r => `<tr><th>${guideText(r.k)}</th><td>${guideText(r)}</td></tr>`).join("")}</tbody></table>`;
+  if (b.roles) return `<table class="control whos"><tbody>${b.roles.map(r => `<tr${r.k === "00" ? ' class="lead-row"' : ""}><th>Agent ${esc(r.k)}</th><td><b>${esc(r.k === "00" ? "Dispatcher" : (DATA.names[r.k] || ""))}</b>. ${guideText(r)}</td></tr>`).join("")}</tbody></table>`;
+  if (b.example) {
+    const ex = BY[b.example] || T[0];
+    return `<p>For example, the tuple behind <a href="${PRINT ? "#doc-" + esc(ex.id) : "#/t/" + esc(ex.id)}">${esc(ex.code)}</a> reads:</p>
+    <p class="rulebox" style="padding:10px 12px;background:var(--rule-2);border-radius:6px">${esc(ex.rule)}</p>`;
+  }
+  return "";
+}
 function guideHtml() {
-  const ex = BY["03-01"] || T[0];
-  const cats = Object.entries(DATA.categories).map(([k, v]) => {
-    const [name, ...rest] = v.split(" - ");
-    return `<tr><th>${esc(k)}</th><td><b>${esc(name)}</b>${rest.length ? ". " + esc(rest.join(" - ").replace(/^./, c => c.toUpperCase())) + "." : ""}</td></tr>`;
-  }).join("");
-  const roles = ROLES.map(([k, v]) => `<tr${k === "00" ? ' class="lead-row"' : ""}><th>Agent ${esc(k)}</th><td><b>${esc(k === "00" ? "Dispatcher" : (DATA.names[k] || ""))}</b>. ${esc(v)}</td></tr>`).join("");
+  const G = DATA.guide;
+  const secs = G.sections.map((sec, i) =>
+    `<h2><span class="n">${i + 1}</span>${guideText(sec.h)}</h2>${sec.blocks.map(guideBlock).join("")}`).join("");
   return `<article class="doc guide" id="guide">
-    <div class="doctitle"><h1>How to read this manual</h1><div class="codeline">Start here</div></div>
-
-    <h2><span class="n">1</span>What this manual is</h2>
-    <p>ListingAssistants is one dispatcher (Agent 00) and twenty specialist agents, each with one job. This manual sets out how they work, at four levels, from the whole picture down to every single situation they are prepared for:</p>
-    <table class="control"><tbody>
-      <tr><th>1 · The whole picture</th><td>The real estate process stage by stage: which playbooks run at each stage, which agents take part, and what the authorized user decides. Page code <span class="code">LA-W</span>.</td></tr>
-      <tr><th>2 · Playbooks (${PB.length})</th><td>A workflow from its start to its end (a new listing, a showing, contract to close): its predefined steps, who does each one, and a recorded run. Page codes <span class="code">LA-P-01</span> to <span class="code">LA-P-24</span>.</td></tr>
-      <tr><th>3 · Agents (${AG.length})</th><td>One agent: its job and predefined steps, what a person does today, how the agent compares, what stays with the authorized user, and the only messages it may send and receive. Page codes <span class="code">LA-A-00</span> to <span class="code">LA-A-20</span>.</td></tr>
-      <tr><th>4 · Procedures (${T.length})</th><td>One situation, decided in advance, with the proof that the system handles it that way. Page codes <span class="code">LA-T-</span>agent<span class="code">-</span>number.</td></tr>
-    </tbody></table>
-    <p>Each page links up (zoom out) and down (zoom in): a procedure names its agent and its playbooks; a playbook lists its agents and procedures; an agent page lists its playbooks and procedures.</p>
-    <p>Each situation was decided <b>in advance</b> and signed off by the authorized user, before the system ever met it. When it happens, the system does not improvise and does not have a good or bad day: the same situation is handled the same way for every client, every time. Where the right answer depends on judgment, the decision is that a person makes it, and the page says so.</p>
-    <p>Each page is also <b>checked</b>. A test plays the situation through the real product, the way it would really arrive, and the page shows what the record says happened. The page describes what the system actually does, not what it was meant to do.</p>
-
-    <h2><span class="n">2</span>The authorized user</h2>
-    <p>This manual calls the person the system works for <b>the authorized user</b>: anyone currently authorized on this ListingAssistants profile to act for it. Normally that is the broker, and anyone the broker has authorized. Whether the person has invested in the business makes no difference; current authorization does.</p>
-    <p>Only the authorized user's signature carries authority: a price change, a release of a held message, a setting. Every question, alert and decision the agents hand on goes to the authorized user.</p>
-
-    <h2><span class="n">3</span>Agent 00, the dispatcher: everything runs through one source</h2>
-    <p>The twenty agents never talk to each other directly. Every message from any agent, from outside, or from the authorized user goes to Agent 00, the dispatcher, first. For every message, the dispatcher:</p>
-    <ol class="steps">
-      <li>checks the route: is this agent allowed to send this kind of message to that agent? The allowed routes are a fixed list, "the track". A message off the track is never delivered;</li>
-      <li>checks the signature on anything that carries the authorized user's authority, and refuses it if the signature does not verify;</li>
-      <li>refuses duplicates and forgeries (the same message twice, a sequence number filled in by the sender);</li>
-      <li>holds anything going to an outside party that needs a signed release;</li>
-      <li>writes the message to the record, and only then delivers it. If the record cannot be written, it stops all work.</li>
-    </ol>
-    <p>It also keeps track of the playbooks (the larger workflows, such as a new listing), lets waiting work in by priority, and holds conflicts for the authorized user.</p>
-    <p>Why one source matters:</p>
-    <ul>
-      <li><b>Consistency.</b> Every rule is applied in one place, the same way, every time. No agent can skip a check, because no agent can reach another without passing through it.</li>
-      <li><b>Proof.</b> There is one record of everything, in the order it happened, and it shows if it has been tampered with. Every page in this manual takes its proof from that record.</li>
-      <li><b>Control.</b> There is one place where work can be held or stopped. In the isolated setup (each agent in its own container), an agent that tries a route off the track is stopped until it is reviewed.</li>
-    </ul>
-
-    <h2><span class="n">4</span>What a "tuple" is</h2>
-    <p>Each decision was first written in a short, fixed form called a <b>tuple</b>. In mathematics and programming a tuple is a small group of values that always travel together, in a set order. Here the group is always the same three things:</p>
-    <ol class="steps"><li><b>The situation</b>: what has happened.</li><li><b>What to do</b>: the response, decided ahead of time.</li><li><b>The limit</b>: what must never happen, whatever the pressure.</li></ol>
-    <p>For example, the tuple behind <a href="${PRINT ? "#doc-" + esc(ex.id) : "#/t/" + esc(ex.id)}">${esc(ex.code)}</a> reads:</p>
-    <p class="rulebox" style="padding:10px 12px;background:var(--rule-2);border-radius:6px">${esc(ex.rule)}</p>
-    <p>Every tuple belongs to one agent and is numbered within it. The tuple is kept word for word on each page under <b>Rule as signed</b>. The rest of the page explains it in plain language: in what situation, step by step, why, and with the proof.</p>
-
-    <h2><span class="n">5</span>How a procedure page reads</h2>
-    <p>Playbook and agent pages follow the same pattern: a control table, then numbered sections, then the flowchart and proof where there is a recorded run.</p>
-    <table class="control"><tbody>
-      <tr><th>Title</th><td>The situation in plain words.</td></tr>
-      <tr><th>Page code</th><td>For example <span class="code">LA-T-03-01 · Rev 2</span>. LA is ListingAssistants, T is tuple, 03 is the agent, 01 is the tuple's number for that agent. The revision goes up each time the page changes, so a printed page can always be matched to the current one.</td></tr>
-      <tr><th>Carried out by</th><td>The agent that acts in this situation. The steps say when it hands work to another agent or to the authorized user.</td></tr>
-      <tr><th>Category</th><td>What kind of risk the rule guards against (the seven categories are listed below).</td></tr>
-      <tr><th>Status</th><td>Whether the rule is in force, and the result of its last check (the words are explained below).</td></tr>
-      <tr><th>Last checked</th><td>The date the test was last run and its record compared to the page.</td></tr>
-      <tr><th>Rule as signed</th><td>The tuple, word for word.</td></tr>
-    </tbody></table>
-    <p>Then the sections, always in this order:</p>
-    <ol class="steps">
-      <li><b>When this applies</b>: the situation, in practice.</li>
-      <li><b>What happens</b>: the steps, in order.</li>
-      <li><b>Never</b>: the limit. These are the lines the system will not cross.</li>
-      <li><b>Why it matters</b>: the reason, in business terms.</li>
-      <li><b>What the authorized user sees</b>: what reaches them, if anything.</li>
-      <li><b>Flowchart of the recorded run</b>: every message in the test, in order (see below).</li>
-      <li><b>Proof</b>: the test scenario, the result, each thing the record must show, and the command to run the test again.</li>
-      <li><b>Seen in playbooks</b>: which of the 24 playbooks (the larger workflows, such as a new listing) the test passed through.</li>
-    </ol>
-
-    <h2><span class="n">6</span>The status words</h2>
-    <table class="control"><tbody>
-      <tr><th>In force</th><td>The rule applies today.</td></tr>
-      <tr><th><span class="chip ok">Verified</span></th><td>On the last check, the record showed everything the page says. The date of that check is on the page.</td></tr>
-      <tr><th><span class="chip warn">Open item</span></th><td>On the last check, the system did not yet do what the rule says. The page describes the rule and says plainly what happens instead. These stay on the open-items list until fixed.</td></tr>
-      <tr><th>Not built yet</th><td>The rule is decided, but the part of the system it needs does not exist yet (for example a connection to an outside portal).</td></tr>
-      <tr><th>No way in yet</th><td>The response is built, but nothing from outside can start this situation today. It is tested another way, named on the page.</td></tr>
-      <tr><th>Retired</th><td>The authorized user withdrew the rule. The page stays, with the date and the reason, so the history is complete.</td></tr>
-      <tr><th>Stand-in test</th><td>Nothing outside the system starts this case today, so the test sends one message as the agent that would. Everything after that message is the product's own behavior.</td></tr>
-    </tbody></table>
-
-    <h2><span class="n">7</span>The seven categories</h2>
-    <table class="control"><tbody>${cats}</tbody></table>
-
-    <h2><span class="n">8</span>Reading the flowchart</h2>
-    <p>Each column is a participant: <b>Outside</b> (clients, vendors, portals), the <b>Clock</b> (the daily run), the agents by number, the <b>Authorized user</b>, and the <b>Queue</b> (questions and alerts waiting for the authorized user). The highlighted column is the agent that carries out the procedure.</p>
-    <p>Each arrow is one message, numbered in the order it happened in the test. Grey arrows were delivered. <b>Amber</b> arrows were held for signed release, sent only after release, or refused; alerts and questions for the authorized user are amber too, and the tag on the arrow says which.</p>
-    <p>The chart leaves out background traffic (record keeping, status updates, the morning briefing, the clock waking agents with no part in the case) and says how many messages it left out. It never adds anything that is not on the record.</p>
-
-    <h2><span class="n">9</span>Words used throughout</h2>
-    <table class="control"><tbody>
-      <tr><th>Authorized user</th><td>A person currently authorized on this ListingAssistants profile to act for it (see section 2).</td></tr>
-      <tr><th>Signed</th><td>Sent with the authorized user's key. Anything that carries authority (a price change, a release, a setting) must be signed, or it is refused.</td></tr>
-      <tr><th>Held</th><td>Prepared but not sent until the authorized user releases it with a signature. Today this applies to messages to vendors and other outside parties and to published marketing. Routine updates to the office's own clients are sent by Agent 11 within the rules in this manual.</td></tr>
-      <tr><th>Legal line</th><td>The kind of question only a licensed person may answer (price opinions, contracts, fair housing, money and wire instructions). Anything on the legal line goes to the authorized user word for word, as an alert.</td></tr>
-      <tr><th>The track</th><td>The fixed list of which agent may send which kind of message to which other agent. A message off the track is never delivered.</td></tr>
-      <tr><th>The record</th><td>The tamper-evident log of everything that happened, in order. The pages' proof comes from it.</td></tr>
-      <tr><th>The queue</th><td>Where questions and alerts wait for the authorized user, on the Broker Desk.</td></tr>
-      <tr><th>Client record and drawer</th><td>A client's history (kept by Agent 14) and their filed documents.</td></tr>
-      <tr><th>Daily run</th><td>The clock that wakes the agents once a day for scheduled work (follow-ups, deadline checks, reports).</td></tr>
-    </tbody></table>
-
-    <h2><span class="n">10</span>Who's who</h2>
-    <p>Agent 00, the dispatcher, comes first: it is the one every other agent works through.</p>
-    <table class="control whos"><tbody>${roles}</tbody></table>
+    <div class="doctitle"><h1>How to read this manual</h1><div class="codeline">Start here · Rev ${esc(String(G.rev || 1))}</div></div>
+    <p class="muted">Every statement on this page is traced to the code, a test, the record or a signed decision, and listed in the audit ledger with its source.</p>
+    ${secs}
   </article>`;
 }
 

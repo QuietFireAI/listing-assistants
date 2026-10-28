@@ -141,8 +141,8 @@ communication in that one guarantee.
 | `doc.status` | 08 | 07 |
 | `vendor.request` | 05, 06, 07 | 09 |
 | `deliverable.release` | 09 | 05, 08, 07 |
-| `data.request` | human (broker), 19 | 10 |
-| `data.package` | 10 | human (broker), 19 |
+| `data.request` | human (broker) | 10 |
+| `data.package` | 10 | human (broker) |
 | `client.message.request` | 01, 06, 08, 13, 16, 20, 03 | 11 |
 | `client.message.send` | 11 | external (audience: principal) |
 | `deadline.alert` | 07 | 11, 18 |
@@ -180,12 +180,12 @@ communication in that one guarantee.
 | `platform.metrics` | external | 12 |
 | `discovery.feed` | external | 19 |
 | `social.mention` | external | 20 |
-| `clock.tick` | clock | 01, 03, 05, 06, 07, 08, 13, 14, 16, 17, 18 |
-| `briefing.request` | 18 | 10, 14, 15, 19 |
-| `report.package` | 10, 14, 15, 19 | 18 |
+| `clock.tick` | clock | 01, 03, 05, 06, 07, 08, 11, 13, 14, 16, 17, 18 |
+| `briefing.request` | 18 | 10, 14, 15, 19, 17 |
+| `report.package` | 10, 14, 15, 19, 17 | 18 |
 | `client.message.not_sent` | 11 | 03 |
 
-This table is `identity/routes.json` (version 0.20), the file the hub loads;
+This table is `identity/routes.json` (version 0.21), the file the hub loads;
 `tests_listing/test_docs_agent_tables.py` fails if the two ever differ. Any
 (intent, from, to) tuple not in it is rejected and logged; a well-formed
 envelope whose intent is on no route is held in `clarification.request`. The

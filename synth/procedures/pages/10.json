@@ -1,177 +1,402 @@
 [
  {
   "id": "10-01",
-  "rev": 2,
-  "title": "Too few comparable sales come back",
-  "when": "A comparable-sales request returns fewer sales than the authorized user's minimum.",
+  "rev": 3,
+  "title": {
+   "t": "Too few comparable sales",
+   "src": "tuple:10-01"
+  },
+  "when": {
+   "t": "A comparable-sales request leaves fewer than 5 usable sales.",
+   "src": "dispatcher/listing_spokes_10.py:228"
+  },
   "steps": [
-   "Agent 10 (Market Data) delivers what it found and marks it thin, with the count and the minimum.",
-   "It does not widen the search (area, dates, size) on its own."
+   {
+    "t": "Agent 10 sends the package marked thin, with the count and the minimum. It does not look further.",
+    "src": "dispatcher/listing_spokes_10.py:228-240, 256-257; check:10-01:envelope.persisted:data.package"
+   },
+   {
+    "t": "The minimum of 5 is a tuning default.",
+    "src": "dispatcher/listing_spokes_10.py:82-86"
+   },
+   {
+    "t": "Agent 10 fetches nothing: a package is built only from the comparable sales or figures the request itself carries. (Its morning-briefing section is the listing data Agent 05 sends it.)",
+    "src": "dispatcher/listing_spokes_10.py:197-198, 262; dispatcher/listing_spokes_10.py:106-131"
+   }
   ],
   "never": [
-   "Quietly widen the search to make the numbers look fuller."
+   {
+    "t": "Widen the search without saying so.",
+    "src": "tuple:10-01"
+   }
   ],
-  "why": "Comparables pulled from a wider area or older dates can mislead a pricing conversation. The authorized user decides whether to widen.",
-  "you_see": "A data package marked thin: 2 found, minimum 5.",
-  "test": "The authorized user asks for comparables; two recent sales come back against a minimum of five."
+  "you_see": {
+   "t": "A package marked thin: 2 sales against a minimum of 5.",
+   "src": "check:10-01:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "The authorized user asks for a comparable-sales package with 2 sourced, dated sales.",
+   "src": "spec:10-01"
+  }
  },
  {
   "id": "10-02",
-  "rev": 2,
-  "title": "Two sources disagree on a number",
-  "when": "Two sources give different values for the same figure (for example the median sale price).",
+  "rev": 3,
+  "title": {
+   "t": "Two sources give different figures",
+   "src": "tuple:10-02"
+  },
+  "when": {
+   "t": "A neighborhood figure comes with two sourced values that differ.",
+   "src": "dispatcher/listing_spokes_10.py:289-294"
+  },
   "steps": [
-   "Agent 10 shows both values, each with its source and retrieval date.",
-   "It never averages them."
+   {
+    "t": "Agent 10 lists both values with their sources as a conflict and leaves the figure out of the package's figures. It never averages.",
+    "src": "dispatcher/listing_spokes_10.py:294-297; check:10-02:envelope.persisted:data.package"
+   }
   ],
   "never": [
-   "Average two conflicting figures."
+   {
+    "t": "Average or pick between sources.",
+    "src": "tuple:10-02"
+   }
   ],
-  "why": "An average of two disagreeing sources is a number nobody reported. Both, with their sources, let the authorized user judge.",
-  "you_see": "Both values with their sources, marked as conflicting.",
-  "test": "The county recorder says a median of $310,000 and the MLS says $330,000. The package shows both and never $320,000."
+  "you_see": {
+   "t": "Both values with their sources under conflicts.",
+   "src": "check:10-02:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "The median sale price is given as 310,000 by the county recorder and 330,000 by the MLS. The package lists both and does not contain 320,000.",
+   "src": "spec:10-02"
+  }
  },
  {
   "id": "10-03",
-  "rev": 2,
-  "title": "Someone asks for a pricing opinion",
-  "when": "Someone asks Agent 10 for its opinion on price (\"the number you'd go with\").",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks for a price opinion",
+   "src": "tuple:10-03"
+  },
+  "when": {
+   "t": "A request contains one of these phrases: \"your opinion\", \"what number would you go with\", \"what would you price it\", \"the number you'd go with\".",
+   "src": "dispatcher/listing_spokes_10.py:16-17, 137-138"
+  },
   "steps": [
-   "Agent 10 refuses: it provides data only.",
-   "If pressed again, it raises a legal-line alert for the authorized user."
+   {
+    "t": "Agent 10 refuses: the answer is marked refused, data only.",
+    "src": "dispatcher/listing_spokes_10.py:148-152; check:10-03:envelope.persisted:data.package"
+   },
+   {
+    "t": "At the second such request for the same client it also raises a legal-line alert.",
+    "src": "dispatcher/listing_spokes_10.py:139-147; check:10-03:escalation.raised"
+   },
+   {
+    "t": "Only those phrases are caught.",
+    "src": "dispatcher/listing_spokes_10.py:16-17"
+   }
   ],
   "never": [
-   "Give a pricing opinion."
+   {
+    "t": "Give a price opinion.",
+    "src": "tuple:10-03"
+   }
   ],
-  "why": "A price opinion is licensed advice. It comes from the authorized user, using the data.",
-  "you_see": "A refusal each time; one legal-line alert after the second ask.",
-  "test": "\"Just give me your opinion on price\", then \"Come on, what's your opinion?\". Two refusals, one alert."
+  "you_see": {
+   "t": "A refusal; on the second ask, a legal-line alert.",
+   "src": "check:10-03:envelope.persisted:data.package; check:10-03:escalation.raised"
+  },
+  "test": {
+   "t": "\"Just give me your opinion on price\", then \"Come on, what's your opinion?\". Two refusals, one alert.",
+   "src": "spec:10-03"
+  }
  },
  {
   "id": "10-04",
-  "rev": 2,
-  "title": "Market data is out of date",
-  "when": "Some of the data for a package is older than the freshness limit (30 days in the authorized user's settings).",
+  "rev": 3,
+  "title": {
+   "t": "Some comparable sales are out of date",
+   "src": "tuple:10-04"
+  },
+  "when": {
+   "t": "A comparable sale in the request was retrieved more than 30 days before the request date.",
+   "src": "dispatcher/listing_spokes_10.py:203-218"
+  },
   "steps": [
-   "Agent 10 builds the package fresh on every request.",
-   "Stale items are left out and counted, so the authorized user sees how many were dropped."
+   {
+    "t": "Agent 10 leaves it out and counts it in the package; the package is built fresh on every request.",
+    "src": "dispatcher/listing_spokes_10.py:203-240; check:10-04:envelope.persisted:data.package"
+   },
+   {
+    "t": "The 30 days is a tuning default.",
+    "src": "dispatcher/listing_spokes_10.py:82-86; spec:10-04"
+   },
+   {
+    "t": "Agent 10 fetches nothing: a package is built only from the comparable sales or figures the request itself carries. (Its morning-briefing section is the listing data Agent 05 sends it.)",
+    "src": "dispatcher/listing_spokes_10.py:197-198, 262; dispatcher/listing_spokes_10.py:106-131"
+   }
   ],
   "never": [
-   "Send out an old package again."
+   {
+    "t": "Send stale data again as if it were current.",
+    "src": "tuple:10-04"
+   }
   ],
-  "why": "Old sales in a moving market mislead. Fresh every time, and the dropped count shows what was left out.",
-  "you_see": "A package with the fresh sales and a note of how many stale ones were dropped.",
-  "test": "Five comparables, one retrieved too long ago. The package has four and says one stale item was dropped."
+  "you_see": {
+   "t": "A package with 4 sales and 1 left out as stale.",
+   "src": "check:10-04:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "Five sales, one retrieved August 16 for a request on October 15.",
+   "src": "spec:10-04"
+  }
  },
  {
   "id": "10-05",
-  "rev": 2,
-  "title": "A data license limits who may see the data",
-  "when": "The data's license does not allow it to go to the agent that asked.",
+  "rev": 3,
+  "title": {
+   "t": "Data licensing limits who may receive it",
+   "src": "tuple:10-05"
+  },
+  "when": {
+   "t": "An agent other than the authorized user asks for data without an internal license scope.",
+   "src": "dispatcher/listing_spokes_10.py:158-164"
+  },
   "steps": [
-   "Agent 10 delivers it to the authorized user only.",
-   "It notes the license limit."
+   {
+    "t": "The rule: deliver to the authorized user only, noting the limit. The code sends the authorized user only a note that the request was limited, not the data; and since 2026-10-28 only the authorized user sends data requests, so the rule cannot fire.",
+    "src": "dispatcher/listing_spokes_10.py:163-171; spec:10-05"
+   },
+   {
+    "t": "No way in yet: only the authorized user and Agent 19 ask Agent 10 for data, and Agent 19 always asks with internal scope.",
+    "src": "spec:10-05"
+   }
   ],
   "never": [
-   "Pass licensed data to anyone the license does not allow."
+   {
+    "t": "Deliver licensed data to someone the license does not cover.",
+    "src": "tuple:10-05"
+   }
   ],
-  "why": "Breaking a data license can cost the authorized user's MLS access.",
-  "you_see": "The package delivered to the authorized user with the license note.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not reachable.",
+   "src": "spec:10-05"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:10-05"
+  }
  },
  {
   "id": "10-06",
-  "rev": 2,
-  "title": "A data source blocks access or changes its terms",
-  "when": "A website the data came from changes its terms or blocks access.",
+  "rev": 3,
+  "title": {
+   "t": "A data source blocks access",
+   "src": "tuple:10-06"
+  },
+  "when": {
+   "t": "A data source changes its terms or blocks access.",
+   "src": "tuple:10-06"
+  },
   "steps": [
-   "Agent 10 stops using that source.",
-   "It records the error exactly as received."
+   {
+    "t": "The rule: stop using that source and log the error as given.",
+    "src": "tuple:10-06"
+   },
+   {
+    "t": "Not built: there is no connection to any data source.",
+    "src": "dispatcher/listing_spokes_10.py:46-51; spec:10-06"
+   }
   ],
   "never": [
-   "Find a way around a block."
+   {
+    "t": "Work around a block.",
+    "src": "tuple:10-06"
+   }
   ],
-  "why": "Getting around a block can break the site's terms and the law.",
-  "you_see": "Nothing yet: this is not built.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not built.",
+   "src": "spec:10-06"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:10-06"
+  }
  },
  {
   "id": "10-07",
-  "rev": 2,
-  "title": "A figure has no source or no date",
-  "when": "An item of data comes without a source or without a retrieval date.",
+  "rev": 3,
+  "title": {
+   "t": "A figure has no source or date",
+   "src": "tuple:10-07"
+  },
+  "when": {
+   "t": "A comparable sale or figure in the request has no source or no retrieval date.",
+   "src": "dispatcher/listing_spokes_10.py:199-201, 268-270"
+  },
   "steps": [
-   "Agent 10 leaves it out of every package.",
-   "It counts what it left out."
+   {
+    "t": "Agent 10 leaves it out of the package and counts it.",
+    "src": "dispatcher/listing_spokes_10.py:199-201, 230-234; check:10-07:envelope.persisted:data.package"
+   }
   ],
   "never": [
-   "Use data that has no source or date."
+   {
+    "t": "Include a figure with no source or date.",
+    "src": "tuple:10-07"
+   }
   ],
-  "why": "A number nobody can trace cannot be defended in front of a client.",
-  "you_see": "A package without the untraceable items, and how many were dropped.",
-  "test": "Comparables include one with no source and one with no date. Both are dropped and counted."
+  "you_see": {
+   "t": "The package without those sales, and how many were left out.",
+   "src": "check:10-07:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "Seven sales: five complete, one with no source, one with no date.",
+   "src": "spec:10-07"
+  }
  },
  {
   "id": "10-08",
-  "rev": 2,
-  "title": "The comparable set is thinner than the authorized user's minimum",
-  "when": "Fewer comparables are available than the minimum in the signed rubric.",
+  "rev": 3,
+  "title": {
+   "t": "The comparable set is below the minimum",
+   "src": "tuple:10-08"
+  },
+  "when": {
+   "t": "A comparable-sales request leaves fewer usable sales than the minimum of 5.",
+   "src": "dispatcher/listing_spokes_10.py:228"
+  },
   "steps": [
-   "Agent 10 delivers the set with the shortfall named: how many, against what minimum."
+   {
+    "t": "Agent 10 sends what it has, marked thin with the count and minimum; it adds nothing to fill the set.",
+    "src": "dispatcher/listing_spokes_10.py:228-240; check:10-08:envelope.persisted:data.package"
+   },
+   {
+    "t": "Agent 10 fetches nothing: a package is built only from the comparable sales or figures the request itself carries. (Its morning-briefing section is the listing data Agent 05 sends it.)",
+    "src": "dispatcher/listing_spokes_10.py:197-198, 262; dispatcher/listing_spokes_10.py:106-131"
+   }
   ],
   "never": [
-   "Pad the set to reach the minimum."
+   {
+    "t": "Pad the set.",
+    "src": "tuple:10-08"
+   }
   ],
-  "why": "A thin set that says so is honest; a padded one misleads.",
-  "you_see": "A package marked thin: 4 found, minimum 5.",
-  "test": "Four comparables against a minimum of five."
+  "you_see": {
+   "t": "A package marked thin: 4 against a minimum of 5.",
+   "src": "check:10-08:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "Four sourced, dated sales.",
+   "src": "spec:10-08"
+  }
  },
  {
   "id": "10-09",
-  "rev": 2,
-  "title": "Two sources disagree on a sold price",
-  "when": "Two sources give different sold prices for the same property.",
+  "rev": 3,
+  "title": {
+   "t": "Two sources disagree on a sold price",
+   "src": "tuple:10-09"
+  },
+  "when": {
+   "t": "The request carries the same address twice with different sold prices.",
+   "src": "dispatcher/listing_spokes_10.py:220-226"
+  },
   "steps": [
-   "Agent 10 reports both prices, each with its source.",
-   "It never picks one silently."
+   {
+    "t": "Agent 10 keeps both and lists them under conflicts with their sources.",
+    "src": "dispatcher/listing_spokes_10.py:220-240; check:10-09:envelope.persisted:data.package"
+   }
   ],
   "never": [
-   "Choose one sold price without saying so."
+   {
+    "t": "Pick one price silently.",
+    "src": "tuple:10-09"
+   }
   ],
-  "why": "A wrong sold price skews every comparison built on it.",
-  "you_see": "Both prices with their sources, marked as conflicting.",
-  "test": "The MLS says one sale closed at $301,000; the county recorder says $305,000."
+  "you_see": {
+   "t": "Both prices with their sources under conflicts.",
+   "src": "check:10-09:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "1 Synth Ln at 301,000 from the MLS and 305,000 from the county recorder.",
+   "src": "spec:10-09"
+  }
  },
  {
   "id": "10-10",
-  "rev": 2,
-  "title": "A request looks like a stand-in for an appraisal",
-  "when": "A data request reads as if it will be used in place of an appraisal.",
+  "rev": 3,
+  "title": {
+   "t": "A request looks like it wants an appraisal",
+   "src": "tuple:10-10"
+  },
+  "when": {
+   "t": "A request contains one of these phrases: \"is this worth\", \"what's it actually worth\", \"give me a value\", \"instead of an appraisal\".",
+   "src": "dispatcher/listing_spokes_10.py:18-19, 154-156"
+  },
   "steps": [
-   "Agent 10 delivers the data with a note that it is not an appraisal.",
-   "It tells Compliance (Agent 17)."
+   {
+    "t": "Agent 10 still sends the data package, with a note that it is not an appraisal or valuation opinion.",
+    "src": "dispatcher/listing_spokes_10.py:241-243; check:10-10:envelope.persisted:data.package"
+   },
+   {
+    "t": "It informs Compliance (Agent 17).",
+    "src": "dispatcher/listing_spokes_10.py:244-247; check:10-10:envelope.persisted:compliance.notice"
+   },
+   {
+    "t": "Agent 17 records the notice and lists it in the next morning briefing, with who asked (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes_17.py::if env.from_agent == \"10\":; dispatcher/listing_spokes_17.py::{\"section\": \"compliance_notices\",; tests_listing/test_owner_decisions_2026_10_28.py::def test_morning_briefing_lists_record_conflicts_and_compliance_notices_once"
+   }
   ],
   "never": [
-   "Let market data pass as an appraisal."
+   {
+    "t": "Present data as a valuation.",
+    "src": "tuple:10-10"
+   }
   ],
-  "why": "Only a licensed appraiser can appraise. Data presented as an appraisal is a regulatory problem.",
-  "you_see": "The package with its not-an-appraisal note.",
-  "test": "A comparables request flagged as a possible appraisal substitute."
+  "you_see": {
+   "t": "The package with its not-an-appraisal note.",
+   "src": "check:10-10:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "Five sales with the message \"Is this worth 320k? I need it instead of an appraisal\".",
+   "src": "spec:10-10"
+  }
  },
  {
   "id": "10-11",
-  "rev": 2,
-  "title": "Old data is asked for beyond what is kept",
-  "when": "Someone asks for history older than the data the system keeps.",
+  "rev": 3,
+  "title": {
+   "t": "Data is asked for from beyond the retention window",
+   "src": "tuple:10-11"
+  },
+  "when": {
+   "t": "A request asks for more than 2 years back.",
+   "src": "dispatcher/listing_spokes_10.py:173-175, 82-86"
+  },
   "steps": [
-   "Agent 10 answers that the data is absent, because of the retention limit.",
-   "It never fills in from memory."
+   {
+    "t": "Agent 10 answers that the data is absent.",
+    "src": "dispatcher/listing_spokes_10.py:175-182; check:10-11:envelope.persisted:data.package"
+   },
+   {
+    "t": "Agent 10 has no store of past sales to look in.",
+    "src": "dispatcher/listing_spokes_10.py:66-79"
+   }
   ],
   "never": [
-   "Reconstruct missing data from a model's memory."
+   {
+    "t": "Reconstruct old data from memory.",
+    "src": "tuple:10-11"
+   }
   ],
-  "why": "Remembered numbers are guesses. \"Absent\" is the truthful answer.",
-  "you_see": "A package saying the data is absent beyond retention.",
-  "test": "A request for comparables five years back."
+  "you_see": {
+   "t": "A package marked absent, citing the retention window.",
+   "src": "check:10-11:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "A comparable-sales request for 5 years back.",
+   "src": "spec:10-11"
+  }
  }
 ]

@@ -1,160 +1,378 @@
 [
  {
   "id": "15-01",
-  "rev": 2,
-  "title": "A recorded commission differs from the contract",
-  "when": "The commission on the books differs from what the contract says.",
+  "rev": 3,
+  "title": {
+   "t": "A recorded commission differs from the contract",
+   "src": "tuple:15-01"
+  },
+  "when": {
+   "t": "The authorized user enters a commission dispute: the recorded figure, the contract's figure and the clause.",
+   "src": "dispatcher/listing_spokes_15.py:264-268"
+  },
   "steps": [
-   "Agent 15 (Financial Tracking) raises a legal-line alert for the authorized user.",
-   "The alert quotes the contract clause word for word, with the recorded figure."
+   {
+    "t": "If the two figures differ, Agent 15 raises a legal-line alert quoting the clause word for word. It changes no figure.",
+    "src": "dispatcher/listing_spokes_15.py:268-278; check:15-01:escalation.raised"
+   },
+   {
+    "t": "Separately, after every close Agent 15 compares its commission with the amount Agent 14 logged and raises the same kind of alert if they differ.",
+    "src": "dispatcher/listing_spokes_15.py:145-182"
+   },
+   {
+    "t": "This reaches Agent 15 only as the authorized user's signed setting; nothing reads a contract or a statement.",
+    "src": "dispatcher/listing_spokes_15.py:230; spec:15-01"
+   }
   ],
   "never": [
-   "Correct the figure or interpret the clause itself."
+   {
+    "t": "Reconcile the figures itself.",
+    "src": "tuple:15-01"
+   }
   ],
-  "why": "Commission disputes are contract matters. The exact clause lets the authorized user and the other party read the same words.",
-  "you_see": "A legal-line alert with the recorded figure and the clause.",
-  "test": "Recorded commission $36,000; the contract figure works out to $27,000; the clause reads \"Seller shall pay a total commission of 6% of the sale price at closing.\""
+  "you_see": {
+   "t": "A legal-line alert with the recorded figure and the clause (the contract figure itself is not in the alert).",
+   "src": "check:15-01:escalation.raised; dispatcher/listing_spokes_15.py:271-278"
+  },
+  "test": {
+   "t": "Recorded 36,000; contract figure 27,000; clause \"Seller shall pay a total commission of 6% of the sale price at closing.\"",
+   "src": "spec:15-01"
+  }
  },
  {
   "id": "15-02",
-  "rev": 2,
-  "title": "An expense fits two categories with different tax treatment",
-  "when": "An expense could go in two categories that are treated differently for tax.",
+  "rev": 3,
+  "title": {
+   "t": "An expense fits two categories with different tax treatment",
+   "src": "tuple:15-02"
+  },
+  "when": {
+   "t": "An expense is entered with more than one category and differing tax flags.",
+   "src": "dispatcher/listing_spokes_15.py:292"
+  },
   "steps": [
-   "Agent 15 flags both categories and both tax treatments.",
-   "The profit and loss report shows the conflict; the authorized user's accountant decides."
+   {
+    "t": "Agent 15 records it with both categories and both flags, marked as a conflict for the accountant; it picks neither.",
+    "src": "dispatcher/listing_spokes_15.py:292-306; check:15-02:spoke.trace"
+   },
+   {
+    "t": "The mark appears in the profit-and-loss report.",
+    "src": "dispatcher/listing_spokes_15.py:327-335; check:15-02:envelope.persisted:report.package"
+   }
   ],
   "never": [
-   "Pick the category with the better tax result."
+   {
+    "t": "Choose the category or the tax treatment.",
+    "src": "tuple:15-02"
+   }
   ],
-  "why": "Tax categorization is the office accountant's call; a guessed category can cost the office in an audit.",
-  "you_see": "The expense in the report marked as a two-category conflict.",
-  "test": "\"Home office internet\", $90, could be office (fully deductible) or utilities (partly deductible)."
+  "you_see": {
+   "t": "The expense in the report, marked with the conflict.",
+   "src": "check:15-02:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "Home office internet, 90, categories office and utilities, flags deductible 100% and deductible partial.",
+   "src": "spec:15-02"
+  }
  },
  {
   "id": "15-03",
-  "rev": 2,
-  "title": "Two sources claim credit for the same sale",
-  "when": "Two marketing sources each claim they produced the same deal.",
+  "rev": 3,
+  "title": {
+   "t": "Two sources claim the same result",
+   "src": "tuple:15-03"
+  },
+  "when": {
+   "t": "A second attribution claim for the same result arrives from a different source.",
+   "src": "dispatcher/listing_spokes_15.py:309-315"
+  },
   "steps": [
-   "Agent 15 reports both claims, each with its source."
+   {
+    "t": "Agent 15 sends the authorized user a report listing both claims; it picks neither.",
+    "src": "dispatcher/listing_spokes_15.py:316-321; check:15-03:envelope.persisted:report.package"
+   }
   ],
   "never": [
-   "Credit one source and drop the other."
+   {
+    "t": "Credit one source silently.",
+    "src": "tuple:15-03"
+   }
   ],
-  "why": "Where the office spends marketing money depends on what works. A silent pick distorts that picture.",
-  "you_see": "A report listing both claims.",
-  "test": "Facebook ads and a past-client referral both claim the same $12,000 result."
+  "you_see": {
+   "t": "A report listing both claims.",
+   "src": "check:15-03:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "Facebook ads and a past-client referral each claim the T1 sale (12,000).",
+   "src": "spec:15-03"
+  }
  },
  {
   "id": "15-04",
-  "rev": 2,
-  "title": "A month of financial data is missing",
-  "when": "A report covers a month for which no data came in.",
+  "rev": 3,
+  "title": {
+   "t": "A month of data is missing",
+   "src": "tuple:15-04"
+  },
+  "when": {
+   "t": "A profit-and-loss report is asked for months not marked as received.",
+   "src": "dispatcher/listing_spokes_15.py:323-330"
+  },
   "steps": [
-   "Agent 15 labels the month as missing."
+   {
+    "t": "Agent 15 lists those months as missing; nothing is filled in.",
+    "src": "dispatcher/listing_spokes_15.py:327-335; check:15-04:envelope.persisted:report.package"
+   },
+   {
+    "t": "A month counts as received only when the authorized user marks it so.",
+    "src": "dispatcher/listing_spokes_15.py:323-325"
+   },
+   {
+    "t": "The report lists the commissions and expenses on record; it computes no totals.",
+    "src": "dispatcher/listing_spokes_15.py:331-335"
+   }
   ],
   "never": [
-   "Fill the month in by estimating from the months around it."
+   {
+    "t": "Fill in a missing month.",
+    "src": "tuple:15-04"
+   }
   ],
-  "why": "An estimated month looks like real numbers. Missing is the truth.",
-  "you_see": "The report with the month listed as missing.",
-  "test": "August data is received, September is not; a report for both months lists September as missing."
+  "you_see": {
+   "t": "A report naming the missing months.",
+   "src": "check:15-04:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "August is marked received; a report for August and September is asked for.",
+   "src": "spec:15-04"
+  }
  },
  {
   "id": "15-05",
-  "rev": 2,
-  "title": "Any question about commission wording",
-  "when": "A question comes up about how commission language applies.",
+  "rev": 3,
+  "title": {
+   "t": "A question about commission language",
+   "src": "tuple:15-05"
+  },
+  "when": {
+   "t": "The authorized user passes on a question about commission wording.",
+   "src": "dispatcher/listing_spokes_15.py:256"
+  },
   "steps": [
-   "Agent 15 raises a legal-line alert for the authorized user with the question."
+   {
+    "t": "Agent 15 raises a legal-line alert with the question; it does not answer.",
+    "src": "dispatcher/listing_spokes_15.py:256-262; check:15-05:escalation.raised"
+   },
+   {
+    "t": "This reaches Agent 15 only as the authorized user's signed setting; nothing reads a contract or a statement.",
+    "src": "dispatcher/listing_spokes_15.py:230; spec:15-05"
+   }
   ],
   "never": [
-   "Answer a question about commission language."
+   {
+    "t": "Interpret commission language.",
+    "src": "tuple:15-05"
+   }
   ],
-  "why": "Commission wording is contract interpretation, and it touches license law.",
-  "you_see": "A legal-line alert quoting the question.",
-  "test": "\"Does the co-op split in paragraph 4 apply to a dual agency sale?\""
+  "you_see": {
+   "t": "A legal-line alert quoting the question.",
+   "src": "check:15-05:escalation.raised"
+  },
+  "test": {
+   "t": "\"Does the co-op split in paragraph 4 apply to a dual agency sale?\"",
+   "src": "spec:15-05"
+  }
  },
  {
   "id": "15-06",
-  "rev": 2,
-  "title": "Commission depends on an amendment that is not signed",
-  "when": "The commission calculation depends on a document that is not signed.",
+  "rev": 3,
+  "title": {
+   "t": "A commission depends on an unsigned document",
+   "src": "tuple:15-06"
+  },
+  "when": {
+   "t": "A close arrives from Agent 07 with the settlement statement not signed.",
+   "src": "dispatcher/listing_spokes_15.py:111-124; dispatcher/listing_spokes_08.py:535-542"
+  },
   "steps": [
-   "Agent 15 counts only signed documents as actual.",
-   "A figure that rests on the unsigned document is kept but labeled a projection."
+   {
+    "t": "Agent 15 keeps the commission labeled as a projection, not a recorded figure.",
+    "src": "dispatcher/listing_spokes_15.py:124-131; check:15-06:envelope.persisted:report.package"
+   },
+   {
+    "t": "With no commission amount on the close, it computes one at the default 8% of the sale price and labels it computed.",
+    "src": "dispatcher/listing_spokes_15.py:61-68, 115-122"
+   },
+   {
+    "t": "A close with neither an amount nor a sale price records no amount.",
+    "src": "dispatcher/listing_spokes_15.py:115-122"
+   }
   ],
   "never": [
-   "Book a projected commission as actual."
+   {
+    "t": "Present a projection as a recorded commission.",
+    "src": "tuple:15-06"
+   }
   ],
-  "why": "Until it is signed, the money is not owed. Labeling it keeps the authorized user's books honest.",
-  "you_see": "The commission in the report labeled \"projection - unsigned amendment\".",
-  "test": "The closing statement arrives unsigned on a $450,000 sale. The $36,000 commission (at the default rate) is labeled a projection."
+  "you_see": {
+   "t": "A report showing 36,000 labeled a projection, computed at the default rate.",
+   "src": "check:15-06:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "Closing October 20; an unsigned settlement statement with a sale price of 450,000 arrives; a report is asked for.",
+   "src": "spec:15-06"
+  }
  },
  {
   "id": "15-07",
-  "rev": 2,
-  "title": "An expense has no receipt",
-  "when": "An expense is recorded without a receipt.",
+  "rev": 3,
+  "title": {
+   "t": "An expense has no receipt",
+   "src": "tuple:15-07"
+  },
+  "when": {
+   "t": "An expense is entered with no receipt on file.",
+   "src": "dispatcher/listing_spokes_15.py:284"
+  },
   "steps": [
-   "Agent 15 records it as unverified.",
-   "It stays unverified however much time passes."
+   {
+    "t": "Agent 15 records it as unverified.",
+    "src": "dispatcher/listing_spokes_15.py:300-305; check:15-07:envelope.persisted:report.package"
+   },
+   {
+    "t": "Nothing changes it later: there is no step that marks an expense verified after entry.",
+    "src": "dispatcher/listing_spokes_15.py:280-307"
+   }
   ],
   "never": [
-   "Mark an expense verified because time went by."
+   {
+    "t": "Treat an old unverified expense as verified.",
+    "src": "tuple:15-07"
+   }
   ],
-  "why": "A deduction without a receipt may not survive an audit. The label tells the authorized user's accountant.",
-  "you_see": "The expense in the report marked unverified.",
-  "test": "\"Open house signs\", $140, no receipt. Six weeks later it is still unverified."
+  "you_see": {
+   "t": "The expense in the report marked unverified.",
+   "src": "check:15-07:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "Open house signs, 140, no receipt; a daily run; then a report.",
+   "src": "spec:15-07"
+  }
  },
  {
   "id": "15-08",
-  "rev": 2,
-  "title": "Pipeline value is asked for and some leads are unknown",
-  "when": "A pipeline value is requested and some leads have an UNKNOWN tier.",
+  "rev": 3,
+  "title": {
+   "t": "Pipeline value includes unknown leads",
+   "src": "tuple:15-08"
+  },
+  "when": {
+   "t": "A pipeline value is asked for over leads that include unknown-tier leads.",
+   "src": "dispatcher/listing_spokes_15.py:338-342"
+  },
   "steps": [
-   "Agent 15 leaves the unknown leads out of the total.",
-   "It says how many were left out and why."
+   {
+    "t": "Agent 15 leaves out the leads marked UNKNOWN, totals the rest, counts the ones left out and says so. (A lead with no tier, or a tier spelled differently, is counted in.)",
+    "src": "dispatcher/listing_spokes_15.py:337-350; check:15-08:envelope.persisted:report.package"
+   },
+   {
+    "t": "The leads and their values come in the request itself.",
+    "src": "dispatcher/listing_spokes_15.py:339"
+   }
   ],
   "never": [
-   "Count unknown leads as value."
+   {
+    "t": "Count unknown leads as value.",
+    "src": "tuple:15-08"
+   }
   ],
-  "why": "Unknown leads are not value yet. Counting them inflates the forecast.",
-  "you_see": "A total with a note: 1 unknown lead excluded.",
-  "test": "A hot lead ($20,000), a warm lead ($10,000) and an unknown lead ($50,000). The total is $30,000."
+  "you_see": {
+   "t": "A total of 30,000 with one unknown lead left out.",
+   "src": "check:15-08:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "Leads: hot 20,000, warm 10,000, unknown 50,000.",
+   "src": "spec:15-08"
+  }
  },
  {
   "id": "15-09",
-  "rev": 2,
-  "title": "A disbursement instruction arrives by email",
-  "when": "An emailed instruction about where to send money arrives.",
+  "rev": 3,
+  "title": {
+   "t": "A disbursement instruction arrives by email",
+   "src": "tuple:15-09"
+  },
+  "when": {
+   "t": "Text passed to Agent 15 mentions a disbursement.",
+   "src": "dispatcher/listing_spokes_15.py:18-19, 230-234"
+  },
   "steps": [
-   "Agent 15 stops: a legal-line alert reaches the authorized user at once.",
-   "The alert says money moves only through a voice-verified process run by people."
+   {
+    "t": "Agent 15 raises a legal-line alert: disbursements go only through a voice-verified process run by a person.",
+    "src": "dispatcher/listing_spokes_15.py:234-244; check:15-09:escalation.raised"
+   },
+   {
+    "t": "Text containing \"earnest money\", \"trust account\", \"escrow\", \"wire the funds\" or \"disbursement\" raises a legal-line alert as out of scope. Only text given directly in the setting is read; a mention inside a nested field is not caught.",
+    "src": "dispatcher/listing_spokes_15.py:18-19, 99-105, 230-233"
+   },
+   {
+    "t": "The authorized user passes the email on as a signed setting; that is the only way text reaches Agent 15.",
+    "src": "spec:15-09"
+   }
   ],
   "never": [
-   "Act on, or pass on, a money instruction that came by email."
+   {
+    "t": "Act on a disbursement instruction.",
+    "src": "tuple:15-09"
+   }
   ],
-  "why": "Emailed wire changes are the classic closing fraud. Only a phone call to a known number confirms them.",
-  "you_see": "A legal-line alert about the disbursement instruction.",
-  "test": "The authorized user passes on an email: \"Disbursement instruction from the title company: please wire the funds to the new account below.\""
+  "you_see": {
+   "t": "A legal-line alert quoting the instruction.",
+   "src": "check:15-09:escalation.raised"
+  },
+  "test": {
+   "t": "\"Disbursement instruction from the title company: please wire the funds to the new account below.\"",
+   "src": "spec:15-09"
+  }
  },
  {
   "id": "15-10",
-  "rev": 2,
-  "title": "A forecast is asked for beyond what the data supports",
-  "when": "A forecast is requested further ahead than the data allows.",
+  "rev": 3,
+  "title": {
+   "t": "A forecast is asked for beyond the data",
+   "src": "tuple:15-10"
+  },
+  "when": {
+   "t": "A forecast is asked for further ahead than the data covers.",
+   "src": "dispatcher/listing_spokes_15.py:352-364"
+  },
   "steps": [
-   "Agent 15 declines the longer horizon.",
-   "It delivers the forecast only as far as the data supports, and says so.",
-   "A request without a horizon is sent back to the authorized user to complete."
+   {
+    "t": "Agent 15 declines the longer horizon and says how far the data goes.",
+    "src": "dispatcher/listing_spokes_15.py:364-373; check:15-10:envelope.persisted:report.package"
+   },
+   {
+    "t": "The report carries no forecast figures, only the horizons.",
+    "src": "dispatcher/listing_spokes_15.py:367-376"
+   },
+   {
+    "t": "A request without a horizon gets a question instead. (A missing data horizon counts as 0 months, so such a request is declined, not asked about.)",
+    "src": "dispatcher/listing_spokes_15.py:352-363; check:15-10:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Forecast beyond the data."
+   {
+    "t": "Forecast past what the data supports.",
+    "src": "tuple:15-10"
+   }
   ],
-  "why": "A forecast past the data is a guess dressed as a number.",
-  "you_see": "A forecast to the supported horizon, with the declined horizon noted.",
-  "test": "A 12-month forecast is asked for with 6 months of data: 6 months are delivered and 12 declined. A request with no horizon gets a question back."
+  "you_see": {
+   "t": "A report saying 12 months was declined and 6 is what the data supports.",
+   "src": "check:15-10:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "A 12-month forecast with 6 months of data; then a request with no horizon.",
+   "src": "spec:15-10"
+  }
  }
 ]

@@ -74,7 +74,7 @@ flowchart TB
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/          # expect: 1320 passed, 1 skipped
+python -m pytest tests_listing/          # expect: 1363 passed, 1 skipped
 python tools/console.py init             # your signing key, mode 0600, stays on this machine,
                                          # and your signed attestation of this install
 python tools/console.py onboard          # your name and login, asked once
@@ -145,9 +145,14 @@ a setting the agent does not recognize is held too.
 | 06 | `showing_facts_source` | `"listing_record"` (default): a showing of your own listing takes occupancy, status and state from your listing record; `"requester"`: from the request. Occupancy not on record counts as occupied |
 | 06 | `seller_reports` | P18: `{"weekday": "monday", "listings": {"L8": "<seller context>"}}` - which day, and which seller gets each listing's report |
 | 07 | `timeline_init` | a transaction's milestone dates |
+| 07 | `milestone_amendment` | `{"milestone": "closing", "new_date": "YYYY-MM-DD", "amendment_ref": "..."}`: changes that one date under a signed amendment; every other milestone and its met state stay as they are, the calendar block moves, old and new dates are logged (owner decision D-A5, 2026-10-28) |
 | 08 | `expected_senders` | who should send each sensitive document: `{"closing_settlement_statement": ["title@..."]}` |
 | 11 | `resolve_complaint_hold`, `resolve_advice_response` | releases a complaint hold; closes an advice wait |
-| 13 | `buyer_criteria` | a buyer's stated criteria |
+| 11 | `template_signed` | the template id whose wording you approved: `identity_verification_needed`, `doc_unsigned_resend` or `unknown_criterion_ask`. Agent 11 sends none of them until you do (owner decisions 2026-10-28) |
+| 13 | `buyer_criteria` | a buyer's stated criteria (adds to the list) |
+| 13 | `buyer_criteria_replace` | the buyer's whole criteria list, replacing the old one; old and new are logged and kept matches are checked again (owner decision D-A20, 2026-10-28) |
+| 13 | `deliver_unknown_standing_preference` | `true`: listings missing a must-have go to the buyer marked unknown; kept matches are checked again (owner decision D-A12) |
+| 18 | `move_protected_block` | `{"event_id": "...", "requester": "human", "to_day": "YYYY-MM-DD"}`: moves a protected block to that day, still protected; refused without `to_day` (owner decision D-A21, 2026-10-28) |
 | 14 | `consent_record` | the client's consent per channel, e.g. `{"email": "yes", "text": "no"}`; Agent 11 sends a client nothing without a "yes" on some channel. A channel the client opted out of stays "no" unless you add `"reconfirmed_by_client": true` |
 | 14 | `buyer_agreement_on_file`, `requester_identity_verified` | your record that the agreement is signed / identity checked |
 | 14 | `client_dates` | P13 dates for a client: `{"purchase_anniversary": "07-18"}` (MM-DD every year, YYYY-MM-DD once) |

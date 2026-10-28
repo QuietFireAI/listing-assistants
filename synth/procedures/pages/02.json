@@ -1,261 +1,590 @@
 [
  {
   "id": "02-01",
-  "rev": 2,
-  "title": "A lead's score lands exactly on a tier line",
-  "when": "A lead's score is exactly on the line between two tiers (for example exactly the warm threshold).",
+  "rev": 3,
+  "title": {
+   "t": "A lead's score lands exactly on a tier line",
+   "src": "tuple:02-01"
+  },
+  "when": {
+   "t": "A lead's score equals a tier threshold.",
+   "src": "tuple:02-01"
+  },
   "steps": [
-   "Agent 02 (Lead Qualification) gives the lead the lower tier.",
-   "It tells the authorized user the score sat on a tier line and the lower tier was given, for review."
+   {
+    "t": "Agent 02 gives the lead the lower tier.",
+    "src": "dispatcher/lead_rubric.py:36-110; check:02-01:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "It tells the authorized user the score sat on a tier line and the lower tier was given.",
+    "src": "dispatcher/listing_spokes_02.py::if any(\"sits exactly on a tier boundary\" in n for n in notes):; check:02-01:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Round a borderline lead up into the higher tier."
+   {
+    "t": "Assign the higher tier on a boundary.",
+    "src": "tuple:02-01"
+   }
   ],
-  "why": "Treating a borderline lead as hotter than it is can mean pressure contact the person did not invite. The authorized user decides whether to move it up.",
-  "you_see": "A question saying the score is on a tier line, with the score and the tier given.",
-  "test": "The authorized user's signed rubric: budget over $400,000 scores 40, a timeline under 30 days scores 40, pre-approval scores 20; warm starts at 40. A lead with a $450,000 budget, a 90-day timeline and no financing scores exactly 40 and is recorded cold."
+  "you_see": {
+   "t": "A question naming the score and the tier given.",
+   "src": "check:02-01:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The signed rubric: a budget of 400,000 or more scores 40, a timeline of 30 days or less scores 40, a pre-approval scores 20; a score above 40 is warm and above 70 is hot (a score exactly on 40 or 70 gets the lower tier and a question). A lead with a 450,000 budget, a 90-day timeline and no financing scores exactly 40 and is recorded cold.",
+   "src": "spec:02-01; synth/tuples/setup.jsonl:1; dispatcher/lead_rubric.py:92-110"
+  }
  },
  {
   "id": "02-02",
-  "rev": 2,
-  "title": "There is no signed scoring rubric",
-  "when": "A lead arrives to be scored and no signed rubric is in force (none was ever signed, or it cannot be read).",
+  "rev": 3,
+  "title": {
+   "t": "There is no signed scoring rubric",
+   "src": "tuple:02-02"
+  },
+  "when": {
+   "t": "A lead arrives to be scored and no signed rubric is in force.",
+   "src": "spec:02-02"
+  },
   "steps": [
-   "Agent 02 does not score the lead.",
-   "It tells the authorized user scoring is stopped because no rubric is active.",
-   "No alert about the lead is raised."
+   {
+    "t": "Agent 02 does not score the lead; its tier is unknown.",
+    "src": "dispatcher/listing_spokes_02.py::if self.rubric is None:"
+   },
+   {
+    "t": "It tells the authorized user scoring is halted because no rubric is active. No hot-lead alert is raised.",
+    "src": "check:02-02:envelope.persisted:clarification.request; check:02-02:escalation.raised"
+   }
   ],
   "never": [
-   "Score from a remembered or default rubric."
+   {
+    "t": "Score from memory of a rubric.",
+    "src": "tuple:02-02"
+   }
   ],
-  "why": "Scores decide who the authorized user calls first. A score from an unsigned rubric is a guess carrying the office's name.",
-  "you_see": "A question saying no rubric is active.",
-  "test": "The system starts without the signed rubric; a lead with a $500,000 budget and a 10-day timeline comes in."
+  "you_see": {
+   "t": "A question saying no rubric is active.",
+   "src": "check:02-02:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The system starts without a signed rubric; a lead with a 500,000 budget and a 10-day timeline comes in.",
+   "src": "spec:02-02"
+  }
  },
  {
   "id": "02-03",
-  "rev": 2,
-  "title": "A lead demands a person: straight to the hot path",
-  "when": "A lead demands to speak to a person.",
+  "rev": 3,
+  "title": {
+   "t": "A lead demands a person",
+   "src": "tuple:02-03"
+  },
+  "when": {
+   "t": "A lead demands a person.",
+   "src": "tuple:02-03"
+  },
   "steps": [
-   "Agent 02 treats the lead as hot whatever its score, so the authorized user is alerted at once."
+   {
+    "t": "The rule: hot, whatever the score.",
+    "src": "tuple:02-03"
+   },
+   {
+    "t": "Agent 01 passes the demand on with the captured lead (owner decision of 2026-10-28), so the lead goes to the hot-lead queue whatever its score, with the call clock.",
+    "src": "dispatcher/listing_spokes.py:1042-1043; dispatcher/listing_spokes_02.py:319-341; check:02-03:escalation.raised"
+   }
   ],
   "never": [
-   "Let a low score bury a person who asked for a human."
+   {
+    "t": "Let a score decide for a lead who demanded a person.",
+    "src": "tuple:02-03"
+   }
   ],
-  "why": "Someone who asked for a person must get one quickly, whatever the numbers say.",
-  "you_see": "Today the demand reaches the authorized user from Agent 01 directly (see LA-T-01-03).",
-  "test": ""
+  "you_see": {
+   "t": "A hot-lead alert quoting the request for a person, with the call clock, for a lead whose budget and timeline alone score cold; the tier record says hot because of the demand.",
+   "src": "check:02-03:escalation.raised; check:02-03:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A call says \"Can I please speak to a person?\", with a 150,000 budget and a 200-day timeline (cold on the rubric).",
+   "src": "spec:02-03"
+  }
  },
  {
   "id": "02-04",
-  "rev": 2,
-  "title": "A lead says it is urgent but shows no financing",
-  "when": "A lead says the purchase is urgent but has made no progress on financing.",
+  "rev": 3,
+  "title": {
+   "t": "A lead says it is urgent but shows no financing",
+   "src": "tuple:02-04"
+  },
+  "when": {
+   "t": "A lead states high urgency and no financing progress.",
+   "src": "dispatcher/lead_rubric.py:75-81"
+  },
   "steps": [
-   "Agent 02 scores on what can be checked (financing), not on the stated urgency.",
-   "It writes the conflict in the client's history, in plain words: stated urgency \"high\" conflicts with no financing progress."
+   {
+    "t": "Agent 02 scores financing and timeline as given; stated urgency adds nothing.",
+    "src": "dispatcher/lead_rubric.py:75-110"
+   },
+   {
+    "t": "It writes the conflict into the tier record.",
+    "src": "check:02-04:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Raise a score because someone says they are in a hurry."
+   {
+    "t": "Raise a score for stated urgency.",
+    "src": "tuple:02-04"
+   }
   ],
-  "why": "Stated urgency costs nothing to say; financing shows real readiness. Scores built on what can be verified rank leads fairly.",
-  "you_see": "The conflict in the lead's history next to its score.",
-  "test": "A lead with \"high\" urgency, no financing, a $450,000 budget and a 60-day timeline. (Its score also lands exactly on the warm line, so it is recorded cold and the authorized user is asked, as in LA-T-02-01.)"
+  "you_see": {
+   "t": "The conflict in the lead's tier record.",
+   "src": "check:02-04:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A lead with \"high\" urgency, no financing, a 450,000 budget and a 60-day timeline (its score of 40 is also on the warm line, so it is recorded cold and the authorized user is asked).",
+   "src": "spec:02-04; flow:02-04:02->queue clarification.request"
+  }
  },
  {
   "id": "02-05",
-  "rev": 2,
-  "title": "A lead's tier keeps swinging",
-  "when": "A lead's tier changes direction for the third time (for example hot, then cold, then hot).",
+  "rev": 3,
+  "title": {
+   "t": "A lead's tier keeps swinging",
+   "src": "tuple:02-05"
+  },
+  "when": {
+   "t": "A lead's tier returns to a value it just left (for example hot, cold, hot).",
+   "src": "dispatcher/listing_spokes_02.py::def _oscillating_third_time("
+  },
   "steps": [
-   "Agent 02 scores each inquiry as it comes.",
-   "On the third swing it asks the authorized user to review the lead: the swinging itself is the signal."
+   {
+    "t": "Agent 02 scores each inquiry as it comes.",
+    "src": "flow:02-05:01->02 lead.captured"
+   },
+   {
+    "t": "On the swing back it asks the authorized user to review, with the tier history.",
+    "src": "dispatcher/listing_spokes_02.py::\"time\", \"history\": self.tier_history[ctx]})); check:02-05:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Treat repeated swings as noise and keep re-tiering silently."
+   {
+    "t": "Keep re-tiering a swinging lead without telling anyone.",
+    "src": "tuple:02-05"
+   }
   ],
-  "why": "A lead whose facts keep changing may be confused, testing the office, or two people on one record. A person should look.",
-  "you_see": "A question saying the lead's tier swung a third time, with its tier history.",
-  "test": "Three inquiries on one client: a $500,000 budget, 10 days and pre-approval (hot); then $300,000, 90 days, no financing (cold); then hot again. The third also raises a hot-lead alert."
+  "why": {
+   "t": "The tuple's words: oscillation is a signal, not noise.",
+   "src": "tuple:02-05"
+  },
+  "you_see": {
+   "t": "A question saying the tier swung a third time, with the history.",
+   "src": "check:02-05:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Three inquiries on one client score hot, cold, then hot. The third also raises a hot-lead alert.",
+   "src": "spec:02-05; flow:02-05:02->queue alert:escalation.hot_lead"
+  }
  },
  {
   "id": "02-06",
-  "rev": 2,
-  "title": "A signed rubric tries to change a fixed rule",
-  "when": "A rubric the authorized user signs contains settings beyond the scoring weights (for example a weight for \"demands a human\", which is a fixed rule, not a score).",
+  "rev": 3,
+  "title": {
+   "t": "A signed rubric tries to change a fixed rule",
+   "src": "tuple:02-06"
+  },
+  "when": {
+   "t": "A signed rubric contains settings beyond the seven thresholds and weights.",
+   "src": "dispatcher/listing_spokes_02.py::extra = set(new_rubric.keys()) - REQUIRED_RUBRIC_KEYS"
+  },
   "steps": [
-   "Agent 02 uses only the scoring settings it is allowed to read; the fixed rule stands.",
-   "The extra settings are never read.",
-   "It tells the authorized user which settings it ignored, so the rubric can be corrected."
+   {
+    "t": "Agent 02 reads only the seven scoring settings; the extra ones are never read.",
+    "src": "dispatcher/lead_rubric.py:21-23; dispatcher/listing_spokes_02.py::extra = set(new_rubric.keys()) - REQUIRED_RUBRIC_KEYS"
+   },
+   {
+    "t": "It tells the authorized user which settings it ignored.",
+    "src": "check:02-06:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Let a rubric quietly override a fixed rule, or quietly drop what it tried."
+   {
+    "t": "Let a rubric override a fixed rule, or drop the conflict silently.",
+    "src": "tuple:02-06"
+   }
   ],
-  "why": "Fixed rules (a person asking for a human, consent) are not up for scoring. A rubric that tries to change one is a mistake the authorized user should see.",
-  "you_see": "A question naming the rubric settings that were ignored.",
-  "test": "A signed rubric version \"t-extra\" with the usual weights plus \"demands_human_weight\": 0."
+  "why": {
+   "t": "The tuple's words: a surfaced conflict is a finding; a silent pick is drift.",
+   "src": "tuple:02-06"
+  },
+  "you_see": {
+   "t": "A question naming the ignored settings.",
+   "src": "check:02-06:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A signed rubric \"t-extra\" with the usual weights plus \"demands_human_weight\": 0.",
+   "src": "spec:02-06"
+  }
  },
  {
   "id": "02-07",
-  "rev": 2,
-  "title": "A lead's pre-approval letter has expired",
-  "when": "A lead provides a pre-approval letter that has expired.",
+  "rev": 3,
+  "title": {
+   "t": "A lead's pre-approval letter has expired",
+   "src": "tuple:02-07"
+  },
+  "when": {
+   "t": "A lead's pre-approval letter is marked expired.",
+   "src": "dispatcher/lead_rubric.py:52-63"
+  },
   "steps": [
-   "Agent 02 scores the lead as having no verified financing.",
-   "It notes in the client's history that the pre-approval letter expired."
+   {
+    "t": "Agent 02 gives no financing points, even if the lead also says they are pre-approved.",
+    "src": "dispatcher/lead_rubric.py:52-63"
+   },
+   {
+    "t": "The note \"pre-approval letter expired\" goes in the tier record.",
+    "src": "check:02-07:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Count an expired letter as financing."
+   {
+    "t": "Count an expired letter as financing.",
+    "src": "tuple:02-07"
+   }
   ],
-  "why": "An expired letter proves nothing about today's buying power; counting it would put the lead ahead of others unfairly.",
-  "you_see": "The note \"pre-approval letter expired\" with the lead's score.",
-  "test": "A lead with a $500,000 budget, a 20-day timeline and an expired $500,000 pre-approval letter scores 80: budget and timeline only, no financing points."
+  "you_see": {
+   "t": "The expired-letter note with the score.",
+   "src": "check:02-07:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A lead with a 500,000 budget, a 20-day timeline and an expired letter scores 80: budget and timeline only.",
+   "src": "spec:02-07; check:02-07:envelope.persisted:interaction.log"
+  }
  },
  {
   "id": "02-08",
-  "rev": 2,
-  "title": "The \"lead\" is another agent shopping for a client",
-  "when": "The inquiry comes from a real estate agent looking on behalf of their client.",
+  "rev": 3,
+  "title": {
+   "t": "The lead is an agent shopping for a client",
+   "src": "tuple:02-08"
+  },
+  "when": {
+   "t": "An inquiry is marked as an agent shopping for a client.",
+   "src": "dispatcher/listing_spokes_02.py::if payload.get(\"is_agent_shopping\"):"
+  },
   "steps": [
-   "Agent 02 does not score it as a consumer lead.",
-   "It flags it as agent-to-agent and asks the authorized user how to engage."
+   {
+    "t": "Agent 02 does not score it.",
+    "src": "dispatcher/listing_spokes_02.py::if payload.get(\"is_agent_shopping\"):"
+   },
+   {
+    "t": "It asks the authorized user how to engage; no hot-lead alert is raised.",
+    "src": "check:02-08:envelope.persisted:clarification.request; check:02-08:escalation.raised"
+   }
   ],
   "never": [
-   "Put another agent into the authorized user's consumer lead process."
+   {
+    "t": "Score another agent as a consumer lead.",
+    "src": "tuple:02-08"
+   }
   ],
-  "why": "Agent-to-agent business has its own rules and etiquette; treating it as a consumer lead would send the wrong messages.",
-  "you_see": "A question saying this is an agent-to-agent inquiry.",
-  "test": "An inquiry flagged as an agent shopping for a client, with a $700,000 budget, 10 days and pre-approval (hot if scored)."
+  "you_see": {
+   "t": "A question saying this is an agent-to-agent inquiry.",
+   "src": "check:02-08:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "An agent-shopping inquiry with a 700,000 budget, 10 days and pre-approval (hot if scored).",
+   "src": "spec:02-08; synth/tuples/setup.jsonl:1"
+  }
  },
  {
   "id": "02-09",
-  "rev": 2,
-  "title": "An unsigned rubric change arrives",
-  "when": "A change to the scoring rubric arrives without the authorized user's signature.",
+  "rev": 3,
+  "title": {
+   "t": "An unsigned rubric change arrives",
+   "src": "tuple:02-09"
+  },
+  "when": {
+   "t": "A rubric change arrives without a valid signature.",
+   "src": "spec:02-09"
+  },
   "steps": [
-   "The dispatcher refuses it; Agent 02 never receives it.",
-   "The authorized user is alerted to an integrity problem.",
-   "Scoring carries on with the last rubric the authorized user signed."
+   {
+    "t": "The dispatcher refuses it as an integrity violation and notifies the authorized user; Agent 02 never receives it.",
+    "src": "dispatcher/hub.py:559-566; check:02-09:integrity.violation; check:02-09:human.notified"
+   },
+   {
+    "t": "Scoring continues on the last signed rubric.",
+    "src": "check:02-09:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Adopt a scoring change the authorized user did not sign."
+   {
+    "t": "Adopt an unsigned rubric.",
+    "src": "tuple:02-09"
+   }
   ],
-  "why": "Whoever controls the rubric controls who gets called. Only the authorized user may change it.",
-  "you_see": "An integrity alert; scores keep using the authorized user's signed rubric version.",
-  "test": "An unsigned rubric that would make a $100 budget count as high arrives. A lead with a $300,000 budget and a 90-day timeline then scores cold on the authorized user's signed rubric \"synth-v1\"."
+  "you_see": {
+   "t": "An integrity alert; scores keep the signed rubric's version.",
+   "src": "check:02-09:human.notified; check:02-09:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "An unsigned rubric with a budget threshold of 100 arrives. A lead with a 300,000 budget and a 90-day timeline then scores cold on the signed rubric \"synth-v1\".",
+   "src": "spec:02-09"
+  }
  },
  {
   "id": "02-10",
-  "rev": 2,
-  "title": "A lead's stated budget is higher than their pre-approval",
-  "when": "The budget a lead states is higher than the amount on their pre-approval document.",
+  "rev": 3,
+  "title": {
+   "t": "A lead's stated budget differs from the pre-approval amount",
+   "src": "tuple:02-10"
+  },
+  "when": {
+   "t": "A stated budget differs from the amount on the pre-approval document.",
+   "src": "dispatcher/lead_rubric.py:65-73"
+  },
   "steps": [
-   "Agent 02 scores on the document's amount.",
-   "It writes the conflict in the client's history word for word."
+   {
+    "t": "Agent 02 scores on the document's amount.",
+    "src": "dispatcher/lead_rubric.py:65-73"
+   },
+   {
+    "t": "The conflict goes in the tier record word for word.",
+    "src": "check:02-10:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Score on the stated budget when a document says otherwise."
+   {
+    "t": "Score on the stated budget when the document differs.",
+    "src": "tuple:02-10"
+   }
   ],
-  "why": "The document is evidence; the stated number is a wish. Scoring on evidence keeps the ranking honest.",
-  "you_see": "The conflict noted with the lead's score.",
-  "test": "A lead says $600,000 but the pre-approval is for $350,000. The score is 60 (timeline and financing, no budget points) and the lead goes to follow-up as warm."
+  "you_see": {
+   "t": "The conflict with the score.",
+   "src": "check:02-10:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A lead says 600,000; the pre-approval is for 350,000. The score is 60 and the lead goes to follow-up as warm.",
+   "src": "spec:02-10; check:02-10:envelope.persisted:interaction.log; flow:02-10:02->03 lead.nurture"
+  }
  },
  {
   "id": "02-11",
-  "rev": 2,
-  "title": "A re-score arrives while the authorized user is handling a hot lead",
-  "when": "A lead is hot and its alert is still open with the authorized user, and a re-score request arrives.",
+  "rev": 3,
+  "title": {
+   "t": "A re-score arrives while a hot alert is open",
+   "src": "tuple:02-11"
+  },
+  "when": {
+   "t": "A re-score request arrives for a lead whose hot alert has not been closed.",
+   "src": "dispatcher/listing_spokes_02.py::if env.intent == \"lead.rescored\" and ctx in self.open_escalations:"
+  },
   "steps": [
-   "Agent 02 does not re-score it.",
-   "It holds the request and tells the authorized user a re-score arrived during an open alert."
+   {
+    "t": "Agent 02 does not re-score; it holds the request and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_02.py::if env.intent == \"lead.rescored\" and ctx in self.open_escalations:; check:02-11:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Change a lead's tier while the authorized user is working it."
+   {
+    "t": "Re-tier a lead during an open hot alert.",
+    "src": "tuple:02-11"
+   }
   ],
-  "why": "A person's read of a lead they are talking to outranks a formula. Re-tiering mid-conversation could pull the lead out from under them.",
-  "you_see": "A question saying a re-score came in during the open alert.",
-  "test": "A hot lead raises an alert. A re-score request with lower numbers then arrives. Stand-in: Agent 03 only re-scores warm leads, so the test sends it as Agent 03."
+  "why": {
+   "t": "The tuple's words: the authorized user's read outranks the rubric during an open alert.",
+   "src": "tuple:02-11"
+  },
+  "you_see": {
+   "t": "A question saying a re-score arrived during an open alert.",
+   "src": "check:02-11:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A hot lead raises an alert; a re-score with lower numbers then arrives. Stand-in: Agent 03 re-scores only warm leads, so the test sends it as Agent 03.",
+   "src": "spec:02-11"
+  }
  },
  {
   "id": "02-12",
-  "rev": 2,
-  "title": "Nothing is known about a lead's budget, timeline or financing",
-  "when": "A lead gives none of the facts the rubric uses.",
+  "rev": 3,
+  "title": {
+   "t": "Nothing is known about a lead's budget, timeline or financing",
+   "src": "tuple:02-12"
+  },
+  "when": {
+   "t": "A lead gives none of the facts the rubric uses.",
+   "src": "dispatcher/lead_rubric.py:83-87"
+  },
   "steps": [
-   "Agent 02 records the tier as UNKNOWN, not cold.",
-   "It stops scoring the lead and asks the authorized user."
+   {
+    "t": "Agent 02 records the tier as unknown, not cold.",
+    "src": "dispatcher/lead_rubric.py:85-87; check:02-12:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "It asks the authorized user.",
+    "src": "check:02-12:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Treat missing facts as a low score."
+   {
+    "t": "Treat missing facts as a low score.",
+    "src": "tuple:02-12"
+   }
   ],
-  "why": "Unknown is not cold. Archiving a lead because they did not fill in the form loses real buyers.",
-  "you_see": "A question saying all scoring inputs are unknown; the lead's tier shows UNKNOWN.",
-  "test": "A web form with only a name and an email."
+  "why": {
+   "t": "The tuple's words: unknown is absent data, not a low score.",
+   "src": "tuple:02-12"
+  },
+  "you_see": {
+   "t": "A question saying all scoring inputs are unknown.",
+   "src": "check:02-12:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A web form with only a name and an email.",
+   "src": "spec:02-12"
+  }
  },
  {
   "id": "02-13",
-  "rev": 2,
-  "title": "The scoring engine is not confident enough",
-  "when": "The decision engine scores a lead but reports a confidence below the floor the authorized user signed.",
+  "rev": 3,
+  "title": {
+   "t": "The scoring engine is below the confidence floor",
+   "src": "tuple:02-13"
+  },
+  "when": {
+   "t": "The engine's confidence is below the floor: 0.45 unless the authorized user signs another (decision_engine confidence_floor).",
+   "src": "dispatcher/listing_spokes_02.py:359 (if tier == \"HELD_FOR_CALIBRATION\":); dispatcher/listing_spokes_02.py:107, 168-169"
+  },
   "steps": [
-   "Agent 02 does not act on the uncertain tier; it holds the lead and asks the authorized user to continue or cancel.",
-   "Continue: the lead is scored with the authorized user's signed rubric and acted on (for example a hot-lead alert).",
-   "Cancel: the lead is archived and nothing is sent."
+   {
+    "t": "Agent 02 holds the lead and asks the authorized user to continue or cancel.",
+    "src": "dispatcher/listing_spokes_02.py::if tier == \"HELD_FOR_CALIBRATION\":; flow:02-13:02->queue decision.required"
+   },
+   {
+    "t": "Continue: the lead is scored with the signed rubric and acted on. Cancel: archived, nothing sent.",
+    "src": "dispatcher/listing_spokes_02.py::def _resume(self, ws, decision_payload: dict):; check:02-13:escalation.raised"
+   }
   ],
   "never": [
-   "Act on a tier the engine itself is unsure of."
+   {
+    "t": "Act on a tier under the floor.",
+    "src": "tuple:02-13"
+   }
   ],
-  "why": "An uncertain score can send a lead down the wrong path. The authorized user decides whether to rely on the signed rubric instead.",
-  "you_see": "A held lead asking the authorized user to continue or cancel, naming the confidence and the floor.",
-  "test": "The authorized user signs a confidence floor of 0.9. The engine scores a lead at confidence 0.85. The authorized user continues: the signed rubric scores it hot and the authorized user gets a hot-lead alert."
+  "you_see": {
+   "t": "A held lead asking continue or cancel.",
+   "src": "flow:02-13:02->queue decision.required"
+  },
+  "test": {
+   "t": "The authorized user signs a floor of 0.9; the local engine reports 0.85. The authorized user continues: the signed rubric scores it hot and a hot-lead alert follows.",
+   "src": "spec:02-13"
+  }
  },
  {
   "id": "02-14",
-  "rev": 2,
-  "title": "Lead data would go to the outside scoring service",
-  "when": "The outside decision engine could be used to score a lead.",
+  "rev": 3,
+  "title": {
+   "t": "Lead data would go to the outside scoring service",
+   "src": "tuple:02-14"
+  },
+  "when": {
+   "t": "The outside decision engine could score a lead.",
+   "src": "tuple:02-14"
+  },
   "steps": [
-   "Lead data goes to the outside service only when both are true: a service key is installed AND the authorized user has signed \"allow external\".",
-   "Otherwise nothing is sent out and the local engine scores the lead."
+   {
+    "t": "Lead data goes out only when a service key is installed and the authorized user has signed that it may.",
+    "src": "dispatcher/listing_spokes_02.py:101-107; dispatcher/decision_adapter.py"
+   },
+   {
+    "t": "Otherwise nothing is sent and the local engine scores.",
+    "src": "check:02-14:decision.lead"
+   }
   ],
   "never": [
-   "Send lead data out because a key happens to be installed."
+   {
+    "t": "Send lead data because a key is installed.",
+    "src": "tuple:02-14"
+   }
   ],
-  "why": "Personal data leaving the office is the authorized user's decision, and it must be a signed one.",
-  "you_see": "The lead's score; the record shows the local engine made it.",
-  "test": "The authorized user signs \"allow external\" but no key is installed. A lead comes in: nothing is sent out and the local engine scores it."
+  "you_see": {
+   "t": "The score; the record shows the local engine made it.",
+   "src": "check:02-14:decision.lead"
+  },
+  "test": {
+   "t": "The authorized user signs \"allow external\" with no key installed. A lead comes in: nothing goes out and the local engine scores it.",
+   "src": "spec:02-14"
+  }
  },
  {
   "id": "02-15",
-  "rev": 2,
-  "title": "The scoring engine returns a tier nobody knows",
-  "when": "The decision engine returns a tier name Agent 02 does not recognize.",
+  "rev": 3,
+  "title": {
+   "t": "The scoring engine returns a tier nobody knows",
+   "src": "tuple:02-15"
+  },
+  "when": {
+   "t": "The engine returns a tier Agent 02 does not recognize.",
+   "src": "tuple:02-15"
+  },
   "steps": [
-   "Agent 02 treats it as below the confidence floor.",
-   "It holds the lead and asks the authorized user to continue or cancel, as in LA-T-02-13."
+   {
+    "t": "Agent 02 treats it as below the floor and holds the lead for the authorized user (as in 02-13).",
+    "src": "dispatcher/listing_spokes_02.py::tier = \"HELD_FOR_CALIBRATION\"   # an engine answer this agent cannot act on holds"
+   },
+   {
+    "t": "No way in yet: this needs a live engine; the test runner has no key.",
+    "src": "spec:02-15"
+   }
   ],
   "never": [
-   "Act on, or guess the meaning of, an unknown tier."
+   {
+    "t": "Act on an unknown tier.",
+    "src": "tuple:02-15"
+   }
   ],
-  "why": "An unrecognized answer is not an answer. Holding is the safe default.",
-  "you_see": "A held lead asking the authorized user to continue or cancel.",
-  "test": ""
+  "you_see": {
+   "t": "A held lead asking continue or cancel.",
+   "src": "dispatcher/listing_spokes_02.py::if tier == \"HELD_FOR_CALIBRATION\":"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:02-15"
+  }
  },
  {
   "id": "02-16",
-  "rev": 2,
-  "title": "A warm lead goes to follow-up with its scoring facts",
-  "when": "A lead scores warm and is passed to Agent 03 (Lead Nurture) for follow-up.",
+  "rev": 3,
+  "title": {
+   "t": "A warm lead goes to follow-up with its scoring facts",
+   "src": "tuple:02-16"
+  },
+  "when": {
+   "t": "A lead scores warm.",
+   "src": "dispatcher/listing_spokes_02.py::elif tier == \"WARM\":"
+  },
   "steps": [
-   "Agent 02 sends the lead's scoring facts along (budget, timeline, financing).",
-   "Agent 03 uses them to re-score the lead on its schedule."
+   {
+    "t": "Agent 02 sends the lead to Agent 03 with its scoring facts.",
+    "src": "dispatcher/listing_spokes_02.py::inputs = {k: payload[k] for k in RESCORE_INPUT_KEYS if k in payload}; check:02-16:envelope.persisted:lead.nurture"
+   },
+   {
+    "t": "Agent 03 uses them for its weekly re-score.",
+    "src": "dispatcher/listing_spokes_03.py::def rescore_cadence(self, ctx: str, today: str):"
+   }
   ],
   "never": [
-   "Pass a warm lead on without the facts needed to re-score it."
+   {
+    "t": "Pass a warm lead on without its scoring facts.",
+    "src": "tuple:02-16"
+   }
   ],
-  "why": "Without the original facts, a later re-score would have to guess. With them, it counts the timeline down honestly.",
-  "you_see": "Nothing extra; the lead starts its follow-up sequence.",
-  "test": "A lead with a $500,000 budget, a 60-day timeline and pre-approval scores warm and goes to follow-up."
+  "you_see": {
+   "t": "Nothing extra; the lead starts its follow-up.",
+   "src": "flow:02-16:03->17 content.review"
+  },
+  "test": {
+   "t": "A lead with a 500,000 budget, a 60-day timeline and pre-approval scores warm.",
+   "src": "spec:02-16"
+  }
  }
 ]

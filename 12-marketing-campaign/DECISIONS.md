@@ -23,7 +23,7 @@ constrains everything.
 - (fair-housing verdict pending, nothing publishes; verdict is a gate not a race)
 - (campaign targets a geography, farm rules apply; demographic targeting parameters are refused outright)
 - (published asset found factually stale, correct or retract within the same day; log the delta)
-- (budget change requested verbally, current signed budget stands until config.update)
+- (budget change requested verbally, current signed budget stands until config.update) - RETIRED 2026-10-28 (owner decision D-A17): no ad carries a cost and nothing is bought, so a budget guarded nothing; a budget setting is now refused
 
 Added 2026-10-12 (owner sign-off, Jeff: consent required for every client message; angry clients straight to the human; broker notices written as tuples):
 - (compliance flags campaign copy, publish nothing; tell the broker with 17's findings and wait for corrected signed copy)

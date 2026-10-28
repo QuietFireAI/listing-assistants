@@ -1,79 +1,294 @@
 {
- "_what": "Level 1 of the Operating Procedures manual: the real estate lifecycle mapped to playbooks, agents and the authorized user's decisions. Drafted 2026-10-27 from docs/PLAYBOOKS.md, identity/playbooks.json and docs/JOB_DESCRIPTIONS.md, for the owner's review. Agents per stage are computed from the playbooks by build_site.py.",
+ "_what": "Level 1 of the Operating Procedures manual. Stages follow the playbook map in docs/PLAYBOOKS.md (the listing, the buyer, leads, every day), with the listing split into its steps. Every statement carries its source; build_site.py computes each stage's agents from identity/playbooks.json.",
+ "rev": 2,
+ "story": [
+  {
+   "t": "A web form arrives. It goes to the dispatcher (Agent 00), not to an agent. The dispatcher checks that an inquiry from outside to Agent 01 is on the track, numbers it for this client, writes it to the record, and delivers it to Agent 01.",
+   "src": "run:P11:external->01 lead.inbound; dispatcher/hub.py:590-603, 647-697"
+  },
+  {
+   "t": "Agent 01 records the inquiry and the consent, then asks Agent 14 whether the person is already on record. That question also goes through the dispatcher: checked, numbered, recorded, delivered.",
+   "src": "run:P11:01->14 record.request; dispatcher/listing_spokes.py:1117-1122"
+  },
+  {
+   "t": "Agent 14 answers, again through the dispatcher: not a duplicate.",
+   "src": "run:P11:14->01 record.response"
+  },
+  {
+   "t": "Agent 01 hands the lead to Agent 02, which scores it on the authorized user's rubric: warm. It goes to Agent 03.",
+   "src": "run:P11:01->02 lead.captured; run:P11:02->03 lead.nurture"
+  },
+  {
+   "t": "Agent 03 sends the sequence's text to Compliance (Agent 17), which returns its verdict, each through the dispatcher.",
+   "src": "run:P11:03->17 content.review; run:P11:17->03 content.verdict"
+  },
+  {
+   "t": "A route that is not on the track would have been refused, and a message of a kind that is on no route at all would have been held with a question for the authorized user. A message to a vendor or the public would have been held for the authorized user's release.",
+   "src": "dispatcher/hub.py:589-603, 604-646"
+  }
+ ],
  "stages": [
   {
-   "id": "leads", "name": "Leads",
-   "business": "Someone calls, fills in a form, texts or comments online. The office has minutes, not hours, to respond to a ready buyer or seller, and must not contact anyone who has not agreed to it.",
-   "playbooks": ["P11", "P21", "P12", "P24"],
-   "system": "Every inquiry is captured with its consent, checked against the existing records, scored on the signed rubric and routed: hot leads to the authorized user at once, warm leads to follow-up sequences the authorized user wrote, cold leads archived with the reason. Warm leads are re-scored every week. Prospects found in public sources are put in front of the authorized user, never contacted.",
-   "person": ["Calling the hot lead.", "Writing the scoring rubric and the follow-up sequences.", "Deciding whether and how to reach out to any prospect.", "Deciding and paying for any farm campaign."]
+   "id": "leads",
+   "name": "Leads",
+   "playbooks": [
+    "P11",
+    "P21",
+    "P12",
+    "P24"
+   ],
+   "system": {
+    "t": "Each inquiry is captured with its consent, checked against the record, scored on the signed rubric and routed: hot to the authorized user, warm to follow-up sequences the authorized user wrote, cold archived with the reason. Warm leads are re-scored every 7 days. Prospects from a discovery feed are passed to the authorized user; the system has no route to contact them.",
+    "src": "dispatcher/listing_spokes.py:922-1231; dispatcher/listing_spokes_02.py::def _apply_tier(; dispatcher/listing_spokes_03.py::RESCORE_INTERVAL_DAYS = 7; dispatcher/listing_spokes_19.py:137-280"
+   },
+   "person": [
+    {
+     "t": "Calling a hot lead.",
+     "src": "dispatcher/listing_spokes_02.py::def _hot_record("
+    },
+    {
+     "t": "Writing the scoring rubric and the follow-up sequences.",
+     "src": "dispatcher/listing_spokes_02.py::missing = REQUIRED_RUBRIC_KEYS - set(new_rubric.keys()); dispatcher/listing_spokes_03.py::if env.intent == \"config.update\" and \"nurture_sequences\" in env.payload:"
+    },
+    {
+     "t": "Every decision to contact a prospect.",
+     "src": "dispatcher/listing_spokes_19.py:103-114"
+    },
+    {
+     "t": "Signing any farm campaign.",
+     "src": "dispatcher/listing_spokes_12.py:322-365"
+    }
+   ]
   },
   {
-   "id": "win", "name": "Winning the listing",
-   "business": "A seller agrees to meet. The agent prepares a comparative market analysis, presents, recommends a price and signs a listing agreement.",
-   "playbooks": ["P15"],
-   "system": "Agent 10 assembles the comparable sales with a source and date on every figure, and Agent 18 puts the appointment on the calendar. Nothing in the package is an opinion.",
-   "person": ["The listing presentation.", "The price opinion and the list price.", "Signing the listing agreement with the seller."]
+   "id": "win",
+   "name": "Winning the listing",
+   "playbooks": [
+    "P15"
+   ],
+   "system": {
+    "t": "Agent 10 assembles the comparable sales the authorized user supplies, keeping only figures with a source and date (and, when the request gives today's date, none older than 30 days), with no opinion.",
+    "src": "dispatcher/listing_spokes_10.py:197-259"
+   },
+   "person": [
+    {
+     "t": "The price opinion and the list price.",
+     "src": "dispatcher/listing_spokes_10.py:138-152; dispatcher/listing_spokes_05.py:1-8"
+    },
+    {
+     "t": "The listing agreement with the seller (outside the system).",
+     "src": "identity/routes.json (no route carries a listing agreement)"
+    }
+   ]
   },
   {
-   "id": "launch", "name": "Launching the listing",
-   "business": "The signed listing goes on the market: photos, description, MLS entry, then marketing.",
-   "playbooks": ["P01"],
-   "system": "The authorized user's signed listing package starts it. Photography is booked from the approved roster (the booking waits for release), the description is drafted from the property data only and checked by Compliance, the MLS record is entered field for field, and public marketing waits for the MLS entry and the authorized user's release.",
-   "person": ["Signing the listing package and the price.", "Releasing the photographer's booking.", "Releasing each publication."]
+   "id": "launch",
+   "name": "Launching the listing",
+   "playbooks": [
+    "P01"
+   ],
+   "system": {
+    "t": "The signed listing package starts it. Photography is booked from the approved roster (the booking waits for release), the description is built from the property data and checked by Compliance, the listing is set active as the package allows, and its publication waits for the authorized user's release.",
+    "src": "synth/procedures/evidence_playbooks.json P01; dispatcher/hub.py:604-646"
+   },
+   "person": [
+    {
+     "t": "Signing the listing package and price.",
+     "src": "dispatcher/listing_spokes_05.py:318-363"
+    },
+    {
+     "t": "Releasing the photographer's booking and each publication.",
+     "src": "dispatcher/hub.py:325-353"
+    }
+   ]
   },
   {
-   "id": "market", "name": "On the market",
-   "business": "Showings, open houses, feedback, the seller's weekly update, price conversations, and keeping vacant homes and access safe.",
-   "playbooks": ["P04", "P18", "P23", "P02", "P19", "P20", "P05"],
-   "system": "Showings are booked and confirmed only with the buyer agreement on file and the calendar's say; feedback is collected and logged. The weekly seller report counts showings and feedback and waits for the authorized user before it goes. For a price conversation the system assembles evidence and never a number; a price change happens only on the authorized user's signature. Vacant homes get a condition check every day; access grants are tracked without the codes themselves. An expired or withdrawn listing stops all marketing at once.",
-   "person": ["Every price change.", "Releasing the weekly seller report.", "Granting and closing property access.", "Talking with the seller about price."]
+   "id": "market",
+   "name": "On the market",
+   "playbooks": [
+    "P04",
+    "P18",
+    "P23",
+    "P02",
+    "P19",
+    "P20",
+    "P05"
+   ],
+   "system": {
+    "t": "Showings are confirmed only with the buyer agreement on file and the calendar's say (a showing the calendar did not take is confirmed only if the authorized user continues it). The weekly seller report counts showings and feedback and waits for the authorized user. For a price conversation the system assembles the comparables it is given and never a number; a price changes only on the authorized user's signature. A vacant listing gets a property check ordered on each daily run (the booking waits for release). Access grants are recorded without a code named in them (a value naming the code, combination, PIN or password is rejected). A withdrawn or expired listing stops its marketing.",
+    "src": "dispatcher/listing_spokes_06.py:497-511, 745-768, 244-262, 199-242; dispatcher/listing_spokes_10.py:138-152; dispatcher/listing_spokes_05.py:153-178; dispatcher/listing_spokes.py:260-286; dispatcher/listing_spokes_12.py:220-257"
+   },
+   "person": [
+    {
+     "t": "Every price change.",
+     "src": "dispatcher/listing_spokes_05.py:1-8"
+    },
+    {
+     "t": "Releasing each weekly seller report.",
+     "src": "dispatcher/listing_spokes_06.py:263-273"
+    },
+    {
+     "t": "Granting and closing property access.",
+     "src": "dispatcher/listing_spokes.py:262-302"
+    },
+    {
+     "t": "Talking with the seller about price.",
+     "src": "dispatcher/listing_spokes_10.py:138-152"
+    }
+   ]
   },
   {
-   "id": "buyers", "name": "Working with buyers",
-   "business": "A buyer signs a written buyer agreement, states what they want, tours homes and gives feedback.",
-   "playbooks": ["P06", "P07", "P22"],
-   "system": "The buyer's criteria are recorded exactly as stated and matched against new listings; matches wait until the written buyer agreement is on file. Tours are booked through the showing agent, feedback updates the criteria only where the buyer said so explicitly.",
-   "person": ["The buyer agreement.", "Recording the buyer's criteria.", "Every piece of advice, including anything about neighborhoods."]
+   "id": "buyers",
+   "name": "Working with buyers",
+   "playbooks": [
+    "P06",
+    "P07",
+    "P22"
+   ],
+   "system": {
+    "t": "Criteria are kept as signed and matched against new listings; matches wait until the written buyer agreement is on file. Showings are booked through Agent 06; criteria change only from the buyer's explicit feedback or the authorized user's signed criteria.",
+    "src": "dispatcher/listing_spokes_13.py:447-469, 258-316, 589-599"
+   },
+   "person": [
+    {
+     "t": "The buyer agreement.",
+     "src": "dispatcher/listing_spokes.py:674-701"
+    },
+    {
+     "t": "Recording the buyer's criteria.",
+     "src": "dispatcher/listing_spokes_13.py:447-469"
+    },
+    {
+     "t": "Every price, seller-position and neighborhood question.",
+     "src": "dispatcher/listing_spokes_13.py:556-580"
+    }
+   ]
   },
   {
-   "id": "offer", "name": "Offer to acceptance",
-   "business": "An offer is written, presented, countered and accepted or rejected.",
-   "playbooks": ["P08"],
-   "system": "The thinnest playbook on purpose. The system tracks the offer's status and its documents for the authorized user; offer status never goes to a client from the system.",
-   "person": ["Writing, presenting and negotiating every offer.", "Advising the client."]
+   "id": "offer",
+   "name": "Offer to acceptance",
+   "playbooks": [
+    "P08"
+   ],
+   "system": {
+    "t": "The authorized user records each offer status; it goes to the authorized user's queue and is logged, never to a client.",
+    "src": "dispatcher/listing_spokes_07.py:251-268"
+   },
+   "person": [
+    {
+     "t": "Writing, presenting and negotiating every offer (outside the system).",
+     "src": "dispatcher/listing_spokes_07.py:251-268"
+    }
+   ]
   },
   {
-   "id": "contract", "name": "Under contract to closing",
-   "business": "Inspection, appraisal, financing, title, disclosures and repairs, each with a deadline; then closing.",
-   "playbooks": ["P03", "P09"],
-   "system": "The listing goes to pending. The contract's dates, signed by the authorized user, become the timeline; each document is requested, checked (expected sender, file opens) and filed; each deadline is watched and counts as met only with the document on file. Vendors are booked from the roster with release.",
-   "person": ["The contract and its dates.", "Repair negotiation.", "Every movement of money and every wire instruction.", "Every legal question."]
+   "id": "contract",
+   "name": "Under contract to closing",
+   "playbooks": [
+    "P03",
+    "P09"
+   ],
+   "system": {
+    "t": "The listing goes pending on the authorized user's signature. The contract's dates, signed by the authorized user, become the timeline; a date changes only by a signed amendment. Documents are requested, checked (sensitive ones only from listed senders) and filed; a milestone counts as met with its document (an inspection report or appraisal counts whatever it says) or the authorized user's waiver at closing, and the close is held while any is open.",
+    "src": "dispatcher/listing_spokes_05.py:412-484; dispatcher/listing_spokes_07.py:270-312, 432-480, 502-554, 612-655, 186-207; dispatcher/listing_spokes_08.py:347-386"
+   },
+   "person": [
+    {
+     "t": "The contract and its dates.",
+     "src": "dispatcher/listing_spokes_07.py:270-275"
+    },
+    {
+     "t": "Repair, appraisal, title and earnest-money matters (a legal-line alert when repairs are requested or not stated, an appraisal is below the price, a title exception is found, or earnest money is not confirmed).",
+     "src": "dispatcher/listing_spokes_07.py:432-500"
+    },
+    {
+     "t": "Every wire and money matter.",
+     "src": "dispatcher/listing_spokes_07.py:154-175; dispatcher/listing_spokes_15.py:230-254"
+    }
+   ]
   },
   {
-   "id": "after", "name": "Closing and after",
-   "business": "The deal closes; the relationship continues with check-ins, greetings, reviews and referrals. Complaints are handled by a person.",
-   "playbooks": ["P10", "P13", "P14"],
-   "system": "The commission is recorded, and check-ins at 30, 90 and 365 days are scheduled for people on the authorized user's client list. Every touch stops for an opt-out, a hard time on record or a contact that no longer works. A complaint holds every message to that person until the authorized user lifts the hold.",
-   "person": ["Every response to a complaint.", "Whether to reach out during a hard time.", "Any answer about a referral reward."]
+   "id": "after",
+   "name": "Closing and after",
+   "playbooks": [
+    "P10",
+    "P13",
+    "P14"
+   ],
+   "system": {
+    "t": "The commission is recorded and the 30, 90 and 365-day check-ins are scheduled for people on the authorized user's list. Every touch stops for an opt-out, a hard time on record or a contact that no longer works. A complaint holds routine messages to that person until the authorized user lifts the hold.",
+    "src": "dispatcher/listing_spokes_15.py:111-134; dispatcher/listing_spokes_16.py:71-133; dispatcher/listing_spokes_11.py:448-456, 503-518"
+   },
+   "person": [
+    {
+     "t": "Every response to a complaint.",
+     "src": "dispatcher/listing_spokes_20.py:179; dispatcher/listing_spokes_11.py:552-577"
+    },
+    {
+     "t": "Whether to reach out during a hard time.",
+     "src": "dispatcher/listing_spokes_16.py:185-188"
+    },
+    {
+     "t": "Any answer about a referral reward.",
+     "src": "dispatcher/listing_spokes_16.py:242-287"
+    }
+   ]
   },
   {
-   "id": "daily", "name": "Every day",
-   "business": "The day starts with what needs attention and ends with the books.",
-   "playbooks": ["P16", "P17"],
-   "system": "The morning briefing is built only from the record: calendar, open waits, decisions pending, deadlines, overnight leads, yesterday's books, prospects waiting, market changes. In the evening the day's interactions and figures are closed into one report.",
-   "person": ["Reading the briefing and setting the day's priorities."]
+   "id": "daily",
+   "name": "Every day",
+   "playbooks": [
+    "P16",
+    "P17"
+   ],
+   "system": {
+    "t": "The morning briefing is built from the record: calendar, waiting items, decisions waiting, new leads, record conflicts, yesterday's figures, prospects waiting, listing changes received and compliance notices. The evening run sends Agent 14's counts (over every record it holds) and the day's figures as one report. Both run only when started: the daily run from the Desk, run_sweeps.py or a scheduler the office sets up; the evening run from run_sweeps.py --evening or a scheduler.",
+    "src": "dispatcher/listing_spokes_18.py:511-573; dispatcher/listing_spokes.py:452-491; dispatcher/listing_spokes_15.py:198-206; tools/desk.py:35; tools/run_sweeps.py:10-12"
+   },
+   "person": [
+    {
+     "t": "Reading the briefing and setting priorities.",
+     "src": "dispatcher/listing_spokes_18.py:572"
+    },
+    {
+     "t": "Starting the daily and evening runs, or scheduling them.",
+     "src": "tools/run_sweeps.py:10; QUICKSTART_WINDOWS.md:227"
+    }
+   ]
   }
  ],
  "always_person": [
-  "Price: every list price, every price change and every price opinion.",
-  "Signatures: listing agreements, buyer agreements, contracts.",
-  "Negotiation: offers, counteroffers, repairs.",
-  "Advice: legal, financial, and anything about a neighborhood.",
-  "Money: the system records commissions and expenses; it has no way to move money.",
-  "Anything that leaves the office for a vendor, the other side or the public: each message is held until the authorized user releases it.",
-  "Complaints and public replies.",
-  "Reaching out to prospects.",
-  "Any situation no rule covers: the agent stops and asks."
+  {
+   "t": "Price: every list price and price change. The system records a signed price and offers no opinion.",
+   "src": "dispatcher/listing_spokes_05.py:1-8; dispatcher/listing_spokes_10.py:138-152"
+  },
+  {
+   "t": "Negotiation and offers: recorded as statuses only.",
+   "src": "dispatcher/listing_spokes_07.py:251-268"
+  },
+  {
+   "t": "Advice: a request for advice raises a legal-line alert.",
+   "src": "dispatcher/listing_spokes_11.py:606-644"
+  },
+  {
+   "t": "Money: the system has no route that moves money.",
+   "src": "identity/routes.json"
+  },
+  {
+   "t": "Anything to a vendor, the other side or the public: held until the authorized user releases that message.",
+   "src": "dispatcher/hub.py:604-646"
+  },
+  {
+   "t": "Complaints and public replies.",
+   "src": "dispatcher/listing_spokes_20.py:117-121, 179"
+  },
+  {
+   "t": "Contacting prospects.",
+   "src": "dispatcher/listing_spokes_19.py:103-114"
+  },
+  {
+   "t": "A situation no rule covers: the agent holds it and asks.",
+   "src": "dispatcher/listing_spokes_13.py:610-625; dispatcher/listing_spokes_16.py:311-325; dispatcher/listing_spokes_20.py:256-263"
+  }
  ]
 }

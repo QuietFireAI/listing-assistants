@@ -1,991 +1,1660 @@
 [
  {
   "id": "P01",
-  "rev": 1,
-  "purpose": "Takes a signed listing from the authorized user's signature to a live, marketed listing: photography, description, compliance check, MLS record, and marketing held for release.",
-  "starts": "The authorized user signs the listing package (property data, list price, go-live) to Agent 05.",
-  "ends": "Agent 05 records the listing as active.",
+  "rev": 2,
+  "purpose": {
+   "t": "Takes a signed new listing to an active listing: photography, the description and its compliance check, the listing record, and the listing's publication held for release.",
+   "src": "identity/playbooks.json P01; synth/procedures/evidence_playbooks.json P01"
+  },
+  "starts": {
+   "t": "The authorized user signs a new listing package to Agent 05.",
+   "src": "identity/playbooks.json P01 starts"
+  },
+  "ends": {
+   "t": "Agent 05 reports the listing active to Agent 14.",
+   "src": "identity/playbooks.json P01 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the listing package: the property data and the list price, decided before this playbook starts."
+    "text": "Signs the listing package: property data, list price, and whether it may go live.",
+    "src": "run:P01:human->05 listing.change.authorized; dispatcher/listing_spokes_05.py:318-363"
    },
    {
     "by": "05",
-    "text": "Checks the package field by field and orders photography from Agent 09."
+    "text": "Files the package and asks Agent 09 for photography.",
+    "src": "run:P01:05->09 vendor.request"
    },
    {
     "by": "09",
-    "text": "Picks a photographer from the approved roster with current credentials, puts the appointment on the calendar (Agent 18), and prepares the booking message."
+    "text": "Picks a roster photographer with current credentials, puts it on the calendar, and sends the booking.",
+    "src": "run:P01:09->18 calendar.event; dispatcher/listing_spokes_09.py:170-295"
    },
    {
     "by": "00",
-    "text": "Holds the booking message: it goes to an outside vendor."
+    "text": "Holds the booking: it goes to an outside vendor.",
+    "src": "run:P01:09->external vendor.schedule; dispatcher/hub.py:604-646"
    },
    {
     "by": "user",
-    "text": "Releases the booking."
+    "text": "Releases the booking.",
+    "src": "dispatcher/hub.py:325-353"
    },
    {
     "by": "outside",
-    "text": "The photographer delivers the photos."
+    "text": "The photographer reports the delivery, with proof.",
+    "src": "run:P01:external->09 vendor.event"
    },
    {
     "by": "09",
-    "text": "Counts the delivery only with proof, and passes the photos to Agent 05."
+    "text": "Passes the photos to Agent 05.",
+    "src": "run:P01:09->05 deliverable.release"
    },
    {
     "by": "05",
-    "text": "Sends the listing data to Agent 04."
+    "text": "Sends the property data to Agent 04.",
+    "src": "run:P01:05->04 listing.data"
    },
    {
     "by": "04",
-    "text": "Drafts the description from the property data only and sends it to Compliance."
+    "text": "Builds the description from the data and sends it to Compliance.",
+    "src": "run:P01:04->17 content.review; dispatcher/listing_spokes_04.py:341-427"
    },
    {
     "by": "17",
-    "text": "Checks it against the signed rules: approved or flagged. A flagged draft stops the marketing path."
+    "text": "Approves or flags it. If flagged, Agent 04 removes the sentences carrying the cited phrases and sends it again; a flag that cites no phrase, or phrases it cannot find, is held for the authorized user.",
+    "src": "run:P01:17->04 content.verdict; dispatcher/listing_spokes_04.py:429-517"
    },
    {
     "by": "04",
-    "text": "Releases the approved description to Agents 05 and 12."
+    "text": "Releases the approved description to Agents 12 and 05.",
+    "src": "run:P01:04->12 asset.release; run:P01:04->05 asset.release"
    },
    {
     "by": "05",
-    "text": "Sets the listing active and tells Agent 11 (the seller is told, with consent), Agent 12, Agent 14, and the agents that need listing data (01, 06, 10, 13)."
+    "text": "Sets the listing active (as the package allowed) and tells Agent 11 (the seller gets a message, with consent), Agent 12, Agent 14, and Agents 06, 01, 13 and 10.",
+    "src": "run:P01:05->11 status.update; run:P01:11->external client.message.send; run:P01:05->12 status.update; run:P01:05->14 status.update; run:P01:05->06 listing.data"
    },
    {
     "by": "12",
-    "text": "Prepares the listing's publication now that the MLS entry is confirmed (Clear Cooperation)."
+    "text": "With the listing active, publishes the approved description.",
+    "src": "run:P01:12->external campaign.publish; dispatcher/listing_spokes_12.py:181-185, 268-300"
    },
    {
     "by": "00",
-    "text": "Holds the publication: it goes to the public."
+    "text": "Holds the publication: it goes to the public.",
+    "src": "run:P01:12->external campaign.publish; dispatcher/hub.py:604-646"
    },
    {
     "by": "user",
-    "text": "Releases the publication when ready."
+    "text": "Releases the publication when ready.",
+    "src": "dispatcher/hub.py:325-353"
    }
   ],
   "user_decides": [
-   "The list price and the property data.",
-   "Releasing the photographer's booking.",
-   "Releasing the publication.",
-   "Any conflict between the photos and the data."
+   {
+    "t": "The list price and the property data.",
+    "src": "dispatcher/listing_spokes_05.py:1-8"
+   },
+   {
+    "t": "Releasing the photographer's booking and the publication.",
+    "src": "dispatcher/hub.py:325-353"
+   },
+   {
+    "t": "Any conflict between the photos and the data.",
+    "src": "dispatcher/listing_spokes_04.py::{\"reason\": \"photos contradict data sheet\","
+   }
   ],
   "never": [
-   "Change the price.",
-   "Publish before the MLS entry is confirmed and the authorized user releases it.",
-   "Describe a feature that is not in the data."
+   {
+    "t": "Change the price.",
+    "src": "dispatcher/listing_spokes_05.py:1-8"
+   },
+   {
+    "t": "Publish before the listing is active (or recorded as exempt, with the seller's disclosure on file) and the authorized user releases it.",
+    "src": "dispatcher/listing_spokes_12.py:95-99; dispatcher/hub.py:604-646"
+   },
+   {
+    "t": "Describe a feature that is not in the data.",
+    "src": "dispatcher/listing_spokes_04.py:93-96"
+   }
   ],
-  "run_note": "In the recorded run the publication is still held at the end, as it should be: the run ends when the listing is active, and the release is the authorized user's next act.",
+  "run_note": {
+   "t": "The run ends with the publication still held, as it should: the release is the authorized user's next act.",
+   "src": "synth/procedures/evidence_playbooks.json P01 (campaign.publish held for your signed release)"
+  },
   "not_built": [
-   "No MLS or portal is connected: \"active\" is Agent 05's own record."
+   {
+    "t": "No MLS or portal is connected: \"active\" is Agent 05's own record, and released messages are kept in the run.",
+    "src": "dispatcher/swarm.py:220-222; dispatcher/listing_spokes_05.py:47-65"
+   }
   ]
  },
  {
   "id": "P02",
-  "rev": 1,
-  "purpose": "Carries out a price change the authorized user decided: the record, the seller's notice, buyers' matches and marketing all follow the new price.",
-  "starts": "The authorized user signs a price change to Agent 05.",
-  "ends": "Agent 05 records the change.",
+  "rev": 2,
+  "purpose": {
+   "t": "Carries out a price change the authorized user signed: the record, the seller's message, buyers' matches and marketing follow the new price.",
+   "src": "identity/playbooks.json P02"
+  },
+  "starts": {
+   "t": "The authorized user signs a price change to Agent 05.",
+   "src": "identity/playbooks.json P02 starts"
+  },
+  "ends": {
+   "t": "Agent 05 reports the change to Agent 14.",
+   "src": "identity/playbooks.json P02 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the new price. The decision is made before this playbook starts; nothing in it produces or suggests a number."
+    "text": "Signs the new price. Nothing in this playbook produces or suggests a number.",
+    "src": "run:P02:human->05 listing.change.authorized; dispatcher/listing_spokes_05.py:1-8"
    },
    {
     "by": "05",
-    "text": "Records the new price exactly as signed."
+    "text": "Records the price as signed and tells Agent 11 (the seller gets a message, with consent), Agent 12 and Agent 14.",
+    "src": "run:P02:05->11 status.update; run:P02:11->external client.message.send; run:P02:05->12 status.update; run:P02:05->14 status.update"
    },
    {
     "by": "05",
-    "text": "Tells Agent 11 (the seller is told, with consent), Agent 12 and Agent 14."
-   },
-   {
-    "by": "05",
-    "text": "Sends the new listing data to Agents 13 and 10."
+    "text": "Sends the new data to Agents 13 and 10.",
+    "src": "run:P02:05->13 listing.data; run:P02:05->10 listing.data"
    },
    {
     "by": "13",
-    "text": "Matches the listing again: a buyer whose budget now fits is matched; a buyer already matched is not matched twice."
+    "text": "Matches again: a buyer whose budget now fits is matched; a buyer already matched gets the change, not a second match.",
+    "src": "dispatcher/listing_spokes_13.py:126-150, 233-256"
+   },
+   {
+    "by": "12",
+    "text": "If a published or held ad shows the old price, asks the authorized user.",
+    "src": "dispatcher/listing_spokes_12.py:186-210"
    }
   ],
   "user_decides": [
-   "The price.",
-   "Any change to marketing that names a price."
+   {
+    "t": "The price.",
+    "src": "dispatcher/listing_spokes_05.py:1-8"
+   },
+   {
+    "t": "Any ad that shows the old price.",
+    "src": "dispatcher/listing_spokes_12.py:198-210"
+   }
   ],
   "never": [
-   "Produce, suggest or change a price."
+   {
+    "t": "Produce, suggest or change a price.",
+    "src": "dispatcher/listing_spokes_05.py:1-8"
+   }
   ],
-  "run_note": "In the recorded run the listing goes from 450,000 to 440,000. A buyer with a 445,000 budget is matched only after the drop; a buyer matched before is not matched again. The ad carries no price, so the authorized user is not asked about it.",
+  "run_note": {
+   "t": "In the run the price goes from 450,000 to 440,000. A buyer with a 445,000 budget is matched only after the drop; a buyer matched before is not matched again. The ad carries no price, so the authorized user is not asked about it.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P02 (note and lines)"
+  },
   "not_built": [
-   "No MLS or portal is connected."
+   {
+    "t": "No MLS or portal is connected.",
+    "src": "dispatcher/listing_spokes_05.py:47-65"
+   }
   ]
  },
  {
   "id": "P03",
-  "rev": 1,
-  "purpose": "Moves an accepted offer into transaction mode: the listing goes pending, marketing stops, and the contract's timeline starts.",
-  "starts": "The authorized user signs the listing's change to pending, with the executed contract on file.",
-  "ends": "The authorized user signs the contract's timeline to Agent 07; Contract to Close (P09) starts on it.",
+  "rev": 2,
+  "purpose": {
+   "t": "Moves an accepted offer into contract: the listing goes pending, marketing stops, and the contract's timeline starts.",
+   "src": "identity/playbooks.json P03"
+  },
+  "starts": {
+   "t": "The authorized user signs the listing's change to pending, naming the filed contract.",
+   "src": "identity/playbooks.json P03 starts; dispatcher/listing_spokes_05.py:87-90"
+  },
+  "ends": {
+   "t": "The authorized user signs the contract's timeline to Agent 07; Contract to Close (P09) starts on it.",
+   "src": "identity/playbooks.json P03 ends; synth/procedures/evidence_playbooks.json P03 ended"
+  },
   "steps": [
    {
     "by": "outside",
-    "text": "The executed contract arrives; Agent 11 passes it to Agent 08, which checks and files it and tells Agent 07."
+    "text": "The executed contract arrives from the client; Agent 11 passes it to Agent 08, which files it and tells Agent 07.",
+    "src": "run:P03:external->11 client.reply; run:P03:11->08 document.submission; run:P03:08->07 doc.status"
    },
    {
     "by": "user",
-    "text": "Signs the status change to pending, naming the filed contract."
+    "text": "Signs the status change to pending, naming the contract.",
+    "src": "run:P03:human->05 listing.change.authorized; dispatcher/listing_spokes_05.py:448-456"
    },
    {
     "by": "05",
-    "text": "Sets the listing pending and tells Agents 11 (the seller is told), 12, 14, 06 and 01."
+    "text": "Sets the listing pending and tells Agents 11 (the seller gets a message), 12, 14, 06 and 01.",
+    "src": "run:P03:05->11 status.update; run:P03:05->12 status.update; run:P03:05->14 status.update"
    },
    {
     "by": "12",
-    "text": "An ad still held for release is now for a pending listing: it asks the authorized user to decline it."
+    "text": "Stops marketing; the ad still held for release would publish a pending listing, so it asks the authorized user to decline it.",
+    "src": "run:P03:12->queue clarification.request; dispatcher/listing_spokes_12.py:220-257"
    },
    {
     "by": "user",
-    "text": "Signs the contract's dates (inspection, appraisal, financing, closing) to Agent 07."
+    "text": "Signs the contract's dates to Agent 07.",
+    "src": "run:P03:human->07 config.update"
    },
    {
     "by": "07",
-    "text": "Puts each deadline on the calendar (Agent 18) and asks Agent 08 for each document."
+    "text": "Puts each date on the calendar, asks Agent 08 for each document and Agent 09 for the inspector and appraiser.",
+    "src": "run:P03:07->18 deadline.alert; run:P03:07->08 doc.request; run:P03:07->09 vendor.request"
    },
    {
     "by": "08",
-    "text": "Asks the parties for the documents through Agent 11."
-   },
-   {
-    "by": "07",
-    "text": "Asks Agent 09 for the inspector and the appraiser."
+    "text": "Asks the client for each document through Agent 11.",
+    "src": "run:P03:08->11 client.message.request"
    },
    {
     "by": "09",
-    "text": "Books from the approved roster; with no approved vendor of that kind it books nothing and asks the authorized user."
+    "text": "With no approved vendor of that kind, books nothing and asks the authorized user.",
+    "src": "run:P03:09->queue clarification.request; dispatcher/listing_spokes_09.py:189-197"
    }
   ],
   "user_decides": [
-   "The status change and the contract.",
-   "The contract's dates.",
-   "Declining an ad that would publish a pending listing.",
-   "Choosing a vendor when the roster has none."
+   {
+    "t": "The status change and the contract.",
+    "src": "dispatcher/listing_spokes_05.py:448-456"
+   },
+   {
+    "t": "The contract's dates.",
+    "src": "dispatcher/listing_spokes_07.py:270-275"
+   },
+   {
+    "t": "Declining an ad that would publish a pending listing.",
+    "src": "dispatcher/listing_spokes_12.py:250-257"
+   },
+   {
+    "t": "Choosing a vendor when the roster has none.",
+    "src": "dispatcher/listing_spokes_09.py:189-197"
+   }
   ],
   "never": [
-   "Calculate contract dates.",
-   "Book a vendor who is not on the roster."
+   {
+    "t": "Calculate a contract date.",
+    "src": "dispatcher/listing_spokes_07.py:270-275"
+   },
+   {
+    "t": "Book a vendor who is not on the roster.",
+    "src": "dispatcher/listing_spokes_09.py:170-221"
+   }
   ],
-  "run_note": "In the recorded run no inspector or appraiser is on the roster, so Agent 09 asks the authorized user both times: \"urgency does not create approval\".",
+  "run_note": {
+   "t": "In the run no inspector or appraiser is on the roster, so Agent 09 asks the authorized user both times.",
+   "src": "synth/procedures/evidence_playbooks.json P03 (two 09->queue clarification.request)"
+  },
   "not_built": []
  },
  {
   "id": "P04",
-  "rev": 1,
-  "purpose": "Runs an open house on a live listing: the calendar, the vendors, the visitors who become leads, and the result.",
-  "starts": "The authorized user signs the open house's start and end to Agent 06.",
-  "ends": "The authorized user signs the open house result (attendance and feedback) to Agent 06.",
+  "rev": 2,
+  "purpose": {
+   "t": "Runs an open house on an active listing: the calendar, signage, visitors who become leads, and the result.",
+   "src": "identity/playbooks.json P04; dispatcher/listing_spokes_06.py:105-173"
+  },
+  "starts": {
+   "t": "The authorized user signs the open house's start and end to Agent 06.",
+   "src": "identity/playbooks.json P04 starts"
+  },
+  "ends": {
+   "t": "Agent 06 logs the open house result with Agent 14.",
+   "src": "identity/playbooks.json P04 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the open house time."
+    "text": "Signs the open house time, for a listing active on Agent 05's record (otherwise nothing is scheduled and the authorized user is asked).",
+    "src": "run:P04:human->06 config.update; dispatcher/listing_spokes_06.py:105-136"
    },
    {
     "by": "06",
-    "text": "Puts it on the calendar (Agent 18) and asks Agent 09 for what the open house needs (for example signage)."
+    "text": "Puts it on the calendar and asks Agent 09 for signage.",
+    "src": "run:P04:06->18 calendar.event; run:P04:06->09 vendor.request"
    },
    {
     "by": "09",
-    "text": "Books from the approved roster, or asks the authorized user when the roster has none."
+    "text": "Books signage from the roster, or asks the authorized user when the roster has none.",
+    "src": "run:P04:09->queue clarification.request; dispatcher/listing_spokes_09.py:189-197"
    },
    {
     "by": "outside",
-    "text": "A visitor leaves their details: an inquiry to Agent 01, which runs Speed to Lead (P11) for that visitor."
+    "text": "A visitor's details arrive as an inquiry to Agent 01 and run Speed to Lead (P11) for that visitor.",
+    "src": "run:P04:external->01 lead.inbound"
    },
    {
     "by": "user",
-    "text": "Signs the result: attendance and the feedback heard."
+    "text": "Signs the result: attendance and the feedback heard.",
+    "src": "dispatcher/listing_spokes_06.py:153-173"
    },
    {
     "by": "06",
-    "text": "Logs the result to Agent 14."
+    "text": "Logs the result with Agent 14.",
+    "src": "dispatcher/listing_spokes_06.py:170-173"
    }
   ],
   "user_decides": [
-   "The time.",
-   "Vendors when the roster has none.",
-   "Calling a visitor who scores hot."
+   {
+    "t": "The time and the result.",
+    "src": "dispatcher/listing_spokes_06.py:105-173"
+   },
+   {
+    "t": "Vendors when the roster has none.",
+    "src": "dispatcher/listing_spokes_09.py:189-197"
+   },
+   {
+    "t": "Calling a visitor who scores hot.",
+    "src": "dispatcher/listing_spokes_02.py::self.hub.escalate(\"escalation.hot_lead\", self._hot_record(ctx, payload, score))"
+   }
   ],
   "never": [
-   "Book a vendor who is not on the roster."
+   {
+    "t": "Schedule an open house for a listing that is not active.",
+    "src": "dispatcher/listing_spokes_06.py:127-136"
+   }
   ],
-  "run_note": "In the recorded run a visitor with consent, pre-approval and a 30-day timeline scores hot and the authorized user is alerted; no signage vendor is on the roster, so Agent 09 asks.",
+  "run_note": {
+   "t": "In the run a visitor with consent, pre-approval and a 30-day timeline scores hot and the authorized user is alerted; no signage vendor is on the roster, so Agent 09 asks.",
+   "src": "synth/procedures/evidence_playbooks.json P04 (alert:escalation.hot_lead, 09->queue)"
+  },
   "not_built": [
-   "RSVPs and reminders."
+   {
+    "t": "RSVPs and reminders.",
+    "src": "dispatcher/listing_spokes_06.py (no RSVP or reminder code)"
+   }
   ]
  },
  {
   "id": "P05",
-  "rev": 1,
-  "purpose": "Winds down an expired or withdrawn listing: marketing stops at once and everyone is told.",
-  "starts": "The authorized user signs the listing's status as withdrawn or expired.",
-  "ends": "Agent 05 records the status.",
+  "rev": 2,
+  "purpose": {
+   "t": "Winds down a withdrawn or expired listing: the status changes, marketing stops, and Agents 11 (the seller), 12, 14, 06 and 01 are told.",
+   "src": "identity/playbooks.json P05; dispatcher/listing_spokes_05.py:465-473, 105-123"
+  },
+  "starts": {
+   "t": "The authorized user signs the listing's status change to Agent 05.",
+   "src": "identity/playbooks.json P05 starts"
+  },
+  "ends": {
+   "t": "Agent 05 reports the status to Agent 14.",
+   "src": "identity/playbooks.json P05 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the status change, naming the seller's confirmation."
+    "text": "Signs the status change to withdrawn (or expired).",
+    "src": "run:P05:human->05 listing.change.authorized"
    },
    {
     "by": "05",
-    "text": "Sets the status and tells Agents 11 (the seller is told), 12, 14, 06 and 01."
+    "text": "Sets the status and tells Agents 11 (the seller gets a message), 12, 14, 06 and 01. A withdrawal or expiry while under contract is not carried out: a legal-line alert instead.",
+    "src": "run:P05:05->11 status.update; run:P05:05->12 status.update; dispatcher/listing_spokes_05.py:431-446, 465-473"
    },
    {
     "by": "12",
-    "text": "Stops all marketing for the listing. An ad still held for release would now publish a withdrawn listing: it asks the authorized user to decline it."
+    "text": "Stops marketing: a live ad gets a halt message; an ad still held is put to the authorized user to decline.",
+    "src": "run:P05:12->queue clarification.request; dispatcher/listing_spokes_12.py:220-257"
    }
   ],
   "user_decides": [
-   "The status change.",
-   "Declining any held ad."
+   {
+    "t": "The status change.",
+    "src": "dispatcher/listing_spokes_05.py:423-474"
+   },
+   {
+    "t": "Declining any held ad.",
+    "src": "dispatcher/listing_spokes_12.py:250-257"
+   }
   ],
   "never": [
-   "Publish anything for a listing that is no longer on the market."
+   {
+    "t": "Publish anything for a listing that is off the market.",
+    "src": "dispatcher/listing_spokes_12.py:220-257"
+   }
   ],
-  "run_note": "In the recorded run the listing's launch ad is still held when it is withdrawn; Agent 12 asks the authorized user to decline it.",
+  "run_note": {
+   "t": "In the run the listing's ad is still held when it is withdrawn; Agent 12 asks the authorized user to decline it.",
+   "src": "synth/procedures/evidence_playbooks.json P05"
+  },
   "not_built": []
  },
  {
   "id": "P06",
-  "rev": 1,
-  "purpose": "Starts a buyer's search: criteria recorded exactly as stated, matches held until the written buyer agreement is on file, then sent.",
-  "starts": "The authorized user signs the buyer's first criteria to Agent 13.",
-  "ends": "The first match is sent to the buyer.",
+  "rev": 2,
+  "purpose": {
+   "t": "Starts a buyer's search: criteria recorded as signed, matches held until the written buyer agreement is on file, then sent.",
+   "src": "identity/playbooks.json P06"
+  },
+  "starts": {
+   "t": "The authorized user signs the buyer's first criteria to Agent 13.",
+   "src": "identity/playbooks.json P06 starts"
+  },
+  "ends": {
+   "t": "The first match is sent to the buyer.",
+   "src": "identity/playbooks.json P06 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the buyer's criteria, word for word."
+    "text": "Signs the buyer's criteria.",
+    "src": "run:P06:human->13 config.update"
    },
    {
     "by": "13",
-    "text": "Matches new listings against them."
+    "text": "Matches each new listing against them.",
+    "src": "dispatcher/listing_spokes_13.py:505-530"
    },
    {
     "by": "13",
-    "text": "No written buyer agreement on file: the matches are held and the authorized user is told once."
+    "text": "Asks Agent 14 whether the buyer agreement is on file. It is not: the match is held and the authorized user is told once.",
+    "src": "run:P06:13->queue clarification.request; dispatcher/listing_spokes_13.py:258-316"
    },
    {
     "by": "user",
-    "text": "Records the signed buyer agreement with Agent 14."
+    "text": "Records the signed buyer agreement with Agent 14.",
+    "src": "run:P06:human->14 config.update"
    },
    {
     "by": "clock",
-    "text": "On the next daily run, the held matches go out."
+    "text": "On the next daily run, Agent 13 asks again and sends the held match.",
+    "src": "dispatcher/listing_spokes_13.py:352-357; dispatcher/clock.py:56"
    },
    {
     "by": "13",
-    "text": "Sends the match through Agent 11 (with consent) and logs it to Agent 14."
+    "text": "Sends the match through Agent 11 (with consent) and logs it.",
+    "src": "run:P06:13->11 client.message.request; run:P06:11->external client.message.send"
    }
   ],
   "user_decides": [
-   "The buyer agreement.",
-   "The buyer's criteria, as stated."
+   {
+    "t": "The buyer agreement.",
+    "src": "dispatcher/listing_spokes.py:674-701"
+   },
+   {
+    "t": "The buyer's criteria.",
+    "src": "dispatcher/listing_spokes_13.py:447-469"
+   }
   ],
   "never": [
-   "Add or infer a criterion.",
-   "Send a match before the buyer agreement is on file."
+   {
+    "t": "Add a criterion the buyer did not state.",
+    "src": "dispatcher/listing_spokes_13.py:447-469"
+   },
+   {
+    "t": "Send a match before the buyer agreement is on file.",
+    "src": "dispatcher/listing_spokes_13.py:258-316"
+   }
   ],
-  "run_note": "In the recorded run a new listing fits the buyer before the agreement is recorded; the match is held, and goes out on the clock run after the agreement is recorded.",
+  "run_note": {
+   "t": "In the run a new listing fits the buyer before the agreement is recorded; the match is held, and goes out after it is recorded.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P06 note"
+  },
   "not_built": []
  },
  {
   "id": "P07",
-  "rev": 1,
-  "purpose": "Coordinates a showing from the buyer's request to logged feedback.",
-  "starts": "A showing request reaches Agent 06 (from Agent 13 on a match, or from the buyer through Agent 11).",
-  "ends": "The buyer's feedback is logged; Buyer Feedback and Match Refresh (P22) starts on it.",
+  "rev": 2,
+  "purpose": {
+   "t": "Coordinates a showing from the buyer's request to logged feedback.",
+   "src": "identity/playbooks.json P07"
+  },
+  "starts": {
+   "t": "A showing request reaches Agent 06 (from Agent 13, or from the buyer through Agent 11).",
+   "src": "identity/playbooks.json P07 starts"
+  },
+  "ends": {
+   "t": "The buyer's feedback is logged with Agent 14; Buyer Feedback and Match Refresh (P22) starts on it.",
+   "src": "identity/playbooks.json P07 ends"
+  },
   "steps": [
    {
     "by": "outside",
-    "text": "The buyer asks to see a home."
+    "text": "The buyer asks to see a home at a time.",
+    "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P07 lines"
    },
    {
     "by": "11",
-    "text": "Passes the request to Agent 06."
+    "text": "Checks the buyer agreement with Agent 14 and passes the request to Agent 06.",
+    "src": "run:P07:11->06 showing.request; dispatcher/listing_spokes_11.py:732-744, 776-812"
    },
    {
     "by": "06",
-    "text": "Checks the buyer agreement, the requester's identity, the notice period, the listing's status and clashes (see Agent 06)."
+    "text": "Runs its checks (access, buyer agreement, identity, notice, status, clashes; see Agent 06).",
+    "src": "dispatcher/listing_spokes_06.py:470-560, 636-745"
    },
    {
     "by": "06",
-    "text": "Puts the showing on the calendar (Agent 18). If the calendar cannot take it, the showing is held for the authorized user."
+    "text": "Puts the showing on the calendar; if the calendar refuses it, the showing is held for the authorized user.",
+    "src": "run:P07:06->18 calendar.event; dispatcher/listing_spokes_06.py:745-768"
    },
    {
     "by": "06",
-    "text": "Confirms the showing to the buyer through Agent 11."
+    "text": "Confirms the showing to the buyer through Agent 11.",
+    "src": "run:P07:06->11 client.message.request; run:P07:11->external client.message.send"
    },
    {
-    "by": "06",
-    "text": "The day after, asks the buyer for feedback through Agent 11."
+    "by": "clock",
+    "text": "On the daily run after the showing, Agent 06 asks for feedback through Agent 11.",
+    "src": "dispatcher/listing_spokes_06.py:316-365"
    },
    {
     "by": "outside",
-    "text": "The buyer answers."
+    "text": "The buyer answers.",
+    "src": "run:P07:external->11 client.reply"
    },
    {
     "by": "11",
-    "text": "Passes the feedback to Agent 06, which logs it to Agent 14."
+    "text": "Passes the feedback to Agent 06, which logs it.",
+    "src": "run:P07:11->06 showing.feedback_response; dispatcher/listing_spokes_06.py:580-594"
    }
   ],
   "user_decides": [
-   "A showing the calendar could not take.",
-   "Clashes."
+   {
+    "t": "A showing the calendar could not take, and clashes.",
+    "src": "dispatcher/listing_spokes_06.py:671-768"
+   }
   ],
   "never": [
-   "Confirm a showing without the buyer agreement.",
-   "Authorize access to a property."
+   {
+    "t": "Schedule a showing without the buyer agreement.",
+    "src": "dispatcher/listing_spokes_06.py:500-513"
+   },
+   {
+    "t": "Give out access.",
+    "src": "dispatcher/listing_spokes_06.py:474-496"
+   }
   ],
-  "run_note": "In the recorded run the buyer asks for 10:00, the showing is confirmed, feedback is asked the next day and logged.",
+  "run_note": {
+   "t": "In the run the buyer asks for 10:00, the showing is confirmed, feedback is asked the day after and logged.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P07"
+  },
   "not_built": [
-   "Seller availability is not checked (there is no seller availability data)."
+   {
+    "t": "Seller availability is not checked.",
+    "src": "dispatcher/listing_spokes_06.py (no seller availability check; grep availab finds none)"
+   },
+   {
+    "t": "A showing that starts from a match (Agent 13) carries no time: if the buyer's identity is not verified on record it is cancelled; if it is, the calendar cannot place it and it is held for the authorized user.",
+    "src": "dispatcher/listing_spokes_13.py:627-662; dispatcher/listing_spokes_06.py:517-541, 745-768"
+   }
   ]
  },
  {
   "id": "P08",
-  "rev": 1,
-  "purpose": "Tracks an offer from receipt to its outcome. The thinnest playbook on purpose: the negotiation is entirely the authorized user's.",
-  "starts": "The authorized user records an offer's status with Agent 07.",
-  "ends": "The authorized user records the offer's outcome.",
+  "rev": 2,
+  "purpose": {
+   "t": "Records an offer's progress for the authorized user. The negotiation is entirely the authorized user's.",
+   "src": "identity/playbooks.json P08"
+  },
+  "starts": {
+   "t": "The authorized user records an offer's status with Agent 07.",
+   "src": "identity/playbooks.json P08 starts"
+  },
+  "ends": {
+   "t": "The authorized user records the offer's outcome.",
+   "src": "identity/playbooks.json P08 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Records the offer received, with its document."
+    "text": "Records the offer received, naming its document.",
+    "src": "run:P08:human->07 config.update"
    },
    {
     "by": "07",
-    "text": "Reports the status to the authorized user only, never to a client."
+    "text": "Puts the status in the authorized user's queue and logs it; it never goes to a client.",
+    "src": "run:P08:07->queue clarification.request; dispatcher/listing_spokes_07.py:251-268"
    },
    {
     "by": "user",
-    "text": "Negotiates: presenting, countering, accepting or rejecting is outside the system."
+    "text": "Negotiates: presenting, countering, accepting or rejecting happens outside the system.",
+    "src": "dispatcher/listing_spokes_07.py:251-268 (status recorded only)"
    },
    {
     "by": "user",
-    "text": "Records the outcome."
-   },
-   {
-    "by": "07",
-    "text": "Reports it to the authorized user. An accepted offer leads to Under-Contract Transition (P03)."
+    "text": "Records the outcome; it goes to the queue and is logged the same way.",
+    "src": "run:P08:human->07 config.update"
    }
   ],
   "user_decides": [
-   "Everything about the offer."
+   {
+    "t": "Everything about the offer.",
+    "src": "dispatcher/listing_spokes_07.py:251-268"
+   }
   ],
   "never": [
-   "Negotiate.",
-   "Tell a client about an offer's status."
+   {
+    "t": "Negotiate, or tell a client the offer's status.",
+    "src": "dispatcher/listing_spokes_07.py:251-268"
+   }
   ],
-  "run_note": "In the recorded run an offer is received and then rejected; both updates go to the authorized user, none to a client.",
+  "run_note": {
+   "t": "In the run an offer is received and then rejected; both updates go to the authorized user, none to a client.",
+   "src": "synth/procedures/evidence_playbooks.json P08"
+  },
   "not_built": [
-   "An offer's response deadline is stored with its status, but nothing alerts on it."
+   {
+    "t": "An offer's response deadline is stored but nothing watches it.",
+    "src": "dispatcher/listing_spokes_07.py:136, 251-268"
+   },
+   {
+    "t": "An accepted offer does not start Under Contract (P03) by itself: the authorized user signs the status change.",
+    "src": "identity/playbooks.json P03 starts"
+   }
   ]
  },
  {
   "id": "P09",
-  "rev": 1,
-  "purpose": "Runs the contract to closing: every deadline watched, every document checked, and the close held if something is missing.",
-  "starts": "The authorized user signs the contract's timeline to Agent 07.",
-  "ends": "Agent 07 reports the transaction closed; Close and Post-Close Handoff (P10) starts on it.",
+  "rev": 2,
+  "purpose": {
+   "t": "Runs the contract to closing: deadlines watched, documents checked, and the close held if a milestone is still open.",
+   "src": "identity/playbooks.json P09"
+  },
+  "starts": {
+   "t": "The authorized user signs the contract's timeline to Agent 07.",
+   "src": "identity/playbooks.json P09 starts"
+  },
+  "ends": {
+   "t": "Agent 07 reports the transaction closed; Close and Post-Close Handoff (P10) starts on it.",
+   "src": "identity/playbooks.json P09 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the contract's dates, and lists the expected senders for sensitive documents (for example the title company for the settlement statement)."
+    "text": "Signs the contract's dates.",
+    "src": "run:P09:human->07 config.update"
    },
    {
     "by": "07",
-    "text": "Puts each deadline on the calendar and asks Agent 08 for each document."
+    "text": "Puts each date on the calendar and asks Agent 08 for documents and Agent 09 for the inspector.",
+    "src": "run:P09:07->18 deadline.alert; run:P09:07->08 doc.request; run:P09:07->09 vendor.request"
    },
    {
     "by": "08",
-    "text": "Asks the parties through Agent 11; chases daily; raises a document still missing after three chases."
+    "text": "Asks the client for each document through Agent 11.",
+    "src": "run:P09:08->11 client.message.request"
    },
    {
-    "by": "07",
-    "text": "Asks Agent 09 for the inspector; with no approved vendor, Agent 09 asks the authorized user."
-   },
-   {
-    "by": "outside",
-    "text": "Documents arrive."
-   },
-   {
-    "by": "08",
-    "text": "Files a document only from an expected sender and only if it opens; tells Agent 07."
-   },
-   {
-    "by": "07",
-    "text": "A deadline counts as met only with its document on file. Anything unmet at closing is held for the authorized user."
+    "by": "09",
+    "text": "With no approved inspector on the roster, asks the authorized user.",
+    "src": "run:P09:09->queue clarification.request"
    },
    {
     "by": "user",
-    "text": "Decides whether the close continues."
+    "text": "Lists the expected sender for the settlement statement (the title company).",
+    "src": "run:P09:human->08 config.update"
+   },
+   {
+    "by": "outside",
+    "text": "The settlement statement arrives through Agent 11 from the listed sender.",
+    "src": "run:P09:external->11 client.reply; run:P09:11->08 document.submission"
+   },
+   {
+    "by": "08",
+    "text": "Checks the sender and that it opens, files it, and reports it to Agent 07.",
+    "src": "run:P09:08->07 doc.status; dispatcher/listing_spokes_08.py:347-386, 494-551"
    },
    {
     "by": "07",
-    "text": "Reports the transaction closed to Agents 14, 15 and 16."
+    "text": "With other milestones still open (here the inspection), holds the close for the authorized user.",
+    "src": "run:P09:07->queue decision.required; dispatcher/listing_spokes_07.py:528-544"
+   },
+   {
+    "by": "user",
+    "text": "Continues (the open milestones are recorded as waived by the authorized user) or cancels.",
+    "src": "run:P09:human->07 decision.signed; dispatcher/listing_spokes_07.py:186-207"
+   },
+   {
+    "by": "07",
+    "text": "Reports the close to Agents 16, 14 and 15.",
+    "src": "run:P09:07->16 transaction.closed; run:P09:07->14 transaction.closed; run:P09:07->15 transaction.closed"
    }
   ],
   "user_decides": [
-   "The dates and the expected senders.",
-   "Whether to continue with something unmet.",
-   "Every movement of money and every wire instruction."
+   {
+    "t": "The dates and the expected senders.",
+    "src": "dispatcher/listing_spokes_07.py:270-275; dispatcher/listing_spokes_08.py:192-223"
+   },
+   {
+    "t": "Whether to close with milestones open.",
+    "src": "dispatcher/listing_spokes_07.py:528-544"
+   },
+   {
+    "t": "Every wire and money matter.",
+    "src": "dispatcher/listing_spokes_07.py:154-175"
+   }
   ],
   "never": [
-   "File a document from an unexpected sender.",
-   "Mark a deadline met on someone's word.",
-   "Move money."
+   {
+    "t": "File a settlement statement from a sender not listed.",
+    "src": "dispatcher/listing_spokes_08.py:347-386"
+   },
+   {
+    "t": "Count a milestone met without its document or the authorized user's waiver.",
+    "src": "dispatcher/listing_spokes_07.py:198-202, 548-554"
+   },
+   {
+    "t": "Handle wire instructions.",
+    "src": "dispatcher/listing_spokes_07.py:154-175"
+   }
   ],
-  "run_note": "In the recorded run the settlement statement arrives from the listed title company and is filed; the inspection report never came, so the close waits for the authorized user and continues on the signed decision.",
+  "run_note": {
+   "t": "In the run the settlement statement is filed; the inspection report never came, so the close waits and continues on the authorized user's signed decision.",
+   "src": "synth/procedures/evidence_playbooks.json P09 (decision.required, decision.signed)"
+  },
   "not_built": [
-   "No date arithmetic; warnings ahead of a due date (except the seller disclosure)."
+   {
+    "t": "No contract date is calculated. No warning comes before a due date except Agent 08's seller-disclosure warning; Agent 07's vendor hold-up alert (7 days after an unanswered vendor request) can come before a milestone's date.",
+    "src": "dispatcher/listing_spokes_07.py:584-610, 669-677; dispatcher/listing_spokes_08.py:277-325"
+   }
   ]
  },
  {
   "id": "P10",
-  "rev": 1,
-  "purpose": "Hands a closed deal over to the relationship: the commission recorded, the client record updated, and the follow-up schedule started.",
-  "starts": "Agent 07 reports the transaction closed.",
-  "ends": "The first post-close check-in is sent (or blocked with the reason).",
+  "rev": 2,
+  "purpose": {
+   "t": "Hands a closed deal to the relationship: the commission recorded, the record updated, and the follow-up schedule started.",
+   "src": "identity/playbooks.json P10"
+  },
+  "starts": {
+   "t": "Agent 07 reports the transaction closed to Agent 16.",
+   "src": "identity/playbooks.json P10 starts"
+  },
+  "ends": {
+   "t": "Agent 16 logs the first check-in as sent.",
+   "src": "identity/playbooks.json P10 ends"
+  },
   "steps": [
    {
     "by": "07",
-    "text": "Reports the close to Agents 16, 14 and 15."
+    "text": "Reports the close to Agents 16, 14 and 15.",
+    "src": "run:P10:07->16 transaction.closed; run:P10:07->14 transaction.closed; run:P10:07->15 transaction.closed"
    },
    {
     "by": "15",
-    "text": "Records the commission."
-   },
-   {
-    "by": "14",
-    "text": "Updates the client record."
+    "text": "Records the commission (computed at the default 8% and labeled, when the close carries only a sale price) and checks it against Agent 14.",
+    "src": "dispatcher/listing_spokes_15.py:111-182"
    },
    {
     "by": "16",
-    "text": "Schedules the check-ins at 30, 90 and 365 days for a client on the authorized user's list."
+    "text": "Records the close date.",
+    "src": "dispatcher/listing_spokes_16.py:142-144"
    },
    {
     "by": "clock",
-    "text": "On the 30th day the check-in is due."
+    "text": "On the daily run from day 30, the 30-day check-in is due.",
+    "src": "dispatcher/listing_spokes_16.py:98-133"
    },
    {
     "by": "16",
-    "text": "Checks opt-out, hard times on record and a working contact; sends through Agent 11, which checks consent."
+    "text": "Checks the list, opt-out, hard times and contact, then sends through Agent 11 (which checks consent) and logs it.",
+    "src": "run:P10:16->11 client.message.request; run:P10:11->external client.message.send"
    }
   ],
   "user_decides": [
-   "The client list.",
-   "Whether to reach out during a hard time."
+   {
+    "t": "The client list.",
+    "src": "dispatcher/listing_spokes_16.py:172-176"
+   },
+   {
+    "t": "Whether to reach out during a hard time.",
+    "src": "dispatcher/listing_spokes_16.py:185-188"
+   }
   ],
   "never": [
-   "Contact someone who is not on the list or who opted out."
+   {
+    "t": "Contact someone who is not on the list or opted out.",
+    "src": "dispatcher/listing_spokes_16.py:71-84"
+   }
   ],
-  "run_note": "In the recorded run the deal closes and the 30-day check-in goes out on the clock.",
+  "run_note": {
+   "t": "In the run the deal closes and the 30-day check-in goes out on the daily run.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P10 note"
+  },
   "not_built": [
-   "Maintenance tips and a self-running referral schedule."
+   {
+    "t": "Maintenance tips and a self-running referral schedule.",
+    "src": "dispatcher/listing_spokes_16.py:224-239"
+   },
+   {
+    "t": "A check-in that is blocked (opt-out, hard time, contact not working) is logged, again on each daily run, and the playbook stays open: only a sent check-in ends it.",
+    "src": "identity/playbooks.json P10 ends; dispatcher/listing_spokes_16.py:86-96, 123-126"
+   }
   ]
  },
  {
   "id": "P11",
-  "rev": 1,
-  "purpose": "Turns any inquiry into a scored, routed lead within minutes.",
-  "starts": "An inquiry reaches Agent 01 (a call, form or text, or a social media lead from Agent 20).",
-  "ends": "Agent 02 has scored and routed the lead.",
+  "rev": 2,
+  "purpose": {
+   "t": "Turns an inquiry into a scored, routed lead.",
+   "src": "identity/playbooks.json P11"
+  },
+  "starts": {
+   "t": "An inquiry reaches Agent 01 from outside, or a lead from Agent 20.",
+   "src": "identity/playbooks.json P11 starts"
+  },
+  "ends": {
+   "t": "Agent 02 has scored and routed the lead.",
+   "src": "identity/playbooks.json P11 ends"
+  },
   "steps": [
    {
     "by": "outside",
-    "text": "Someone reaches out."
+    "text": "Someone fills in a web form.",
+    "src": "run:P11:external->01 lead.inbound"
    },
    {
     "by": "01",
-    "text": "Records what they said and their consent, nothing guessed."
+    "text": "Records what they gave and their consent, and asks Agent 14 whether they are already on record.",
+    "src": "dispatcher/listing_spokes.py:922-1122; run:P11:01->14 record.request"
    },
    {
     "by": "01",
-    "text": "Asks Agent 14 whether they are already on record; a possible duplicate is held for the authorized user."
+    "text": "Not a duplicate: logs the lead and hands it to Agent 02.",
+    "src": "run:P11:01->02 lead.captured"
    },
    {
     "by": "02",
-    "text": "Scores the lead on the signed rubric."
-   },
-   {
-    "by": "02",
-    "text": "Hot: alerts the authorized user (marked do not contact where that applies). Warm: to Agent 03. Cold: archived with the reason."
+    "text": "Scores it on the signed rubric: hot to the authorized user, warm to Agent 03, cold archived.",
+    "src": "run:P11:02->03 lead.nurture; dispatcher/listing_spokes_02.py::def _apply_tier("
    },
    {
     "by": "03",
-    "text": "For a warm lead, starts the sequence the authorized user wrote; its text goes to Compliance first."
+    "text": "For a warm lead, sends the sequence's text to Compliance before anything goes out.",
+    "src": "run:P11:03->17 content.review; run:P11:17->03 content.verdict"
    }
   ],
   "user_decides": [
-   "Calling the hot lead.",
-   "Whether a possible duplicate is the same person."
+   {
+    "t": "Calling a hot lead.",
+    "src": "dispatcher/listing_spokes_02.py::def _hot_record("
+   },
+   {
+    "t": "Whether a possible duplicate is a separate person.",
+    "src": "dispatcher/listing_spokes.py:1182-1205"
+   }
   ],
   "never": [
-   "Score a lead before the duplicate check.",
-   "Contact anyone without consent."
+   {
+    "t": "Score a lead before the duplicate check.",
+    "src": "dispatcher/listing_spokes.py:1264-1309"
+   },
+   {
+    "t": "Contact anyone without consent.",
+    "src": "dispatcher/listing_spokes_03.py::\"trigger\": \"nurture assignment with no \"; dispatcher/listing_spokes_11.py:320-353"
+   }
   ],
-  "run_note": "In the recorded run a web form lead with a 60-day timeline scores warm and goes to nurture; the sequence's text is checked by Compliance.",
+  "run_note": {
+   "t": "In the run a web form lead with a 60-day timeline scores warm and goes to follow-up; the sequence is checked by Compliance.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P11; synth/procedures/evidence_playbooks.json P11"
+  },
   "not_built": [
-   "No phone, form or text system is connected.",
-   "A second alert when a hot lead is not acknowledged in time."
+   {
+    "t": "No phone, form or text system is connected.",
+    "src": "dispatcher/swarm.py:220-222; identity/routes.json lead.inbound from external"
+   }
   ]
  },
  {
   "id": "P12",
-  "rev": 1,
-  "purpose": "Runs a farm campaign (general marketing to an area) the authorized user decided on.",
-  "starts": "The authorized user signs a new campaign (copy, area, targeting) to Agent 12.",
-  "ends": "The campaign is published.",
+  "rev": 2,
+  "purpose": {
+   "t": "Runs a farm campaign (general marketing to an area) the authorized user signed.",
+   "src": "identity/playbooks.json P12"
+  },
+  "starts": {
+   "t": "The authorized user signs a new campaign to Agent 12.",
+   "src": "identity/playbooks.json P12 starts"
+  },
+  "ends": {
+   "t": "The campaign is published.",
+   "src": "identity/playbooks.json P12 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the campaign: the copy, the area and the budget."
+    "text": "Signs the campaign: copy, area and general targeting.",
+    "src": "run:P12:human->12 config.update"
    },
    {
     "by": "12",
-    "text": "Checks the targeting: general, by area; no demographic targeting; housing ad rules apply."
+    "text": "Checks the targeting (only general targeting for an area) and sends the copy to Compliance.",
+    "src": "run:P12:12->17 content.review; dispatcher/listing_spokes_12.py:322-365"
    },
    {
     "by": "17",
-    "text": "Checks the copy against the signed rules."
+    "text": "Approves or flags it.",
+    "src": "run:P12:17->12 content.verdict"
    },
    {
     "by": "00",
-    "text": "Holds the publication."
+    "text": "Holds the publication.",
+    "src": "run:P12:12->external campaign.publish; dispatcher/hub.py:604-646"
    },
    {
     "by": "user",
-    "text": "Releases it."
+    "text": "Releases it.",
+    "src": "dispatcher/hub.py:325-353"
    }
   ],
   "user_decides": [
-   "The campaign, its area and budget.",
-   "Releasing the publication."
+   {
+    "t": "The campaign and its area.",
+    "src": "dispatcher/listing_spokes_12.py:322-365"
+   },
+   {
+    "t": "Releasing the publication.",
+    "src": "dispatcher/hub.py:325-353"
+   }
   ],
   "never": [
-   "Target individual households or demographics.",
-   "Solicit owners whose homes are listed with another broker."
+   {
+    "t": "Target individual households or demographics.",
+    "src": "dispatcher/listing_spokes_12.py:326-351; dispatcher/listing_spokes_19.py:115-127"
+   }
   ],
-  "run_note": "In the recorded run a market update for zip code 44101 is approved, held and published on release.",
+  "run_note": {
+   "t": "In the run a market update for zip code 44101 is approved, held, and published on release.",
+   "src": "synth/procedures/evidence_playbooks.json P12"
+  },
   "not_built": [
-   "No social or ad platform is connected.",
-   "No farm-area boundary setting."
+   {
+    "t": "No social or ad platform is connected.",
+    "src": "dispatcher/swarm.py:220-222"
+   }
   ]
  },
  {
   "id": "P13",
-  "rev": 1,
-  "purpose": "Keeps the relationship going with past clients: greetings and anniversaries from the authorized user's list.",
-  "starts": "Agent 14 sends a date reminder (birthday, anniversary) to Agent 16.",
-  "ends": "The greeting is sent, or blocked with the reason.",
+  "rev": 2,
+  "purpose": {
+   "t": "Sends greetings to past clients on their dates, from the authorized user's list.",
+   "src": "identity/playbooks.json P13"
+  },
+  "starts": {
+   "t": "Agent 14 sends a date reminder to Agent 16.",
+   "src": "identity/playbooks.json P13 starts"
+  },
+  "ends": {
+   "t": "The greeting is sent, or blocked with the reason.",
+   "src": "identity/playbooks.json P13 ends"
+  },
   "steps": [
    {
+    "by": "user",
+    "text": "Signs the client's dates with Agent 14 and puts the client on Agent 16's list.",
+    "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P13 lines"
+   },
+   {
     "by": "14",
-    "text": "On the date, sends the reminder for a person on the authorized user's client list."
+    "text": "On the daily run, for a client with consent on some channel, sends the date reminder.",
+    "src": "run:P13:14->16 date.trigger; dispatcher/listing_spokes.py:402-429"
    },
    {
     "by": "16",
-    "text": "Checks opt-out, hard times and a working contact."
-   },
-   {
-    "by": "16",
-    "text": "Sends the greeting through Agent 11, which checks consent."
+    "text": "Checks the list, opt-out, hard times and contact, then sends the greeting through Agent 11 (which checks consent).",
+    "src": "run:P13:16->11 client.message.request; run:P13:11->external client.message.send"
    }
   ],
   "user_decides": [
-   "The client list and the dates.",
-   "Whether to reach out during a hard time."
+   {
+    "t": "The client list and dates.",
+    "src": "dispatcher/listing_spokes.py:655-672; dispatcher/listing_spokes_16.py:172-176"
+   }
   ],
   "never": [
-   "Greet someone who is not on the list.",
-   "Offer a referral reward."
+   {
+    "t": "Greet someone who is not on the list.",
+    "src": "dispatcher/listing_spokes_16.py:146-165"
+   }
   ],
-  "run_note": "In the recorded run a client's birthday greeting goes out on the day.",
+  "run_note": {
+   "t": "In the run a client's birthday greeting goes out on the day.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P13"
+  },
   "not_built": [
-   "A self-running referral schedule."
+   {
+    "t": "A referral schedule that runs on its own.",
+    "src": "dispatcher/listing_spokes_16.py:224-231"
+   }
   ]
  },
  {
   "id": "P14",
-  "rev": 1,
-  "purpose": "Handles a complaint: the authorized user is alerted, every message to that person stops, and the response is the authorized user's.",
-  "starts": "A complaint arrives (from social media through Agent 20, or from a client through Agent 11).",
-  "ends": "The authorized user lifts the complaint hold.",
+  "rev": 2,
+  "purpose": {
+   "t": "Handles a complaint: the authorized user is alerted, routine messages to that person stop, and the response is the authorized user's.",
+   "src": "identity/playbooks.json P14"
+  },
+  "starts": {
+   "t": "A complaint arrives (from social media through Agent 20, or from a client through Agent 11).",
+   "src": "identity/playbooks.json P14 starts; dispatcher/listing_spokes_11.py:552-577"
+  },
+  "ends": {
+   "t": "The authorized user lifts the complaint hold.",
+   "src": "identity/playbooks.json P14 ends"
+  },
   "steps": [
    {
+    "by": "outside",
+    "text": "A complaint is posted on a monitored channel.",
+    "src": "run:P14:external->20 social.mention"
+   },
+   {
     "by": "20",
-    "text": "Raises a complaint alert for the authorized user with the words, and asks Agent 11 to hold messages to that person."
+    "text": "Raises a complaint alert and asks Agent 11 to hold messages to that person.",
+    "src": "run:P14:20->queue alert:escalation.complaint; run:P14:20->11 client.message.request"
    },
    {
     "by": "11",
-    "text": "Holds every routine message to that person; each one is logged, none sent."
+    "text": "Holds every routine message to that person (logged, not sent).",
+    "src": "run:P14:06->11 client.message.request; dispatcher/listing_spokes_11.py:503-518"
    },
    {
     "by": "user",
-    "text": "Responds to the complaint, personally."
+    "text": "Responds to the complaint personally.",
+    "src": "dispatcher/listing_spokes_20.py:179"
    },
    {
     "by": "user",
-    "text": "Lifts the hold."
+    "text": "Lifts the hold (signed).",
+    "src": "run:P14:human->11 config.update; dispatcher/listing_spokes_11.py:448-454"
    }
   ],
   "user_decides": [
-   "The whole response.",
-   "When the hold ends."
+   {
+    "t": "The whole response, and when the hold ends.",
+    "src": "dispatcher/listing_spokes_11.py:448-454"
+   }
   ],
   "never": [
-   "Reply to a complaint automatically.",
-   "Send routine messages to someone who complained, while the hold is on."
+   {
+    "t": "Reply to a complaint automatically, or send routine messages during the hold.",
+    "src": "dispatcher/listing_spokes_11.py:243-255, 503-518"
+   }
   ],
-  "run_note": "In the recorded run a routine feedback request to the same person arrives during the hold and is not sent; the run ends when the authorized user lifts the hold.",
+  "run_note": {
+   "t": "In the run a routine feedback request to the same person arrives during the hold and is not sent.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P14 note"
+  },
   "not_built": []
  },
  {
   "id": "P15",
-  "rev": 1,
-  "purpose": "Prepares the data for a listing appointment. The price opinion is the authorized user's.",
-  "starts": "The authorized user asks Agent 10 for comparables on a home that is not one of the office's live listings.",
-  "ends": "Agent 10 delivers the package.",
+  "rev": 2,
+  "purpose": {
+   "t": "Prepares comparable sales for a listing appointment. The price opinion is the authorized user's.",
+   "src": "identity/playbooks.json P15"
+  },
+  "starts": {
+   "t": "The authorized user asks Agent 10 for comparables on a home that is not one of the office's active listings.",
+   "src": "identity/playbooks.json P15 starts"
+  },
+  "ends": {
+   "t": "Agent 10 delivers the package.",
+   "src": "identity/playbooks.json P15 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Asks for comparables for the appointment."
+    "text": "Asks for comparables, supplying the figures.",
+    "src": "run:P15:human->10 data.request"
    },
    {
     "by": "10",
-    "text": "Checks each figure for a source, a date and freshness; checks there are enough comparables."
+    "text": "Keeps only figures with a source and date, drops stale ones, marks the package thin if fewer than 5.",
+    "src": "dispatcher/listing_spokes_10.py:197-240"
    },
    {
     "by": "10",
-    "text": "Delivers the package to the authorized user, with no opinion or value."
+    "text": "Delivers the package with no opinion or value.",
+    "src": "run:P15:10->human data.package"
    }
   ],
   "user_decides": [
-   "The price opinion and the presentation."
+   {
+    "t": "The price opinion and the presentation.",
+    "src": "dispatcher/listing_spokes_10.py:138-152"
+   }
   ],
   "never": [
-   "Suggest a price."
+   {
+    "t": "Suggest a price.",
+    "src": "dispatcher/listing_spokes_10.py:138-152"
+   }
   ],
-  "run_note": "In the recorded run five sourced comparables are delivered.",
+  "run_note": {
+   "t": "In the run six sourced comparables are delivered; the package is not thin.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P15 lines"
+  },
   "not_built": [
-   "No MLS data source is connected; the figures come with the request."
+   {
+    "t": "No MLS data source: the figures come with the request.",
+    "src": "dispatcher/listing_spokes_10.py:66-79"
+   }
   ]
  },
  {
   "id": "P16",
-  "rev": 1,
-  "purpose": "Builds the morning briefing from the record.",
-  "starts": "The morning clock: Agent 18 asks for the first section.",
-  "ends": "Agent 18 sends the briefing to the authorized user.",
+  "rev": 2,
+  "purpose": {
+   "t": "Builds the morning briefing from the record.",
+   "src": "identity/playbooks.json P16"
+  },
+  "starts": {
+   "t": "The morning run: Agent 18 asks Agent 14 for its section.",
+   "src": "identity/playbooks.json P16 starts"
+  },
+  "ends": {
+   "t": "Agent 18 sends the briefing to the authorized user.",
+   "src": "identity/playbooks.json P16 ends"
+  },
   "steps": [
    {
     "by": "clock",
-    "text": "The morning run starts."
+    "text": "The daily run starts (someone starts it: the Desk's \"Run today's checks\", run_sweeps.py, or a scheduler the office sets up).",
+    "src": "tools/desk.py:35; tools/run_sweeps.py:10; dispatcher/sweep_runner.py:13"
    },
    {
     "by": "18",
-    "text": "Asks Agent 14 for overnight leads, Agent 15 for yesterday's books, Agent 19 for prospects waiting and Agent 10 for market changes."
+    "text": "Asks Agent 14 for new leads and record conflicts, Agent 15 for yesterday's figures, Agent 19 for prospects waiting, Agent 10 for listing changes received, and Agent 17 for compliance notices.",
+    "src": "run:P16:18->14 briefing.request; run:P16:18->15 briefing.request; run:P16:18->19 briefing.request; run:P16:18->10 briefing.request; run:P16:18->17 briefing.request; dispatcher/listing_spokes_18.py:511-544"
    },
    {
     "by": "18",
-    "text": "Adds the calendar, open waits, decisions pending and deadlines; a section with no answer is named as missing."
+    "text": "Adds the calendar, everything waiting and every decision waiting; a section with no answer is named as missing.",
+    "src": "dispatcher/listing_spokes_18.py:519-573"
    },
    {
     "by": "18",
-    "text": "Sends one briefing to the authorized user."
+    "text": "Sends one briefing to the authorized user.",
+    "src": "run:P16:18->human report.package"
    }
   ],
   "user_decides": [
-   "The day's priorities."
+   {
+    "t": "The day's priorities.",
+    "src": "dispatcher/listing_spokes_18.py:572"
+   }
   ],
   "never": [
-   "Put an unsourced status in the briefing."
+   {
+    "t": "Present anything in the briefing as sourced when it is not on record (a wait whose source is missing is listed as a gap).",
+    "src": "dispatcher/listing_spokes_18.py:524-533, 553"
+   }
   ],
-  "run_note": "In the recorded run all four sections answer and one briefing is sent.",
-  "not_built": []
+  "run_note": {
+   "t": "In the run all six sections answer and one briefing is sent.",
+   "src": "synth/procedures/evidence_playbooks.json P16"
+  },
+  "not_built": [
+   {
+    "t": "The \"market changes\" section is the listing data Agent 10 received from Agent 05 (the office's own listings), not market data.",
+    "src": "dispatcher/listing_spokes_10.py:106-131"
+   }
+  ]
  },
  {
   "id": "P17",
-  "rev": 1,
-  "purpose": "Closes the day's books into one report.",
-  "starts": "The evening clock: Agent 14 sends its end-of-day books to Agent 15.",
-  "ends": "Agent 15 sends one report to the authorized user.",
+  "rev": 2,
+  "purpose": {
+   "t": "Closes the day's records and figures into one report.",
+   "src": "identity/playbooks.json P17"
+  },
+  "starts": {
+   "t": "The evening run: Agent 14 sends its counts to Agent 15.",
+   "src": "identity/playbooks.json P17 starts"
+  },
+  "ends": {
+   "t": "Agent 15 sends one report to the authorized user.",
+   "src": "identity/playbooks.json P17 ends"
+  },
   "steps": [
    {
     "by": "clock",
-    "text": "The evening run starts."
+    "text": "The evening run starts (python tools/run_sweeps.py --evening, or a scheduler the office sets up).",
+    "src": "tools/run_sweeps.py; dispatcher/sweep_runner.py:80-85"
    },
    {
     "by": "14",
-    "text": "Sends the day's records to Agent 15."
+    "text": "Sends its counts (interactions, clients, tiers, logging gaps), totals over every record it holds, not only the day's.",
+    "src": "run:P17:14->15 report.package; dispatcher/listing_spokes.py:452-491"
    },
    {
     "by": "15",
-    "text": "Adds the day's commissions and expenses and sends one report to the authorized user."
+    "text": "Adds the day's recorded commissions and expenses and sends one report.",
+    "src": "run:P17:15->human report.package; dispatcher/listing_spokes_15.py:198-206"
    }
   ],
   "user_decides": [
-   "Nothing required; the report is for reading."
+   {
+    "t": "Nothing to decide; the report is for reading.",
+    "src": "dispatcher/listing_spokes_15.py:202-205"
+   }
   ],
   "never": [
-   "Mix estimates with recorded figures."
+   {
+    "t": "Present an estimate as a recorded figure: computed and unsigned commissions keep their labels, and the day's figures show recorded and estimated totals apart (the overall total includes both).",
+    "src": "dispatcher/listing_spokes_15.py:22-24, 75-99, 120-134"
+   }
   ],
-  "run_note": "In the recorded run the evening clock produces one report.",
+  "run_note": {
+   "t": "In the run the evening run produces one report.",
+   "src": "synth/procedures/evidence_playbooks.json P17"
+  },
   "not_built": []
  },
  {
   "id": "P18",
-  "rev": 1,
-  "purpose": "The seller's weekly update: counted from the record, held for the authorized user, then sent.",
-  "starts": "On the authorized user's signed weekday, Agent 06 prepares each listing's report.",
-  "ends": "The report is sent to the seller (or skipped, with the reason).",
+  "rev": 2,
+  "purpose": {
+   "t": "The seller's weekly update: counted from the record, held for the authorized user, then sent.",
+   "src": "identity/playbooks.json P18"
+  },
+  "starts": {
+   "t": "On the signed weekday, Agent 06 prepares each listing's report.",
+   "src": "identity/playbooks.json P18 starts; dispatcher/listing_spokes_06.py:199-242"
+  },
+  "ends": {
+   "t": "The report is sent to the seller (or skipped).",
+   "src": "identity/playbooks.json P18 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Sets the weekday and the listings to report on."
+    "text": "Signs the weekday and which listings report to which seller.",
+    "src": "dispatcher/listing_spokes_06.py:175-197"
    },
    {
     "by": "clock",
-    "text": "On that weekday the daily run starts."
+    "text": "On that weekday's daily run, Agent 06 counts each listing's showings in the last 7 days and how many have feedback.",
+    "src": "dispatcher/listing_spokes_06.py:199-235"
    },
    {
     "by": "06",
-    "text": "Counts the week's showings and feedback for each listing and holds the report for the authorized user."
+    "text": "Holds the report for the authorized user.",
+    "src": "run:P18:06->queue decision.required"
    },
    {
     "by": "user",
-    "text": "Continues (send) or cancels."
+    "text": "Continues (send) or cancels (skip this week).",
+    "src": "run:P18:human->06 decision.signed"
    },
    {
     "by": "06",
-    "text": "On continue, sends it through Agent 11 (with consent). Numbers only."
+    "text": "On continue, sends it through Agent 11 (with consent). Numbers only.",
+    "src": "run:P18:06->11 client.message.request; run:P18:11->external client.message.send"
    }
   ],
   "user_decides": [
-   "Whether each report goes."
+   {
+    "t": "Whether each report goes.",
+    "src": "dispatcher/listing_spokes_06.py:263-273"
+   }
   ],
   "never": [
-   "Send a report the authorized user did not continue.",
-   "Add opinion or advice."
+   {
+    "t": "Send a report the authorized user did not continue.",
+    "src": "dispatcher/listing_spokes_06.py:236-240, 263-273"
+   }
   ],
-  "run_note": "In the recorded run the report is held, continued by the authorized user and sent to the seller.",
+  "run_note": {
+   "t": "In the run the report is held, continued by the authorized user, and sent to the seller.",
+   "src": "synth/procedures/evidence_playbooks.json P18"
+  },
   "not_built": [
-   "Market movement is not in the report: showings and feedback counts only."
+   {
+    "t": "Market movement is not in the report: showings and feedback counts only.",
+    "src": "dispatcher/listing_spokes_06.py:231-233"
+   }
   ]
  },
  {
   "id": "P19",
-  "rev": 1,
-  "purpose": "Keeps property access (keys, codes, lockboxes) as custody items: who has access, until when, never the code itself.",
-  "starts": "The authorized user signs an access grant to Agent 14.",
-  "ends": "The authorized user signs the grant closed.",
+  "rev": 2,
+  "purpose": {
+   "t": "Records property access as custody: who has access and until when, never the code by name.",
+   "src": "identity/playbooks.json P19"
+  },
+  "starts": {
+   "t": "The authorized user signs an access grant to Agent 14.",
+   "src": "identity/playbooks.json P19 starts"
+  },
+  "ends": {
+   "t": "The authorized user signs the grant closed.",
+   "src": "identity/playbooks.json P19 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Signs the grant: the party, the end of the window, the custody reference (never the code)."
+    "text": "Signs the grant: the party, the end of the window, the custody reference.",
+    "src": "run:P19:human->14 config.update; dispatcher/listing_spokes.py:262-297"
    },
    {
     "by": "14",
-    "text": "Records it; a window that ends without being closed is flagged once."
+    "text": "Rejects a value containing a word that names the secret (code, combination, PIN, password); on the daily run, a window that ended without being closed is raised once.",
+    "src": "dispatcher/listing_spokes.py:260-286, 308-323"
    },
    {
     "by": "user",
-    "text": "Closes the grant."
+    "text": "Closes the grant.",
+    "src": "dispatcher/listing_spokes.py:286-301"
    }
   ],
   "user_decides": [
-   "Every grant and every closing."
+   {
+    "t": "Every grant and every closing.",
+    "src": "dispatcher/listing_spokes.py:262-302"
+   }
   ],
   "never": [
-   "Send an access code or key in a message."
+   {
+    "t": "Store an access code given by name, or send one (no route carries it).",
+    "src": "dispatcher/listing_spokes.py:260-286; identity/routes.json"
+   }
   ],
-  "run_note": "In the recorded run an inspector's lockbox access is granted and closed.",
+  "run_note": {
+   "t": "In the run an inspector's lockbox access is granted and closed.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P19"
+  },
   "not_built": [
-   "Rotating codes and auditing custody on a schedule."
+   {
+    "t": "Rotating codes, and detecting a bare code typed without a word that names it. (The daily check for ended, unclosed grants exists.)",
+    "src": "dispatcher/listing_spokes.py:260-286, 308-323"
+   }
   ]
  },
  {
   "id": "P20",
-  "rev": 1,
-  "purpose": "Watches a vacant listing: a condition check every day until it is occupied or the listing ends.",
-  "starts": "Agent 05 records the listing as vacant.",
-  "ends": "Agent 05 records the watch ended (occupied, or the listing ended).",
+  "rev": 2,
+  "purpose": {
+   "t": "Watches a vacant listing: a condition check ordered each day until it is occupied or the listing ends.",
+   "src": "identity/playbooks.json P20"
+  },
+  "starts": {
+   "t": "Agent 05 logs the vacant watch as started.",
+   "src": "identity/playbooks.json P20 starts; dispatcher/listing_spokes_05.py:145-146"
+  },
+  "ends": {
+   "t": "Agent 05 logs the vacant watch as ended.",
+   "src": "identity/playbooks.json P20 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Marks the listing vacant."
+    "text": "Marks the listing vacant (signed).",
+    "src": "run:P20:human->05 config.update; dispatcher/listing_spokes_05.py:125-151"
    },
    {
     "by": "clock",
-    "text": "Each daily run, Agent 05 orders a condition check from Agent 09 (no new one while the last is open)."
+    "text": "On each daily run, Agent 05 asks Agent 09 for a property check.",
+    "src": "run:P20:05->09 vendor.request; dispatcher/listing_spokes_05.py:153-178"
    },
    {
     "by": "09",
-    "text": "Books it from the roster; the booking waits for release; a check counts only with proof."
+    "text": "Books it from the roster; the booking is held for release; no new check is booked while the last one is open.",
+    "src": "run:P20:09->external vendor.schedule; dispatcher/listing_spokes_09.py:254-274"
    },
    {
     "by": "user",
-    "text": "Marks the listing occupied (or the listing ends)."
+    "text": "Marks the listing occupied, or the listing ends.",
+    "src": "dispatcher/listing_spokes_05.py:134-140, 163-168"
    },
    {
     "by": "05",
-    "text": "Ends the watch."
+    "text": "Ends the watch and logs it.",
+    "src": "dispatcher/listing_spokes_05.py:136-140"
    }
   ],
   "user_decides": [
-   "Vacant or occupied.",
-   "Releasing each booking."
+   {
+    "t": "Vacant or occupied, and releasing each booking.",
+    "src": "dispatcher/listing_spokes_05.py:125-151; dispatcher/hub.py:325-353"
+   }
   ],
   "never": [
-   "Count a check without proof."
+   {
+    "t": "Count a check without proof.",
+    "src": "dispatcher/listing_spokes_09.py:360-369"
+   }
   ],
-  "run_note": "In the recorded run the listing is marked vacant, a check is ordered on the clock, and the watch ends when it is marked occupied.",
+  "run_note": {
+   "t": "In the run the listing is marked vacant, a check is ordered on the daily run (its booking held), and the watch ends when the listing is marked occupied.",
+   "src": "synth/procedures/evidence_playbooks.json P20"
+  },
   "not_built": [
-   "Utility status and activity anomalies."
+   {
+    "t": "Utility status and activity alerts.",
+    "src": "dispatcher/listing_spokes_05.py (no utility code)"
+   }
   ]
  },
  {
   "id": "P21",
-  "rev": 1,
-  "purpose": "Re-scores nurtured leads every week so a warming lead is not left to go cold.",
-  "starts": "Agent 03 sends a lead back to Agent 02 for a new score.",
-  "ends": "Agent 02 has scored and routed it.",
+  "rev": 2,
+  "purpose": {
+   "t": "Sends nurtured leads back for a new score every week.",
+   "src": "identity/playbooks.json P21"
+  },
+  "starts": {
+   "t": "Agent 03 sends a lead back to Agent 02.",
+   "src": "identity/playbooks.json P21 starts"
+  },
+  "ends": {
+   "t": "Agent 02 has scored and routed it.",
+   "src": "identity/playbooks.json P21 ends"
+  },
   "steps": [
    {
     "by": "clock",
-    "text": "Every 7 days, for each warm lead in nurture."
+    "text": "Every 7 days, for each warm lead in follow-up.",
+    "src": "dispatcher/listing_spokes_03.py::RESCORE_INTERVAL_DAYS = 7"
    },
    {
     "by": "03",
-    "text": "Sends it to Agent 02 with its stated timeline counted down by the days passed."
+    "text": "Sends it to Agent 02 with its stated timeline counted down.",
+    "src": "run:P21:03->02 lead.rescored; dispatcher/listing_spokes_03.py::def rescore_cadence(self, ctx: str, today: str):"
    },
    {
     "by": "02",
-    "text": "Scores it again: hot to the authorized user, still warm back to nurture, otherwise out of the pool."
+    "text": "Scores it again: hot to the authorized user, still warm back to follow-up, otherwise it leaves the pool.",
+    "src": "run:P21:02->03 lead.nurture"
    }
   ],
   "user_decides": [
-   "Calling a lead that turns hot."
+   {
+    "t": "Calling a lead that turns hot.",
+    "src": "dispatcher/listing_spokes_02.py::def _hot_record("
+   }
   ],
   "never": [
-   "Re-score an opted-out lead or a paused sequence."
+   {
+    "t": "Re-score an opted-out lead or a paused sequence.",
+    "src": "dispatcher/listing_spokes_03.py::def rescore_cadence(self, ctx: str, today: str):"
+   }
   ],
-  "run_note": "In the recorded run the lead is still warm a week later and returns to nurture.",
+  "run_note": {
+   "t": "In the run the lead is still warm a week later and returns to follow-up.",
+   "src": "synth/procedures/evidence_playbooks.json P21"
+  },
   "not_built": []
  },
  {
   "id": "P22",
-  "rev": 1,
-  "purpose": "Turns a buyer's feedback after a tour into the next round of matches.",
-  "starts": "The buyer's feedback is logged (the end of Tour Day, P07).",
-  "ends": "The next match is sent to the buyer.",
+  "rev": 2,
+  "purpose": {
+   "t": "Turns a buyer's feedback after a tour into the next match.",
+   "src": "identity/playbooks.json P22"
+  },
+  "starts": {
+   "t": "The buyer's feedback is logged (the end of P07).",
+   "src": "identity/playbooks.json P22 starts"
+  },
+  "ends": {
+   "t": "The next match is sent to the buyer.",
+   "src": "identity/playbooks.json P22 ends"
+  },
   "steps": [
    {
     "by": "06",
-    "text": "Logs the buyer's feedback."
+    "text": "Logs the buyer's feedback.",
+    "src": "dispatcher/listing_spokes_06.py:580-594"
    },
    {
     "by": "13",
-    "text": "Updates the criteria only from the buyer's explicit words."
+    "text": "Changes criteria only from the buyer's explicit feedback or the authorized user's signed criteria.",
+    "src": "dispatcher/listing_spokes_13.py:447-469, 582-599"
    },
    {
     "by": "13",
-    "text": "Matches new listings and sends the next match through Agent 11."
+    "text": "Matches the next listing that fits and sends it through Agent 11.",
+    "src": "run:P22:13->11 client.message.request; run:P22:11->external client.message.send"
    }
   ],
   "user_decides": [
-   "Anything in the feedback that reads as a discriminatory preference (it is never turned into a criterion).",
-   "When the buyer wants to make an offer (Offer to Acceptance, P08)."
+   {
+    "t": "Feedback that touches a protected class (never made a criterion).",
+    "src": "dispatcher/listing_spokes_13.py:575-580"
+   },
+   {
+    "t": "When the buyer wants to make an offer.",
+    "src": "identity/playbooks.json P08"
+   }
   ],
   "never": [
-   "Turn an impression into a criterion."
+   {
+    "t": "Turn an impression into a criterion.",
+    "src": "dispatcher/listing_spokes_13.py:582-599"
+   }
   ],
-  "run_note": "In the recorded run the buyer's feedback opens the refresh; the next listing that fits closes it.",
+  "run_note": {
+   "t": "In the run the tour's feedback opens the refresh; the next listing that fits closes it.",
+   "src": "synth/playbooks/specs/PLAYBOOKS.jsonl P22 note"
+  },
   "not_built": []
  },
  {
   "id": "P23",
-  "rev": 1,
-  "purpose": "Assembles the evidence for a price conversation on a live listing. It never produces a number.",
-  "starts": "The authorized user asks Agent 10 for comparables on one of the office's live listings.",
-  "ends": "Agent 10 delivers the package.",
+  "rev": 2,
+  "purpose": {
+   "t": "Assembles comparable sales for a price conversation on an active listing. It never produces a number.",
+   "src": "identity/playbooks.json P23"
+  },
+  "starts": {
+   "t": "The authorized user asks Agent 10 for comparables on one of the office's active listings.",
+   "src": "identity/playbooks.json P23 starts"
+  },
+  "ends": {
+   "t": "Agent 10 delivers the package.",
+   "src": "identity/playbooks.json P23 ends"
+  },
   "steps": [
    {
     "by": "user",
-    "text": "Asks for the evidence."
+    "text": "Asks for the comparables, supplying the figures.",
+    "src": "run:P23:human->10 data.request"
    },
    {
     "by": "10",
-    "text": "Checks each figure for a source, a date and freshness."
-   },
-   {
-    "by": "10",
-    "text": "Delivers the package with no recommended price and no \"should reduce\" language."
+    "text": "Checks source, date and freshness and delivers the package with no opinion.",
+    "src": "run:P23:10->human data.package"
    },
    {
     "by": "user",
-    "text": "Decides. A change is a new signed price, which starts Price Adjustment (P02)."
+    "text": "Decides. A change is a new signed price, which starts Price Adjustment (P02).",
+    "src": "identity/playbooks.json P02 starts"
    }
   ],
   "user_decides": [
-   "Whether to talk price, and the price."
+   {
+    "t": "Whether to talk price, and the price.",
+    "src": "dispatcher/listing_spokes_10.py:138-152"
+   }
   ],
   "never": [
-   "Suggest a price or a reduction."
+   {
+    "t": "Suggest a price or a reduction.",
+    "src": "dispatcher/listing_spokes_10.py:138-152"
+   }
   ],
-  "run_note": "In the recorded run the package is delivered to the authorized user.",
+  "run_note": {
+   "t": "In the run the package is delivered to the authorized user.",
+   "src": "synth/procedures/evidence_playbooks.json P23"
+  },
   "not_built": [
-   "The automatic signals (days on market, showing-to-offer ratio) that would start it; the authorized user starts it."
+   {
+    "t": "Nothing starts it automatically (days on market, showing-to-offer ratio): the authorized user starts it.",
+    "src": "identity/playbooks.json P23 starts"
+   }
   ]
  },
  {
   "id": "P24",
-  "rev": 1,
-  "purpose": "Puts prospecting opportunities in front of the authorized user. Every case is the authorized user's decision; nobody is contacted by the system.",
-  "starts": "A discovery feed record reaches Agent 19.",
-  "ends": "The prospect reaches the authorized user (or is recorded as suppressed by rule).",
+  "rev": 2,
+  "purpose": {
+   "t": "Puts prospects in front of the authorized user. Nobody is contacted by the system.",
+   "src": "identity/playbooks.json P24"
+  },
+  "starts": {
+   "t": "A discovery feed record reaches Agent 19.",
+   "src": "identity/playbooks.json P24 starts"
+  },
+  "ends": {
+   "t": "The prospect reaches the authorized user, or is logged as suppressed by rule.",
+   "src": "identity/playbooks.json P24 ends"
+  },
   "steps": [
    {
+    "by": "user",
+    "text": "Signs the zip codes and approved sources.",
+    "src": "dispatcher/listing_spokes_19.py:81-87"
+   },
+   {
     "by": "outside",
-    "text": "A feed record arrives."
+    "text": "A feed record arrives.",
+    "src": "run:P24:external->19 discovery.feed"
    },
    {
     "by": "19",
-    "text": "Keeps it only if it is in the monitored zip codes and from an approved source."
+    "text": "Keeps it only inside the zip codes (and from an approved source, for expired and by-owner records); records representation and Do Not Call status.",
+    "src": "dispatcher/listing_spokes_19.py:137-234"
    },
    {
     "by": "19",
-    "text": "Records representation and Do Not Call status, and asks Agent 10 for market data."
-   },
-   {
-    "by": "19",
-    "text": "Passes the prospect to the authorized user, with a legal-line alert first for an expired listing or a sale by owner."
+    "text": "Passes the prospect to the authorized user; an expired listing or sale by owner also raises a legal-line alert.",
+    "src": "run:P24:19->human prospect.opportunity; dispatcher/listing_spokes_19.py:240-246"
    },
    {
     "by": "user",
-    "text": "Decides whether and how to reach out."
+    "text": "Decides whether and how to reach out.",
+    "src": "dispatcher/listing_spokes_19.py:103-114"
    }
   ],
   "user_decides": [
-   "Every outreach."
+   {
+    "t": "Every outreach.",
+    "src": "dispatcher/listing_spokes_19.py:103-114"
+   }
   ],
   "never": [
-   "Contact a prospect.",
-   "Use a source that is not approved."
+   {
+    "t": "Contact a prospect.",
+    "src": "identity/routes.json (no outbound route from 19)"
+   }
   ],
-  "run_note": "In the recorded run a new listing from the approved feed in 44101 reaches the authorized user with its market data.",
+  "run_note": {
+   "t": "In the run a new listing from the approved feed in 44101 reaches the authorized user, marked that no comp source is connected.",
+   "src": "synth/procedures/evidence_playbooks.json P24"
+  },
   "not_built": [
-   "No prospecting source is connected."
+   {
+    "t": "No prospecting source is connected.",
+    "src": "dispatcher/swarm.py:220-222; identity/routes.json discovery.feed from external"
+   }
   ]
  }
 ]

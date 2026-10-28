@@ -1,257 +1,582 @@
 [
  {
   "id": "03-01",
-  "title": "A lead replies in the middle of a follow-up sequence",
-  "when": "A lead is receiving scheduled follow-up messages (a nurture sequence) and writes back before the next one is due.",
+  "rev": 3,
+  "title": {
+   "t": "A lead replies in the middle of a follow-up sequence",
+   "src": "tuple:03-01"
+  },
+  "when": {
+   "t": "A lead in a follow-up sequence writes back.",
+   "src": "tuple:03-01"
+  },
   "steps": [
-   "The reply comes in to Agent 11 (Client Communication), which hands it to Agent 03, the agent running the sequence.",
-   "Agent 03 pauses the sequence for that lead at once. No further scheduled follow-up goes out on its own.",
-   "Agent 03 passes the reply back to Agent 11 as a question for a person. Agent 11 puts it in the authorized user's queue marked \"reply needed\", with the lead's own words. Nothing is sent to the lead automatically: the authorized user answers."
+   {
+    "t": "Agent 11 passes the reply to Agent 03, which runs the sequence.",
+    "src": "flow:03-01:11->03 lead.reply"
+   },
+   {
+    "t": "Agent 03 pauses the sequence for that lead.",
+    "src": "dispatcher/listing_spokes_03.py::seq[\"paused\"] = True  # tuple 1: reply pauses, never auto-continue"
+   },
+   {
+    "t": "It passes the reply to Agent 11 as a question for a person; Agent 11 puts it in the authorized user's queue as \"reply needed\", with the lead's words. Nothing is sent to the lead.",
+    "src": "flow:03-01:03->11 client.message.request; dispatcher/listing_spokes_11.py::{\"reason\": \"reply needed: the client asked a question \"; check:03-01:envelope.persisted:clarification.request; check:03-01:envelope.persisted:client.message.send"
+   },
+   {
+    "t": "The next scheduled touch does not go out.",
+    "src": "spec:03-01; check:03-01:envelope.persisted:client.message.request"
+   }
   ],
   "never": [
-   "Send the next scheduled follow-up over the top of a reply the lead has just written."
+   {
+    "t": "Continue the sequence over a reply.",
+    "src": "tuple:03-01"
+   }
   ],
-  "why": "A person who has written back expects an answer, not a canned message. A follow-up that ignores their reply looks automated and careless.",
-  "you_see": "The lead's reply in the authorized user's queue, marked \"reply needed\"; the sequence for that lead paused.",
-  "test": "A warm lead from the web form, with consent to call, text and email, gets the first follow-up on day 0. On day 1 it writes back (\"Thanks - can we talk about the north side next week?\"). The daily clock runs again on day 7.",
-  "rev": 2
+  "you_see": {
+   "t": "The lead's reply in the queue as \"reply needed\".",
+   "src": "check:03-01:envelope.persisted:clarification.request; dispatcher/listing_spokes_11.py::reply needed: the client asked a question"
+  },
+  "test": {
+   "t": "A warm lead gets the first touch on day 0, writes back on day 1 (\"Thanks - can we talk about the north side next week?\"), and the daily run runs on day 7.",
+   "src": "spec:03-01"
+  }
  },
  {
   "id": "03-02",
-  "title": "A lead asks for fewer messages, without saying stop",
-  "when": "A lead in a follow-up sequence writes something like \"stop sending so many emails\": a complaint about how often, not a clear request to stop.",
+  "rev": 3,
+  "title": {
+   "t": "A lead asks for fewer messages, without saying stop",
+   "src": "tuple:03-02"
+  },
+  "when": {
+   "t": "A reply contains \"too many\" or \"stop sending so many\".",
+   "src": "dispatcher/listing_spokes_03.py::if \"stop sending so many\" in low or \"too many\" in low:"
+  },
   "steps": [
-   "Agent 03 reads it as a request for fewer messages, not as an opt-out.",
-   "It slows the sequence down and asks Agent 11 to confirm to the lead that they will hear less often.",
-   "A clear \"stop\" (on its own) is treated differently: a full opt-out on every channel (see 03-06)."
+   {
+    "t": "Agent 03 treats it as a request for fewer messages, not an opt-out.",
+    "src": "dispatcher/listing_spokes_03.py::if \"stop sending so many\" in low or \"too many\" in low:"
+   },
+   {
+    "t": "It lowers this lead's weekly cap by one (never below one), resumes the sequence, and confirms to the lead through Agent 11. Other leads keep their cap (fixed 2026-10-27; it used to lower the cap for every lead).",
+    "src": "dispatcher/listing_spokes_03.py::cap = max(1, self.lead_cap(ctx) - 1); dispatcher/listing_spokes_03.py::if this_week_count >= self.lead_cap(ctx):; tests_listing/test_agent03.py::def test_frequency_complaint_lowers_only_that_leads_cap; check:03-02:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "A reply of exactly \"stop\" is a full opt-out instead (03-06).",
+    "src": "dispatcher/listing_spokes_03.py::if low in (\"stop\", \"unsubscribe\", \"opt out\", \"optout\"):"
+   }
   ],
   "never": [
-   "Treat an unclear complaint as a full opt-out and go silent, or ignore it and keep the same pace."
+   {
+    "t": "Treat a frequency complaint as a full opt-out.",
+    "src": "tuple:03-02"
+   }
   ],
-  "why": "Contact rules turn on what the person actually asked for. Too much contact after a complaint, or cutting off someone who only wanted less, both hurt the relationship.",
-  "you_see": "A confirmation message to the lead that the frequency was reduced; no opt-out confirmation.",
-  "test": "A warm lead writes \"Please stop sending so many emails\" the day after it came in.",
-  "rev": 2
+  "you_see": {
+   "t": "A frequency-reduced confirmation to the lead; no opt-out confirmation.",
+   "src": "check:03-02:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "A warm lead writes \"Please stop sending so many emails\" the day after it came in.",
+   "src": "spec:03-02"
+  }
  },
  {
   "id": "03-03",
-  "title": "A follow-up would carry out-of-date market figures",
-  "when": "Retired.",
+  "rev": 3,
+  "title": {
+   "t": "A follow-up would carry out-of-date market figures",
+   "src": "tuple:03-03"
+  },
+  "when": {
+   "t": "Retired.",
+   "src": "spec:03-03"
+  },
   "steps": [],
   "never": [],
-  "why": "Retired on 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data, so this situation cannot arise.",
-  "you_see": "",
-  "test": "",
-  "rev": 2
+  "why": {
+   "t": "Retired 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data.",
+   "src": "spec:03-03"
+  },
+  "you_see": {
+   "t": "",
+   "src": "spec:03-03"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:03-03"
+  }
  },
  {
   "id": "03-04",
-  "title": "Two follow-up sequences would fit the same lead",
-  "when": "A lead already on one sequence is assigned a second, different sequence, so two could run at once.",
+  "rev": 3,
+  "title": {
+   "t": "A second, different sequence is assigned to a lead",
+   "src": "tuple:03-04"
+  },
+  "when": {
+   "t": "A lead already on one sequence is assigned a different one, not as a re-score.",
+   "src": "dispatcher/listing_spokes_03.py::if existing and existing[\"sequence_id\"] != requested_seq"
+  },
   "steps": [
-   "Agent 03 pauses the sequence the lead is already on and does not start the second one: it runs neither.",
-   "It asks the authorized user which sequence the lead should be on, naming both (\"overlapping sequences\")."
+   {
+    "t": "Agent 03 pauses the current sequence and does not start the second.",
+    "src": "dispatcher/listing_spokes_03.py::self.active_sequences[ctx] = {**existing, \"paused\": True,"
+   },
+   {
+    "t": "It asks the authorized user which one, naming both.",
+    "src": "dispatcher/listing_spokes_03.py::\"reason\": \"overlapping sequences\",; check:03-04:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Run two sequences on one lead at the same time, or pick one for the authorized user."
+   {
+    "t": "Run two sequences on one lead.",
+    "src": "tuple:03-04"
+   }
   ],
-  "why": "Stacked sequences double the messages a person gets and make the office look disorganized.",
-  "you_see": "A question for the authorized user: which sequence this lead should be on.",
-  "test": "A warm lead is on the default sequence; a second assignment to a \"spring buyers\" sequence arrives. Stand-in: today Agent 02 only ever assigns the default sequence, so the test sends the second assignment as Agent 02.",
-  "rev": 2
+  "you_see": {
+   "t": "A question naming both sequences.",
+   "src": "check:03-04:envelope.persisted:clarification.request; dispatcher/listing_spokes_03.py:486-488"
+  },
+  "test": {
+   "t": "A warm lead is on the default sequence; an assignment to \"spring buyers\" arrives. Stand-in: Agent 02 only assigns the default sequence, so the test sends it as Agent 02.",
+   "src": "spec:03-04"
+  }
  },
  {
   "id": "03-05",
-  "title": "A lead in nurture suddenly shows strong interest",
-  "when": "The marketing agent reports a spike of engagement from a lead in a follow-up sequence (for example many opens or clicks).",
+  "rev": 3,
+  "title": {
+   "t": "A lead in follow-up shows an engagement spike",
+   "src": "tuple:03-05"
+  },
+  "when": {
+   "t": "Agent 12 reports engagement at or over the spike threshold for a lead in follow-up.",
+   "src": "dispatcher/listing_spokes_03.py::spike = score_delta >= env.payload.get(\"spike_threshold\", 50)"
+  },
   "steps": [
-   "Agent 12 (Marketing) passes the signal to Agent 03.",
-   "Agent 03 asks Agent 02 (Lead Qualification) to score the lead again, using the lead's own stored answers with the timeline counted down by the days that have passed.",
-   "Agent 02 scores it and the new score is recorded in the client's history."
+   {
+    "t": "Agent 12 passes the signal to Agent 03.",
+    "src": "flow:03-05:12->03 behavioral.signal"
+   },
+   {
+    "t": "Agent 03 pauses the sequence and asks Agent 02 to re-score, with the stated timeline counted down by the days since scoring.",
+    "src": "dispatcher/listing_spokes_03.py::seq[\"paused\"] = True  # tuples 5 + 8: pause, never drip on a hot signal; check:03-05:envelope.persisted:lead.rescored"
+   },
+   {
+    "t": "Agent 02 scores it; the result is logged. Nothing is sent to the lead because of the signal.",
+    "src": "check:03-05:envelope.persisted:interaction.log; check:03-05:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "If the re-score is warm, the spike pause is lifted and the sequence goes on at its next touch, on that touch's own day; touches whose day passed during the pause are skipped (owner decision of 2026-10-28). A hot re-score leaves it paused.",
+    "src": "dispatcher/listing_spokes_03.py::return self._resume_after_spike(ctx, existing_seq, env); dispatcher/listing_spokes_03.py::def _resume_after_spike(self, ctx: str, seq: dict, env: Envelope):; check:03-08:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Reach out to the lead directly because of the signal; the score decides what happens next, not the signal on its own."
+   {
+    "t": "Reach out because of the signal.",
+    "src": "tuple:03-05"
+   }
   ],
-  "why": "Interest alone is not consent to more contact. Re-scoring keeps every lead on the same fair, documented scale.",
-  "you_see": "A re-score on the lead's record; if it turns hot, a hot-lead alert for the authorized user.",
-  "test": "A warm lead with a 60-day timeline came in on 2026-10-15; on 2026-10-22 an email engagement of 80 is reported. The re-score uses 53 days and the lead stays warm.",
-  "rev": 2
+  "you_see": {
+   "t": "The re-score in the record; a hot-lead alert if it turns hot.",
+   "src": "check:03-05:envelope.persisted:interaction.log; dispatcher/listing_spokes_02.py::self.hub.escalate(\"escalation.hot_lead\", self._hot_record(ctx, payload, score))"
+  },
+  "test": {
+   "t": "A warm lead with a 60-day timeline came in on 2026-10-15; on 2026-10-22 an engagement of 80 is reported. The re-score uses 53 days and the lead stays warm.",
+   "src": "spec:03-05; check:03-05:envelope.persisted:lead.rescored"
+  }
  },
  {
   "id": "03-06",
-  "title": "A lead says STOP",
-  "when": "A lead replies STOP, or anything that clearly means \"do not contact me\".",
+  "rev": 3,
+  "title": {
+   "t": "A lead says STOP",
+   "src": "tuple:03-06"
+  },
+  "when": {
+   "t": "A reply is exactly \"stop\", \"unsubscribe\", \"opt out\" or \"optout\".",
+   "src": "dispatcher/listing_spokes_03.py::if low in (\"stop\", \"unsubscribe\", \"opt out\", \"optout\"):"
+  },
   "steps": [
-   "Agent 03 suppresses the lead on every channel (call, text and email) at once and records the opt-out.",
-   "A confirmation is sent only where the channel's rules allow one.",
-   "No scheduled follow-up goes out after that, including one that was already due."
+   {
+    "t": "Agent 03 sets every channel to \"no\", pauses the sequence, and logs the opt-out for all channels with Agent 14.",
+    "src": "dispatcher/listing_spokes_03.py::if low in (\"stop\", \"unsubscribe\", \"opt out\", \"optout\"):; check:03-06:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "One opt-out confirmation goes through Agent 11, only on the channel the STOP came in on (text here). A STOP that does not say its channel, or came by a channel no message can go on, gets no confirmation; the authorized user is asked instead (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes_03.py::channel = env.payload.get(\"channel\"); dispatcher/listing_spokes_03.py::STOP received with no channel on it; flow:03-06:03->11 client.message.request; check:03-06:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "No follow-up goes out after that.",
+    "src": "check:03-06:envelope.persisted:client.message.request"
+   }
   ],
   "never": [
-   "Send any further marketing message to someone who said stop, on any channel."
+   {
+    "t": "Contact the lead again on any channel.",
+    "src": "tuple:03-06"
+   }
   ],
-  "why": "Ignoring an opt-out can break telemarketing and anti-spam laws and is the fastest way to a complaint.",
-  "you_see": "The opt-out on the client's record, marked for all channels.",
-  "test": "A lead comes in at 22:00, outside contact hours, so the first follow-up waits for morning. The lead replies STOP the next day. The clock runs a week later; no follow-up ever goes out.",
-  "rev": 2
+  "you_see": {
+   "t": "The opt-out on the record, for all channels; one confirmation, sent on text, the channel the STOP came in on.",
+   "src": "check:03-06:envelope.persisted:interaction.log; check:03-06:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "A lead comes in at 22:00, outside contact hours, so the first touch waits. It replies STOP by text the next day; the daily run runs a week later. No follow-up goes out.",
+   "src": "spec:03-06"
+  }
  },
  {
   "id": "03-07",
-  "title": "A follow-up falls due outside contact hours",
-  "when": "A scheduled follow-up would go out at night or another time outside the allowed contact hours.",
+  "rev": 3,
+  "title": {
+   "t": "A follow-up falls due outside contact hours",
+   "src": "tuple:03-07"
+  },
+  "when": {
+   "t": "A touch is due at an hour outside 8:00 to 21:00 (the default).",
+   "src": "dispatcher/listing_spokes_03.py::def _in_legal_contact_hours(self, hour: int) -> bool:"
+  },
   "steps": [
-   "Agent 03 holds the message and moves it to the next allowed window.",
-   "The daily clock checks again; if it is still outside hours, it waits again."
+   {
+    "t": "Agent 03 holds the touch; it is tried again on the next daily run.",
+    "src": "dispatcher/listing_spokes_03.py::if hour is not None and not self._in_legal_contact_hours(hour):; check:03-07:spoke.trace"
+   },
+   {
+    "t": "Legal holidays are not checked: the daily run never marks a day as a holiday.",
+    "src": "dispatcher/listing_spokes_03.py::if is_legal_holiday:; dispatcher/clock.py:46"
+   }
   ],
   "never": [
-   "Send a message outside contact hours because it was due."
+   {
+    "t": "Send outside contact hours.",
+    "src": "tuple:03-07"
+   }
   ],
-  "why": "Contact-hour rules apply to texts and calls; breaking them risks complaints and fines.",
-  "you_see": "The follow-up is listed as waiting, not sent.",
-  "test": "A lead comes in at 22:00; the first follow-up is due at once and the clock runs at 22:00. Legal holidays are not checked: there is no holiday calendar yet (stated in the agent's DECISIONS.md).",
-  "rev": 2
+  "you_see": {
+   "t": "Nothing; the touch is not sent until a run inside contact hours.",
+   "src": "check:03-07:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "A lead comes in at 22:00; the first touch is due at once and the daily run runs at 22:00.",
+   "src": "spec:03-07"
+  }
  },
  {
   "id": "03-08",
-  "title": "Strong interest shows up in the middle of a sequence",
-  "when": "A lead is part-way through its follow-ups when a spike of engagement is reported.",
+  "rev": 3,
+  "title": {
+   "t": "An engagement spike arrives part-way through a sequence",
+   "src": "tuple:03-08"
+  },
+  "when": {
+   "t": "A lead has had its first touch when a spike is reported, and the re-score comes back warm.",
+   "src": "spec:03-08"
+  },
   "steps": [
-   "Agent 03 pauses the sequence.",
-   "It asks Agent 02 to score the lead again.",
-   "No further scheduled follow-up goes out while the lead's new standing is worked out."
+   {
+    "t": "Agent 03 pauses the sequence and sends the lead to Agent 02 for a re-score.",
+    "src": "dispatcher/listing_spokes_03.py::seq[\"paused\"] = True  # tuples 5 + 8: pause, never drip on a hot signal; check:03-08:envelope.persisted:lead.rescored"
+   },
+   {
+    "t": "Agent 02 answers warm, so Agent 03 lifts the spike pause (owner decision of 2026-10-28). The sequence goes on at its next touch, on that touch's own day; touches whose day passed during the pause are skipped, never sent in a burst. A hot answer leaves it paused.",
+    "src": "dispatcher/listing_spokes_03.py::return self._resume_after_spike(ctx, existing_seq, env); dispatcher/listing_spokes_03.py::def _resume_after_spike(self, ctx: str, seq: dict, env: Envelope):; check:03-08:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "On the daily run a week later, the day-7 touch goes.",
+    "src": "check:03-08:envelope.persisted:client.message.request; synth/tuples/setup.jsonl:3"
+   }
   ],
   "never": [
-   "Keep sending the routine drip to someone who is showing hot interest."
+   {
+    "t": "Keep sending while the re-score is pending, or after it comes back hot.",
+    "src": "tuple:03-08; dispatcher/listing_spokes_03.py::seq[\"paused\"] = True  # tuples 5 + 8: pause, never drip on a hot signal"
+   }
   ],
-  "why": "A hot signal deserves a person's attention, not another automated message.",
-  "you_see": "The re-score; the sequence paused after its first message.",
-  "test": "A warm lead gets its first follow-up on day 0; an engagement of 80 is reported; the clock runs a week later. Only the first follow-up was ever sent.",
-  "rev": 2
+  "you_see": {
+   "t": "The re-score; the pause lifted when it came back warm; two touches in all: the first on day 0 and the next on its own day a week later.",
+   "src": "check:03-08:envelope.persisted:lead.rescored; check:03-08:envelope.persisted:interaction.log; check:03-08:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "A warm lead gets its first touch on day 0; an engagement of 80 is reported; the daily run runs a week later.",
+   "src": "spec:03-08"
+  }
  },
  {
   "id": "03-09",
-  "title": "A follow-up mentions a listing whose status has changed",
-  "when": "Retired.",
+  "rev": 3,
+  "title": {
+   "t": "A follow-up mentions a listing whose status changed",
+   "src": "tuple:03-09"
+  },
+  "when": {
+   "t": "Retired.",
+   "src": "spec:03-09"
+  },
   "steps": [],
   "never": [],
-  "why": "Retired on 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data, so this situation cannot arise.",
-  "you_see": "",
-  "test": "",
-  "rev": 2
+  "why": {
+   "t": "Retired 2026-10-12 (owner decision J5): Lead Nurture no longer requests or sends market data.",
+   "src": "spec:03-09"
+  },
+  "you_see": {
+   "t": "",
+   "src": "spec:03-09"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:03-09"
+  }
  },
  {
   "id": "03-10",
-  "title": "The authorized user moves a lead to a different sequence",
-  "when": "A newer instruction moves a lead from one sequence to another (a reassignment, for example after a re-score).",
+  "rev": 3,
+  "title": {
+   "t": "A newer instruction moves a lead to a different sequence",
+   "src": "tuple:03-10"
+  },
+  "when": {
+   "t": "A lead on one sequence is reassigned to another by a newer instruction.",
+   "src": "dispatcher/listing_spokes_03.py::if is_reassignment:"
+  },
   "steps": [
-   "The newest instruction wins: the old sequence is closed and the lead moves to the new one.",
-   "The change is written in the client's history (\"sequence reassigned\").",
-   "The new sequence goes to Compliance (Agent 17) before its first message, like any sequence; once cleared, its first message goes out at the next allowed contact time.",
-   "Only the new sequence sends from then on."
+   {
+    "t": "The newest instruction wins: the old sequence is closed and the change is logged as \"sequence reassigned\".",
+    "src": "dispatcher/listing_spokes_03.py::{\"kind\": \"sequence_reassigned\",; check:03-10:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The new sequence's text goes to Compliance; once approved, its touches go out (only inside contact hours).",
+    "src": "flow:03-10:03->17 content.review; check:03-10:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "The weekly re-score names no sequence; it keeps the lead on the sequence it is on (fixed 2026-10-27; it used to move the lead back to the default sequence and restart it).",
+    "src": "dispatcher/listing_spokes_03.py::and env.payload.get(\"sequence_id\") in (None, existing_seq[\"sequence_id\"])):; tests_listing/test_agent03.py::def test_rescore_without_a_sequence_keeps_the_running_one"
+   }
   ],
   "never": [
-   "Keep the old sequence running alongside the new one."
+   {
+    "t": "Run the old sequence alongside the new one.",
+    "src": "tuple:03-10"
+   }
   ],
-  "why": "One sequence per person keeps the contact count honest and the history readable.",
-  "you_see": "The reassignment in the client's history.",
-  "test": "The authorized user signs two sequences (the default one and \"spring buyers\"). A warm lead starts on the default sequence; the next day it is reassigned to \"spring buyers\" and the daily clock runs, and again a week after the lead came in. The spring message goes out once; the default sequence's day-7 message never does. Stand-in: a reassignment does not arise from intake today, so the test sends it as Agent 02.",
-  "rev": 2
+  "you_see": {
+   "t": "The reassignment in the client's history.",
+   "src": "check:03-10:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "Two sequences are signed (default and \"spring buyers\"). A warm lead starts on the default; the next day it is reassigned to \"spring buyers\"; the daily run runs then and a week later. The spring touch goes out once; the default day-7 touch does not. Stand-in: a reassignment does not arise from intake, so the test sends it as Agent 02.",
+   "src": "spec:03-10"
+  }
  },
  {
   "id": "03-11",
-  "title": "A lead asks a real question from inside a follow-up sequence",
-  "when": "A lead replies to a follow-up with a substantive question (for example about a property's availability or features).",
+  "rev": 3,
+  "title": {
+   "t": "A lead asks a real question from inside a sequence",
+   "src": "tuple:03-11"
+  },
+  "when": {
+   "t": "A reply is not an opt-out, a frequency complaint or a legal-line question.",
+   "src": "dispatcher/listing_spokes_03.py::{\"reason\": \"substantive drip reply\","
+  },
   "steps": [
-   "Agent 03 does not answer it itself, and the sequence stays paused.",
-   "It passes the question to Agent 11, which puts it in the authorized user's queue marked \"reply needed\", with the lead's own words.",
-   "Nothing is sent to the lead automatically. The authorized user answers the question."
+   {
+    "t": "Agent 03 does not answer; the sequence stays paused.",
+    "src": "dispatcher/listing_spokes_03.py::seq[\"paused\"] = True  # tuple 1: reply pauses, never auto-continue"
+   },
+   {
+    "t": "It passes the question to Agent 11, which puts it in the authorized user's queue as \"reply needed\" with the lead's words. Nothing is sent to the lead.",
+    "src": "dispatcher/listing_spokes_11.py::{\"reason\": \"reply needed: the client asked a question \"; check:03-11:envelope.persisted:clarification.request; check:03-11:envelope.persisted:client.message.send"
+   }
   ],
   "never": [
-   "Answer a property or legal question automatically from a drip sequence."
+   {
+    "t": "Answer the question automatically.",
+    "src": "tuple:03-11"
+   }
   ],
-  "why": "Questions about availability and features need accurate, checked answers; a wrong automated answer can mislead a buyer.",
-  "you_see": "The lead's question in the authorized user's queue, marked \"reply needed\".",
-  "test": "A lead writes \"Is the house on Elm still available and does it have a basement?\".",
-  "rev": 2
+  "you_see": {
+   "t": "The question in the queue as \"reply needed\".",
+   "src": "check:03-11:envelope.persisted:clarification.request; dispatcher/listing_spokes_11.py::reply needed: the client asked a question"
+  },
+  "test": {
+   "t": "A lead writes \"Is the house on Elm still available and does it have a basement?\".",
+   "src": "spec:03-11"
+  }
  },
  {
   "id": "03-12",
-  "title": "It is time to re-score a lead in nurture",
-  "when": "The re-score interval for a lead in a follow-up sequence has passed.",
+  "rev": 3,
+  "title": {
+   "t": "It is time to re-score a lead in follow-up",
+   "src": "tuple:03-12"
+  },
+  "when": {
+   "t": "Seven days have passed since a warm lead was last scored.",
+   "src": "dispatcher/listing_spokes_03.py::RESCORE_INTERVAL_DAYS = 7"
+  },
   "steps": [
-   "On the daily clock, Agent 03 asks Agent 02 to score the lead again.",
-   "It sends the lead's own stored answers, with the stated timeline counted down by the days that have passed (60 days, a week later, becomes 53)."
+   {
+    "t": "On the daily run, Agent 03 sends the lead to Agent 02 with its stored answers, the timeline counted down by the days since scoring (60 becomes 53 a week later).",
+    "src": "dispatcher/listing_spokes_03.py::def rescore_cadence(self, ctx: str, today: str):; check:03-12:envelope.persisted:lead.rescored"
+   }
   ],
   "never": [
-   "Invent or guess any other input for the new score."
+   {
+    "t": "Change any other input.",
+    "src": "tuple:03-12"
+   }
   ],
-  "why": "Scores must rest on what the person told us. Made-up inputs would change who gets called and when.",
-  "you_see": "The re-score in the lead's history.",
-  "test": "A warm lead with a 60-day timeline came in on 2026-10-15; the clock runs on 2026-10-22.",
-  "rev": 2
+  "you_see": {
+   "t": "The re-score in the lead's history.",
+   "src": "flow:03-12:03->02 lead.rescored"
+  },
+  "test": {
+   "t": "A warm lead with a 60-day timeline came in on 2026-10-15; the daily run runs on 2026-10-22.",
+   "src": "spec:03-12"
+  }
  },
  {
   "id": "03-13",
-  "title": "A re-score shows the lead is no longer warm",
-  "when": "A re-scored lead comes back hot (or otherwise not warm), so it no longer belongs in nurture.",
+  "rev": 3,
+  "title": {
+   "t": "A re-score shows the lead is no longer warm",
+   "src": "tuple:03-13"
+  },
+  "when": {
+   "t": "A re-scored lead does not come back warm.",
+   "src": "dispatcher/listing_spokes_03.py::if entry.get(\"awaiting\"):"
+  },
   "steps": [
-   "The hot result raises a hot-lead alert for the authorized user.",
-   "On the next cadence Agent 03 takes the lead out of the re-score pool.",
-   "It records that in the client's history (\"left re-score pool\")."
+   {
+    "t": "A hot result raises a hot-lead alert.",
+    "src": "check:03-13:escalation.raised"
+   },
+   {
+    "t": "On the next cadence check, Agent 03 removes the lead from the re-score pool and logs \"left re-score pool\" with Agent 14.",
+    "src": "dispatcher/listing_spokes_03.py::\"reason\": \"last re-score did not return the lead to nurture\"})); check:03-13:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Keep re-scoring and dripping on a lead that has left nurture."
+   {
+    "t": "Keep re-scoring a lead that left follow-up.",
+    "src": "tuple:03-13"
+   }
   ],
-  "why": "A hot lead needs a call from the authorized user, not the warm-lead routine.",
-  "you_see": "A hot-lead alert; the lead out of nurture.",
-  "test": "A lead with a 35-day timeline scores warm; a week later the timeline is 28 days and the re-score is hot; the following week's clock takes it out of the pool.",
-  "rev": 2
+  "you_see": {
+   "t": "A hot-lead alert (this test's re-score is hot; a lead that leaves warm by scoring cold raises no alert).",
+   "src": "check:03-13:escalation.raised; dispatcher/listing_spokes_02.py::self.hub.escalate(\"escalation.hot_lead\", self._hot_record(ctx, payload, score))"
+  },
+  "test": {
+   "t": "A lead with a 35-day timeline scores warm; a week later it is 28 days and the re-score is hot; the next week's run removes it from the pool.",
+   "src": "spec:03-13"
+  }
  },
  {
   "id": "03-14",
-  "title": "A re-score keeps the lead warm",
-  "when": "A lead's re-score comes back warm again, on the same sequence.",
+  "rev": 3,
+  "title": {
+   "t": "A re-score keeps the lead warm on the default sequence",
+   "src": "tuple:03-14"
+  },
+  "when": {
+   "t": "A weekly re-score comes back warm for a lead on the default sequence.",
+   "src": "dispatcher/listing_spokes_03.py::result=\"rescore: still WARM, sequence continues\")"
+  },
   "steps": [
-   "The sequence carries on from where it was.",
-   "Agent 03 records that the sequence continues."
+   {
+    "t": "The sequence carries on from where it was; nothing is resent.",
+    "src": "dispatcher/listing_spokes_03.py::result=\"rescore: still WARM, sequence continues\"); check:03-14:spoke.trace"
+   },
+   {
+    "t": "The same holds for a lead on any other sequence: the re-score names no sequence and the lead stays on the one it is on.",
+    "src": "dispatcher/listing_spokes_03.py::and env.payload.get(\"sequence_id\") in (None, existing_seq[\"sequence_id\"])):; tests_listing/test_agent03.py::def test_rescore_without_a_sequence_keeps_the_running_one"
+   }
   ],
   "never": [
-   "Restart the sequence from day 0, which would repeat messages the lead already received."
+   {
+    "t": "Restart the sequence from its first touch.",
+    "src": "tuple:03-14"
+   }
   ],
-  "why": "Repeating the first messages makes the office look automated and careless.",
-  "you_see": "Nothing new; the lead's next follow-up comes when it is due.",
-  "test": "A lead with a 90-day timeline gets its first follow-up; a week later the re-score is warm again.",
-  "rev": 2
+  "you_see": {
+   "t": "Nothing new.",
+   "src": "check:03-14:spoke.trace"
+  },
+  "test": {
+   "t": "A lead with a 90-day timeline gets its first touch; a week later the re-score is warm again.",
+   "src": "spec:03-14"
+  }
  },
  {
   "id": "03-15",
-  "title": "No re-score for a lead that opted out or is paused",
-  "when": "A lead in nurture has opted out, or its sequence is paused.",
+  "rev": 3,
+  "title": {
+   "t": "No re-score for a lead that opted out or is paused",
+   "src": "tuple:03-15"
+  },
+  "when": {
+   "t": "A lead in follow-up has opted out on every channel, or its sequence is paused.",
+   "src": "dispatcher/listing_spokes_03.py::def rescore_cadence(self, ctx: str, today: str):"
+  },
   "steps": [
-   "The re-score cadence skips that lead."
+   {
+    "t": "The weekly re-score skips it (an opted-out lead leaves the pool).",
+    "src": "dispatcher/listing_spokes_03.py::if seq.get(\"consent\") and not any(v == \"yes\" for v in seq[\"consent\"].values()):; check:03-15:envelope.persisted:lead.rescored"
+   }
   ],
   "never": [
-   "Re-score, and so possibly re-contact, someone who opted out."
+   {
+    "t": "Re-score a lead that opted out.",
+    "src": "tuple:03-15"
+   }
   ],
-  "why": "A re-score can lead to new contact; for someone who said stop there must be none.",
-  "you_see": "No re-score on that lead's record.",
-  "test": "A lead says STOP the day after it came in; the clock runs a week later. No re-score is made.",
-  "rev": 2
+  "you_see": {
+   "t": "No re-score on the record.",
+   "src": "check:03-15:envelope.persisted:lead.rescored"
+  },
+  "test": {
+   "t": "A lead says STOP the day after it came in; the daily run runs a week later.",
+   "src": "spec:03-15"
+  }
  },
  {
   "id": "03-16",
-  "title": "Compliance flags a follow-up sequence",
-  "when": "Agent 17 (Compliance and Fair Housing) finds a problem in a sequence's text, for example wording that steers by family status.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance flags a follow-up sequence",
+   "src": "tuple:03-16"
+  },
+  "when": {
+   "t": "Compliance flags a sequence's text.",
+   "src": "dispatcher/listing_spokes_03.py::if verdict == \"flagged\":"
+  },
   "steps": [
-   "The sequence stays paused and nothing from it is sent.",
-   "Agent 03 tells the authorized user, with Agent 17's findings.",
-   "It waits for the authorized user to sign a corrected sequence."
+   {
+    "t": "The sequence stays paused and nothing is sent.",
+    "src": "dispatcher/listing_spokes_03.py::if verdict == \"flagged\":; check:03-16:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "The authorized user is told, with Compliance's findings, and asked for a corrected signed sequence.",
+    "src": "dispatcher/listing_spokes_03.py::\"reason\": \"Compliance (17) flagged the nurture sequence - \"; check:03-16:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Send a message that compliance flagged, even once."
+   {
+    "t": "Send flagged text.",
+    "src": "tuple:03-16"
+   }
   ],
-  "why": "Fair-housing language problems can cost a license and bring a complaint; the fix must be the authorized user's and signed.",
-  "you_see": "A question for the authorized user: Compliance (17) flagged the sequence, with what it found.",
-  "test": "A signed sequence says \"This listing is perfect for young families.\" A warm lead comes in and the clock runs; Agent 17 flags it and no follow-up is sent.",
-  "rev": 2
+  "you_see": {
+   "t": "A question naming Compliance's findings.",
+   "src": "check:03-16:envelope.persisted:clarification.request; dispatcher/listing_spokes_03.py:758"
+  },
+  "test": {
+   "t": "A signed sequence says \"This listing is perfect for young families.\" (a prohibited phrase in the test rules). A warm lead comes in and the daily run runs.",
+   "src": "spec:03-16; synth/tuples/setup.jsonl:4"
+  }
  }
 ]

@@ -244,7 +244,8 @@ class Spoke10MarketData:
             self.hub.send(_env("10", "17", "compliance.notice", ctx,
                                {"trigger": "data request smelled like "
                                           "appraisal substitution",
-                                "agent": "10"}))
+                                "agent": "10", "requested_by": requester,
+                                "today": payload.get("today")}))
 
         self.hub.ingest_spoke_trace(
             "10", env.envelope_id,
@@ -311,7 +312,8 @@ class Spoke10MarketData:
             self.hub.send(_env("10", "17", "compliance.notice", ctx,
                                {"trigger": "data request smelled like "
                                           "appraisal substitution",
-                                "agent": "10"}))
+                                "agent": "10", "requested_by": requester,
+                                "today": payload.get("today")}))
         self.hub.ingest_spoke_trace(
             "10", env.envelope_id,
             thought=f"neighborhood package: {len(figures)} sourced figures, "

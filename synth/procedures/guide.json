@@ -1,0 +1,637 @@
+{
+ "_what": "The manual's 'How to read this manual' pages. Every statement carries its source, like the rest of the manual (owner 2026-10-27: every statement checked against its source). {PB}, {AG} and {T} are replaced by the counts of playbooks, agents and procedures; an 'example' block shows a tuple word for word.",
+ "rev": 1,
+ "sections": [
+  {
+   "h": "What this manual is",
+   "blocks": [
+    {
+     "p": {
+      "t": "ListingAssistants is one dispatcher (Agent 00) and twenty specialist agents, each with one job. This manual sets out how they work, at four levels, from the whole picture down to each single situation they are prepared for:",
+      "src": "dispatcher/swarm.py:331; identity/routes.json"
+     }
+    },
+    {
+     "table": [
+      {
+       "k": "1 · The whole picture",
+       "t": "The real estate process stage by stage: which playbooks run at each stage, which agents take part, and what the authorized user decides. Page code LA-W-01.",
+       "src": "synth/procedures/overview.json; synth/procedures/site_template.html:314"
+      },
+      {
+       "k": "2 · Playbooks ({PB})",
+       "t": "A workflow from its start to its end (a new listing, a showing, contract to close): its steps, who does each one, and a recorded run. Page codes LA-P-01 to LA-P-24.",
+       "src": "synth/procedures/playbook_pages.json; identity/playbooks.json"
+      },
+      {
+       "k": "3 · Agents ({AG})",
+       "t": "One agent: its job, its steps, what stays with the authorized user, what is not built, and the only messages it may send and receive. Page codes LA-A-00 to LA-A-20.",
+       "src": "synth/procedures/agents.json; identity/routes.json"
+      },
+      {
+       "k": "4 · Procedures ({T})",
+       "t": "One situation, decided in advance, and the test that checks how the system handles it. Page codes LA-T-, then the agent, then the number.",
+       "src": "synth/procedures/pages/00.json; synth/tuples/specs/00-dispatcher.jsonl"
+      }
+     ]
+    },
+    {
+     "p": {
+      "t": "Each page links up (zoom out) and down (zoom in): a procedure names its agent and its playbooks; a playbook lists its agents and procedures; an agent page lists its playbooks and procedures.",
+      "src": "synth/procedures/site_template.html"
+     }
+    },
+    {
+     "p": {
+      "t": "Each situation was decided in advance by the owner and written into the agent's DECISIONS.md, ratified on 2026-07-11; situations added since each carry the owner's sign-off. Many of the decisions hand the situation to the authorized user, and the page says so where they do.",
+      "src": "00-dispatcher/DECISIONS.md:1; git commit 0ebf4f6 (23 tuples added with the owner's sign-off, 2026-10-12); git commits f516d2e, df6e4ea"
+     }
+    },
+    {
+     "p": {
+      "t": "The agents are fixed rules written in code: the same situation is handled the same way every time. Two optional parts can use an outside engine, and both are off unless the authorized user signs them on: model-written listing remarks for Agent 04, and an outside scoring engine for Agent 02.",
+      "src": "dispatcher/model_drafting.py:6-16; dispatcher/decision_adapter.py:4-10"
+     }
+    }
+   ]
+  },
+  {
+   "h": "How the pages were checked, and with what data",
+   "blocks": [
+    {
+     "p": {
+      "t": "Each procedure page that has a test was checked by running the test: a scripted session is played through the product's own console against a fresh install (a test that injects a failure runs through the fault harness instead, on the same build), and the page shows what the record says happened. Every test runs with the agents' clock set to noon on 2026-10-15, so a result does not depend on when it was run. The page describes what the system did in that run, not what it was meant to do.",
+      "src": "synth/tuples/run_tuples.py:105-130, 176-214"
+     }
+    },
+    {
+     "p": {
+      "t": "Every test case is made up. Claude wrote all of them: the people, addresses, phone numbers, prices, vendors and messages (for example \"Seller T1-Synth\" at \"T1 Synthetic Ln, Testville, OH\", and a made-up photographer). None of it is data from an office, a client or the owner.",
+      "src": "synth/tuples/specs/05-mls-listing-management.jsonl; synth/tuples/config/vendor_panel.json:3"
+     }
+    },
+    {
+     "p": {
+      "t": "The settings the tests start with are made up too (a few tests leave some of them out on purpose): a scoring rubric, follow-up sequences, two prohibited compliance phrases (\"perfect for young families\" and \"no kids\"), the monitored social channels and the brokerage identification \"Synth Realty, Testville OH\".",
+      "src": "synth/tuples/setup.jsonl:1-7; synth/tuples/run_tuples.py:92-102"
+     }
+    },
+    {
+     "p": {
+      "t": "Where nothing in the product starts a situation today, the test sends one message as the agent that would (a stand-in), or the authorized user's signed setting carries what a document or a call would have said. The page says so.",
+      "src": "spec:14-09; spec:07-01"
+     }
+    },
+    {
+     "p": {
+      "t": "A passing test shows the product does what the page says for that made-up case. It does not show how the system behaves with a real office, real clients or real volumes.",
+      "src": "definition"
+     }
+    }
+   ]
+  },
+  {
+   "h": "What the system does not do today",
+   "blocks": [
+    {
+     "ul": [
+      {
+       "t": "Nothing goes out to clients, vendors, portals or the public. A message to any of them is put on the outbound list and recorded; nothing sends it by email, text or any other way. What can reach outside, once the office sets it up: a text to the authorized user when an item lands in the queue, and the two optional outside engines described in section 1.",
+       "src": "dispatcher/swarm.py:220-222; dispatcher/notifier.py:1-15; tools/console.py:105-120; dispatcher/model_drafting.py:6-16; dispatcher/decision_adapter.py:4-10"
+      },
+      {
+       "t": "Nothing runs on a schedule by itself. The daily run (follow-ups, deadline checks, feedback requests, the morning briefing) and the evening run happen only when someone starts them: \"Run today's checks\" on the Desk, tools/run_sweeps.py, or a scheduler the office sets up.",
+       "src": "tools/desk.py:35; tools/run_sweeps.py:1-15; QUICKSTART_WINDOWS.md:227"
+      },
+      {
+       "t": "No outside system is connected: no MLS, listing portals, ad platforms, listing feeds or social channels. What they would send reaches the agents only as messages someone puts in: a test, a console session, or the inquiry front door (which takes inquiries only).",
+       "src": "dispatcher/listing_spokes_05.py:53-70; dispatcher/listing_spokes_10.py:46-51; dispatcher/swarm.py:220-222; dispatcher/identity_mcp.py:31"
+      },
+      {
+       "t": "The agents read no documents. A date, a signature, an appraised value or a repair request in a document reaches them only as a field on the incoming message.",
+       "src": "dispatcher/listing_spokes_07.py:391-396; dispatcher/listing_spokes_08.py:327-338"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "h": "The authorized user",
+   "blocks": [
+    {
+     "p": {
+      "t": "This manual calls the person the system works for the authorized user: anyone currently authorized on this ListingAssistants profile to act for it. Normally that is the broker, and anyone the broker has authorized.",
+      "src": "definition"
+     }
+    },
+    {
+     "p": {
+      "t": "Only a signed message carries authority: a price or status change, a release of a held message, a setting. An unsigned one is refused and recorded as an integrity violation.",
+      "src": "dispatcher/hub.py:559-566; identity/routes.json"
+     }
+    },
+    {
+     "p": {
+      "t": "Questions, alerts and decisions the agents hand on go to the authorized user's queue.",
+      "src": "dispatcher/hub.py::def queue_and_notify; tools/desk.py:15-18"
+     }
+    }
+   ]
+  },
+  {
+   "h": "Agent 00, the dispatcher: everything runs through one place",
+   "blocks": [
+    {
+     "p": {
+      "t": "The agents hold no line to each other, only to the dispatcher. Every message from an agent, from outside or from the authorized user goes to the dispatcher first. For every message, the dispatcher:",
+      "src": "dispatcher/handoff_guard.py:7-9; dispatcher/portal_dispatcher.py:5-7"
+     }
+    },
+    {
+     "ol": [
+      {
+       "t": "answers a message it has already seen as a duplicate, and does nothing else with it;",
+       "src": "dispatcher/hub.py:532-538"
+      },
+      {
+       "t": "refuses a message whose sender filled in the sequence number (the dispatcher numbers messages itself);",
+       "src": "dispatcher/core.py:62-63; dispatcher/hub.py:555-558"
+      },
+      {
+       "t": "checks the signature on anything that carries the authorized user's authority, and refuses it if the signature does not verify;",
+       "src": "dispatcher/hub.py:559-566"
+      },
+      {
+       "t": "checks the route: may this sender send this kind of message to that receiver? The allowed routes are a fixed list, the track. A message off the track is not delivered;",
+       "src": "dispatcher/hub.py:590-603; identity/routes.json"
+      },
+      {
+       "t": "holds anything going to a vendor, the other side or the public until the authorized user signs its release;",
+       "src": "dispatcher/hub.py:604-646"
+      },
+      {
+       "t": "writes the message to the record, and only then delivers it. If the record cannot be written, it stops all work and refuses every message until restarted on a record it can write.",
+       "src": "dispatcher/hub.py:647-660, 500-528"
+      }
+     ]
+    },
+    {
+     "p": {
+      "t": "It also keeps track of the playbooks (the larger workflows, such as a new listing), lets waiting work in by priority, and holds conflicts for the authorized user.",
+      "src": "dispatcher/run_tracker.py:1-50"
+     }
+    },
+    {
+     "p": {
+      "t": "Why one place matters:",
+      "src": "definition"
+     }
+    },
+    {
+     "ul": [
+      {
+       "t": "Consistency. Every check is made in one place, the same way, for every message.",
+       "src": "dispatcher/hub.py:530-660"
+      },
+      {
+       "t": "Proof. There is one record of everything, in order; each entry carries the fingerprint of the one before, so a change to an earlier entry shows.",
+       "src": "dispatcher/core.py:316-317"
+      },
+      {
+       "t": "Control. There is one place where work can be held or stopped. In the isolated setup (each agent in its own container), an agent that tries a route off the track is stopped until the owner clears it.",
+       "src": "dispatcher/portal_dispatcher.py:9-12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "h": "What a \"tuple\" is",
+   "blocks": [
+    {
+     "p": {
+      "t": "Each decision was first written in a short, fixed form called a tuple. In mathematics and programming a tuple is a small group of values that always travel together, in a set order. Here the group is three things:",
+      "src": "definition"
+     }
+    },
+    {
+     "ol": [
+      {
+       "t": "The situation: what has happened.",
+       "src": "definition"
+      },
+      {
+       "t": "What to do: the response, decided ahead of time.",
+       "src": "definition"
+      },
+      {
+       "t": "The limit: what must never happen, whatever the pressure.",
+       "src": "definition"
+      }
+     ]
+    },
+    {
+     "example": "03-01"
+    },
+    {
+     "p": {
+      "t": "Every tuple belongs to one agent and is numbered within it, except the fourteen swarm-wide tuples (SW-01 to SW-14), which belong to the whole system. The tuple is kept word for word on each page under \"Rule as signed\". The rest of the page explains it in plain language, with its sources.",
+      "src": "synth/tuples/specs/03-lead-nurture.jsonl; synth/tuples/specs/SWARM.jsonl; synth/procedures/site_template.html"
+     }
+    }
+   ]
+  },
+  {
+   "h": "How a procedure page reads",
+   "blocks": [
+    {
+     "p": {
+      "t": "Playbook and agent pages follow the same pattern: a control table, numbered sections, then the flowchart and proof where there is a recorded run.",
+      "src": "synth/procedures/site_template.html"
+     }
+    },
+    {
+     "table": [
+      {
+       "k": "Title",
+       "t": "The situation in plain words.",
+       "src": "definition"
+      },
+      {
+       "k": "Page code",
+       "t": "For example LA-T-03-01 · Rev 2: LA is ListingAssistants, T is tuple, 03 is the agent, 01 is the tuple's number for that agent. The revision goes up each time the page's text changes.",
+       "src": "definition"
+      },
+      {
+       "k": "Carried out by",
+       "t": "The agent that acts in this situation.",
+       "src": "definition"
+      },
+      {
+       "k": "Category",
+       "t": "What kind of risk the rule guards against (the seven categories are below).",
+       "src": "synth/tuples/TUPLE_MAP.json:2-11"
+      },
+      {
+       "k": "Status",
+       "t": "Whether the rule is in force, and the result of its last check.",
+       "src": "definition"
+      },
+      {
+       "k": "Last checked",
+       "t": "The date the test was last run and its record compared with the page.",
+       "src": "synth/procedures/evidence.json"
+      },
+      {
+       "k": "Rule as signed",
+       "t": "The tuple, word for word.",
+       "src": "synth/tuples/specs/00-dispatcher.jsonl"
+      },
+      {
+       "k": "Sources",
+       "t": "Not printed on the page. Every statement's source (a line of code, a check on the recorded run, the tuple or the test) is listed in the audit ledger that comes with this manual.",
+       "src": "synth/procedures/audit/make_ledger.py:1-12; synth/procedures/build_site.py"
+      }
+     ]
+    },
+    {
+     "p": {
+      "t": "Then the sections, always in this order:",
+      "src": "definition"
+     }
+    },
+    {
+     "ol": [
+      {
+       "t": "When this applies: the situation, in practice.",
+       "src": "definition"
+      },
+      {
+       "t": "What happens: the steps, in order.",
+       "src": "definition"
+      },
+      {
+       "t": "Never: the limit, as the tuple states it.",
+       "src": "definition"
+      },
+      {
+       "t": "Why it matters: only where the tuple itself gives the reason.",
+       "src": "definition"
+      },
+      {
+       "t": "What the authorized user sees: what reaches them, if anything.",
+       "src": "definition"
+      },
+      {
+       "t": "Flowchart of the recorded run: the test's own messages in order, leaving out background traffic (at most 40 arrows; the page says how many it left out).",
+       "src": "synth/procedures/collect_evidence.py::def own_part(entries, spec=None):; synth/procedures/build_site.py:275-276"
+      },
+      {
+       "t": "Proof: the test scenario, the result, each thing the record must show, and the command to run the test again.",
+       "src": "synth/procedures/site_template.html"
+      },
+      {
+       "t": "Seen in playbooks: which playbooks the test passed through.",
+       "src": "synth/procedures/collect_evidence.py"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "h": "The status words",
+   "blocks": [
+    {
+     "table": [
+      {
+       "k": "In force",
+       "t": "The rule applies today.",
+       "src": "definition"
+      },
+      {
+       "k": "Verified",
+       "t": "On the last check, the record showed everything the test checks for. The date of that check is on the page.",
+       "src": "synth/tuples/run_tuples.py:204-214"
+      },
+      {
+       "k": "Open item",
+       "t": "On the last check, the record did not show what the test checks for. The page says what happens instead.",
+       "src": "synth/tuples/run_tuples.py:204-213"
+      },
+      {
+       "k": "Not built yet",
+       "t": "The rule is decided, but the part of the system it needs does not exist (for example a connection to a portal).",
+       "src": "spec:05-02"
+      },
+      {
+       "k": "No way in yet",
+       "t": "The response exists, but nothing in the product can start this situation today. The page says why.",
+       "src": "spec:06-08"
+      },
+      {
+       "k": "Retired",
+       "t": "The rule no longer applies: the owner withdrew or replaced it (20-06 was only a note for later). The page stays, with the reason.",
+       "src": "spec:11-02; spec:12-10; spec:20-06"
+      },
+      {
+       "k": "Stand-in test",
+       "t": "The test sends one message as the agent that would start the case. Everything after that message is the product's own behavior.",
+       "src": "spec:14-09"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "h": "The seven categories",
+   "blocks": [
+    {
+     "table": [
+      {
+       "k": "L",
+       "t": "Legal line: things the system must never do on its own (price or legal opinion, fair housing, commission wording, trust and escrow, wire instructions, compliance gates); it hands them to the authorized user word for word.",
+       "src": "synth/tuples/TUPLE_MAP.json:4"
+      },
+      {
+       "k": "C",
+       "t": "Consent and contact: who may be contacted, how, when and how often, and who may see a client's information.",
+       "src": "synth/tuples/TUPLE_MAP.json:5"
+      },
+      {
+       "k": "T",
+       "t": "Truth of the record: missing, stale, unverified or contradicting facts; unknown stays unknown, nothing is made up.",
+       "src": "synth/tuples/TUPLE_MAP.json:6"
+      },
+      {
+       "k": "A",
+       "t": "The authorized user's authority: only what is signed changes things: signatures, identity, property access, money approvals, forgery.",
+       "src": "synth/tuples/TUPLE_MAP.json:7"
+      },
+      {
+       "k": "Y",
+       "t": "Choices that are the authorized user's: two of something or an unclear case; the system holds and asks, it never picks the likely one.",
+       "src": "synth/tuples/TUPLE_MAP.json:8"
+      },
+      {
+       "k": "R",
+       "t": "Time and reliability: deadlines, overdue escalations, the clock, outages, capacity; when something breaks it stops loudly.",
+       "src": "synth/tuples/TUPLE_MAP.json:9"
+      },
+      {
+       "k": "P",
+       "t": "People moments: an angry, upset or vulnerable person, a public complaint; a person answers, not a template.",
+       "src": "synth/tuples/TUPLE_MAP.json:10"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "h": "Reading the flowchart",
+   "blocks": [
+    {
+     "p": {
+      "t": "Each column is a participant: Outside (clients, vendors, portals), the Clock (the daily run), the agents by number, the Authorized user, and the Queue (questions and alerts waiting for the authorized user). The highlighted column is the agent that carries out the procedure.",
+      "src": "synth/procedures/site_template.html"
+     }
+    },
+    {
+     "p": {
+      "t": "Each arrow is one message, numbered in the order it happened in the test. Amber arrows did not simply go through: held for signed release, released on a signature, refused, held because they are on no route, stopped as repeating, duplicates, or undeliverable; alerts and questions for the authorized user are amber too, and the tag on the arrow says which. Grey arrows are the rest: delivered, or the authorized user's own signed release or decision.",
+      "src": "synth/procedures/collect_evidence.py:34-39, 130-150; synth/procedures/site_template.html"
+     }
+    },
+    {
+     "p": {
+      "t": "The chart leaves out background traffic (record keeping, status updates, the morning briefing, the clock waking agents with no part in the case) and says how many messages it left out. It draws only what is on the record.",
+      "src": "synth/procedures/site_template.html; synth/procedures/collect_evidence.py"
+     }
+    }
+   ]
+  },
+  {
+   "h": "Words used throughout",
+   "blocks": [
+    {
+     "table": [
+      {
+       "k": "Authorized user",
+       "t": "A person currently authorized on this ListingAssistants profile to act for it.",
+       "src": "definition"
+      },
+      {
+       "k": "Signed",
+       "t": "Sent with the authorized user's key. Anything that carries authority must be signed, or it is refused.",
+       "src": "dispatcher/hub.py:559-566"
+      },
+      {
+       "k": "Held",
+       "t": "Prepared but not sent until the authorized user signs its release. This applies to every message to a vendor, the other side or the public, including published marketing. Messages to the office's own clients are not held: Agent 11 puts them on the outbound list within the rules in this manual.",
+       "src": "dispatcher/hub.py:604-646; identity/routes.json"
+      },
+      {
+       "k": "Outbound list",
+       "t": "Where messages leaving the system are recorded. Today nothing is sent from it.",
+       "src": "dispatcher/swarm.py:220-222"
+      },
+      {
+       "k": "Sent",
+       "t": "When a page says a message is sent to a client, a vendor or the public, it means the message was put on the outbound list (after any signed release it needed). Nothing goes further today.",
+       "src": "dispatcher/swarm.py:220-222; dispatcher/hub.py:604-646"
+      },
+      {
+       "k": "Legal line",
+       "t": "The kind of question only a licensed person may answer (price opinions, contracts, fair housing, money and wire instructions). A legal-line alert goes to the authorized user with the words that raised it.",
+       "src": "synth/tuples/TUPLE_MAP.json:4"
+      },
+      {
+       "k": "The track",
+       "t": "The fixed list of which sender may send which kind of message to which receiver.",
+       "src": "identity/routes.json"
+      },
+      {
+       "k": "The record",
+       "t": "The tamper-evident log of everything that happened, in order. The pages' proof comes from it.",
+       "src": "dispatcher/core.py:316-317"
+      },
+      {
+       "k": "The queue",
+       "t": "Where questions and alerts wait for the authorized user, shown on the Broker Desk.",
+       "src": "tools/desk.py:15-18"
+      },
+      {
+       "k": "Client record and drawer",
+       "t": "A client's history and consent (kept by Agent 14) and their filed documents (filed through the dispatcher).",
+       "src": "dispatcher/listing_spokes.py:187-258; dispatcher/drawer_filing.py:88-91"
+      },
+      {
+       "k": "Daily run",
+       "t": "One pass of the clock that wakes the agents for scheduled work (follow-ups, deadline checks, feedback requests, the morning briefing). It runs only when someone starts it.",
+       "src": "dispatcher/clock.py:41-65; tools/run_sweeps.py:1-15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "h": "Who's who",
+   "blocks": [
+    {
+     "p": {
+      "t": "Agent 00, the dispatcher, comes first: it is the one every other agent works through.",
+      "src": "dispatcher/portal_dispatcher.py:5-7"
+     }
+    },
+    {
+     "roles": [
+      {
+       "k": "00",
+       "t": "In charge of every exchange: every message goes through the dispatcher, which checks it, records it and only then delivers it.",
+       "src": "dispatcher/hub.py:530-660"
+      },
+      {
+       "k": "01",
+       "t": "Takes in new inquiries, records the person and their consent, and asks Agent 14 whether they are already on record.",
+       "src": "dispatcher/listing_spokes.py:1117-1122; run:P11:01->14 record.request"
+      },
+      {
+       "k": "02",
+       "t": "Scores new leads on the signed rubric: hot to the authorized user, warm to follow-up, cold archived.",
+       "src": "dispatcher/listing_spokes_02.py::def _apply_tier("
+      },
+      {
+       "k": "03",
+       "t": "Runs the follow-up sequences the authorized user wrote for warm leads, after Compliance clears them, and sends them back for a new score every 7 days.",
+       "src": "dispatcher/listing_spokes_03.py::RESCORE_INTERVAL_DAYS = 7; dispatcher/listing_spokes_03.py::if env.intent == \"config.update\" and \"nurture_sequences\" in env.payload:"
+      },
+      {
+       "k": "04",
+       "t": "Drafts listing descriptions from the listing's facts; every draft goes to Compliance.",
+       "src": "run:P01:04->17 content.review"
+      },
+      {
+       "k": "05",
+       "t": "Keeps the listing record and its status changes, on the authorized user's signature; orders photography for a new listing.",
+       "src": "dispatcher/listing_spokes_05.py:1-8; run:P01:05->09 vendor.request"
+      },
+      {
+       "k": "06",
+       "t": "Schedules showings, checks notice and conflicts, and asks for feedback afterwards.",
+       "src": "dispatcher/listing_spokes_06.py:636-789, 314-363"
+      },
+      {
+       "k": "07",
+       "t": "Tracks the contract deadlines the authorized user loads, from contract to closing.",
+       "src": "dispatcher/listing_spokes_07.py:270-312, 657-727"
+      },
+      {
+       "k": "08",
+       "t": "Requests, receives, checks and files transaction documents.",
+       "src": "dispatcher/listing_spokes_08.py:146-182, 327-551"
+      },
+      {
+       "k": "09",
+       "t": "Books vendors from the approved roster (photographers, inspectors and others) and accepts work only with proof.",
+       "src": "dispatcher/listing_spokes_09.py:144-301, 355-402"
+      },
+      {
+       "k": "10",
+       "t": "Assembles the comparable sales and figures it is given, with their sources. Never gives an opinion on price.",
+       "src": "dispatcher/listing_spokes_10.py:66-79, 137-152"
+      },
+      {
+       "k": "11",
+       "t": "The only route to clients: puts client messages on the outbound list within the consent, quiet-hours and template rules, and routes client replies.",
+       "src": "identity/routes.json; dispatcher/listing_spokes_11.py:239-359"
+      },
+      {
+       "k": "12",
+       "t": "Prepares marketing: the approved listing description and campaigns the authorized user signs, each held for release.",
+       "src": "dispatcher/listing_spokes_12.py:106-137, 268-300"
+      },
+      {
+       "k": "13",
+       "t": "Matches new listings to buyers' stated criteria, once the buyer agreement is on file.",
+       "src": "dispatcher/listing_spokes_13.py:118-279, 281-316"
+      },
+      {
+       "k": "14",
+       "t": "The system of record: every client's history and consent.",
+       "src": "dispatcher/listing_spokes.py:187-258, 325-337"
+      },
+      {
+       "k": "15",
+       "t": "Tracks commissions and expenses and builds money reports. Money questions go to the authorized user.",
+       "src": "dispatcher/listing_spokes_15.py:111-149, 230-262"
+      },
+      {
+       "k": "16",
+       "t": "Keeps in touch with past clients after closing, only those on the authorized user's client list.",
+       "src": "dispatcher/listing_spokes_16.py:71-84, 98-133"
+      },
+      {
+       "k": "17",
+       "t": "Compliance and fair housing: reviews the text Agents 03, 04, 12, 13, 16 and 20 send it, against the signed rules. It only checks; it never writes.",
+       "src": "dispatcher/listing_spokes_17.py:27-31, 199-347"
+      },
+      {
+       "k": "18",
+       "t": "The authorized user's calendar, the list of what agents are waiting on, and the morning briefing.",
+       "src": "dispatcher/listing_spokes_18.py:186-267, 519-573"
+      },
+      {
+       "k": "19",
+       "t": "Records possible prospects that arrive from discovery feeds and passes them to the authorized user. Never contacts anyone.",
+       "src": "dispatcher/listing_spokes_19.py:137-280, 103-114"
+      },
+      {
+       "k": "20",
+       "t": "Watches the named social channels and routes what it finds. Never posts.",
+       "src": "dispatcher/listing_spokes_20.py:124-263, 306-319"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

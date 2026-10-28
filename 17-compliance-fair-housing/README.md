@@ -22,6 +22,7 @@ flowchart LR
         I10["10 Market Data"]
         I05["05 MLS and Listing Management"]
         IK(["Daily clock"])
+        I18["18 Calendar and Task Management"]
     end
     A17(("17 Compliance and Fair Housing"))
     subgraph OUT["Talks to"]
@@ -47,6 +48,7 @@ flowchart LR
     I10 -- "sends it for a compliance check" --> A17
     I05 -- "sends it for a compliance check" --> A17
     IK -- "the daily clock runs" --> A17
+    I18 -- "asks for its part of the morning briefing" --> A17
     A17 -- "returns the review - approved or flagged" --> O03
     A17 -- "returns the review - approved or flagged" --> O04
     A17 -- "returns the review - approved or flagged" --> O12
@@ -56,7 +58,7 @@ flowchart LR
     A17 -- "delivers a report" --> OB
     A17 -- "logs it in the CRM" --> O14
     A17 -- "flags it for you<br/>asks you<br/>reports an integrity problem" --> OB
-    A17 -- "reports what it is waiting on" --> O18
+    A17 -- "reports what it is waiting on<br/>delivers a report" --> O18
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328
@@ -78,6 +80,7 @@ Playbooks whose test run includes this agent (pictures in [PLAY-BY-PLAY](../docs
 - [P09 - Contract to Close (the deadline engine)](../docs/PLAY-BY-PLAY.md#p09---contract-to-close-the-deadline-engine)
 - [P10 - Close & Post-Close Handoff](../docs/PLAY-BY-PLAY.md#p10---close--post-close-handoff)
 - [P12 - Geographic Farm Campaign](../docs/PLAY-BY-PLAY.md#p12---geographic-farm-campaign)
+- [P16 - Morning Operations](../docs/PLAY-BY-PLAY.md#p16---morning-operations)
 - [P18 - Seller Weekly Report](../docs/PLAY-BY-PLAY.md#p18---seller-weekly-report)
 - [P20 - Vacant Property Watch](../docs/PLAY-BY-PLAY.md#p20---vacant-property-watch)
 - [P21 - Lead Rescore Cycle](../docs/PLAY-BY-PLAY.md#p21---lead-rescore-cycle)

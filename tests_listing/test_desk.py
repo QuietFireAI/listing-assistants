@@ -321,7 +321,7 @@ def test_mark_handled_signs_the_prospect_off_and_it_leaves_the_list(tmp_path):
             r, err = console.apply_action(d.sw, d.signer, d.operator, a)
             assert not err, r
         [p] = d.state()["prospects"]
-        assert (p["id"], p["zip"], p["status"], p["comps"]) == ("M-1", "44811", "new", 0)
+        assert (p["id"], p["zip"], p["status"], p["comps"]) == ("M-1", "44811", "new", None)
         r = d.act({"action": "prospect_handled", "id": "M-1"})
         assert r.get("status") == "ack", r
         assert d.state()["prospects"] == []

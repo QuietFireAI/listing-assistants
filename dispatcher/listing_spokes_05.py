@@ -19,7 +19,10 @@ UNKNOWN = "unknown"
 
 VALID_MLS_FIELDS = {"beds", "baths", "sqft", "price", "status", "remarks",
                     "address", "photos"}
-VALID_STATUSES = {"active", "pending", "sold", "withdrawn"}
+VALID_STATUSES = {"active", "pending", "sold", "withdrawn", "expired"}
+# "expired" added 2026-10-28 (owner decision D-A9, finding J): a listing
+# whose agreement ran out was refused as an invalid status. It is handled
+# like withdrawn: refused while under contract, ends the listing otherwise.
 
 
 def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN):
@@ -426,17 +429,18 @@ class Spoke05MLSListingManagement:
                     return
 
                 # tuple 11: withdrawal while under contract -> halt, 17 + human
-                if new_status == "withdrawn" and ctx in self.under_contract:
+                if new_status in ("withdrawn", "expired") and ctx in self.under_contract:
                     self.hub.escalate("escalation.legal_line",
                                       {"client_context_id": ctx,
-                                       "trigger": "withdrawal requested while "
+                                       "trigger": f"{'withdrawal' if new_status == 'withdrawn' else 'expiry'} "
+                                                 f"requested while "
                                                  "under contract - status "
                                                  "math on a live contract is "
                                                  "never autonomous",
                                        "agent": "05"})
                     self.hub.send(_env("05", "17", "compliance.notice", ctx,
-                                       {"trigger": "withdrawal requested "
-                                                  "while under contract",
+                                       {"trigger": f"{'withdrawal' if new_status == 'withdrawn' else 'expiry'} "
+                                                  "requested while under contract",
                                         "agent": "05"}))
                     return
 
@@ -453,7 +457,7 @@ class Spoke05MLSListingManagement:
 
                 if new_status == "pending":
                     self.under_contract.add(ctx)
-                elif new_status in ("sold", "withdrawn"):
+                elif new_status in ("sold", "withdrawn", "expired"):
                     self.under_contract.discard(ctx)
 
                 record = self.mls_records.setdefault(ctx, {})

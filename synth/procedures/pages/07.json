@@ -1,195 +1,482 @@
 [
  {
   "id": "07-01",
-  "rev": 2,
-  "title": "A deadline can be counted two ways",
-  "when": "A contract deadline comes out differently depending on how it is counted (for example business days or calendar days).",
+  "rev": 3,
+  "title": {
+   "t": "A deadline can be counted two ways",
+   "src": "tuple:07-01"
+  },
+  "when": {
+   "t": "The authorized user enters, as a signed setting, a deadline that comes out on two dates depending on how it is counted.",
+   "src": "dispatcher/listing_spokes_07.py:314-315"
+  },
   "steps": [
-   "Agent 07 (Transaction Coordinator) does not pick one.",
-   "It asks the authorized user, showing both dates."
+   {
+    "t": "Agent 07 does not pick one; it asks the authorized user, showing both dates.",
+    "src": "dispatcher/listing_spokes_07.py:314-319; check:07-01:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Nothing in the system reads a contract: this reaches Agent 07 only as the authorized user's own signed setting.",
+    "src": "spec:07-01"
+   }
   ],
   "never": [
-   "Choose the counting method itself."
+   {
+    "t": "Choose the counting method itself.",
+    "src": "tuple:07-01"
+   }
   ],
-  "why": "A wrong deadline can void a contingency or breach the contract. How to count is a contract reading, and that is for the authorized user.",
-  "you_see": "A question showing both calculated dates.",
-  "test": "A transaction's timeline is set. The authorized user relays, as a signed setting, that the inspection deadline is October 27 counting business days or October 25 counting calendar days. (No entry reads a contract today, so the question reaches the system as the authorized user's setting.)"
+  "you_see": {
+   "t": "A question showing both calculated dates.",
+   "src": "check:07-01:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A transaction's timeline is loaded. The authorized user enters that the deadline is October 27 counting business days or October 25 counting calendar days.",
+   "src": "spec:07-01"
+  }
  },
  {
   "id": "07-02",
-  "rev": 2,
-  "title": "A party says a deadline was extended, but there is no amendment",
-  "when": "Someone says a deadline was extended and no signed amendment is on file.",
+  "rev": 3,
+  "title": {
+   "t": "A party says a deadline was extended, with no amendment on file",
+   "src": "tuple:07-02"
+  },
+  "when": {
+   "t": "The authorized user records, as a signed setting, that a party claims a deadline was extended and no amendment is on file.",
+   "src": "dispatcher/listing_spokes_07.py:321-324"
+  },
   "steps": [
-   "Agent 07 keeps tracking the original deadline.",
-   "It tells the authorized user an extension was claimed with no amendment on file."
+   {
+    "t": "Agent 07 keeps tracking the original deadline.",
+    "src": "dispatcher/listing_spokes_07.py:325-332; check:07-02:spoke.trace"
+   },
+   {
+    "t": "It asks the authorized user, with the claim marked as stated by the party.",
+    "src": "dispatcher/listing_spokes_07.py:337-344; check:07-02:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "A claim with an amendment on file changes nothing either. A date changes only by a signed milestone amendment naming the milestone, the new date and the amendment; it changes that one date and nothing else (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes_07.py:321-345; dispatcher/listing_spokes_07.py::if \"milestone_amendment\" in payload:; dispatcher/listing_spokes_07.py::def _amend_milestone(self, ctx: str, amendment, env: Envelope):; tests_listing/test_owner_decisions_2026_10_28.py::def test_signed_amendment_changes_one_date_and_keeps_the_rest"
+   },
+   {
+    "t": "Nothing in the system reads a contract: this reaches Agent 07 only as the authorized user's own signed setting.",
+    "src": "spec:07-01"
+   }
   ],
   "never": [
-   "Move a deadline on someone's word."
+   {
+    "t": "Move a deadline on someone's word.",
+    "src": "tuple:07-02"
+   }
   ],
-  "why": "Only a signed amendment changes a contract date. Tracking a claimed date could let the real one pass.",
-  "you_see": "A question saying an extension was claimed with no amendment.",
-  "test": "A transaction with an inspection deadline of October 25; a party claims the inspection deadline was extended, with no amendment on file."
+  "you_see": {
+   "t": "A question saying an extension was claimed with no amendment.",
+   "src": "check:07-02:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A timeline with inspection due October 25; the authorized user records a party's claim that the inspection deadline was extended, with no amendment on file.",
+   "src": "spec:07-02"
+  }
  },
  {
   "id": "07-03",
-  "rev": 2,
-  "title": "A document contradicts a tracked deadline",
-  "when": "A document comes in that states a different date for a milestone than the one being tracked.",
+  "rev": 3,
+  "title": {
+   "t": "A document contradicts a tracked deadline",
+   "src": "tuple:07-03"
+  },
+  "when": {
+   "t": "A document for a milestone arrives (through Agent 11 and Agent 08) stating a date different from the tracked one.",
+   "src": "dispatcher/listing_spokes_07.py:391-400; flow:07-03:11->08 document.submission; flow:07-03:08->07 doc.status"
+  },
   "steps": [
-   "Agent 07 stops that milestone: it is not marked satisfied.",
-   "It raises a legal-line alert for the authorized user with both dates.",
-   "A document whose dates agree is filed normally."
+   {
+    "t": "The milestone is not marked met, and the tracked date stays.",
+    "src": "dispatcher/listing_spokes_07.py:400-404, 430; check:07-03:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Agent 07 raises a legal-line alert with both dates and the document.",
+    "src": "dispatcher/listing_spokes_07.py:411-419; check:07-03:escalation.raised"
+   },
+   {
+    "t": "Both dates go on the calendar, and Agent 18 also asks the authorized user about the two dates.",
+    "src": "dispatcher/listing_spokes_07.py:420-429; dispatcher/listing_spokes_18.py:280-290; flow:07-03:18->queue clarification.request"
+   },
+   {
+    "t": "A document whose date agrees is handled normally.",
+    "src": "check:07-03:envelope.persisted:interaction.log; spec:07-03"
+   },
+   {
+    "t": "The date a document states reaches Agent 07 as a field on the incoming message; nothing reads the document itself.",
+    "src": "dispatcher/listing_spokes_07.py:391-396; spec:07-03"
+   }
   ],
   "never": [
-   "Pick one of the two dates, or mark the milestone done."
+   {
+    "t": "Pick one of the two dates, or mark the milestone met.",
+    "src": "tuple:07-03"
+   }
   ],
-  "why": "Two dates for one deadline means one is wrong. Until the authorized user settles it, acting on either could miss the real one.",
-  "you_see": "A legal-line alert showing the tracked date and the date in the document.",
-  "test": "Two transactions track an inspection deadline of October 25. On the first, the inspection report states October 22: alert, report not logged as received. On the second, the report states October 25: filed normally, no alert."
+  "you_see": {
+   "t": "A legal-line alert showing the tracked date and the date in the document.",
+   "src": "check:07-03:escalation.raised"
+  },
+  "test": {
+   "t": "Two transactions track inspection on October 25. On the first, the inspection report states October 22: alert, report not logged as received. On the second it states October 25: logged as received, no alert.",
+   "src": "spec:07-03"
+  }
  },
  {
   "id": "07-04",
-  "rev": 2,
-  "title": "Several deadlines fall on the same day",
-  "when": "Two or more milestones are due on the same day.",
+  "rev": 3,
+  "title": {
+   "t": "Several deadlines fall on the same day",
+   "src": "tuple:07-04"
+  },
+  "when": {
+   "t": "The daily run reaches Agent 07 on a day when two or more milestones not yet met are due.",
+   "src": "dispatcher/listing_spokes_07.py:657-674"
+  },
   "steps": [
-   "Agent 07 sends a separate warning for each milestone.",
-   "It never rolls them into one combined alert."
+   {
+    "t": "For each milestone, Agent 07 sends its own warning to the client through Agent 11 and its own to the calendar (Agent 18).",
+    "src": "dispatcher/listing_spokes_07.py:714-718; flow:07-04:07->11 deadline.alert; flow:07-04:07->18 deadline.alert"
+   },
+   {
+    "t": "Agent 11 sends the client's warning only if the client's consent is on record.",
+    "src": "dispatcher/listing_spokes_11.py:319-359"
+   },
+   {
+    "t": "A milestone whose date has passed without being met is warned about once more, as overdue.",
+    "src": "dispatcher/listing_spokes_07.py:675-697"
+   },
+   {
+    "t": "No separate due-date alert goes to the authorized user's queue, except for the financing contingency and the earnest money (07-08, 07-11).",
+    "src": "dispatcher/listing_spokes_07.py:679-726"
+   }
   ],
   "never": [
-   "Summarize several deadlines into one alert."
+   {
+    "t": "Roll several deadlines into one alert.",
+    "src": "tuple:07-04"
+   }
   ],
-  "why": "A combined alert is easy to clear after handling only one item. One alert per deadline means each one gets attention.",
-  "you_see": "One deadline warning per milestone.",
-  "test": "Inspection and appraisal are both due October 20. On the daily run that day, each gets its own warnings."
+  "you_see": {
+   "t": "A separate deadline entry on the calendar for each milestone.",
+   "src": "dispatcher/listing_spokes_18.py:292-311; check:07-04:envelope.persisted:deadline.alert"
+  },
+  "test": {
+   "t": "Inspection and appraisal are both due October 20; the daily run runs that day. The client has no consent on record, so the client warnings are not sent.",
+   "src": "spec:07-04; flow:07-04:07->11 deadline.alert"
+  }
  },
  {
   "id": "07-05",
-  "rev": 2,
-  "title": "Wire instructions come up anywhere",
-  "when": "Wiring money comes up in any message or document (for example \"updated wire instructions\").",
+  "rev": 3,
+  "title": {
+   "t": "Wire instructions come up",
+   "src": "tuple:07-05"
+  },
+  "when": {
+   "t": "A client's message or document contains a wire phrase: \"wire instructions\", \"wiring details\", \"wire transfer\", \"updated wire\", \"routing number\" or \"account number for closing\" (Agent 11's list matches Agents 07 and 08 since 2026-10-28).",
+   "src": "dispatcher/listing_spokes_11.py:21-22, 162-164"
+  },
   "steps": [
-   "Everything stops for that message: Agent 11 (Client Communication) catches it before it reaches the document or transaction agents.",
-   "It raises a legal-line alert for the authorized user, flagged for checking outside the system.",
-   "Nothing is handled partially."
+   {
+    "t": "Agent 11 stops it before it reaches the document or transaction agents and raises a legal-line alert quoting the message.",
+    "src": "dispatcher/listing_spokes_11.py:578-585; check:07-05:escalation.raised; check:07-05:envelope.persisted:doc.status"
+   },
+   {
+    "t": "Nothing else is done with the message.",
+    "src": "dispatcher/listing_spokes_11.py:585"
+   },
+   {
+    "t": "Agent 07 runs the same check on every message it receives (except the daily clock). Agent 08 runs it on the documents it receives, after checking the document belongs to the transaction.",
+    "src": "dispatcher/listing_spokes_07.py:20-21, 216-219; dispatcher/listing_spokes_08.py:125-130, 327-340"
+   }
   ],
   "never": [
-   "Pass on, confirm or act on wire instructions in any message."
+   {
+    "t": "Pass on, confirm or act on wire instructions.",
+    "src": "tuple:07-05"
+   }
   ],
-  "why": "Wire fraud is the most common way buyers lose their down payment. Wire details are confirmed by phone with a known number, never through messages.",
-  "you_see": "A legal-line alert about the wire message.",
-  "test": "A party sends a settlement statement with the message \"Here are the updated wire instructions for closing\"."
+  "you_see": {
+   "t": "A legal-line alert about the wire message.",
+   "src": "check:07-05:escalation.raised"
+  },
+  "test": {
+   "t": "A party sends a settlement statement with the message \"Here are the updated wire instructions for closing\".",
+   "src": "spec:07-05"
+  }
  },
  {
   "id": "07-06",
-  "rev": 2,
-  "title": "The inspection report arrives",
-  "when": "An inspection report comes in.",
+  "rev": 3,
+  "title": {
+   "t": "The inspection report arrives",
+   "src": "tuple:07-06"
+  },
+  "when": {
+   "t": "An inspection report reaches Agent 07 through Agent 08, and any date it states agrees with the timeline (a report that states no date counts).",
+   "src": "dispatcher/listing_spokes_07.py:432; dispatcher/listing_spokes_07.py:396-401"
+  },
   "steps": [
-   "Agent 07 records that the report was received.",
-   "If the report includes repair requests, that part goes only to the authorized user: a legal-line alert names the repair negotiation."
+   {
+    "t": "Agent 07 logs that the report was received and marks the inspection milestone met.",
+    "src": "dispatcher/listing_spokes_07.py:433-461; check:07-06:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The authorized user gets one item per report (owner decisions of 2026-10-28). Repair requests present, or not stated on the incoming message: one legal-line alert, because repair negotiation is the authorized user's; it also says to send the report to the contract parties. Stated as none: one plain item to send the report to the contract parties.",
+    "src": "dispatcher/listing_spokes_08.py::status_payload[\"repair_requests_present\"] = payload.get(\"repair_requests_present\"); dispatcher/listing_spokes_07.py:439-458; check:07-06:escalation.raised"
+   },
+   {
+    "t": "The report is not sent to anyone by the system: there is no list of the contract's parties and nothing sends a file. Sending it is the authorized user's, as the item says.",
+    "src": "dispatcher/listing_spokes_07.py:432-462"
+   },
+   {
+    "t": "Whether there are repair requests is a field on the incoming message; nothing reads the report.",
+    "src": "dispatcher/listing_spokes_08.py::status_payload[\"repair_requests_present\"] = payload.get(\"repair_requests_present\"); spec:07-06"
+   }
   ],
   "never": [
-   "Draft, suggest or send anything about repair negotiation."
+   {
+    "t": "Draft, suggest or send anything about repair negotiation.",
+    "src": "tuple:07-06"
+   }
   ],
-  "why": "Repair negotiation is advice and negotiation on the client's behalf. That is licensed work for a person.",
-  "you_see": "The report logged as received; a legal-line alert about the repair negotiation.",
-  "test": "An inspection report with repair requests is submitted."
+  "you_see": {
+   "t": "The report logged as received; one legal-line alert saying the report has repair requests, that repair negotiation is the authorized user's, and to send the report to the contract parties.",
+   "src": "check:07-06:escalation.raised; check:07-06:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "An inspection report marked as containing repair requests is submitted.",
+   "src": "spec:07-06"
+  }
  },
  {
   "id": "07-07",
-  "rev": 2,
-  "title": "The appraisal comes in below the contract price",
-  "when": "The appraised value is lower than the contract price.",
+  "rev": 3,
+  "title": {
+   "t": "The appraisal comes in below the contract price",
+   "src": "tuple:07-07"
+  },
+  "when": {
+   "t": "An appraisal report arrives with an appraised value below the contract price, both given as fields on the incoming message.",
+   "src": "dispatcher/listing_spokes_07.py:464-466"
+  },
   "steps": [
-   "Agent 07 records the fact.",
-   "It raises a legal-line alert for the authorized user: every option from here is for the authorized user."
+   {
+    "t": "Agent 07 raises a legal-line alert stating both figures: every option is for the authorized user.",
+    "src": "dispatcher/listing_spokes_07.py:466-476; check:07-07:escalation.raised"
+   },
+   {
+    "t": "The appraisal milestone is marked met: the report is on file.",
+    "src": "dispatcher/listing_spokes_07.py:477-479"
+   }
   ],
   "never": [
-   "Draft or suggest ways to cover the gap."
+   {
+    "t": "Draft or suggest ways to cover the gap.",
+    "src": "tuple:07-07"
+   }
   ],
-  "why": "An appraisal gap means renegotiating, paying cash or walking away. Those are legal and financial decisions for people.",
-  "you_see": "A legal-line alert saying the appraisal is below the contract price.",
-  "test": "An appraisal of $430,000 against a contract price of $450,000."
+  "you_see": {
+   "t": "A legal-line alert saying the appraisal is below the contract price.",
+   "src": "check:07-07:escalation.raised"
+  },
+  "test": {
+   "t": "An appraisal of $430,000 against a contract price of $450,000.",
+   "src": "spec:07-07"
+  }
  },
  {
   "id": "07-08",
-  "rev": 2,
-  "title": "The financing contingency date passes with no removal on file",
-  "when": "The financing contingency deadline passes and no contingency removal is on file.",
+  "rev": 3,
+  "title": {
+   "t": "The financing contingency date passes with no removal on file",
+   "src": "tuple:07-08"
+  },
+  "when": {
+   "t": "The daily run finds the financing contingency due that day, or past due, and not met.",
+   "src": "dispatcher/listing_spokes_07.py:673-678"
+  },
   "steps": [
-   "On the daily run after the date passes, Agent 07 raises a legal-line alert for the authorized user.",
-   "It never assumes the contingency was waived."
+   {
+    "t": "Agent 07 raises a legal-line alert on the due day, and once more after the date has passed, besides the client and calendar warnings.",
+    "src": "dispatcher/listing_spokes_07.py:698-704, 719-726; check:07-08:escalation.raised"
+   },
+   {
+    "t": "The contingency counts as met when a document for it arrives through Agent 08, or when the authorized user continues a held closing with it still open (then it is recorded as waived by the authorized user). Silence never waives it.",
+    "src": "dispatcher/listing_spokes_07.py:117, 548-554; dispatcher/listing_spokes_07.py:185-207"
+   }
   ],
   "never": [
-   "Treat silence as a waived contingency."
+   {
+    "t": "Treat silence as a waived contingency.",
+    "src": "tuple:07-08"
+   }
   ],
-  "why": "Whether a contingency still protects the buyer changes who loses the deposit. That has to be confirmed, not assumed.",
-  "you_see": "A legal-line alert naming the financing contingency.",
-  "test": "Financing contingency due October 20; the daily clock runs October 21 with no removal on file."
+  "you_see": {
+   "t": "A legal-line alert naming the financing contingency.",
+   "src": "check:07-08:escalation.raised"
+  },
+  "test": {
+   "t": "Financing contingency due October 20; the daily run runs October 21 with nothing on file.",
+   "src": "spec:07-08"
+  }
  },
  {
   "id": "07-09",
-  "rev": 2,
-  "title": "A title exception shows up",
-  "when": "The title commitment lists an exception (for example an easement).",
+  "rev": 3,
+  "title": {
+   "t": "A title exception shows up",
+   "src": "tuple:07-09"
+  },
+  "when": {
+   "t": "A title commitment arrives marked with an exception, its text given on the incoming message.",
+   "src": "dispatcher/listing_spokes_07.py:482"
+  },
   "steps": [
-   "Agent 07 sends the authorized user the exception word for word in a legal-line alert.",
-   "It never says how serious it is."
+   {
+    "t": "Agent 07 raises a legal-line alert quoting the exception word for word, marked as not characterized.",
+    "src": "dispatcher/listing_spokes_07.py:482-491; check:07-09:escalation.raised"
+   },
+   {
+    "t": "The title milestone is not marked met.",
+    "src": "dispatcher/listing_spokes_07.py:482-491"
+   }
   ],
   "never": [
-   "Characterize a title exception as minor, standard or serious."
+   {
+    "t": "Say whether a title exception is minor or serious.",
+    "src": "tuple:07-09"
+   }
   ],
-  "why": "Judging a title exception is legal advice. The exact text goes to the authorized user and the title professionals.",
-  "you_see": "A legal-line alert quoting the exception.",
-  "test": "A title commitment with the exception \"Recorded easement for a utility line along the rear lot\"."
+  "you_see": {
+   "t": "A legal-line alert quoting the exception.",
+   "src": "check:07-09:escalation.raised"
+  },
+  "test": {
+   "t": "A title commitment with the exception \"Recorded easement for a utility line along the rear lot\".",
+   "src": "spec:07-09"
+  }
  },
  {
   "id": "07-10",
-  "rev": 2,
-  "title": "The closing date moves on someone's word",
-  "when": "Someone says the closing date has moved, but no amendment is signed.",
+  "rev": 3,
+  "title": {
+   "t": "The closing date moves on someone's word",
+   "src": "tuple:07-10"
+  },
+  "when": {
+   "t": "The authorized user records, as a signed setting, that the closing date was moved verbally with no signed amendment.",
+   "src": "dispatcher/listing_spokes_07.py:350-351"
+  },
   "steps": [
-   "Agent 07 keeps tracking the original closing date until an amendment is signed."
+   {
+    "t": "Agent 07 keeps the original closing date.",
+    "src": "dispatcher/listing_spokes_07.py:355-360; check:07-10:spoke.trace"
+   },
+   {
+    "t": "The authorized user is asked, with the claimed date and the tracked date; the claim goes in the client's history as stated by the party (owner decision of 2026-10-28; before, nobody was asked).",
+    "src": "dispatcher/listing_spokes_07.py:361-375; check:07-10:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Whether or not a signed amendment exists, this setting never changes the date. The date changes only by a signed milestone amendment, which changes that one date and keeps every other milestone as it is.",
+    "src": "dispatcher/listing_spokes_07.py:350-376; dispatcher/listing_spokes_07.py::def _amend_milestone(self, ctx: str, amendment, env: Envelope):; tests_listing/test_owner_decisions_2026_10_28.py::def test_signed_amendment_changes_one_date_and_keeps_the_rest"
+   },
+   {
+    "t": "Nothing in the system reads a contract: this reaches Agent 07 only as the authorized user's own signed setting.",
+    "src": "spec:07-01"
+   }
   ],
   "never": [
-   "Change the tracked closing date without a signed amendment."
+   {
+    "t": "Change the tracked closing date without a signed amendment.",
+    "src": "tuple:07-10"
+   }
   ],
-  "why": "A verbal date change is not binding. Tracking it could let the contract date pass unnoticed.",
-  "you_see": "The original closing date still tracked.",
-  "test": "Closing on November 20; a verbal move to November 25 is reported with no signed amendment."
+  "you_see": {
+   "t": "The original closing date still tracked; a question to the authorized user.",
+   "src": "check:07-10:spoke.trace; check:07-10:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Closing on November 20; the authorized user records a verbal move to November 25 with no signed amendment.",
+   "src": "spec:07-10"
+  }
  },
  {
   "id": "07-11",
-  "rev": 2,
-  "title": "The earnest money receipt is not confirmed by its deadline",
-  "when": "The earnest money deadline passes with no receipt on file.",
+  "rev": 3,
+  "title": {
+   "t": "The earnest money receipt is not confirmed by its deadline",
+   "src": "tuple:07-11"
+  },
+  "when": {
+   "t": "The daily run finds the earnest-money date passed without a confirmed receipt, or an earnest-money document arrives without confirmation of receipt.",
+   "src": "dispatcher/listing_spokes_07.py:675-678, 705-713, 493-500"
+  },
   "steps": [
-   "On the daily run after the deadline, Agent 07 raises a legal-line alert for the authorized user.",
-   "Money milestones never get the benefit of the doubt."
+   {
+    "t": "Agent 07 raises a legal-line alert, besides the client and calendar warnings.",
+    "src": "dispatcher/listing_spokes_07.py:690-697, 705-713; check:07-11:escalation.raised"
+   },
+   {
+    "t": "On the due day itself there is only the client and calendar warning; the alert comes once the date has passed.",
+    "src": "dispatcher/listing_spokes_07.py:714-726"
+   }
   ],
   "never": [
-   "Assume the deposit arrived."
+   {
+    "t": "Assume the deposit arrived.",
+    "src": "tuple:07-11"
+   }
   ],
-  "why": "A missing deposit can be a default under the contract, or a sign of fraud. The authorized user needs to know at once.",
-  "you_see": "A legal-line alert naming the earnest money.",
-  "test": "Earnest money due October 20; the daily clock runs October 21 with no receipt on file."
+  "you_see": {
+   "t": "A legal-line alert naming the earnest money.",
+   "src": "check:07-11:escalation.raised"
+  },
+  "test": {
+   "t": "Earnest money due October 20; the daily run runs October 21 with no receipt on file.",
+   "src": "spec:07-11"
+  }
  },
  {
   "id": "07-12",
-  "rev": 2,
-  "title": "The possession terms are unclear",
-  "when": "The contract's possession terms can be read more than one way.",
+  "rev": 3,
+  "title": {
+   "t": "The possession terms are unclear",
+   "src": "tuple:07-12"
+  },
+  "when": {
+   "t": "The authorized user enters, as a signed setting, a possession clause that can be read more than one way.",
+   "src": "dispatcher/listing_spokes_07.py:378-379"
+  },
   "steps": [
-   "Agent 07 asks the authorized user, quoting the exact clause.",
-   "It never fills in what the parties probably meant."
+   {
+    "t": "Agent 07 asks the authorized user, quoting the exact clause.",
+    "src": "dispatcher/listing_spokes_07.py:378-383; check:07-12:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Nothing in the system reads a contract: this reaches Agent 07 only as the authorized user's own signed setting.",
+    "src": "spec:07-01"
+   }
   ],
   "never": [
-   "Interpret the clause."
+   {
+    "t": "Interpret the clause.",
+    "src": "tuple:07-12"
+   }
   ],
-  "why": "When the buyer gets the keys matters to both families. Reading intent into a clause is legal interpretation.",
-  "you_see": "A question quoting the possession clause.",
-  "test": "The authorized user relays, as a signed setting, the clause \"Possession at closing or as agreed\"."
+  "you_see": {
+   "t": "A question quoting the possession clause.",
+   "src": "check:07-12:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The authorized user enters the clause \"Possession at closing or as agreed\".",
+   "src": "spec:07-12"
+  }
  }
 ]

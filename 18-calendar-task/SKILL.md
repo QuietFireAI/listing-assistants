@@ -71,7 +71,7 @@ Dispatcher returns an `ack`.
 | IN | ← 14, 15, 19, 10 | A briefing section, used only while a briefing is being built and only from the agent that owns it | `report.package` |
 | OUT | → 14 CRM & Pipeline | Schedule logs | `interaction.log` |
 | IN | ← every agent with a wait state | Wait-state signal, started or cleared | `agent.status` |
-| OUT | → 06 Showing Scheduler | No-show detected by calendar (missed slot, no confirmation) | `showing.no_show` |
+| OUT | → 06 Showing Scheduler | No-show detected by calendar (missed slot, no confirmation), only from the day after the showing (owner decision D-A3, 2026-10-28) | `showing.no_show` |
 | OUT | → 06 Showing Scheduler | A showing not added to the calendar (2026-10-27) | `calendar.conflict` |
 | OUT | → HITL queue | Event with no day, day at capacity, timezone ambiguity, conflicting deadline sources, event conflict, request to move a protected block | `clarification.request` |
 | IN | ← Clock (through the hub) | Daily tick: no-show check, morning briefing | `clock.tick` |

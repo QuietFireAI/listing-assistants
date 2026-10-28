@@ -55,8 +55,10 @@ def test_sweeps_fire_from_the_runner_not_just_direct_calls(tmp_path):
     hub.send(_lead("swp-1", "2026-07-01"))
     hub.send(Envelope(from_agent="06", to_agent="18", intent="calendar.event",
                       client_context_id="swp-s1",
-                      payload={"event": "showing", "day": "2026-07-10",
-                               "time": "2026-07-10T10:00:00",
+                      # the day before the run: no-shows are never marked on
+                      # the showing's own day (owner decision D-A3, 2026-10-28)
+                      payload={"event": "showing", "day": "2026-07-09",
+                               "time": "2026-07-09T10:00:00",
                                "timezone_confirmed": True},
                       provenance={"source": "spoke-06",
                                   "captured_at": "runtime",
@@ -85,8 +87,10 @@ def test_one_broken_sweep_never_silences_the_rest(tmp_path):
     s16.check_post_close_milestones = None  # not callable -> sweep raises
     hub.send(Envelope(from_agent="06", to_agent="18", intent="calendar.event",
                       client_context_id="ok-1",
-                      payload={"event": "showing", "day": "2026-07-10",
-                               "time": "2026-07-10T10:00:00",
+                      # the day before the run: no-shows are never marked on
+                      # the showing's own day (owner decision D-A3, 2026-10-28)
+                      payload={"event": "showing", "day": "2026-07-09",
+                               "time": "2026-07-09T10:00:00",
                                "timezone_confirmed": True},
                       provenance={"source": "spoke-06",
                                   "captured_at": "runtime",

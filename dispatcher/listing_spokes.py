@@ -171,14 +171,22 @@ class Spoke14CRMPipeline:
         # briefing (entry ids), so "overnight leads" is every lead captured
         # since the last briefing, each reported once.
         self.briefed_leads: set[str] = set()
+        # D-A6 (owner decision 2026-10-28, findings 6, AP): changes other
+        # than an opt-out that arrive while a record is frozen wait here and
+        # are applied, in order, when the owner lifts the freeze
+        self.frozen_pending: dict[str, list] = {}
+        # D-A18 (owner decision 2026-10-28, finding AQ): record conflicts
+        # already reported in a morning briefing (entry ids)
+        self.briefed_conflicts: set[str] = set()
         register_spoke(hub, "14", self)
 
     def _new_entry_id(self) -> str:
         self._entry_seq += 1
         return f"E{self._entry_seq:06d}"
 
-    def _append(self, ctx: str, kind: str, env: Envelope) -> str:
-        if ctx in self.frozen:
+    def _append(self, ctx: str, kind: str, env: Envelope, frozen_opt_out: bool = False,
+                declare: bool = True) -> str:
+        if ctx in self.frozen and not frozen_opt_out:
             # Structural freeze: no new entries while a retention/deletion
             # question is with the owner. The attempted write is DECLARED
             # (audit + human queue), never silently dropped and never
@@ -190,15 +198,20 @@ class Spoke14CRMPipeline:
                         f"record is held pending the owner's retention "
                         f"decision; refusing the append and declaring it",
                 result="refused: record_frozen")
-            self.hub.send(_env("14", "queue", "clarification.request", ctx,
-                               {"reason": f"write attempted on frozen record "
-                                         f"({kind}) - held for owner's "
-                                         f"retention decision"}))
+            if declare:
+                self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                                   {"reason": f"write attempted on frozen record "
+                                             f"({kind}) - held for owner's "
+                                             f"retention decision"}))
             return "FROZEN"
         entry_id = self._new_entry_id()
         entry = {"entry_id": entry_id, "kind": kind,
                  "envelope_id": env.envelope_id, "from_agent": env.from_agent,
                  "payload": env.payload}
+        if frozen_opt_out:
+            # D-A6: an opt-out on a frozen record still takes effect and is
+            # recorded; the entry says so
+            entry["recorded_while_frozen"] = "opt-out"
         # tuples 1 & 8: two agents logged conflicting facts for one event
         # (both stand, flagged) / external import conflicts with log-
         # derived state (log wins, differences flagged). Fixed 2026-07-17:
@@ -323,6 +336,69 @@ class Spoke14CRMPipeline:
             # (most restrictive wins) UNLESS the new event is itself an
             # explicit reconfirmation, which callers signal separately.
 
+    _STATE_KEYS = ("property_interests", "buyer_agreement_on_file",
+                   "requester_identity_verified", "client_dates",
+                   # 2026-10-28: an access record on a frozen record changed
+                   # the grants while its log entry was refused (D-A6 class)
+                   "access_grant", "access_closed")
+
+    def _frozen_write(self, ctx: str, env: Envelope):
+        """D-A6 (owner decision 2026-10-28, findings 6 and AP): on a frozen
+        record an opt-out (a channel set to "no") still takes effect and is
+        recorded. An opt-in or any other change waits: nothing changes, the
+        client is not told, and the owner is asked; the change is applied
+        when the freeze is lifted. Before, the log entry was refused but the
+        consent and other flags in the same write still changed, and Agent 11
+        then confirmed the change to the client."""
+        p = env.payload if isinstance(env.payload, dict) else {}
+        consent = p.get("consent") if isinstance(p.get("consent"), dict) else \
+            p.get("consent_record") if isinstance(p.get("consent_record"), dict) else {}
+        opt_outs = {ch: "no" for ch, v in consent.items() if v == "no"}
+        waits = sorted([f"consent {ch}={v}" for ch, v in consent.items() if v != "no"]
+                       + [k for k in self._STATE_KEYS if k in p])
+        if opt_outs:
+            self._update_consent(ctx, opt_outs)
+            entry_id = self._append(ctx, env.intent, env, frozen_opt_out=True)
+        else:
+            entry_id = self._append(ctx, env.intent, env, declare=not waits)
+        if waits:
+            self.frozen_pending.setdefault(ctx, []).append(env)
+            self.hub.send(_env("14", "queue", "clarification.request", ctx,
+                               {"reason": f"record is frozen (retention question open): "
+                                          f"{', '.join(waits)} from {env.from_agent} WAITS - "
+                                          f"nothing changed and the client is not told; it is "
+                                          f"applied when you lift the freeze"
+                                          + (f"; the opt-out on {sorted(opt_outs)} took effect"
+                                             if opt_outs else ""),
+                                "from_agent": env.from_agent}))
+        self.hub.ingest_spoke_trace(
+            "14", env.envelope_id,
+            thought=f"write on FROZEN ctx={ctx!r}: opt-outs applied {sorted(opt_outs)}; "
+                    f"waiting {waits}",
+            result=(f"opt-out recorded {entry_id}" if opt_outs else "not appended: record_frozen")
+                   + ("; changes wait for the freeze to lift" if waits else ""))
+        return entry_id
+
+    def record_conflicts(self):
+        """D-A18 (owner decision 2026-10-28, finding AQ): the morning
+        briefing's "Record conflicts since last briefing": every entry flagged
+        conflicts_with_prior not reported before, each once. No queue item,
+        no re-alert."""
+        out = []
+        for ctx, entries in self.records.items():
+            for e in entries:
+                if e.get("conflicts_with_prior") and e["entry_id"] not in self.briefed_conflicts:
+                    self.briefed_conflicts.add(e["entry_id"])
+                    kind = (e["payload"].get("kind") if isinstance(e["payload"], dict)
+                            else None) or e["kind"]
+                    for field, c in sorted(e["conflicts_with_prior"].items()):
+                        out.append({"context": ctx, "kind": kind, "field": field,
+                                    "old": c["prior"], "new": c["new"],
+                                    "entry_id": e["entry_id"],
+                                    "prior_entry_id": c["prior_entry_id"]})
+        return {"count": len(out), "conflicts": out,
+                "basis": "entries flagged conflicts_with_prior not in an earlier briefing"}
+
     def check_client_dates(self, ctx: str, today: str):
         """Daily clock check (added 2026-10-11): P13's date triggers for one
         client, from the broker-signed client_dates. Before this, nothing in
@@ -421,11 +497,23 @@ class Spoke14CRMPipeline:
         ctx = env.client_context_id
 
         if env.intent == "briefing.request":
-            # owner decision 8 (2026-10-21): 18 asks for the morning section
-            section = self.overnight_leads()
+            # owner decision 8 (2026-10-21): 18 asks for the morning section;
+            # D-A18 (2026-10-28) adds record_conflicts
+            name = env.payload.get("section") or "overnight_leads"
+            section = self.record_conflicts() if name == "record_conflicts" \
+                else self.overnight_leads()
             self.hub.send(_env("14", "18", "report.package", ctx,
-                               {"section": "overnight_leads", "data": section},
+                               {"section": "record_conflicts" if name == "record_conflicts"
+                                else "overnight_leads", "data": section},
                                confidence=SOURCE_VERIFIED))
+            return
+
+        # D-A6: a frozen record takes opt-outs; every other change waits
+        if ctx in self.frozen and (
+                env.intent == "interaction.log"
+                or (env.intent == "config.update" and isinstance(env.payload, dict)
+                    and any(k in env.payload for k in ("consent_record",) + self._STATE_KEYS))):
+            self._frozen_write(ctx, env)
             return
 
         if env.intent == "record.request":
@@ -480,6 +568,10 @@ class Spoke14CRMPipeline:
             self.hub.send(_env("14", env.from_agent, "record.response", ctx,
                                {"entries": entries_out, "absent": not entries_out,
                                 "consent": dict(self.consent.get(ctx, {})),
+                                # D-A6 (2026-10-28): a frozen record takes no
+                                # change but an opt-out; Agent 11 confirms
+                                # nothing to the client meanwhile
+                                "frozen": ctx in self.frozen,
                                 "buyer_agreement_on_file": self.buyer_agreement.get(ctx, False),
                                 "requester_identity_verified": self.identity_verified.get(ctx, False)},
                                confidence=SOURCE_VERIFIED))
@@ -617,11 +709,14 @@ class Spoke14CRMPipeline:
             # ONLY unfreeze path, and config.update is signature-gated at
             # the hub before it ever reaches here.
             self.frozen.discard(ctx)
+            waiting = self.frozen_pending.pop(ctx, [])
             self.hub.ingest_spoke_trace(
                 "14", env.envelope_id,
                 thought=f"owner released the freeze on ctx={ctx!r} - "
-                        f"appends resume",
+                        f"appends resume; applying {len(waiting)} change(s) that waited",
                 result="unfrozen")
+            for held in waiting:   # D-A6: in the order they arrived
+                self.handle(held)
             return
 
         if env.intent == "config.update" and env.payload.get("action") == "delete_record":
@@ -777,23 +872,24 @@ class Spoke01LeadCapture:
                                    "trigger": "abusive contact",
                                    "verbatim": payload.get("message", "")})
 
-            # --- tuple 3: caller demands a human now -> escalate
-            # immediately, but still capture what's already given (doesn't
-            # return early, same as abusive above). Fixed 2026-07-17 - zero
-            # code existed for this tuple at all. ---
+            # --- tuple 3: caller demands a human now -> the demand goes on
+            # with the capture of what's already given (doesn't return
+            # early, same as abusive above). First built 2026-07-17 as a
+            # legal-line alert from here; changed 2026-10-28: ---
+            # D-A10 (owner decision 2026-10-28, finding E): the demand rides
+            # on lead.captured to Agent 02, which puts the caller in the
+            # hot-lead queue with the call clock (D1: marked do-not-contact,
+            # no clock, when they may not be called). 01's own legal-line
+            # alert is gone: one item per caller. Before, 01 alerted on the
+            # legal line and 02's demands-a-human path could never run.
             demands_human = self._demands_human_hit(payload)
             if demands_human:
                 self.hub.ingest_spoke_trace(
                     "01", env.envelope_id,
                     thought=f"caller demands a human now: {demands_human!r} - "
-                            f"escalating immediately, still capturing what's "
-                            f"already been given rather than dropping it",
-                    result="escalated: demands_human")
-                self.hub.escalate("escalation.legal_line",
-                                  {"client_context_id": ctx,
-                                   "trigger": f"caller demands a human now: "
-                                             f"{demands_human!r}",
-                                   "agent": "01"})
+                            f"capturing what's been given and passing the demand "
+                            f"to Agent 02 for the hot-lead queue",
+                    result="demands_human: forwarded with the capture")
 
             # --- DNC check: the list wins over the opportunity. Still
             # captured (source + suppression), never silently dropped.
@@ -838,8 +934,22 @@ class Spoke01LeadCapture:
             # sent - suppression fired but nothing told the client it worked.
             if payload.get("revoke_all_contact"):
                 consent_raw = {k: "no" for k in ("call", "text", "email")}
-                self.hub.send(_env("01", "11", "client.message.request", ctx,
-                                   {"template": "opt_out_confirmed"}))
+                # D-A8 (owner decision 2026-10-28): one confirmation, only on
+                # the channel the request came in on, and only when that is a
+                # channel a message can go on (call, text, email). A web form
+                # or no channel: no confirmation, the owner is asked.
+                stop_channel = payload.get("channel")
+                if stop_channel in ("call", "text", "email"):
+                    self.hub.send(_env("01", "11", "client.message.request", ctx,
+                                       {"template": "opt_out_confirmed",
+                                        "channel": stop_channel}))
+                else:
+                    self.hub.send(_env("01", "queue", "clarification.request", ctx,
+                                       {"reason": f"lead asked not to be contacted again "
+                                                  f"(came in by {stop_channel or 'no channel stated'}): "
+                                                  f"opted out on every channel; no confirmation "
+                                                  f"was sent because no message can go back on "
+                                                  f"that channel"}))
 
             # tuple 7: caller refuses consent to RECORDING (distinct from
             # tuple 2's messaging consent) -> contact info only, mark
@@ -933,6 +1043,8 @@ class Spoke01LeadCapture:
                 "notes_verbatim": notes,
                 "prior_relationship_claim": payload.get("prior_relationship_claim"),
             }
+            if demands_human:
+                captured["demands_human"] = demands_human
             # Contract fix, found by the first END-TO-END playbook run
             # (2026-07-18): 02's rubric reads timeline_days,
             # financing_progress, stated_urgency and preapproval_doc -
@@ -1085,6 +1197,8 @@ class Spoke01LeadCapture:
                             f"scoring until a signed continue",
                     result="held: possible duplicate identity")
                 hold_for_human(self.hub, "01", ctx, "lead.captured",
+                               (f"CALLER DEMANDS A HUMAN NOW ({payload['demands_human']!r}). "
+                                if payload.get("demands_human") else "") +
                                f"possible duplicate person: same phone or email as "
                                f"{', '.join(possible_dupes)}. Continue = a separate "
                                f"person, scored as a new lead. Cancel = this thread "

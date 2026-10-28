@@ -116,8 +116,8 @@ def test_03_stop_sending_so_many_phrase_alone_reduces_cadence(tmp_path):
     hub.send(env("17", "03", "content.verdict", ctx, {"verdict": "approved"}))
     hub.send(env("11", "03", "lead.reply", ctx,
                  {"message": "please stop sending so many messages"}))
-    assert spoke.frequency_cap_per_week == 2, \
-        "'stop sending so many' alone must reduce cadence"
+    assert spoke.lead_cap(ctx) == 2, \
+        "'stop sending so many' alone must reduce this lead's cadence"
     assert spoke.active_sequences[ctx]["paused"] is False
 
 
@@ -301,15 +301,28 @@ def test_18_protected_block_move_decision_table(tmp_path):
                for c in clar), "agent move request must be refused"
     assert "blk-1" in spoke.protected_blocks, "refused block must survive"
 
-    # human requester -> delete, no new refusal
+    # human requester naming a day -> the block moves there, still
+    # protected (owner decision D-A21, 2026-10-28; it used to delete only
+    # the id and leave the entry on the old day), no new refusal
     n_clar = len(persisted(hub, "clarification.request"))
     hub.send(signed(signer, "18", "config.update", "pb-1",
                     {"move_protected_block": {"event_id": "blk-2",
-                                              "requester": "human"}}))
-    assert "blk-2" not in spoke.protected_blocks, \
-        "human-confirmed move must delete the block"
-    assert len(persisted(hub, "clarification.request")) == n_clar, \
+                                              "requester": "human",
+                                              "to_day": "2026-08-12"}}))
+    assert spoke.protected_blocks["blk-2"]["day"] == "2026-08-12"
+    assert [e["event_id"] for e in spoke.calendar["2026-08-12"]] == ["blk-2"]
+    assert "blk-2" not in [e["event_id"] for e in spoke.calendar["2026-08-10"]]
+    assert not [c for c in persisted(hub, "clarification.request")[n_clar:]
+                if "blk-2" in str(c["payload"].get("reason", ""))], \
         "human move must not be refused"
+    # a human move with no day is refused, nothing moves
+    hub.send(signed(signer, "18", "config.update", "pb-1",
+                    {"move_protected_block": {"event_id": "blk-1",
+                                              "requester": "human"}}))
+    assert spoke.protected_blocks["blk-1"]["day"] == "2026-08-10"
+    assert any("no to_day" in c["payload"]["reason"]
+               for c in persisted(hub, "clarification.request"))
+    n_clar = len(persisted(hub, "clarification.request"))
 
     # unknown id -> no refusal, nothing deleted
     hub.send(signed(signer, "18", "config.update", "pb-1",
@@ -354,15 +367,7 @@ def test_18_briefing_tracks_only_genuinely_conflicting_deadlines(tmp_path):
 
 
 # ------------------------------------------------------------ 19:239
-def test_19_data_package_resolves_both_waits_wrong_intent_does_not(tmp_path):
-    """data.package -> exactly the two resolved agent.status envelopes
-    to 18; a different intent must not emit them."""
-    hub, _ = make_hub(str(tmp_path))
-    Spoke19Prospecting(hub)
-    hub.on_turn_start()
-    hub.send(env("10", "19", "data.package", "mi-1", {"anything": 1}))
-    statuses = [s for s in persisted(hub, "agent.status")
-                if s["from_agent"] == "19" and s["payload"].get("resolved")]
-    waits = {s["payload"]["waiting_on"] for s in statuses}
-    assert waits == {"market_context_enrichment", "farm_data_aggregate"}, \
-        "data.package must resolve exactly these two waits"
+# test_19_data_package_resolves_both_waits_wrong_intent_does_not removed
+# 2026-10-28: owner decision D-A16 removed Agent 19's data.package handler
+# and its route (19 no longer asks Agent 10 for anything); the replacement
+# is test_owner_decisions_2026_10_28.py::test_agent_19_no_longer_talks_to_agent_10

@@ -327,9 +327,17 @@ class Spoke02LeadQualification:
                     thought="lead demands a human - hot path regardless of "
                             "any score",
                     result="tier=HOT (forced: demands_human)")
-                self.hub.escalate("escalation.hot_lead",
-                                  {"client_context_id": ctx, "reason": "demands_human",
-                                   "sla_s": self.hot_lead_sla_seconds})
+                # D-A10 (2026-10-28): now reachable from intake; the phrase
+                # rides along, and D1 applies (a caller you may not call is
+                # marked do-not-contact, with no call clock)
+                record = self._hot_record(ctx, payload, None)
+                if record.get("do_not_contact"):
+                    record["demands_human"] = payload["demands_human"]
+                else:
+                    record = {"client_context_id": ctx, "reason": "demands_human",
+                              "demands_human": payload["demands_human"],
+                              "sla_s": self.hot_lead_sla_seconds}
+                self.hub.escalate("escalation.hot_lead", record)
                 self.hub.send(_env("02", "14", "interaction.log", ctx,
                                    {"tier": "HOT", "reason": "demands_human"}))
                 return

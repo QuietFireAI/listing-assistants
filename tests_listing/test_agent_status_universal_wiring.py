@@ -183,7 +183,7 @@ def test_agent17_reviews_own_bottleneck_as_a_wait(tmp_path):
     assert any(s["payload"].get("resolved") for s in status)  # resolves same-turn here
 
 
-def test_agent19_market_context_and_farm_data_waits(tmp_path):
+def test_agent19_opens_no_market_context_or_farm_data_wait(tmp_path):
     from dispatcher.listing_spokes_19 import Spoke19Prospecting
     hub, signer = make_signed_hub(str(tmp_path))
     spoke = Spoke19Prospecting(hub)
@@ -203,7 +203,9 @@ def test_agent19_market_context_and_farm_data_waits(tmp_path):
     hub.send(disc)
     spoke.request_market_context("L1")
     status = status_events(hub)
-    assert any(s["payload"].get("waiting_on") == "market_context_enrichment" for s in status)
+    # owner decision D-A16 (2026-10-28): nothing is requested from Agent 10
+    # (no comp source is connected), so no wait is opened for it
+    assert not any(s["payload"].get("waiting_on") == "market_context_enrichment" for s in status)
 
 
 def test_agent20_draft_compliance_review_wait(tmp_path):
@@ -264,12 +266,13 @@ def test_TUNABLE_agent10_opinion_press_threshold_is_real(tmp_path):
     hub, signer = make_signed_hub(str(tmp_path))
     Spoke10MarketData(hub, opinion_press_threshold=1)
     hub.on_turn_start()
-    env = Envelope(from_agent="19", to_agent="10", intent="data.request",
+    env = Envelope(from_agent="human", to_agent="10", intent="data.request",
                   client_context_id="t-1",
                   payload={"mode": "comp", "message": "what's your opinion on this one",
                           "license_scope": "internal"},
-                  provenance={"source": "spoke-19", "captured_at": "runtime",
+                  provenance={"source": "human", "captured_at": "runtime",
                               "verbatim_available": True})
+    signer.sign(env)
     hub.send(env)
     assert hub.queues["escalation.legal_line"]  # fires on 1st ask, not the old 2nd
 

@@ -72,20 +72,5 @@ def test_19_dnc_contact_suppressed_clean_contact_not(tmp_path):
 
 
 # ------------------------------------------------------------ 242/245
-def test_19_data_package_resolves_both_waits_true(tmp_path):
-    """data.package emits TWO agent.status envelopes to 18, both with
-    resolved=True (market_context_enrichment and farm_data_aggregate).
-    Assert resolved=True on each so the 242 and 245 flags are both pinned."""
-    hub = make_hub(str(tmp_path))
-    Spoke19Prospecting(hub)
-    hub.on_turn_start()
-    hub.send(Envelope(from_agent="10", to_agent="19", intent="data.package",
-                      client_context_id="dp-1", payload={"anything": 1},
-                      provenance={"source": "t"}))
-    statuses = {e["payload"]["waiting_on"]: e["payload"].get("resolved")
-                for e in persisted(hub, "agent.status")
-                if e["from_agent"] == "19"}
-    assert statuses.get("market_context_enrichment") is True, \
-        "market_context_enrichment must resolve True (kills 242)"
-    assert statuses.get("farm_data_aggregate") is True, \
-        "farm_data_aggregate must resolve True (kills 245)"
+# test_19_data_package_resolves_both_waits_true removed 2026-10-28: owner
+# decision D-A16 removed Agent 19's data.package handler and its route.

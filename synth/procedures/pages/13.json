@@ -1,181 +1,406 @@
 [
  {
   "id": "13-01",
-  "rev": 2,
-  "title": "A buyer's feedback contradicts their stated criteria",
-  "when": "A buyer says something that goes against the criteria on file (for example \"forget the 3 bedrooms, a big yard matters more\").",
+  "rev": 3,
+  "title": {
+   "t": "A buyer's feedback contradicts their stated criteria",
+   "src": "tuple:13-01"
+  },
+  "when": {
+   "t": "A buyer's reply contains a change-of-mind phrase (for example \"forget the\", \"changed my mind\", \"matters more\"), or an upstream classifier labels it so. Agent 11 marks it and passes it to Agent 13 when the reply names Agent 13 as its owner; rules such as wire or advice come first.",
+   "src": "dispatcher/message_tags.py:33-38, 64-68; dispatcher/listing_spokes_11.py::def _route_lead_reply(self, ctx: str, owner, body: dict, env: Envelope | None) -> dict:; dispatcher/listing_spokes_11.py:576"
+  },
   "steps": [
-   "Agent 11 passes the reply to Agent 13 (Buyer Search & Match), labeled as a possible change.",
-   "Agent 13 asks the buyer, through Agent 11, to confirm the change.",
-   "Until the buyer confirms, the criteria stay as stated."
+   {
+    "t": "Agent 13 asks the buyer, through Agent 11, to confirm the change, quoting their words.",
+    "src": "dispatcher/listing_spokes_13.py:582-587; check:13-01:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Agent 13 changes nothing: the criteria stay as stated. Only the authorized user changes them, with a signed setting: adding a criterion, or since 2026-10-28 replacing the whole list. The buyer's answer itself is a reply that reaches the authorized user.",
+    "src": "dispatcher/listing_spokes_13.py:582-587; dispatcher/listing_spokes_13.py::if \"buyer_criteria_replace\" in payload:; dispatcher/listing_spokes_13.py:608-617; check:13-01:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The listed phrases are caught, and a label from an upstream classifier is honored too.",
+    "src": "dispatcher/message_tags.py:33-38, 64-68"
+   }
   ],
   "never": [
-   "Rewrite a buyer's criteria on an offhand remark."
+   {
+    "t": "Rewrite the buyer's criteria on its own.",
+    "src": "tuple:13-01"
+   }
   ],
-  "why": "A casual comment is not a decision. Changing the search without confirming could hide homes the buyer still wants.",
-  "you_see": "A confirmation request sent to the buyer; the criteria unchanged.",
-  "test": "A buyer with criteria of $500,000 and 3 bedrooms writes \"Honestly forget the 3 bedrooms, a big yard matters more\"."
+  "you_see": {
+   "t": "A confirmation request to the buyer.",
+   "src": "check:13-01:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "Buyer B1's criteria: budget 500,000, 3 bedrooms. B1 writes \"Honestly forget the 3 bedrooms, a big yard matters more\".",
+   "src": "spec:13-01"
+  }
  },
  {
   "id": "13-02",
-  "rev": 2,
-  "title": "A buyer criterion stands in for a protected class",
-  "when": "A buyer's criteria include something that tracks a protected class (for example a school rating).",
+  "rev": 3,
+  "title": {
+   "t": "A criterion points at a protected class",
+   "src": "tuple:13-02"
+  },
+  "when": {
+   "t": "A signed criterion contains one of these words: \"school quality\", \"school rating\", \"demographics\", \"families with\", \"no children\", \"race\", \"religion\", \"national origin\", \"ethnic\", \"families only\".",
+   "src": "dispatcher/listing_spokes_13.py:18-20, 111-116, 329-330"
+  },
   "steps": [
-   "Agent 13 refuses that criterion and keeps the others.",
-   "It raises a legal-line alert for the authorized user with the criterion word for word."
+   {
+    "t": "Agent 13 refuses that criterion and raises a legal-line alert quoting it; the other criteria are kept.",
+    "src": "dispatcher/listing_spokes_13.py:326-345, 449-450; check:13-02:escalation.raised"
+   },
+   {
+    "t": "Only the listed words are caught; a criterion marked as sensitive goes to Compliance instead (13-11).",
+    "src": "dispatcher/listing_spokes_13.py:18-20, 449-454"
+   }
   ],
   "never": [
-   "Search or match on a criterion that stands in for a protected class."
+   {
+    "t": "Use a criterion that stands in for a protected class.",
+    "src": "tuple:13-02"
+   }
   ],
-  "why": "Matching on school ratings or similar can steer buyers by race or family status, which fair housing law forbids.",
-  "you_see": "A legal-line alert quoting the criterion.",
-  "test": "A buyer's criteria include \"school rating 9 or higher\" and 3 bedrooms."
+  "you_see": {
+   "t": "A legal-line alert quoting the criterion.",
+   "src": "check:13-02:escalation.raised"
+  },
+  "test": {
+   "t": "Criteria: school rating 9 or higher, 3 bedrooms.",
+   "src": "spec:13-02"
+  }
  },
  {
   "id": "13-03",
-  "rev": 2,
-  "title": "A listing is missing information on a must-have criterion",
-  "when": "A listing could match, but it says nothing about one of the buyer's must-haves (for example a pool).",
+  "rev": 3,
+  "title": {
+   "t": "A listing lacks data on a must-have",
+   "src": "tuple:13-03"
+  },
+  "when": {
+   "t": "A listing otherwise matches, but has no value for a criterion the buyer marked must-have.",
+   "src": "dispatcher/listing_spokes_13.py:186-191"
+  },
   "steps": [
-   "Agent 13 holds the match; it is not sent to the buyer.",
-   "It asks the authorized user, naming the missing must-have."
+   {
+    "t": "Unless the buyer has a standing preference to receive such listings marked unknown, Agent 13 does not send it. It keeps the match, asks the authorized user (naming the missing must-have), and asks the buyer once for that listing whether to send listings like it marked unknown; that question's wording waits for the authorized user's signature, so Agent 11 holds it for now (owner decision of 2026-10-28; before, only the authorized user was asked and the match was dropped).",
+    "src": "dispatcher/listing_spokes_13.py:191-220; check:13-03:envelope.persisted:clarification.request; check:13-03:envelope.persisted:client.message.request; check:13-03:envelope.persisted:client.message.send"
+   },
+   {
+    "t": "The buyer's answer is a reply, and it reaches the authorized user. When the authorized user records the buyer's standing preference, the kept matches are checked again and go to the buyer marked unknown.",
+    "src": "dispatcher/listing_spokes_13.py::if \"deliver_unknown_standing_preference\" in payload:; dispatcher/listing_spokes_13.py::def _recheck_kept(self, ctx: str, env: Envelope):; dispatcher/listing_spokes_13.py:608-617; tests_listing/test_owner_decisions_2026_10_28.py::def test_missing_must_have_keeps_the_match_and_asks_the_buyer"
+   },
+   {
+    "t": "The standing preference, and a replacement of the buyer's whole criteria list, are signed settings; either one checks the kept matches again.",
+    "src": "dispatcher/listing_spokes_13.py:470-475; dispatcher/listing_spokes_13.py::if \"buyer_criteria_replace\" in payload:"
+   }
   ],
   "never": [
-   "Present a listing as a match when a must-have is unknown."
+   {
+    "t": "Send a listing with unknown must-haves as if it matched.",
+    "src": "tuple:13-03"
+   }
   ],
-  "why": "Sending a buyer a home that may lack a must-have wastes their time and the authorized user's credibility.",
-  "you_see": "A question naming the must-have the listing does not state.",
-  "test": "A buyer requires a pool; a new listing that matches on budget and bedrooms says nothing about a pool."
+  "you_see": {
+   "t": "A question naming the missing must-have; the match kept; the question to the buyer held, its wording not yet signed.",
+   "src": "check:13-03:envelope.persisted:clarification.request; check:13-03:envelope.persisted:interaction.log; check:13-03:envelope.persisted:client.message.send"
+  },
+  "test": {
+   "t": "Buyer B1 must have a pool; listing L1 goes live with no pool information.",
+   "src": "spec:13-03"
+  }
  },
  {
   "id": "13-04",
-  "rev": 2,
-  "title": "A buyer asks \"is this a good price?\"",
-  "when": "A buyer asks whether a price is good.",
+  "rev": 3,
+  "title": {
+   "t": "A buyer asks \"is this a good price?\"",
+   "src": "tuple:13-04"
+  },
+  "when": {
+   "t": "A buyer's reply reaching Agent 13 contains \"is this a good price\", \"good deal\", \"worth the price\" or \"should i pay\".",
+   "src": "dispatcher/listing_spokes_13.py:23-24, 556-559"
+  },
   "steps": [
-   "Agent 13 does not answer.",
-   "It raises a legal-line alert for the authorized user with the question."
+   {
+    "t": "Agent 13 raises a legal-line alert with the message. Nothing is sent to the buyer.",
+    "src": "dispatcher/listing_spokes_13.py:559-565; check:13-04:escalation.raised"
+   }
   ],
   "never": [
-   "Give an opinion on price."
+   {
+    "t": "Give a view on the price.",
+    "src": "tuple:13-04"
+   }
   ],
-  "why": "Price opinions are licensed advice and part of the authorized user's duty to the buyer.",
-  "you_see": "A legal-line alert quoting the question.",
-  "test": "A buyer writes \"Is this a good price for the place on Elm?\"."
+  "you_see": {
+   "t": "A legal-line alert quoting the question.",
+   "src": "check:13-04:escalation.raised"
+  },
+  "test": {
+   "t": "The buyer writes \"Is this a good price for the place on Elm?\"",
+   "src": "spec:13-04"
+  }
  },
  {
   "id": "13-05",
-  "rev": 2,
-  "title": "Many matches come in on one day",
-  "when": "More listings match a buyer in one day than the daily limit (5 in the authorized user's settings).",
+  "rev": 3,
+  "title": {
+   "t": "Too many matches in one day",
+   "src": "tuple:13-05"
+  },
+  "when": {
+   "t": "A buyer gets more than 5 matches in one day.",
+   "src": "dispatcher/listing_spokes_13.py:88-91, 370-391"
+  },
   "steps": [
-   "Agent 13 sends up to the daily limit as individual matches.",
-   "The rest go into a digest that the daily run sends.",
-   "Matches are ranked only by how well they fit the buyer's stated criteria."
+   {
+    "t": "The first 5 go to the buyer one by one through Agent 11.",
+    "src": "dispatcher/listing_spokes_13.py:392-394; check:13-05:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "The rest wait for the daily run, which sends them as one digest ranked by how many of the buyer's stated criteria each meets.",
+    "src": "dispatcher/listing_spokes_13.py:377-391, 414-431; dispatcher/clock.py:56-57; check:13-05:envelope.persisted:client.message.request (the digest)"
+   },
+   {
+    "t": "Every match is logged either way. The digest is ranked only by how many of the buyer's stated criteria each match meets; ties go newest first.",
+    "src": "dispatcher/listing_spokes_13.py:375-376, 396-412, 422-423; check:13-05:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Before any match goes out, Agent 14 must show the buyer agreement on file; without it the matches are held and the authorized user is told once.",
+    "src": "dispatcher/listing_spokes_13.py:269-316"
+   }
   ],
   "never": [
-   "Rank by guessed preferences, or flood the buyer past the limit."
+   {
+    "t": "Rank by anything the buyer did not state.",
+    "src": "tuple:13-05"
+   }
   ],
-  "why": "Inferred preferences can carry bias and do not belong to the buyer. Stated criteria and a daily limit respect them.",
-  "you_see": "Five match messages and one digest.",
-  "test": "Six matching listings go live in one day. Five match messages go out; the sixth is in the evening digest; all six are recorded as delivered."
+  "you_see": {
+   "t": "Five match messages and one digest of the sixth.",
+   "src": "check:13-05:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "Six listings that match buyer B1 go live in one day.",
+   "src": "spec:13-05"
+  }
  },
  {
   "id": "13-06",
-  "rev": 2,
-  "title": "A buyer's criteria conflict with each other",
-  "when": "A listing meets some of a buyer's criteria but breaks another (for example the right area, over the budget).",
+  "rev": 3,
+  "title": {
+   "t": "A buyer's budget and area conflict",
+   "src": "tuple:13-06"
+  },
+  "when": {
+   "t": "A listing is in the buyer's stated area but priced over the buyer's stated budget.",
+   "src": "dispatcher/listing_spokes_13.py:126-130"
+  },
   "steps": [
-   "Agent 13 does not send it as a match.",
-   "It asks the authorized user, showing the conflict with the numbers."
+   {
+    "t": "Agent 13 does not send it and asks the authorized user, with the budget and the price.",
+    "src": "dispatcher/listing_spokes_13.py:131-138; check:13-06:envelope.persisted:clarification.request; check:13-06:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "A listing over budget and outside the area is simply not a match.",
+    "src": "dispatcher/listing_spokes_13.py:139-148"
+   }
   ],
   "never": [
-   "Quietly relax a criterion to make a match."
+   {
+    "t": "Relax the budget or the area on its own.",
+    "src": "tuple:13-06"
+   }
   ],
-  "why": "Whether the buyer would stretch the budget for the area is their choice, made with the authorized user.",
-  "you_see": "A question saying the listing exceeds the stated budget, with both figures.",
-  "test": "A buyer wants Northside under $400,000; a Northside listing at $450,000 goes live."
+  "you_see": {
+   "t": "A question showing the budget and the price.",
+   "src": "check:13-06:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Budget 400,000 in Northside; a Northside listing at 450,000 goes live.",
+   "src": "spec:13-06"
+  }
  },
  {
   "id": "13-07",
-  "rev": 2,
-  "title": "A match is on a colleague's listing",
-  "when": "A listing that matches the buyer is listed by someone in the authorized user's own office.",
+  "rev": 3,
+  "title": {
+   "t": "A match is a colleague's listing",
+   "src": "tuple:13-07"
+  },
+  "when": {
+   "t": "A matching listing is marked as a colleague's own listing.",
+   "src": "dispatcher/listing_spokes_13.py:224"
+  },
   "steps": [
-   "Agent 13 does not send the match.",
-   "It raises a legal-line alert for the authorized user: disclosure rules apply before any showing."
+   {
+    "t": "Agent 13 raises a legal-line alert for the disclosure rules; the match is not sent.",
+    "src": "dispatcher/listing_spokes_13.py:224-231; check:13-07:escalation.raised; check:13-07:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "This is a mark on the listing record (colleague_listing); Agent 13 does not work it out.",
+    "src": "dispatcher/listing_spokes_13.py:224; spec:13-07"
+   }
   ],
   "never": [
-   "Move toward a showing before the disclosure is handled."
+   {
+    "t": "Move toward a showing before the disclosure is handled.",
+    "src": "tuple:13-07"
+   }
   ],
-  "why": "In-house deals bring dual agency or disclosure duties that must be handled before anything else.",
-  "you_see": "A legal-line alert naming the colleague's listing.",
-  "test": "A matching listing marked as a colleague's listing goes live."
+  "you_see": {
+   "t": "A legal-line alert about the colleague's listing.",
+   "src": "check:13-07:escalation.raised"
+  },
+  "test": {
+   "t": "A matching listing marked as a colleague's listing goes live.",
+   "src": "spec:13-07"
+  }
  },
  {
   "id": "13-08",
-  "rev": 2,
-  "title": "A buyer asks what the seller would accept",
-  "when": "A buyer asks what the seller will take.",
+  "rev": 3,
+  "title": {
+   "t": "A buyer asks what the seller would accept",
+   "src": "tuple:13-08"
+  },
+  "when": {
+   "t": "A buyer's reply reaching Agent 13 contains \"what would the seller take\", \"seller's bottom line\", \"what will they accept\" or \"seller's minimum\".",
+   "src": "dispatcher/listing_spokes_13.py:21-22, 567"
+  },
   "steps": [
-   "Agent 13 refuses.",
-   "It raises a legal-line alert for the authorized user with the question."
+   {
+    "t": "Agent 13 raises a legal-line alert with the message. Nothing is sent to the buyer.",
+    "src": "dispatcher/listing_spokes_13.py:567-573; check:13-08:escalation.raised"
+   }
   ],
   "never": [
-   "Share anything about the other party's position."
+   {
+    "t": "Share anything about the other side's position.",
+    "src": "tuple:13-08"
+   }
   ],
-  "why": "The other side's information is never shared; revealing it can breach duties to the seller.",
-  "you_see": "A legal-line alert quoting the question.",
-  "test": "A buyer writes \"What would the seller take on the Elm Street house?\"."
+  "you_see": {
+   "t": "A legal-line alert quoting the question.",
+   "src": "check:13-08:escalation.raised"
+  },
+  "test": {
+   "t": "The buyer writes \"What would the seller take on the Elm Street house?\"",
+   "src": "spec:13-08"
+  }
  },
  {
   "id": "13-09",
-  "rev": 2,
-  "title": "A matching listing has suspect data",
-  "when": "A listing that matches has data that looks wrong (for example two different square footages).",
+  "rev": 3,
+  "title": {
+   "t": "A matching listing has suspect data",
+   "src": "tuple:13-09"
+  },
+  "when": {
+   "t": "A matching listing is marked with a data anomaly.",
+   "src": "dispatcher/listing_spokes_13.py:152"
+  },
   "steps": [
-   "Agent 13 holds it; it is not sent to the buyer.",
-   "It asks the authorized user, naming the anomaly."
+   {
+    "t": "Agent 13 does not send it and asks the authorized user, quoting the anomaly.",
+    "src": "dispatcher/listing_spokes_13.py:152-158; check:13-09:envelope.persisted:clarification.request; check:13-09:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "This is a mark on the listing record (data_anomaly); Agent 13 does not work it out.",
+    "src": "dispatcher/listing_spokes_13.py:152; spec:13-09"
+   }
   ],
   "never": [
-   "Present suspect data as available inventory."
+   {
+    "t": "Present suspect data as inventory.",
+    "src": "tuple:13-09"
+   }
   ],
-  "why": "A buyer who falls for a home on bad data is disappointed and may have a claim.",
-  "you_see": "A question naming the data anomaly.",
-  "test": "A matching listing says 1,800 sq ft on the sheet and 2,400 on the tax record."
+  "you_see": {
+   "t": "A question quoting the anomaly.",
+   "src": "check:13-09:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A listing marked \"sqft 1800 on the sheet, 2400 on the tax record\" goes live.",
+   "src": "spec:13-09"
+  }
  },
  {
   "id": "13-10",
-  "rev": 2,
-  "title": "A buyer's pre-approval expires during the search",
-  "when": "A buyer's pre-approval expires while they are searching.",
+  "rev": 3,
+  "title": {
+   "t": "A buyer's pre-approval expires",
+   "src": "tuple:13-10"
+  },
+  "when": {
+   "t": "The authorized user records, as a signed setting, that the buyer's pre-approval expired.",
+   "src": "dispatcher/listing_spokes_13.py:476"
+  },
   "steps": [
-   "Agent 13 tells the buyer once that the pre-approval has expired.",
-   "It marks the buyer's financing as unverified.",
-   "Matches keep coming, each flagged as unverified financing."
+   {
+    "t": "Agent 13 sends the buyer a notice through Agent 11.",
+    "src": "dispatcher/listing_spokes_13.py:476-481; check:13-10:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Matches keep going, each marked as unverified financing.",
+    "src": "dispatcher/listing_spokes_13.py:269-271; check:13-10:envelope.persisted:client.message.request"
+   }
   ],
   "never": [
-   "Stop the search, or present the buyer as financed when they are not."
+   {
+    "t": "Stop the search, or present matches as if financing were verified.",
+    "src": "tuple:13-10"
+   }
   ],
-  "why": "The buyer still needs homes to look at, but sellers and the authorized user needs to know the financing is not current.",
-  "you_see": "One expiry notice sent; later matches flagged unverified financing.",
-  "test": "A buyer's pre-approval is marked expired; then a matching listing goes live."
+  "you_see": {
+   "t": "The expiry notice; later matches marked unverified financing.",
+   "src": "check:13-10:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "The pre-approval is recorded as expired; then a matching listing goes live.",
+   "src": "spec:13-10"
+  }
  },
  {
   "id": "13-11",
-  "rev": 2,
-  "title": "Compliance does not approve a buyer criterion",
-  "when": "A buyer criterion that may be a fair housing problem is sent to Compliance and is not approved.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance does not approve a buyer criterion",
+   "src": "tuple:13-11"
+  },
+  "when": {
+   "t": "A signed criterion is marked as fair-housing sensitive.",
+   "src": "dispatcher/listing_spokes_13.py:339"
+  },
   "steps": [
-   "Agent 13 does not use those criteria for matching.",
-   "It tells the authorized user which criteria were not approved and why."
+   {
+    "t": "Agent 13 sends it to Compliance (Agent 17) and does not use it meanwhile.",
+    "src": "dispatcher/listing_spokes_13.py:343-350; check:13-11:envelope.persisted:content.review"
+   },
+   {
+    "t": "If Compliance does not approve it, it is never used for matching, and the authorized user is told which criterion and why.",
+    "src": "dispatcher/listing_spokes_13.py:484-503; check:13-11:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Match on a criterion Compliance did not approve."
+   {
+    "t": "Match on a criterion Compliance has not approved.",
+    "src": "tuple:13-11"
+   }
   ],
-  "why": "A criterion like \"no kids\" is familial-status discrimination. It cannot shape a search.",
-  "you_see": "A question naming the criteria Compliance did not approve.",
-  "test": "A buyer's criteria include household \"no kids\"; Compliance flags it."
+  "you_see": {
+   "t": "A question naming the criterion and Compliance's findings.",
+   "src": "check:13-11:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Criteria include household \"no kids\", marked sensitive; Compliance's ruleset prohibits \"no kids\" (FH-2).",
+   "src": "spec:13-11; synth/tuples/setup.jsonl:4"
+  }
  }
 ]

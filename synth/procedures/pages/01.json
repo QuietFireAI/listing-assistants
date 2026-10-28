@@ -1,270 +1,614 @@
 [
  {
   "id": "01-01",
-  "rev": 2,
-  "title": "Two inquiries from the same person arrive close together",
-  "when": "One person reaches out twice in a short time on different channels (for example a web form, then a phone call), each time giving part of the facts.",
+  "rev": 3,
+  "title": {
+   "t": "Two inquiries from the same person arrive close together",
+   "src": "tuple:01-01"
+  },
+  "when": {
+   "t": "One person reaches out twice on different channels, each time giving part of the facts.",
+   "src": "tuple:01-01; spec:01-01"
+  },
   "steps": [
-   "Agent 01 (Lead Capture) captures both; nothing is dropped.",
-   "It ranks the channels: a live call first, then a text, then a web form.",
-   "It hands over one lead for that person, carrying the facts from both inquiries."
+   {
+    "t": "The rule: rank a live call above a text above a web form, and capture everything; drop nothing.",
+    "src": "tuple:01-01"
+   },
+   {
+    "t": "Open item: today each inquiry is handed over as its own lead, and neither carries all the facts. Combining works only while the first inquiry is still waiting for Agent 14, and Agent 14 answers at once.",
+    "src": "result:01-01:VARIANCE; dispatcher/listing_spokes.py:974-977, 1178; synth/tuples/REPORT.md 01-01 VARIANCE"
+   }
   ],
   "never": [
-   "Drop one of the inquiries, or hand over the same person twice."
+   {
+    "t": "Drop one of the inquiries.",
+    "src": "tuple:01-01"
+   }
   ],
-  "why": "Two half-records for one person mean two scores, possibly two follow-ups, and facts missing from each. One complete record is the truth.",
-  "you_see": "One lead with everything the person told us.",
-  "test": "A web form gives a name and a $300,000 budget; minutes later a call from the same phone gives a name and a 20-day timeline. Today two separate leads are handed over and neither carries all three facts."
+  "you_see": {
+   "t": "Today: two separate leads.",
+   "src": "flow:01-01:01->02 lead.captured"
+  },
+  "test": {
+   "t": "A web form gives a name and a 300,000 budget; then a call from the same phone gives a name and a 20-day timeline. Two separate leads are handed over and neither carries all three facts.",
+   "src": "spec:01-01"
+  }
  },
  {
   "id": "01-02",
-  "rev": 3,
-  "title": "A new lead refuses consent to be contacted",
-  "when": "A person reaches out but says no to calls, texts and email.",
+  "rev": 4,
+  "title": {
+   "t": "A new lead refuses consent to be contacted",
+   "src": "tuple:01-02"
+  },
+  "when": {
+   "t": "A person reaches out but says no to calls, texts and email.",
+   "src": "spec:01-02"
+  },
   "steps": [
-   "Agent 01 still captures the lead, so the authorized user knows they reached out.",
-   "It records \"no\" for every channel on the lead.",
-   "No message goes to the person, and the lead is not put into any follow-up sequence.",
-   "If the lead scores hot, the authorized user still get a hot-lead alert, marked DO NOT CONTACT with the reason (no consent on any channel) and no call deadline."
+   {
+    "t": "Agent 01 still captures the lead.",
+    "src": "tuple:01-02; check:01-02:envelope.persisted"
+   },
+   {
+    "t": "It records \"no\" for every channel.",
+    "src": "dispatcher/listing_spokes.py:924-926, 1035-1036; check:01-02:envelope.persisted"
+   },
+   {
+    "t": "No message goes to the person, and the lead is not put into a follow-up sequence.",
+    "src": "check:01-02:envelope.persisted:client.message.send; check:01-02:envelope.persisted:lead.nurture"
+   },
+   {
+    "t": "If the lead scores hot, the authorized user still gets the hot-lead alert, marked do not contact with the reason (no consent on any channel) and no call window.",
+    "src": "check:01-02:escalation.raised; dispatcher/listing_spokes_02.py::def _hot_record("
+   }
   ],
   "never": [
-   "Send any message to a person who refused consent."
+   {
+    "t": "Send any message to a person who refused consent.",
+    "src": "tuple:01-02"
+   }
   ],
-  "why": "Contacting someone who said no can break telemarketing and anti-spam law. Capturing the lead still matters: it is a real inquiry and part of the record.",
-  "you_see": "The lead, marked no consent on every channel; if it scores hot, a hot-lead alert marked do not contact.",
-  "test": "A web form with a $500,000 budget and a 20-day timeline, consent \"no\" for call, text and email."
+  "you_see": {
+   "t": "The lead, marked no consent on every channel; if it scores hot, a hot-lead alert marked do not contact.",
+   "src": "check:01-02:escalation.raised"
+  },
+  "test": {
+   "t": "A web form with a 500,000 budget and a 20-day timeline, consent \"no\" for call, text and email.",
+   "src": "spec:01-02"
+  }
  },
  {
   "id": "01-03",
-  "rev": 2,
-  "title": "A caller demands a person right now",
-  "when": "Someone reaching out says they want to talk to a person immediately.",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks for a person right now",
+   "src": "tuple:01-03"
+  },
+  "when": {
+   "t": "An inquiry says the person wants to talk to a person now (matched against a fixed phrase list).",
+   "src": "dispatcher/listing_spokes.py:28-34"
+  },
   "steps": [
-   "Agent 01 alerts the authorized user at once, quoting what they said (\"demands a human\").",
-   "It still captures whatever the person already gave (name, phone, budget, timeline)."
+   {
+    "t": "Agent 01 passes the request, in the person's words, on to Agent 02 with the captured lead, and raises no alert of its own (one item per person; owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes.py:871-888, 1042-1043; check:01-03:envelope.persisted"
+   },
+   {
+    "t": "It still captures what the person gave.",
+    "src": "dispatcher/listing_spokes.py:871-874; check:01-03:envelope.persisted"
+   },
+   {
+    "t": "Agent 02 puts the person in the hot-lead queue, quoting the request, with the call clock; a person who may not be called is marked do not contact, with no clock.",
+    "src": "dispatcher/listing_spokes_02.py:319-341; check:01-03:escalation.raised"
+   }
   ],
   "never": [
-   "Keep the person in an automated exchange after they asked for a human."
+   {
+    "t": "Drop what the person already gave.",
+    "src": "tuple:01-03"
+   }
   ],
-  "why": "Someone who asks for a person and gets a machine feels ignored; that costs the lead and the office's reputation.",
-  "you_see": "An alert naming the person and that they want a human now; their lead is captured.",
-  "test": "A web form says \"I want to talk to a person right now\", with a name, phone, budget and timeline."
+  "you_see": {
+   "t": "A hot-lead alert quoting the request for a person, with the call clock; no legal-line alert; the lead is captured.",
+   "src": "check:01-03:escalation.raised; check:01-03:envelope.persisted"
+  },
+  "test": {
+   "t": "A web form says \"I want to talk to a person right now\", with a name, phone, budget and timeline.",
+   "src": "spec:01-03"
+  }
  },
  {
   "id": "01-04",
-  "rev": 2,
-  "title": "A lead volunteers details the form does not ask for",
-  "when": "A person adds information outside the usual fields (for example \"Has two dogs and works from home\").",
+  "rev": 3,
+  "title": {
+   "t": "A lead volunteers details the form does not ask for",
+   "src": "tuple:01-04"
+  },
+  "when": {
+   "t": "A person adds information outside the usual fields.",
+   "src": "tuple:01-04"
+  },
   "steps": [
-   "Agent 01 keeps the extra information word for word in the lead's notes.",
-   "It does not turn it into any field (no guessed \"pet friendly\" or \"home office\" requirement)."
+   {
+    "t": "Agent 01 keeps the extra words exactly as given, in the lead's notes.",
+    "src": "dispatcher/listing_spokes.py:1012-1015; check:01-04:envelope.persisted"
+   },
+   {
+    "t": "It does not turn them into any field.",
+    "src": "tuple:01-04; dispatcher/listing_spokes.py:1023-1041"
+   }
   ],
   "never": [
-   "Interpret volunteered words into fields or requirements."
+   {
+    "t": "Interpret volunteered words into fields.",
+    "src": "tuple:01-04"
+   }
   ],
-  "why": "What a person said is a fact; what we infer from it is a guess. Guesses in fields would steer searches and scores the person never asked for.",
-  "you_see": "The person's own words in the lead's notes.",
-  "test": "A web form with the note \"Has two dogs and works from home\"."
+  "you_see": {
+   "t": "The person's own words in the lead's notes.",
+   "src": "check:01-04:envelope.persisted"
+  },
+  "test": {
+   "t": "A web form with the note \"Has two dogs and works from home\".",
+   "src": "spec:01-04"
+  }
  },
  {
   "id": "01-05",
-  "rev": 2,
-  "title": "A new inquiry may be someone already on record",
-  "when": "An inquiry comes in with the same phone or email as a person already on record, but nothing confirms it is the same person.",
+  "rev": 3,
+  "title": {
+   "t": "A new inquiry may be someone already on record",
+   "src": "tuple:01-05"
+  },
+  "when": {
+   "t": "An inquiry carries the same phone or email as a lead already on record under another client.",
+   "src": "dispatcher/listing_spokes.py:1149-1155"
+  },
   "steps": [
-   "Agent 01 asks the CRM (Agent 14) whether the person is already on record before creating a lead.",
-   "The match is not confirmed, so it holds the new inquiry and asks the authorized user: continue (a separate person, scored as a new lead) or cancel (the thread closes).",
-   "Nothing is merged and the new inquiry is not scored while it waits for the authorized user."
+   {
+    "t": "Agent 01 asks Agent 14 whether the person is on record before handing anything on.",
+    "src": "check:01-05:envelope.persisted; dispatcher/listing_spokes.py:1120-1122"
+   },
+   {
+    "t": "Agent 14 reports the match; the whole inquiry is held for the authorized user: continue treats it as a separate person, cancel closes it.",
+    "src": "flow:01-05:01->queue decision.required; dispatcher/listing_spokes.py:1182-1205"
+   },
+   {
+    "t": "Nothing is merged, and the held inquiry is not scored.",
+    "src": "dispatcher/listing_spokes.py:1184-1186"
+   }
   ],
   "never": [
-   "Merge two people on a guess."
+   {
+    "t": "Merge two records.",
+    "src": "tuple:01-05"
+   }
   ],
-  "why": "Merging two different people mixes their consent, budgets and history; separating one person into two doubles the contact. Only the authorized user can confirm identity.",
-  "you_see": "A held inquiry asking the authorized user to continue or cancel, naming the earlier record.",
-  "test": "A web form from Avery (phone (216) 555-0105), then a call from \"Avery\" at 216-555-0105 under a new client number."
+  "you_see": {
+   "t": "A held inquiry asking continue or cancel, naming the earlier record.",
+   "src": "dispatcher/listing_spokes.py:1195-1204"
+  },
+  "test": {
+   "t": "A web form from Avery (phone (216) 555-0105), then a second inquiry from the same phone under a new client record.",
+   "src": "spec:01-05"
+  }
  },
  {
   "id": "01-06",
-  "rev": 2,
-  "title": "A lead is abusive",
-  "when": "A person reaching out is rude or abusive.",
+  "rev": 3,
+  "title": {
+   "t": "A lead is abusive",
+   "src": "tuple:01-06"
+  },
+  "when": {
+   "t": "An inquiry is marked abusive.",
+   "src": "dispatcher/listing_spokes.py:864"
+  },
   "steps": [
-   "Agent 01 raises a complaint alert for the authorized user with the person's words exactly as written.",
-   "It finishes capturing the lead with what the person gave."
+   {
+    "t": "Agent 01 raises a complaint alert with the person's words exactly as written.",
+    "src": "dispatcher/listing_spokes.py:864-869; check:01-06:escalation.raised"
+   },
+   {
+    "t": "It finishes capturing the lead.",
+    "src": "check:01-06:envelope.persisted"
+   }
   ],
   "never": [
-   "Answer abuse with an automated reply, or soften the person's words in the record."
+   {
+    "t": "Change the person's words in the record.",
+    "src": "tuple:01-06"
+   }
   ],
-  "why": "An upset person needs a human judgment, and the exact words matter if it becomes a complaint.",
-  "you_see": "A complaint alert with the exact words; the captured lead.",
-  "test": "A web form flagged abusive: \"This is useless, you people are idiots\"."
+  "you_see": {
+   "t": "A complaint alert with the exact words; the captured lead.",
+   "src": "check:01-06:escalation.raised; check:01-06:envelope.persisted:lead.captured"
+  },
+  "test": {
+   "t": "A web form marked abusive: \"This is useless, you people are idiots\".",
+   "src": "spec:01-06"
+  }
  },
  {
   "id": "01-07",
-  "rev": 2,
-  "title": "A caller refuses to have the call recorded",
-  "when": "A caller says no to the call being recorded.",
+  "rev": 3,
+  "title": {
+   "t": "A caller refuses to have the call recorded",
+   "src": "tuple:01-07"
+  },
+  "when": {
+   "t": "A caller says no to recording.",
+   "src": "dispatcher/listing_spokes.py:955"
+  },
   "steps": [
-   "Agent 01 captures only the contact details and marks the lead so it never enters a follow-up sequence.",
-   "It tells the authorized user the caller refused consent to recording.",
-   "No message goes to the person."
+   {
+    "t": "Agent 01 keeps the contact details only, marks every channel \"no\", and marks the lead never to enter follow-up.",
+    "src": "dispatcher/listing_spokes.py:1023-1037; check:01-07:envelope.persisted"
+   },
+   {
+    "t": "The authorized user is told.",
+    "src": "dispatcher/listing_spokes.py:964-969; check:01-07:envelope.persisted"
+   },
+   {
+    "t": "No message goes to the person and no follow-up starts.",
+    "src": "check:01-07:envelope.persisted:lead.nurture; check:01-07:envelope.persisted:client.message.send"
+   }
   ],
   "never": [
-   "Record, or put into automated follow-up, a caller who refused recording."
+   {
+    "t": "Put the caller into follow-up.",
+    "src": "tuple:01-07"
+   }
   ],
-  "why": "Recording without consent is illegal in many states. Keeping the lead out of automation leaves the next step to the authorized user.",
-  "you_see": "A question telling the authorized user the caller refused recording; the lead marked \"no nurture\".",
-  "test": "A phone inquiry with consent to call, text and email, but recording consent \"no\"."
+  "you_see": {
+   "t": "A question saying the caller refused recording.",
+   "src": "dispatcher/listing_spokes.py:966-969"
+  },
+  "test": {
+   "t": "A phone inquiry with consent to call, text and email, but recording consent \"no\".",
+   "src": "spec:01-07"
+  }
  },
  {
   "id": "01-08",
-  "rev": 3,
-  "title": "A new lead is on the Do Not Call list",
-  "when": "A lead's phone number is on the authorized user's Do Not Call list.",
+  "rev": 4,
+  "title": {
+   "t": "A new lead is on the Do Not Call list",
+   "src": "tuple:01-08"
+  },
+  "when": {
+   "t": "A lead's phone or email is on the office's Do Not Call list.",
+   "src": "dispatcher/listing_spokes.py:890-898"
+  },
   "steps": [
-   "Agent 01 captures the lead and marks it as on the Do Not Call list.",
-   "It raises a legal-line alert for the authorized user naming the Do Not Call match.",
-   "No outreach goes to the person: the list wins over the opportunity.",
-   "If the lead scores hot, the hot-lead alert is marked DO NOT CONTACT (on the authorized user's Do Not Call list), with no call deadline."
+   {
+    "t": "Agent 01 captures the lead, marked as on the list.",
+    "src": "dispatcher/listing_spokes.py:1038; check:01-08:envelope.persisted"
+   },
+   {
+    "t": "It raises a legal-line alert saying the lead is on the list (not which contact matched).",
+    "src": "dispatcher/listing_spokes.py:1096-1101; check:01-08:escalation.raised"
+   },
+   {
+    "t": "No message goes to the person.",
+    "src": "check:01-08:envelope.persisted:client.message.send"
+   },
+   {
+    "t": "If the lead scores hot, the hot-lead alert is marked do not contact (on the Do Not Call list), with no call window.",
+    "src": "check:01-08:escalation.raised; dispatcher/listing_spokes_02.py::def _hot_record("
+   }
   ],
   "never": [
-   "Contact a number on the Do Not Call list, however promising the lead."
+   {
+    "t": "Contact a number on the list.",
+    "src": "tuple:01-08"
+   }
   ],
-  "why": "Calling or texting a listed number can bring fines per call. The list always wins.",
-  "you_see": "A legal-line alert naming the Do Not Call match; the lead marked DNC; if it scores hot, a hot-lead alert marked do not contact.",
-  "test": "A web form from (330) 555-0190, a number on the signed Do Not Call list."
+  "why": {
+   "t": "The tuple's words: the list wins over the opportunity.",
+   "src": "tuple:01-08"
+  },
+  "you_see": {
+   "t": "A legal-line alert saying the lead is on the Do Not Call list (it does not say which number or email matched); if it scores hot, a hot-lead alert marked do not contact.",
+   "src": "check:01-08:human.notified; check:01-08:escalation.raised"
+  },
+  "test": {
+   "t": "A web form from (330) 555-0190, a number on the signed Do Not Call list.",
+   "src": "spec:01-08; synth/tuples/setup.jsonl:2"
+  }
  },
  {
   "id": "01-09",
-  "rev": 2,
-  "title": "One person asks about two properties",
-  "when": "The same person inquires about two different listings.",
+  "rev": 3,
+  "title": {
+   "t": "One person asks about two properties",
+   "src": "tuple:01-09"
+  },
+  "when": {
+   "t": "The same person, under one client record, inquires about two listings.",
+   "src": "spec:01-09"
+  },
   "steps": [
-   "Agent 01 keeps one client record for the person.",
-   "Both properties are recorded inside it.",
-   "No second client record is created."
+   {
+    "t": "Agent 01 keeps one client record and adds both properties to it.",
+    "src": "dispatcher/listing_spokes.py:1017-1021, 1170-1176; check:01-09:envelope.persisted"
+   },
+   {
+    "t": "No second client record is opened.",
+    "src": "tuple:01-09"
+   }
   ],
   "never": [
-   "Open a second client record for the same person."
+   {
+    "t": "Open a second client record for the same person.",
+    "src": "tuple:01-09"
+   }
   ],
-  "why": "Two records for one person split their history and double the contact.",
-  "you_see": "One client with both properties of interest.",
-  "test": "Two listings are on file. A person asks about the first by web form, then about the second by text, with the same name and phone."
+  "you_see": {
+   "t": "One client with both properties of interest.",
+   "src": "check:01-09:envelope.persisted"
+  },
+  "test": {
+   "t": "Two listings are on file; the same person asks about the first, then the second, under one client record.",
+   "src": "spec:01-09"
+  }
  },
  {
   "id": "01-10",
-  "rev": 2,
-  "title": "A lead says they have worked with the authorized user before",
-  "when": "A person says they have a past relationship with the office (for example \"Your agent sold my mother's house in 2019\").",
+  "rev": 3,
+  "title": {
+   "t": "A lead says they have worked with the office before",
+   "src": "tuple:01-10"
+  },
+  "when": {
+   "t": "A person claims a past relationship.",
+   "src": "tuple:01-10"
+  },
   "steps": [
-   "Agent 01 records the claim as stated by the person, not as fact.",
-   "It alerts the authorized user to confirm it before any history is assumed."
+   {
+    "t": "Agent 01 records the claim as stated by the person.",
+    "src": "dispatcher/listing_spokes.py:1040; check:01-10:envelope.persisted"
+   },
+   {
+    "t": "It raises a legal-line alert so the authorized user confirms it before any history is assumed.",
+    "src": "dispatcher/listing_spokes.py:1074-1081; check:01-10:escalation.raised"
+   }
   ],
   "never": [
-   "Treat the claim as confirmed history."
+   {
+    "t": "Treat the claim as confirmed.",
+    "src": "tuple:01-10"
+   }
   ],
-  "why": "Acting on an unconfirmed past relationship can mean wrong assumptions about the person, or giving someone access to another client's history.",
-  "you_see": "An alert naming the claimed relationship.",
-  "test": "A web form saying \"Your agent sold my mother's house in 2019\"."
+  "you_see": {
+   "t": "An alert naming the claimed relationship.",
+   "src": "check:01-10:escalation.raised"
+  },
+  "test": {
+   "t": "A web form saying \"Your agent sold my mother's house in 2019\".",
+   "src": "spec:01-10"
+  }
  },
  {
   "id": "01-11",
-  "rev": 2,
-  "title": "The person reaching out appears to be a minor",
-  "when": "An inquiry appears to come from someone under 18.",
+  "rev": 3,
+  "title": {
+   "t": "The person reaching out appears to be a minor",
+   "src": "tuple:01-11"
+  },
+  "when": {
+   "t": "An inquiry is marked as from an apparent minor.",
+   "src": "dispatcher/listing_spokes.py:833"
+  },
   "steps": [
-   "Agent 01 records only the fact that contact was made; no lead is captured and the CRM is not searched.",
-   "It alerts the authorized user immediately (\"apparent minor\")."
+   {
+    "t": "Agent 01 captures nothing: no lead and no record lookup.",
+    "src": "dispatcher/listing_spokes.py:833-845; check:01-11:envelope.persisted"
+   },
+   {
+    "t": "It raises a legal-line alert at once: an apparent minor, fact of contact only.",
+    "src": "dispatcher/listing_spokes.py:840-844; check:01-11:escalation.raised"
+   }
   ],
   "never": [
-   "Collect a minor's details or put them into any sales process."
+   {
+    "t": "Capture anything beyond the fact of contact.",
+    "src": "tuple:01-11"
+   }
   ],
-  "why": "Collecting a child's personal information brings legal duties and real risk. A person decides what happens next.",
-  "you_see": "A legal-line alert saying an apparent minor made contact.",
-  "test": "A web form flagged as an apparent minor: \"hi im asking for my school project\"."
+  "you_see": {
+   "t": "A legal-line alert naming an apparent minor.",
+   "src": "check:01-11:escalation.raised"
+  },
+  "test": {
+   "t": "A web form marked apparent minor: \"hi im asking for my school project\".",
+   "src": "spec:01-11"
+  }
  },
  {
   "id": "01-12",
-  "rev": 2,
-  "title": "A lead gives obviously false contact details",
-  "when": "A person gives contact details that are plainly not real (for example (000) 000-0000).",
+  "rev": 3,
+  "title": {
+   "t": "A lead gives contact details marked suspect",
+   "src": "tuple:01-12"
+  },
+  "when": {
+   "t": "An inquiry arrives with its contact details marked suspect.",
+   "src": "dispatcher/listing_spokes.py:1008-1010"
+  },
   "steps": [
-   "Agent 01 records the details exactly as given.",
-   "It marks them as suspect."
+   {
+    "t": "Agent 01 records the details exactly as given, with the suspect mark.",
+    "src": "dispatcher/listing_spokes.py:1026-1027; check:01-12:envelope.persisted"
+   }
   ],
   "never": [
-   "Guess or \"correct\" the details."
+   {
+    "t": "Correct the details by guess.",
+    "src": "tuple:01-12"
+   }
   ],
-  "why": "A guessed number could reach a stranger. The record shows what was given and that it looks wrong.",
-  "you_see": "The lead with its contact details marked suspect.",
-  "test": "A web form with phone (000) 000-0000, flagged suspect."
+  "you_see": {
+   "t": "The lead with its contact marked suspect.",
+   "src": "check:01-12:envelope.persisted"
+  },
+  "test": {
+   "t": "A web form with phone (000) 000-0000, marked suspect.",
+   "src": "spec:01-12"
+  }
  },
  {
   "id": "01-13",
-  "rev": 2,
-  "title": "A lead asks about a property the office does not list",
-  "when": "An inquiry is about a property that is not one of the authorized user's listings.",
+  "rev": 3,
+  "title": {
+   "t": "A lead asks about a property the office does not hold",
+   "src": "tuple:01-13"
+  },
+  "when": {
+   "t": "An inquiry names a property that is not in the office's listings or signed scope.",
+   "src": "dispatcher/listing_spokes.py:900-905"
+  },
   "steps": [
-   "Agent 01 captures the lead.",
-   "It raises a legal-line alert for the authorized user: outside the brokerage's listings.",
-   "It never points the person to another brokerage on its own."
+   {
+    "t": "Agent 01 raises a legal-line alert: outside the brokerage's scope.",
+    "src": "dispatcher/listing_spokes.py:906-918; check:01-13:escalation.raised"
+   },
+   {
+    "t": "It still captures the lead.",
+    "src": "dispatcher/listing_spokes.py:919-920; check:01-13:envelope.persisted"
+   }
   ],
   "never": [
-   "Send the person to another brokerage unprompted."
+   {
+    "t": "Point the person to another brokerage unprompted.",
+    "src": "tuple:01-13"
+   }
   ],
-  "why": "What to do with an inquiry about someone else's listing is a business and legal judgment, and it is for the authorized user.",
-  "you_see": "A legal-line alert naming the property as outside the authorized user's listings.",
-  "test": "A web form about listing OTHER-99, which is not in the authorized user's list of listings."
+  "you_see": {
+   "t": "A legal-line alert naming the property.",
+   "src": "check:01-13:escalation.raised"
+  },
+  "test": {
+   "t": "A web form about listing OTHER-99, which the office does not hold.",
+   "src": "spec:01-13"
+  }
  },
  {
   "id": "01-14",
-  "rev": 2,
-  "title": "A voicemail transcript is too garbled to trust",
-  "when": "A lead comes in by voicemail and the transcription is marked low confidence.",
+  "rev": 3,
+  "title": {
+   "t": "A call transcript is marked low confidence",
+   "src": "tuple:01-14"
+  },
+  "when": {
+   "t": "A call's transcript is marked low confidence.",
+   "src": "dispatcher/listing_spokes.py:1001-1002"
+  },
   "steps": [
-   "Agent 01 captures the lead but marks the facts from the transcript as unknown.",
-   "Agent 02 (Lead Qualification) cannot score unknown facts, so it stops and asks the authorized user.",
-   "No hot-lead alert is raised from the garbled transcript."
+   {
+    "t": "Agent 01 empties the name, timeline, budget and pre-approval taken from it.",
+    "src": "dispatcher/listing_spokes.py:1001-1006, 1065-1068"
+   },
+   {
+    "t": "Agent 02 has nothing to score, so it asks the authorized user; no hot-lead alert is raised.",
+    "src": "check:01-14:envelope.persisted; check:01-14:escalation.raised"
+   }
   ],
   "never": [
-   "Score a lead on a garbled transcript."
+   {
+    "t": "Score on a garbled transcript.",
+    "src": "tuple:01-14"
+   }
   ],
-  "why": "A misheard budget or timeline would rank the lead wrongly and send it down the wrong path.",
-  "you_see": "A question saying the lead's scoring inputs are unknown.",
-  "test": "A low-confidence voicemail transcript that seems to give a $500,000 budget, a 10-day timeline and pre-approval (enough for a hot score if trusted)."
+  "you_see": {
+   "t": "A question saying all scoring inputs are unknown.",
+   "src": "check:01-14:envelope.persisted"
+  },
+  "test": {
+   "t": "A low-confidence call transcript with a 500,000 budget, a 10-day timeline and pre-approval (enough for hot if trusted).",
+   "src": "spec:01-14; synth/tuples/setup.jsonl:1"
+  }
  },
  {
   "id": "01-15",
-  "rev": 3,
-  "title": "A lead asks not to be contacted again",
-  "when": "During capture, the person asks to stop all contact.",
+  "rev": 4,
+  "title": {
+   "t": "A lead asks not to be contacted again",
+   "src": "tuple:01-15"
+  },
+  "when": {
+   "t": "During capture the person revokes all contact.",
+   "src": "dispatcher/listing_spokes.py:931"
+  },
   "steps": [
-   "Agent 01 suppresses contact at once: the lead is recorded with \"no\" for call, text and email.",
-   "One confirmation that the request was received goes to the person, and no other message.",
-   "If the lead scores hot, the hot-lead alert is marked DO NOT CONTACT, with no call deadline."
+   {
+    "t": "Agent 01 sets consent to \"no\" on every channel at once.",
+    "src": "dispatcher/listing_spokes.py:931-932; check:01-15:envelope.persisted"
+   },
+   {
+    "t": "No confirmation goes: the one confirmation goes only on the channel the request came in on, and only if a message can go on it (call, text or email). This request came by web form, so the authorized user is asked instead (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes.py:931-949; check:01-15:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "If the lead scores hot, the hot-lead alert is marked do not contact, with no call window.",
+    "src": "check:01-15:escalation.raised"
+   }
   ],
   "never": [
-   "Send anything after the confirmation."
+   {
+    "t": "Send anything after the confirmation.",
+    "src": "tuple:01-15"
+   }
   ],
-  "why": "A stop request must be honored immediately; ignoring it risks complaints and fines.",
-  "you_see": "The lead marked no contact on every channel; one opt-out confirmation sent; any hot-lead alert marked do not contact.",
-  "test": "A web form saying \"Please stop contacting me\", with every channel revoked."
+  "you_see": {
+   "t": "The lead marked no contact on every channel; no confirmation to the person (the request came by web form); a question to the authorized user instead.",
+   "src": "check:01-15:envelope.persisted:lead.captured; check:01-15:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A web form saying \"Please stop contacting me\", with every channel revoked.",
+   "src": "spec:01-15"
+  }
  },
  {
   "id": "01-16",
-  "rev": 2,
-  "title": "The CRM does not answer the duplicate check",
-  "when": "Agent 01 asks the CRM (Agent 14) whether a new lead is already on record and gets no answer.",
+  "rev": 3,
+  "title": {
+   "t": "Agent 14 does not answer the duplicate check",
+   "src": "tuple:01-16"
+  },
+  "when": {
+   "t": "Agent 01 asks Agent 14 whether a new lead is on record and gets no answer.",
+   "src": "spec:01-16"
+  },
   "steps": [
-   "On the next daily run, Agent 01 asks once more.",
-   "If there is still no answer the following day, it holds the lead and tells the authorized user the CRM never answered.",
-   "The lead is not scored until the duplicate check is done."
+   {
+    "t": "On the next daily run (after a day, the default), Agent 01 asks once more.",
+    "src": "dispatcher/listing_spokes.py:1264-1290, 743-747; check:01-16:spoke.trace"
+   },
+   {
+    "t": "Still no answer on the following run: the lead is held and the authorized user is told.",
+    "src": "dispatcher/listing_spokes.py:1292-1309; check:01-16:envelope.persisted"
+   },
+   {
+    "t": "The lead is not handed on for scoring.",
+    "src": "check:01-16:envelope.persisted:lead.captured"
+   }
   ],
   "never": [
-   "Score a lead that was never checked for duplicates."
+   {
+    "t": "Score a lead that was not checked for duplicates.",
+    "src": "tuple:01-16"
+   }
   ],
-  "why": "Scoring an unchecked lead risks a duplicate person getting two follow-ups and two scores.",
-  "you_see": "A question saying the CRM never answered after a retry.",
-  "test": "The test stops Agent 14 answering lookups. A hot-looking lead comes in; the daily clock runs the next day and the day after."
+  "you_see": {
+   "t": "A question saying the record lookup never answered after a retry.",
+   "src": "check:01-16:envelope.persisted"
+  },
+  "test": {
+   "t": "Agent 14 is made to stop answering. A lead comes in; the daily run runs the next day and the day after.",
+   "src": "spec:01-16"
+  }
  }
 ]

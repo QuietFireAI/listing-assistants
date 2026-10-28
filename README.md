@@ -184,7 +184,7 @@ flowchart TD
   file after each session or clock run and restored at start-up only when
   the hash-chained audit log vouches for that exact save.
 - **Predeliberated decisions.** 259 decision tuples (each agent's
-  `DECISIONS.md`; 3 of them marked retired) say what an agent does at each
+  `DECISIONS.md`; 4 of them marked retired) say what an agent does at each
   known crossing. A situation
   no tuple covers stops and goes to the human. `docs/TUPLE_MAP.md` sorts
   every tuple by what it protects (legal line, consent and contact, truth
@@ -371,7 +371,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1320 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1363 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

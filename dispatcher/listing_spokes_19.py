@@ -66,12 +66,13 @@ class Spoke19Prospecting:
         record = self.opportunities.get(listing_id)
         if record is None:
             return
-        # wait opened BEFORE the request (10 answers inside hub.send;
-        # fixed 2026-10-11 - the answered request stayed open forever)
-        self.hub.send(_env("19", "18", "agent.status", listing_id,
-                           {"waiting_on": "market_context_enrichment"}))
-        self.hub.send(_env("19", "10", "data.request", listing_id,
-                           {"mode": "comp", "license_scope": "internal"}))
+        # D-A16 (owner decision 2026-10-28, finding AW): Agent 10 builds a
+        # package only from the comps it is handed and has no data source of
+        # its own; this request handed it none, so every package came back
+        # empty ("thin", 0 comps) and looked like a real result. Nothing is
+        # requested now and no wait is opened; the record says plainly that
+        # no comp source is connected.
+        record["market_context"] = "none - no comp source connected"
 
     def handle(self, env: Envelope):
         ctx = env.client_context_id
@@ -124,11 +125,12 @@ class Spoke19Prospecting:
                                                  "only",
                                        "agent": "19"})
                     return
-                self.hub.send(_env("19", "10", "data.request", ctx,
-                                   {"mode": "neighborhood",
-                                    "license_scope": "internal"}))
-                self.hub.send(_env("19", "18", "agent.status", ctx,
-                                   {"waiting_on": "farm_data_aggregate"}))
+                # D-A16 (2026-10-28): no neighborhood data source is
+                # connected, so there is nothing to aggregate; the owner is
+                # told once, instead of an empty package and an open wait
+                self.hub.send(_env("19", "queue", "clarification.request", ctx,
+                                   {"reason": "farm data request: no neighborhood data source "
+                                              "connected; nothing to aggregate"}))
                 return
             return
 
@@ -253,13 +255,13 @@ class Spoke19Prospecting:
                                              f"{matching_ctx!r} - flagged, "
                                              f"no outreach implication"}))
 
-            # owner decision 7c (2026-10-11): comps for every recorded
-            # opportunity, requested automatically - internal enrichment,
-            # never characterized, never sent to the property owner.
-            # Owner decision 2026-10-21 (P24 walkthrough): requested BEFORE
-            # the prospect goes to you, so it reaches you once, with the
-            # comps on it (Agent 10 answers inside this request); a package
-            # that comes back later still reaches you as an update.
+            # Market context for every recorded opportunity (owner decision
+            # 7c, 2026-10-11), set BEFORE the prospect goes to you so it
+            # reaches you once (P24 walkthrough, 2026-10-21). Since D-A16
+            # (2026-10-28) nothing is requested from Agent 10: no comp source
+            # is connected, and the record says so ("none - no comp source
+            # connected") instead of carrying an empty package.
+            # Never characterized, never sent to the property owner.
             record["surfaced"] = False
             self.request_market_context(listing_id)
             record["surfaced"] = True
@@ -292,29 +294,5 @@ class Spoke19Prospecting:
                                confidence=SOURCE_VERIFIED))
             return
 
-        if env.intent == "data.package":
-            self.hub.send(_env("19", "18", "agent.status", ctx,
-                               {"waiting_on": "market_context_enrichment",
-                                "resolved": True}))
-            self.hub.send(_env("19", "18", "agent.status", ctx,
-                               {"waiting_on": "farm_data_aggregate",
-                                "resolved": True}))
-            # market context enrichment for opportunity records - passed
-            # through, never characterized (10's own presentation rule
-            # applies here too). Fixed 2026-10-11: the package was dropped
-            # here; it now rides on the opportunity record to the broker.
-            record = self.opportunities.get(ctx)
-            if record is not None:
-                record["market_context"] = payload
-                if record.get("surfaced", True):   # late package: an update
-                    self.hub.send(_env("19", "human", "prospect.opportunity", ctx,
-                                       {**{k: v for k, v in record.items() if k != "surfaced"},
-                                        "update": "market_context"},
-                                       confidence=SOURCE_VERIFIED))
-            else:
-                self.hub.ingest_spoke_trace(
-                    "19", env.envelope_id,
-                    thought=f"data.package for {ctx!r}, which is not a recorded "
-                            f"opportunity - farm aggregate or stray; not attached",
-                    result="package not attached to an opportunity")
-            return
+        # data.package from Agent 10: removed 2026-10-28 with the route
+        # (owner decision D-A16): 19 no longer asks 10 for anything

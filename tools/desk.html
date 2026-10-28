@@ -591,7 +591,7 @@ function prospectRow(p) {
   done.onclick = () => act({action: "prospect_handled", id: p.id})
     .then(j => j && !j.error && toast("Signed: prospect " + p.id + " handled"));
   const meta = [p.status, p.zip && "zip " + p.zip, p.source, p.found,
-                p.comps == null ? "no comps yet" : `${p.comps} comps`].filter(Boolean).join(" · ");
+                p.comps == null ? "no comp source connected" : `${p.comps} comps`].filter(Boolean).join(" · ");
   c.append(el("div", {class: "lead"},
     el("div", {}, el("b", {}, p.id), p.do_not_call ? el("span", {class: "badge"}, " do not call") : "",
        el("div", {class: "meta"}, meta)),

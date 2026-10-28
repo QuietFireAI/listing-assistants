@@ -282,7 +282,7 @@ def test_social_draft_flagged_is_discarded_approved_holds_for_the_broker(tmp_pat
     assert not [e for e in sw.external if e["ctx"] in ("P-1", "P-2") and "post" in e["intent"]]
 
 
-def test_opportunity_comps_reach_the_broker(tmp_path):
+def test_opportunity_reaches_the_broker_saying_no_comp_source(tmp_path):
     sw, s = _swarm(tmp_path)
     sw.hub.send(_signed(s, "19", "x", {"zip_codes": ["44811"]}))
     sw.hub.send(_env("external", "19", "discovery.feed", "O-1",
@@ -291,7 +291,9 @@ def test_opportunity_comps_reach_the_broker(tmp_path):
     # that reaches you, not on a second "update" after it
     ops = [e for e in _persisted(sw, "prospect.opportunity") if e["to_agent"] == "human"]
     assert len(ops) == 1 and "update" not in ops[0]["payload"]
-    assert ops[0]["payload"]["market_context"]["package_type"] == "comp"
+    # owner decision D-A16 (2026-10-28): Agent 10 had no comps to give
+    # (it builds only from comps it is handed); the record says so plainly
+    assert ops[0]["payload"]["market_context"] == "none - no comp source connected"
 
 
 def test_job_descriptions_match_their_sources():

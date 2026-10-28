@@ -12,7 +12,6 @@ Left: who sends this agent messages. Right: who it sends messages to. The blue c
 flowchart LR
     subgraph IN["Hears from"]
         direction TB
-        I10["10 Market Data"]
         IB(["You (broker)"])
         IX[/"Outside world"/]
         I18["18 Calendar and Task Management"]
@@ -20,18 +19,15 @@ flowchart LR
     A19(("19 Prospecting"))
     subgraph OUT["Talks to"]
         direction TB
-        O10["10 Market Data"]
         OB(["You (broker)"])
         O13["13 Buyer Search and Match"]
         O14["14 CRM and Pipeline"]
         OB(["You (broker)"])
         O18["18 Calendar and Task Management"]
     end
-    I10 -- "delivers the market data" --> A19
     IB -- "your signed settings" --> A19
     IX -- "public records come in" --> A19
     I18 -- "asks for its part of the morning briefing" --> A19
-    A19 -- "asks for market data" --> O10
     A19 -- "brings a possible prospect" --> OB
     A19 -- "brings a possible prospect" --> O13
     A19 -- "logs it in the CRM" --> O14

@@ -22,6 +22,7 @@ flowchart LR
         I14["14 CRM and Pipeline"]
         I15["15 Financial Tracking"]
         I19["19 Prospecting"]
+        I17["17 Compliance and Fair Housing"]
     end
     A18(("18 Calendar and Task Management"))
     subgraph OUT["Talks to"]
@@ -33,6 +34,7 @@ flowchart LR
         O10["10 Market Data"]
         O15["15 Financial Tracking"]
         O19["19 Prospecting"]
+        O17["17 Compliance and Fair Housing"]
     end
     I07 -- "warns that a deadline is near" --> A18
     I06 -- "puts it on the calendar" --> A18
@@ -44,6 +46,7 @@ flowchart LR
     I14 -- "delivers a report" --> A18
     I15 -- "delivers a report" --> A18
     I19 -- "delivers a report" --> A18
+    I17 -- "delivers a report" --> A18
     A18 -- "says the calendar could not take it<br/>reports a no-show" --> O06
     A18 -- "delivers a report" --> OB
     A18 -- "logs it in the CRM<br/>asks for its part of the morning briefing" --> O14
@@ -51,6 +54,7 @@ flowchart LR
     A18 -- "asks for its part of the morning briefing" --> O10
     A18 -- "asks for its part of the morning briefing" --> O15
     A18 -- "asks for its part of the morning briefing" --> O19
+    A18 -- "asks for its part of the morning briefing" --> O17
     classDef me fill:#1f6feb,stroke:#1f6feb,color:#ffffff
     classDef you fill:#f2cc60,stroke:#9a6700,color:#1f2328
     classDef out fill:#d0d7de,stroke:#57606a,color:#1f2328

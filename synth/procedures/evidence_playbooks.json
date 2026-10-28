@@ -1,6 +1,6 @@
 {
  "_what": "what each tuple's own run put on the record; written by collect_evidence.py",
- "ran_on": "2026-10-27",
+ "ran_on": "2026-10-28",
  "tuples": {
   "P01": {
    "result": "PASS",
@@ -201,6 +201,14 @@
      "template": null
     },
     {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "04",
      "to": "05",
      "intent": "asset.release",
@@ -365,7 +373,7 @@
    "playbooks": [
     "P01"
    ],
-   "entries": 208,
+   "entries": 216,
    "steps": [
     "human->05 listing.change.authorized",
     "05->09 vendor.request",
@@ -385,6 +393,7 @@
     "17->04 content.verdict",
     "04->18 agent.status",
     "04->12 asset.release",
+    "12->18 agent.status",
     "04->05 asset.release",
     "05->11 status.update",
     "11->14 record.request",
@@ -729,6 +738,14 @@
      "from": "04",
      "to": "12",
      "intent": "asset.release",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered",
      "template": null
@@ -1164,7 +1181,7 @@
     "P02",
     "P06"
    ],
-   "entries": 418,
+   "entries": 426,
    "steps": [
     "human->05 listing.change.authorized",
     "05->11 status.update",
@@ -1404,6 +1421,14 @@
      "from": "04",
      "to": "12",
      "intent": "asset.release",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered",
      "template": null
@@ -1967,7 +1992,7 @@
     "P03",
     "P09"
    ],
-   "entries": 476,
+   "entries": 484,
    "steps": [
     "human->05 listing.change.authorized",
     "05->11 status.update",
@@ -2245,6 +2270,14 @@
      "from": "04",
      "to": "12",
      "intent": "asset.release",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered",
      "template": null
@@ -2564,7 +2597,7 @@
     "P04",
     "P11"
    ],
-   "entries": 308,
+   "entries": 316,
    "steps": [
     "human->06 config.update",
     "06->18 calendar.event",
@@ -2793,6 +2826,14 @@
      "from": "04",
      "to": "12",
      "intent": "asset.release",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered",
      "template": null
@@ -3059,7 +3100,7 @@
     "P01",
     "P05"
    ],
-   "entries": 272,
+   "entries": 280,
    "steps": [
     "human->05 listing.change.authorized",
     "05->11 status.update",
@@ -3314,6 +3355,14 @@
      "template": null
     },
     {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "04",
      "to": "05",
      "intent": "asset.release",
@@ -3563,6 +3612,14 @@
     },
     {
      "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-16-11",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-16-13",
@@ -3683,6 +3740,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -3742,6 +3831,14 @@
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-17-08",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-17-11",
      "outcome": "delivered",
      "template": null
     },
@@ -3923,6 +4020,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -3936,7 +4065,7 @@
     "P06",
     "P16"
    ],
-   "entries": 458,
+   "entries": 505,
    "steps": [
     "human->13 config.update",
     "13->14 record.request",
@@ -4246,6 +4375,14 @@
     },
     {
      "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-18-11",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-18-13",
@@ -4350,6 +4487,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -4395,7 +4564,7 @@
     "P16",
     "P22"
    ],
-   "entries": 199,
+   "entries": 222,
    "steps": [
     "11->06 showing.request",
     "06->18 calendar.event",
@@ -4631,6 +4800,14 @@
      "template": null
     },
     {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "04",
      "to": "05",
      "intent": "asset.release",
@@ -4844,7 +5021,7 @@
     "P01",
     "P08"
    ],
-   "entries": 244,
+   "entries": 252,
    "steps": [
     "human->07 config.update",
     "07->queue clarification.request",
@@ -5187,7 +5364,7 @@
     "P09",
     "P10"
    ],
-   "entries": 166,
+   "entries": 169,
    "steps": [
     "human->07 config.update",
     "07->14 interaction.log",
@@ -5224,7 +5401,7 @@
     {
      "outcome": "completed",
      "your_decisions": [
-      "APPROVE on wait-L1-07-ef0ea8 (agent 07)"
+      "APPROVE on wait-L1-07-2483a3 (agent 07)"
      ],
      "proposed_tuples": []
     }
@@ -5454,6 +5631,14 @@
     },
     {
      "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-12-20-11",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-12-20-13",
@@ -5606,6 +5791,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -5619,7 +5836,7 @@
     "P10",
     "P16"
    ],
-   "entries": 207,
+   "entries": 229,
    "steps": [
     "07->16 transaction.closed",
     "07->14 transaction.closed",
@@ -5789,6 +6006,46 @@
      "template": null
     },
     {
+     "from": "03",
+     "to": "11",
+     "intent": "client.message.request",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
+     "from": "11",
+     "to": "14",
+     "intent": "record.request",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "11",
+     "intent": "record.response",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "11",
+     "to": "external",
+     "intent": "client.message.send",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
+     "from": "11",
+     "to": "14",
+     "intent": "interaction.log",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
@@ -5817,7 +6074,7 @@
    "playbooks": [
     "P11"
    ],
-   "entries": 89,
+   "entries": 114,
    "steps": [
     "external->01 lead.inbound",
     "01->18 agent.status",
@@ -5831,6 +6088,11 @@
     "03->17 content.review",
     "17->03 content.verdict",
     "03->18 agent.status",
+    "03->11 client.message.request",
+    "11->14 record.request",
+    "14->11 record.response",
+    "11->external client.message.send",
+    "11->14 interaction.log",
     "17->14 interaction.log",
     "02->14 interaction.log"
    ],
@@ -5992,7 +6254,7 @@
    "playbooks": [
     "P12"
    ],
-   "entries": 63,
+   "entries": 66,
    "steps": [
     "human->12 config.update",
     "12->18 agent.status",
@@ -6127,6 +6389,14 @@
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-15-08",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-15-11",
      "outcome": "delivered",
      "template": null
     },
@@ -6292,6 +6562,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -6304,7 +6606,7 @@
     "P13",
     "P16"
    ],
-   "entries": 130,
+   "entries": 152,
    "steps": [
     "14->16 date.trigger",
     "16->11 client.message.request",
@@ -6462,7 +6764,7 @@
    "playbooks": [
     "P14"
    ],
-   "entries": 51,
+   "entries": 54,
    "steps": [
     "20->11 client.message.request",
     "11->14 interaction.log",
@@ -6564,7 +6866,7 @@
    "playbooks": [
     "P15"
    ],
-   "entries": 21,
+   "entries": 24,
    "steps": [
     "human->10 data.request",
     "10->human data.package",
@@ -6686,6 +6988,14 @@
     },
     {
      "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-16-11",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-16-13",
@@ -6790,6 +7100,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -6801,7 +7143,7 @@
    "playbooks": [
     "P16"
    ],
-   "entries": 75,
+   "entries": 97,
    "steps": [
     "18->14 briefing.request",
     "14->18 report.package",
@@ -6811,6 +7153,10 @@
     "19->18 report.package",
     "18->10 briefing.request",
     "10->18 report.package",
+    "18->14 briefing.request",
+    "14->18 report.package",
+    "18->17 briefing.request",
+    "17->18 report.package",
     "18->human report.package"
    ],
    "ended": [
@@ -6898,7 +7244,7 @@
    "playbooks": [
     "P17"
    ],
-   "entries": 17,
+   "entries": 20,
    "steps": [
     "14->15 report.package",
     "15->human report.package"
@@ -6955,6 +7301,22 @@
     }
    ],
    "flow": [
+    {
+     "from": "human",
+     "to": "14",
+     "intent": "config.update",
+     "client": "S1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "human",
+     "to": "06",
+     "intent": "config.update",
+     "client": "setup",
+     "outcome": "delivered",
+     "template": null
+    },
     {
      "from": "clock",
      "to": "01",
@@ -7015,6 +7377,14 @@
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-19-08",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-19-11",
      "outcome": "delivered",
      "template": null
     },
@@ -7124,6 +7494,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -7192,7 +7594,7 @@
     "P16",
     "P18"
    ],
-   "entries": 117,
+   "entries": 153,
    "steps": [
     "06->18 agent.status",
     "06->18 agent.status",
@@ -7212,7 +7614,7 @@
     {
      "outcome": "completed",
      "your_decisions": [
-      "APPROVE on wait-S1-06-6510df (agent 06)"
+      "APPROVE on wait-S1-06-2db333 (agent 06)"
      ],
      "proposed_tuples": []
     }
@@ -7277,7 +7679,7 @@
    "playbooks": [
     "P19"
    ],
-   "entries": 22,
+   "entries": 25,
    "steps": [
     "human->14 config.update",
     "human->14 config.update"
@@ -7490,6 +7892,14 @@
      "from": "04",
      "to": "12",
      "intent": "asset.release",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered",
      "template": null
@@ -7776,6 +8186,14 @@
     },
     {
      "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-23-11",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-23-13",
@@ -7880,6 +8298,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -7925,7 +8375,7 @@
     "P16",
     "P20"
    ],
-   "entries": 347,
+   "entries": 374,
    "steps": [
     "05->14 interaction.log",
     "05->09 vendor.request",
@@ -8094,6 +8544,46 @@
      "template": null
     },
     {
+     "from": "03",
+     "to": "11",
+     "intent": "client.message.request",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
+     "from": "11",
+     "to": "14",
+     "intent": "record.request",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "11",
+     "intent": "record.response",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "11",
+     "to": "external",
+     "intent": "client.message.send",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
+     "from": "11",
+     "to": "14",
+     "intent": "interaction.log",
+     "client": "T1",
+     "outcome": "delivered",
+     "template": "sequence_touch"
+    },
+    {
      "from": "17",
      "to": "18",
      "intent": "agent.status",
@@ -8186,6 +8676,14 @@
      "to": "08",
      "intent": "clock.tick",
      "client": "clock-2026-10-09-08",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-09-11",
      "outcome": "delivered",
      "template": null
     },
@@ -8295,6 +8793,38 @@
     },
     {
      "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
      "to": "human",
      "intent": "report.package",
      "client": "briefing",
@@ -8308,7 +8838,7 @@
     "P16",
     "P21"
    ],
-   "entries": 184,
+   "entries": 229,
    "steps": [
     "03->02 lead.rescored",
     "02->03 lead.nurture",
@@ -8597,6 +9127,14 @@
     },
     {
      "from": "clock",
+     "to": "11",
+     "intent": "clock.tick",
+     "client": "clock-2026-10-18-11",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "clock",
      "to": "13",
      "intent": "clock.tick",
      "client": "clock-2026-10-18-13",
@@ -8693,6 +9231,38 @@
     },
     {
      "from": "10",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "14",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "18",
+     "intent": "report.package",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "18",
+     "to": "17",
+     "intent": "briefing.request",
+     "client": "briefing",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "17",
      "to": "18",
      "intent": "report.package",
      "client": "briefing",
@@ -8895,6 +9465,14 @@
      "from": "04",
      "to": "12",
      "intent": "asset.release",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
      "client": "L1",
      "outcome": "delivered",
      "template": null
@@ -9132,7 +9710,7 @@
     "P16",
     "P22"
    ],
-   "entries": 485,
+   "entries": 513,
    "steps": [
     "06->14 interaction.log",
     "13->14 record.request",
@@ -9369,6 +9947,14 @@
      "template": null
     },
     {
+     "from": "12",
+     "to": "18",
+     "intent": "agent.status",
+     "client": "L1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "04",
      "to": "05",
      "intent": "asset.release",
@@ -9558,7 +10144,7 @@
     "P01",
     "P23"
    ],
-   "entries": 226,
+   "entries": 234,
    "steps": [
     "human->10 data.request",
     "10->human data.package",
@@ -9616,57 +10202,25 @@
    ],
    "flow": [
     {
+     "from": "human",
+     "to": "19",
+     "intent": "config.update",
+     "client": "setup",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "human",
+     "to": "19",
+     "intent": "config.update",
+     "client": "setup",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
      "from": "external",
      "to": "19",
      "intent": "discovery.feed",
-     "client": "P1",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "19",
-     "to": "18",
-     "intent": "agent.status",
-     "client": "P1",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "19",
-     "to": "10",
-     "intent": "data.request",
-     "client": "P1",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "10",
-     "to": "19",
-     "intent": "data.package",
-     "client": "P1",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "19",
-     "to": "18",
-     "intent": "agent.status",
-     "client": "P1",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "19",
-     "to": "18",
-     "intent": "agent.status",
-     "client": "P1",
-     "outcome": "delivered",
-     "template": null
-    },
-    {
-     "from": "10",
-     "to": "14",
-     "intent": "interaction.log",
      "client": "P1",
      "outcome": "delivered",
      "template": null
@@ -9692,15 +10246,9 @@
    "playbooks": [
     "P24"
    ],
-   "entries": 50,
+   "entries": 33,
    "steps": [
     "external->19 discovery.feed",
-    "19->18 agent.status",
-    "19->10 data.request",
-    "10->19 data.package",
-    "19->18 agent.status",
-    "19->18 agent.status",
-    "10->14 interaction.log",
     "19->human prospect.opportunity",
     "19->14 interaction.log"
    ],

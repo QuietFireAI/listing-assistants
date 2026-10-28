@@ -254,7 +254,9 @@ def test_no_show_reported_after_grace_silence(tmp_path):
     hub.on_turn_start()
     _showing(hub, "s1", "2026-07-17T10:00:00")
     assert spoke.check_showing_no_show("s1", "2026-07-17T10:30:00") == "within_grace"
-    assert spoke.check_showing_no_show("s1", "2026-07-17T11:30:00") == "reported"
+    # owner decision D-A3 (2026-10-28): never on the showing's own day
+    assert spoke.check_showing_no_show("s1", "2026-07-17T11:30:00") == "same_day_waits"
+    assert spoke.check_showing_no_show("s1", "2026-07-18T08:00:00") == "reported"
     sends = _no_show_sends(hub)
     assert len(sends) == 1
     assert sends[0]["payload"]["detected_by"] == "calendar"

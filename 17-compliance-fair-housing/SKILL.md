@@ -77,6 +77,8 @@ Dispatcher returns an `ack`.
 | OUT | → human | Near-miss pattern report | `report.package` |
 | OUT | → 18 Calendar & Task | Wait-state signal | `agent.status` |
 | IN | ← Clock (through the hub) | Daily tick: review turnaround SLA | `clock.tick` |
+| IN | ← 18 Calendar & Task | Morning briefing: ask for this agent's section (owner decision D-A19, 2026-10-28) | `briefing.request` |
+| OUT | → 18 Calendar & Task | Compliance notices since the last briefing (Agent 10's appraisal-substitution notices) | `report.package` |
 | IN | ← Broker (signed) | Settings: `ruleset` + `version` | `config.update` |
 
 This agent has no other edges. If a task appears to require any other

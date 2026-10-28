@@ -2,714 +2,2158 @@
  "_what": "Agent pages for the Operating Procedures manual. Drafted 2026-10-27 from docs/JOB_DESCRIPTIONS.md (generated from each agent's ratified SKILL.md) and the closed track. The 'today' lists are drafted from standard US residential practice and await the owner's review. Routes, playbooks and procedures on each page are computed by build_site.py, not written here.",
  "agents": [
   {
-   "id": "00", "name": "Dispatcher", "team": "The hub",
-   "job": "The one place every message passes through. No agent talks to another agent directly: each one hands its message to the dispatcher, which checks it, numbers it, records it and delivers it. The dispatcher judges the path and the authority of a message, not its content. When it stops, everything stops: every agent holds its work and nothing goes to a client.",
+   "id": "00",
+   "name": "Dispatcher",
+   "team": "The hub",
+   "job": {
+    "t": "Every message goes through the dispatcher: messages between agents, the authorized user's signed messages, and what arrives from outside. Each agent is given only the dispatcher to send through; in the isolated setup each agent runs in its own process or container and its one line out leads to the dispatcher.",
+    "src": "dispatcher/hub.py:490-501 (send, 'the one door'); dispatcher/listing_spokes.py:140 (an agent holds only a guarded hub); dispatcher/portal.py:1-9 (isolated setup)"
+   },
    "steps": [
-    "A message arrives from an agent, from the authorized user, or from outside (an inquiry, a vendor, a platform).",
-    "It checks the message is complete and well formed. A malformed message is refused, with the reason returned to the sender.",
-    "It checks the route: the sender, the kind of message and the receiver must be on the closed track, the fixed list of allowed routes. A route not on the list is refused.",
-    "If the message claims the authorized user's authority (a signed listing, a setting, a release, a decision), it checks the signature against the registered key. Unsigned or wrong: refused and recorded as an integrity violation.",
-    "If the same message (same ID) arrives again, it is answered as a duplicate and does nothing.",
-    "If the same kind of message on the same client repeats too fast (a loop), the route is suspended for that client and the authorized user is asked.",
-    "It numbers the message in order for its client and writes it to the audit log, where each entry is chained to the one before so a change would show.",
-    "A message to a counterparty or the public (a vendor, the other side, an ad) is held until the authorized user signs a release for that one message.",
-    "It delivers the message and acknowledges it only after it is written and delivered.",
-    "If the receiving agent fails, the message goes to the dead-letter queue and the authorized user is paged. Nothing is dropped silently.",
-    "Every question, alert and hold lands in a named queue (legal line, hot lead, complaint, clarification, integrity, system error, dead letter), and each landing notifies the authorized user at once."
+    {
+     "t": "It checks whether the message's ID has been seen before. A repeat is answered as a duplicate and does nothing.",
+     "src": "dispatcher/hub.py:532-538; test SW-07"
+    },
+    {
+     "t": "It counts the messages of each kind for each client. Past 20 (a placeholder the owner ratified on 2026-07-17), that kind of message for that client is suspended and the authorized user is asked.",
+     "src": "dispatcher/hub.py:92-99, 539-554"
+    },
+    {
+     "t": "It checks the message is complete and well formed, including that the sender left the sequence number empty (only the dispatcher assigns it). A malformed message is refused with the reason.",
+     "src": "dispatcher/hub.py:555-558; dispatcher/core.py:55-63"
+    },
+    {
+     "t": "A message that carries the authorized user's authority (signed settings, a signed listing or price change, a release or decline of a held message, a decision on held work) must carry a valid Ed25519 signature. When the signer list is armed, the signer must also be a login authorized for that kind of message. Otherwise the message is refused, recorded as an integrity violation, and the authorized user is notified.",
+     "src": "dispatcher/hub.py:40-64, 559-589; identity/routes.json signed_intents; dispatcher/signatures.py:1"
+    },
+    {
+     "t": "It checks the route against the closed track (identity/routes.json): which agents may send which kind of message to which. A known kind of message on a route that is not on the track is refused. A kind of message the track does not know at all is held and the authorized user is asked.",
+     "src": "dispatcher/hub.py:590-603; dispatcher/core.py:139"
+    },
+    {
+     "t": "A message leaving for a counterparty or the public (for example a vendor booking or an ad) is held until the authorized user signs a release or a decline naming that one message. An outside route with no audience label is treated as counterparty and held. Messages to the office's own client pass.",
+     "src": "dispatcher/hub.py:604-646, 325-394; dispatcher/core.py:24-37, 109-111"
+    },
+    {
+     "t": "It gives the message the next sequence number for its client and writes it to the record. Each line of the record carries the hash of the line before it, so an edited, deleted or reordered line breaks the chain, and the chain can be checked.",
+     "src": "dispatcher/hub.py:647-660; dispatcher/core.py:310-318, 556-587, 642-672"
+    },
+    {
+     "t": "It delivers the message to the receiving agent. A message addressed to the queue is put in the queue named by its kind, and the authorized user is notified.",
+     "src": "dispatcher/hub.py:671-697"
+    },
+    {
+     "t": "It acknowledges the message only after it is recorded and delivered.",
+     "src": "dispatcher/hub.py:718-724"
+    },
+    {
+     "t": "If the receiving agent fails on the message, the message goes to the dead-letter queue and a system-error alert is raised for the authorized user. A message for an agent that is not registered goes to the dead-letter queue.",
+     "src": "dispatcher/hub.py:690-717"
+    },
+    {
+     "t": "If anything fails inside these steps (for example the record cannot be written), the dispatcher halts: it refuses every later message until it is restarted on a record it can write, and tries to alert the authorized user directly.",
+     "src": "dispatcher/hub.py:174-181, 490-528"
+    },
+    {
+     "t": "Each notice to the authorized user is recorded with its outcome: delivered, failed, or not reported by the notifier. If no notifier is configured, the record says so when the dispatcher starts.",
+     "src": "dispatcher/hub.py:128-133, 423-466"
+    },
+    {
+     "t": "An alert nobody has marked done is sent again after 30 minutes, and the owner is paged after 60. This runs inside every daily clock run, on the console's watch command, and from a scheduled check meant to run every few minutes. A question that is not an alert is not re-sent this way.",
+     "src": "dispatcher/escalation_watch.py:1-22, 30-32, 68-104; dispatcher/sweep_runner.py:73-75; tools/console.py:570; tools/run_sweeps.py:145"
+    }
    ],
-   "today": [
-    "There is no single point that sees every hand-off. Work moves by email, text, phone calls, sticky notes and the CRM.",
-    "The broker or office manager is the informal hub, and only for what reaches them.",
-    "Nobody logs every hand-off. A missed one is often found when a client complains or a deadline passes."
-   ],
+   "today": [],
    "compare": [
-    "The dispatcher does by rule what a well-run office tries to do by habit: one place where every hand-off is checked, numbered and recorded.",
-    "It fails closed. A partly working office that keeps sending messages is worse than a stopped one, so when the dispatcher stops, every agent holds.",
-    "Afterwards, the audit log answers who sent what, when, and on whose authority."
+    {
+     "t": "The record shows every delivered message with its sender, receiver, time and client, and for a signed message the signature check (and the signer's login when the signer list is armed). A refused or duplicate message is recorded with its id and the reason only.",
+     "src": "dispatcher/core.py:556-587 (ts on every line); dispatcher/hub.py:559-589, 655; dispatcher/hub.py:533-537, 726-729"
+    }
    ],
    "user_part": [
-    "Signing listings, settings, releases and decisions with the registered key.",
-    "Answering every item that lands in a queue.",
-    "Releasing, one at a time, each held message to a vendor, the other side or the public."
+    {
+     "t": "Signing anything that carries authority: settings, listing and price changes, releases and declines of held messages, decisions on held work.",
+     "src": "dispatcher/hub.py:55-64; identity/routes.json signed_intents"
+    },
+    {
+     "t": "Answering what lands in the queues.",
+     "src": "dispatcher/hub.py:165-173"
+    },
+    {
+     "t": "Releasing or declining, one at a time, each held message to a vendor, the other side or the public.",
+     "src": "dispatcher/hub.py:325-394"
+    }
    ],
    "never": [
-    "Deliver a message on a route that is not on the closed track.",
-    "Accept a claim of the authorized user's authority without a valid signature.",
-    "Let a message to a counterparty or the public out without the authorized user's release.",
-    "Acknowledge a message before it is written and delivered.",
-    "Drop a message silently."
+    {
+     "t": "Deliver a known kind of message on a route that is not on the closed track.",
+     "src": "dispatcher/hub.py:590-595"
+    },
+    {
+     "t": "Accept a claim of the authorized user's authority without a valid signature.",
+     "src": "dispatcher/hub.py:559-566"
+    },
+    {
+     "t": "Send a message to a counterparty or the public without the authorized user's signed release.",
+     "src": "dispatcher/hub.py:611-646"
+    },
+    {
+     "t": "Acknowledge a message before it is recorded and delivered.",
+     "src": "dispatcher/hub.py:647-724"
+    },
+    {
+     "t": "Drop a message without a record of it. (Once the system has halted, later messages are refused without a line each; the halt itself is on the record.)",
+     "src": "dispatcher/hub.py:535-717 (every branch writes to the record); dispatcher/hub.py:494-499"
+    }
    ],
-   "process": "The dispatcher is not a real estate step; it is the office's control point. It is what makes every other agent's steps checkable afterwards.",
+   "process": {
+    "t": "Not a real estate role: the dispatcher is the system's control point.",
+    "src": "definition"
+   },
    "not_built": [
-    "Scanning a message's contents for another client's ID (client isolation rests today on per-client numbering, the agents' own rules and per-client drawers).",
-    "Automatic retry of a failed delivery (it goes straight to the dead-letter queue and pages the authorized user).",
-    "A heartbeat to an outside watchdog.",
-    "Encryption of the audit log at rest (it is chained and verifiable, not encrypted).",
-    "One dispatcher handles one message at a time; separate offices each run their own."
+    {
+     "t": "A way for the authorized user to resume a suspended exchange: the code has the function, but no console or Desk command calls it.",
+     "src": "dispatcher/hub.py:468-488; no caller outside tests (grep resume_loop_suspension)"
+    },
+    {
+     "t": "The pre-send self-check (a reviewer model on every delivery) exists in the code, but nothing turns it on; the record says it is off at every start.",
+     "src": "dispatcher/hub.py:85-91, 117-120, 661-670; no caller passes selfcheck_model"
+    },
+    {
+     "t": "A heartbeat to an outside watchdog: the function exists, nothing calls it.",
+     "src": "dispatcher/runs.py:17-18; no caller outside tests"
+    },
+    {
+     "t": "Scanning a message's contents for another client's ID.",
+     "src": "dispatcher/hub.py _send has no such check"
+    },
+    {
+     "t": "Automatic retry of a failed delivery.",
+     "src": "dispatcher/hub.py:690-717"
+    },
+    {
+     "t": "Encryption of the record at rest: it is chained and checkable, not encrypted.",
+     "src": "dispatcher/core.py:577"
+    },
+    {
+     "t": "A connection to anything outside: messages to the outside are kept in the run, not sent anywhere.",
+     "src": "dispatcher/swarm.py:220-222 (the 'external' handler appends to a list)"
+    }
    ]
   },
   {
-   "id": "01", "name": "Lead Capture", "team": "Leads",
-   "job": "Takes every inbound inquiry (a call, a web form, a text, or a social media lead passed on by Agent 20) and turns it into a structured lead record. It captures. It does not qualify, nurture or advise.",
+   "id": "01",
+   "name": "Lead Capture",
+   "team": "Leads",
+   "job": {
+    "t": "Takes each inbound inquiry and turns it into a lead record, then hands it to Agent 02 for scoring. It captures and routes; it does not score, follow up or advise.",
+    "src": "dispatcher/listing_spokes.py:734-741, 1209-1231"
+   },
    "steps": [
-    "An inquiry arrives.",
-    "It records the name and contact details, the property of interest, the timeline, the budget and the pre-approval status (yes, no or unknown). A field the person did not give stays empty; nothing is guessed.",
-    "It records consent for text, call and email exactly as the person gave it.",
-    "It asks Agent 14 (CRM) whether this person is already on record.",
-    "If the same phone or email is on another record, the whole thread is held for the authorized user: a separate person, or close it. Nothing is merged without the authorized user.",
-    "If Agent 14 does not answer in time, the daily clock asks once more, then holds the lead. A lead is never scored before the duplicate check.",
-    "It hands the lead to Agent 02 for scoring."
+    {
+     "t": "An inquiry arrives: from outside (a call, form or text, delivered by a connected system or the console), or a lead passed on by Agent 20.",
+     "src": "dispatcher/listing_spokes.py:827; identity/routes.json (lead.inbound external->01, lead.signal 20->01)"
+    },
+    {
+     "t": "An apparent minor: nothing is captured beyond the fact of contact, and a legal-line alert is raised.",
+     "src": "dispatcher/listing_spokes.py:831-845"
+    },
+    {
+     "t": "A request that crosses the legal line (matched against a fixed list of phrases such as \"what should I offer\", \"negotiate\", \"is this legal\") is not captured; a legal-line alert carries the words.",
+     "src": "dispatcher/listing_spokes.py:21-26, 847-859"
+    },
+    {
+     "t": "An abusive contact raises a complaint alert; an inquiry about a property the office does not hold raises a legal-line alert; a demand to speak to a person goes on to Agent 02 with the capture, which puts the person in the hot-lead queue (owner decision of 2026-10-28). In all three the capture continues.",
+     "src": "dispatcher/listing_spokes.py:861-920, 1042-1043"
+    },
+    {
+     "t": "It records the name, contact, property of interest, timeline, budget and pre-approval status (yes, no or unknown; anything else is recorded as unknown), and consent to call, text and email exactly as given (unknown when not given).",
+     "src": "dispatcher/listing_spokes.py:922-1041"
+    },
+    {
+     "t": "A call transcript marked low confidence empties the name, timeline, budget and pre-approval.",
+     "src": "dispatcher/listing_spokes.py:997-1006, 1065-1068"
+    },
+    {
+     "t": "\"Stop contacting me\" during capture sets consent to no on every channel. One confirmation goes through Agent 11 on the channel the request came in on, if a message can go on it (call, text or email); otherwise the authorized user is asked (owner decision of 2026-10-28).",
+     "src": "dispatcher/listing_spokes.py:927-949"
+    },
+    {
+     "t": "A refusal to be recorded blanks the name, timeline, budget and pre-approval; the contact, the property of interest and any notes are kept as given, with no follow-up, and the authorized user is told.",
+     "src": "dispatcher/listing_spokes.py:950-969, 1023-1037"
+    },
+    {
+     "t": "A claimed prior relationship raises a legal-line alert: the authorized user confirms it before any history is assumed.",
+     "src": "dispatcher/listing_spokes.py:1070-1081"
+    },
+    {
+     "t": "A contact on the office's Do Not Call list raises a legal-line alert; the lead is still captured, marked as on the list.",
+     "src": "dispatcher/listing_spokes.py:890-898, 1038, 1096-1101"
+    },
+    {
+     "t": "It asks Agent 14 whether this person is already on record.",
+     "src": "dispatcher/listing_spokes.py:1117-1122"
+    },
+    {
+     "t": "If Agent 14 reports the same phone or email under another client, the lead is held for the authorized user: continue treats it as a separate person, cancel closes it. Nothing is merged.",
+     "src": "dispatcher/listing_spokes.py:1182-1205, 1233-1262"
+    },
+    {
+     "t": "Otherwise it logs the lead with Agent 14 and hands it to Agent 02.",
+     "src": "dispatcher/listing_spokes.py:1209-1231"
+    },
+    {
+     "t": "If Agent 14 has not answered after a day (the default), the daily clock asks once more; if there is still no answer, the lead is held and the authorized user is asked. A lead is not scored without the duplicate check.",
+     "src": "dispatcher/listing_spokes.py:743-747, 1264-1309; dispatcher/clock.py:45"
+    }
    ],
-   "today": [
-    "The agent, an assistant or an inside sales person answers the call; a web form lands in an inbox or a lead-routing tool.",
-    "Someone types the lead into the CRM, often later and often in part.",
-    "Consent to text or call is frequently not recorded at all. Duplicates are caught by memory."
-   ],
-   "compare": [
-    "The same steps a careful inside sales person follows, done every time: consent recorded at first contact, the duplicate check before anything else.",
-    "An empty field stays empty rather than being filled in from a hunch."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Deciding whether a possible duplicate is the same person.",
-    "Adding numbers and emails to the do-not-contact list.",
-    "Setting which listings and addresses the office holds."
+    {
+     "t": "Deciding whether a possible duplicate is a separate person.",
+     "src": "dispatcher/listing_spokes.py:1195-1204"
+    },
+    {
+     "t": "Adding numbers and emails to the Do Not Call list, and setting which listings and addresses the office holds (signed settings).",
+     "src": "dispatcher/listing_spokes.py:797-826"
+    },
+    {
+     "t": "Answering every alert the capture raises.",
+     "src": "dispatcher/listing_spokes.py:831-1101"
+    }
    ],
    "never": [
-    "Guess a missing field.",
-    "Merge two people without the authorized user.",
-    "Score a lead before the duplicate check.",
-    "Contact anyone."
+    {
+     "t": "Fill in a field the person did not give.",
+     "src": "dispatcher/listing_spokes.py:990-1006"
+    },
+    {
+     "t": "Merge two records.",
+     "src": "dispatcher/listing_spokes.py:1149-1205"
+    },
+    {
+     "t": "Hand a lead on for scoring before the duplicate check.",
+     "src": "dispatcher/listing_spokes.py:1117-1122, 1264-1309"
+    },
+    {
+     "t": "Remove a number from the Do Not Call list (nothing in it does).",
+     "src": "dispatcher/listing_spokes.py:804-805"
+    }
    ],
-   "process": "Matches the first step of any lead process: capture, record consent, check for duplicates, pass on. Consent capture follows the federal telephone and email marketing rules (TCPA and CAN-SPAM).",
+   "process": {
+    "t": "Corresponds to lead intake: capture, consent, duplicate check, hand-off.",
+    "src": "definition"
+   },
    "not_built": [
-    "No phone, web form or text system is connected in this build; a connected system or the console delivers the inquiry."
+    {
+     "t": "No phone, web form or text system is connected; inquiries arrive through the console or a connected system.",
+     "src": "dispatcher/swarm.py (no channel adapter registered); identity/routes.json lead.inbound from external"
+    },
+    {
+     "t": "Two inquiries from the same person each produce their own capture: combining them works only while the first is still waiting for Agent 14, and Agent 14 answers at once (open item, procedure 01-01).",
+     "src": "dispatcher/listing_spokes.py:971-977; synth/tuples/REPORT.md 01-01 VARIANCE"
+    }
    ]
   },
   {
-   "id": "02", "name": "Lead Qualification", "team": "Leads",
-   "job": "Scores each captured lead on readiness (timeline, financing, motivation) with the scoring rubric the authorized user signed, and sorts it: hot leads to the authorized user at once, warm leads to nurture, cold leads archived with the reason.",
+   "id": "02",
+   "name": "Lead Qualification",
+   "team": "Leads",
+   "job": {
+    "t": "Scores each lead with the scoring rubric the authorized user signed and routes it by tier: hot to the authorized user, warm to Agent 03 for follow-up, cold archived. It applies the rubric; it never writes or changes it.",
+    "src": "dispatcher/listing_spokes_02.py:1-9, 42-43; dispatcher/listing_spokes_02.py::def _apply_tier("
+   },
    "steps": [
-    "A lead arrives from Agent 01, or comes back from Agent 03 for a new score.",
-    "It scores the lead with the authorized user's rubric and records the inputs and the rubric version.",
-    "If the score's confidence is under the floor, the lead is held for the authorized user.",
-    "Hot: the authorized user is alerted at once. If the person is on the Do Not Call list or has no channel with consent, the alert is marked do not contact, with the reason.",
-    "Warm: the lead goes to Agent 03 for nurture.",
-    "Cold: the lead is archived with the reason. Nothing is deleted."
+    {
+     "t": "A lead arrives from Agent 01 (or from Agent 16, for a past client's new business), or comes back from Agent 03 for a new score.",
+     "src": "dispatcher/listing_spokes_02.py::if env.intent in (\"lead.captured\", \"lead.rescored\"):; identity/routes.json"
+    },
+    {
+     "t": "With no signed rubric, nothing is scored: the lead's tier is unknown and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_02.py:93, 127-128; dispatcher/listing_spokes_02.py::\"scoring halted: \" + ("
+    },
+    {
+     "t": "A lead coming back for a new score while its hot alert is still open is held, and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_02.py::if env.intent == \"lead.rescored\" and ctx in self.open_escalations:"
+    },
+    {
+     "t": "A lead from an agent shopping for a client is not scored; the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_02.py::if payload.get(\"is_agent_shopping\"):"
+    },
+    {
+     "t": "It scores budget, timeline and financing against the rubric's thresholds and weights. An expired pre-approval letter earns no financing points; an unverified letter is not counted as a document (a stated pre-approval still scores); a pre-approval amount overrides a different stated budget; all three unknown gives tier unknown, not cold.",
+     "src": "dispatcher/lead_rubric.py:36-110"
+    },
+    {
+     "t": "A score whose confidence is under the floor is held for the authorized user: continue scores it with the signed rubric, cancel archives it.",
+     "src": "dispatcher/listing_spokes_02.py:107; dispatcher/listing_spokes_02.py::if tier == \"HELD_FOR_CALIBRATION\":; dispatcher/listing_spokes_02.py::def _resume(self, ws, decision_payload: dict):"
+    },
+    {
+     "t": "A score exactly on a tier boundary gets the lower tier, and the authorized user is told. A tier that swings back and forth a third time is sent to the authorized user.",
+     "src": "dispatcher/listing_spokes_02.py::if any(\"sits exactly on a tier boundary\" in n for n in notes):; dispatcher/listing_spokes_02.py::\"time\", \"history\": self.tier_history[ctx]}))"
+    },
+    {
+     "t": "Hot: the authorized user is alerted at once. If the person is on the Do Not Call list or has no channel with consent, the alert is marked do not contact, with the reason (owner decision 2026-10-27).",
+     "src": "dispatcher/listing_spokes_02.py::def _hot_record(; dispatcher/listing_spokes_02.py::self.hub.escalate(\"escalation.hot_lead\", self._hot_record(ctx, payload, score))"
+    },
+    {
+     "t": "A lead who demands a person is hot whatever its score, with the same do-not-contact marking; since 2026-10-28 Agent 01 passes the demand on (before, this rule could not be reached).",
+     "src": "dispatcher/listing_spokes_02.py:319-341; dispatcher/listing_spokes.py:1042-1043"
+    },
+    {
+     "t": "An unanswered hot alert is sent again after 30 minutes and the owner paged after 60 (the dispatcher's watch, see Agent 00). The 5-minute call window travels with the alert; nothing acts on it.",
+     "src": "dispatcher/escalation_watch.py:68-104; dispatcher/listing_spokes_02.py:89-100"
+    },
+    {
+     "t": "Every scored tier is logged with Agent 14 with the score, the rubric version and the notes (a demand for a person is logged as hot with the reason); a cold lead is marked archived, never deleted.",
+     "src": "dispatcher/listing_spokes_02.py::\"archived\": tier == \"COLD\"}; dispatcher/listing_spokes_02.py::{\"tier\": \"HOT\", \"reason\": \"demands_human\"}"
+    },
+    {
+     "t": "Every tier is logged with Agent 14 with the score, the rubric version and the notes; a cold lead is marked archived, never deleted.",
+     "src": "dispatcher/listing_spokes_02.py::\"archived\": tier == \"COLD\"}))"
+    }
    ],
-   "today": [
-    "The agent or inside sales person decides who to call first by feel, or by a simple CRM score.",
-    "A hot lead waits until someone notices it; response times of hours are common."
-   ],
-   "compare": [
-    "The same sort an experienced agent makes in their head, made with the rubric the authorized user signed, the same way for every lead, with the reasons recorded.",
-    "It never writes or adjusts the rubric itself."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Writing and signing the scoring rubric.",
-    "Calling the hot lead.",
-    "Clearing a hot lead from the queue."
+    {
+     "t": "Writing and signing the scoring rubric (it must contain all seven thresholds and weights or it is rejected whole).",
+     "src": "dispatcher/listing_spokes_02.py::missing = REQUIRED_RUBRIC_KEYS - set(new_rubric.keys()); dispatcher/lead_rubric.py:21-23"
+    },
+    {
+     "t": "Calling a hot lead, and closing the hot alert with a signed setting.",
+     "src": "dispatcher/listing_spokes_02.py::resolved_ctx = env.payload.get(\"resolve_hot_lead\")"
+    },
+    {
+     "t": "Deciding leads held for low confidence, agent-to-agent inquiries, boundary scores and swinging tiers.",
+     "src": "dispatcher/listing_spokes_02.py::if payload.get(\"is_agent_shopping\"):; dispatcher/listing_spokes_02.py::if tier == \"HELD_FOR_CALIBRATION\":"
+    }
    ],
    "never": [
-    "Change the rubric.",
-    "Delete a lead.",
-    "Contact anyone."
+    {
+     "t": "Fill in a missing rubric value with a default.",
+     "src": "dispatcher/listing_spokes_02.py::\"reason\": \"rubric missing required keys\","
+    },
+    {
+     "t": "Delete a lead.",
+     "src": "dispatcher/listing_spokes_02.py::\"archived\": tier == \"COLD\"}))"
+    },
+    {
+     "t": "Send lead data to the outside scoring service unless the authorized user signs that it may.",
+     "src": "dispatcher/listing_spokes_02.py:101-107; dispatcher/listing_spokes_02.py::def _configure_engine("
+    }
    ],
-   "process": "Matches standard lead triage: qualify on timeline, financing and motivation, then route.",
-   "not_built": [
-    "A second alert when a hot lead is not acknowledged within its window. The window travels with the alert; nothing re-alerts yet."
-   ]
-  },
-  {
-   "id": "03", "name": "Lead Nurture", "team": "Leads",
-   "job": "Keeps in touch with leads who are not ready yet, using sequences the authorized user wrote and signed, and hands a lead back for a new score when its readiness changes. It warms; it does not advise.",
-   "steps": [
-    "A warm lead arrives from Agent 02.",
-    "It checks consent. No channel marked yes: nothing is sent and the authorized user is told.",
-    "When a sequence starts, its exact text goes to Compliance (Agent 17). A flagged sequence is paused and the authorized user is told.",
-    "On each touch's day, the daily clock sends it once through Agent 11, inside the weekly cap and the contact hours.",
-    "A reply of \"stop\" (or unsubscribe, opt out) halts the sequence, records the opt-out on every channel and sends one confirmation.",
-    "A lead's own question in a reply goes to the authorized user as \"reply needed\". Nothing automatic is sent back.",
-    "Every 7 days it asks Agent 02 to re-score each warm lead. A lead that does not come back warm leaves the pool.",
-    "A spike in a lead's activity reported by marketing pauses the sequence and asks Agent 02 to re-score."
-   ],
-   "today": [
-    "Drip campaigns run from the CRM or an email tool, often written once and left running.",
-    "Opt-outs and contact hours depend on the tool's settings. Many leads are simply forgotten."
-   ],
-   "compare": [
-    "The same idea as a CRM drip, with three differences: the authorized user writes every touch, Compliance checks it first, and consent and opt-outs are checked before every send."
-   ],
-   "user_part": [
-    "Writing and signing each sequence.",
-    "Answering any real question a lead asks."
-   ],
-   "never": [
-    "Send without consent.",
-    "Write its own content.",
-    "Send market data.",
-    "Reach out on its own after an activity spike."
-   ],
-   "process": "Matches standard long-cycle nurture, with consent and a compliance check added before anything is sent.",
-   "not_built": [
-    "No holiday calendar, so legal holidays are not skipped.",
-    "No unsubscribe links: there is no email sender in this build."
-   ]
-  },
-  {
-   "id": "04", "name": "Listing Description", "team": "Listing",
-   "job": "Writes the listing description from the property data alone, sends it to Compliance, and releases it only when Compliance approves.",
-   "steps": [
-    "The listing data arrives from Agent 05.",
-    "It builds the draft from the facts in the data only: beds, baths, square footage with its source, the listed features. A feature not in the data is not mentioned.",
-    "If the photos show something the data does not (or the reverse), the authorized user is asked.",
-    "The draft goes to Compliance (Agent 17).",
-    "On an approved verdict it is released to Agents 05 and 12 and filed with its verdict. A flagged draft is not released."
-   ],
-   "today": [
-    "The agent or a marketing assistant writes the remarks, sometimes with an AI writing tool, and posts them.",
-    "Fair housing review is the writer's own judgment. Square footage often appears without a source."
-   ],
-   "compare": [
-    "The same task with tighter limits: only facts in the data, sources named, and every draft checked by Compliance before anyone sees it."
-   ],
-   "user_part": [
-    "The property data.",
-    "Deciding conflicts between the photos and the data.",
-    "Turning model-written remarks on (off unless signed)."
-   ],
-   "never": [
-    "Describe a feature that is not in the data.",
-    "Release a description without approval.",
-    "Change a description after approval."
-   ],
-   "process": "Matches the writing of MLS remarks, with the MLS and fair housing rules applied before use rather than after.",
-   "not_built": [
-    "Separate social caption, flyer and tour-script versions are not built; one draft is used."
-   ]
-  },
-  {
-   "id": "05", "name": "MLS & Listing Management", "team": "Listing",
-   "job": "Keeps the listing record: the entry, the status, and the authorized user's price changes exactly as signed. It carries out decisions; it never makes a pricing decision.",
-   "steps": [
-    "The authorized user's signed listing package (or price change) arrives.",
-    "Every field is checked against the signed package. Any difference goes to the authorized user.",
-    "Photos are ordered through Agent 09; the booking is held for the authorized user's release.",
-    "The approved description (Agent 04) and the photos (Agent 09) arrive.",
-    "The status is set (active, pending, sold, withdrawn) and the other agents are told.",
-    "A listing marked vacant gets a daily condition check ordered through Agent 09.",
-    "The signed package is filed in the client's drawer."
-   ],
-   "today": [
-    "The agent or an assistant types the listing into the MLS, uploads the photos and changes the status by hand within the MLS deadline.",
-    "The MLS feeds the portals (Zillow, Realtor.com, Redfin)."
-   ],
-   "compare": [
-    "The same steps, checked field for field against what the authorized user signed.",
-    "A price changes only on the authorized user's signature.",
-    "No buyer-broker compensation is ever entered in MLS fields."
-   ],
-   "user_part": [
-    "The price and every price change.",
-    "Signing the listing package.",
-    "Releasing vendor bookings."
-   ],
-   "never": [
-    "Set or change a price on its own.",
-    "Enter buyer-broker compensation in MLS fields (prohibited since August 17, 2024).",
-    "Accept data that differs from the signed package."
-   ],
-   "process": "Matches the listing entry and status-change steps of every MLS, under the 2024 practice change on compensation.",
-   "not_built": [
-    "No MLS, syndication feed or portal is connected. MLS entry, checking the live listing, days-on-market tracking and per-MLS reporting windows do not happen yet; the record is the agent's own."
-   ]
-  },
-  {
-   "id": "06", "name": "Showing Scheduler", "team": "Buyers and showings",
-   "job": "Books showings, confirms them, asks for feedback afterwards, and prepares the weekly seller report. It schedules people; it never authorizes access to a property.",
-   "steps": [
-    "A showing request arrives (from Agent 13, or from a client through Agent 11).",
-    "It checks the buyer agreement flag. Missing: held for the authorized user.",
-    "It checks the requester's identity flag for any appointment that gives access to a property.",
-    "It checks the minimum notice (24 hours unless set otherwise). Too short: the client is told the notice rule.",
-    "It asks Agent 05 the listing's status.",
-    "It checks for a clash with showings already confirmed for that listing or that buyer (30 minutes apart unless set otherwise). A clash goes to the authorized user.",
-    "It sends the entry to the calendar (Agent 18). If the calendar cannot take it, the showing is held and not confirmed until the authorized user says so.",
-    "It confirms the showing to the buyer through Agent 11.",
-    "Afterwards it asks for feedback and logs the answer to Agent 14.",
-    "On the authorized user's signed weekday it counts each listing's showings and feedback, holds the seller report for the authorized user, and sends it through Agent 11 on release."
-   ],
-   "today": [
-    "A showing service (for example ShowingTime) or an assistant takes the request, contacts the seller or tenant, confirms, and sends the feedback request.",
-    "The buyer's agent checks that a written buyer agreement is signed before touring."
-   ],
-   "compare": [
-    "The same flow as a showing service, with checks a service does not make: the buyer agreement on file, the requester's identity, the authorized user's calendar, and the authorized user's say before a held showing is confirmed."
-   ],
-   "user_part": [
-    "Deciding a showing the calendar could not take.",
-    "Deciding clashes.",
-    "Releasing the weekly seller report."
-   ],
-   "never": [
-    "Confirm a showing without the buyer agreement flag.",
-    "Authorize access to a property.",
-    "Confirm a showing the calendar refused without the authorized user."
-   ],
-   "process": "Matches standard showing practice and the written buyer agreement required before touring since August 17, 2024.",
-   "not_built": [
-    "No seller availability data; requests are checked against notice, status and confirmed showings.",
-    "No alternative time is worked out or offered.",
-    "Open house RSVPs and reminders."
-   ]
-  },
-  {
-   "id": "07", "name": "Transaction Coordinator", "team": "Transaction",
-   "job": "Owns the timeline of a deal from offer to closing: every deadline, from dates the authorized user signs. It asks Agent 08 for documents and never chases them itself.",
-   "steps": [
-    "The authorized user signs the contract's dates (the timeline), already calculated.",
-    "It asks Agent 08 for each document the deal needs.",
-    "On each daily clock run it checks every deadline.",
-    "It alerts the authorized user on a due date, and once when a deadline passes unmet.",
-    "A deadline counts as met only when the document or confirmation is on file, not on a party's word.",
-    "Offer status updates go to the authorized user, never to the client.",
-    "At closing it reports the transaction closed to Agents 14, 15 and 16."
-   ],
-   "today": [
-    "A transaction coordinator (on staff or contracted) keeps a checklist and calendar for each deal, chases the parties and reminds the agent of deadlines."
-   ],
-   "compare": [
-    "The same checklist, from dates the authorized user signs. A party saying something is done does not meet a deadline; the document does."
-   ],
-   "user_part": [
-    "The contract and its dates.",
-    "Any date that can be calculated two ways.",
-    "All negotiation and all money."
-   ],
-   "never": [
-    "Calculate contract dates itself.",
-    "Mark a deadline met on someone's word.",
-    "Tell a client about an offer's status."
-   ],
-   "process": "Matches transaction coordination from acceptance to closing.",
-   "not_built": [
-    "No date arithmetic (calendar or business days, holidays, time zones).",
-    "Warnings ahead of a due date, except the seller disclosure warning at Agent 08."
-   ]
-  },
-  {
-   "id": "08", "name": "Document Collection", "team": "Transaction",
-   "job": "Owns the documents of a deal: asks for them, receives them, checks them, files them and chases what is missing. It never sets deadlines.",
-   "steps": [
-    "A document request arrives from Agent 07.",
-    "It asks the right party for it through Agent 11.",
-    "On receipt it checks the sender is one expected for this deal and the file opens and is the right kind.",
-    "An unexpected sender: the document is quarantined and the authorized user alerted.",
-    "It files the document in the client's drawer and tells Agent 07.",
-    "It chases each missing document once a day; after three chases it raises it once and reports it missing.",
-    "A seller disclosure due in three days or less is warned once on the legal line."
-   ],
-   "today": [
-    "The transaction coordinator or an assistant emails the parties, saves the files to a transaction platform (dotloop, SkySlope and similar) and works through the broker's checklist."
-   ],
-   "compare": [
-    "The same, with a sender check every time (wire fraud often starts with a document from a fake sender), and no document counted until it opens."
-   ],
-   "user_part": [
-    "Deciding on quarantined documents.",
-    "Any contact with a party beyond the routine request."
-   ],
-   "never": [
-    "File a document from an unexpected sender.",
-    "Count an email as a document.",
-    "Set a deadline."
-   ],
-   "process": "Matches standard transaction file management.",
-   "not_built": [
-    "Whether a file opens is read from a flag on the submission; the agent does not open it.",
-    "No separate periodic status report."
-   ]
-  },
-  {
-   "id": "09", "name": "Vendor Coordination", "team": "Transaction",
-   "job": "Books photographers, inspectors, stagers and other vendors from the authorized user's approved roster, and collects what they deliver.",
-   "steps": [
-    "A vendor request arrives (from Agent 05, 06 or 07).",
-    "It picks a roster vendor of that kind whose license and insurance are current. Expired or missing: flagged before booking.",
-    "The booking message to the vendor is held for the authorized user's release.",
-    "It puts the appointment on the calendar through Agent 18.",
-    "A deliverable counts only with proof that it is present.",
-    "Photos go to Agent 05; reports go to Agent 08.",
-    "A late cancellation or a no-show is reported to Agents 07 and 06 at once and held for the authorized user with the roster's alternatives."
-   ],
-   "today": [
-    "The agent or an assistant calls the photographer, inspector or stager they know, confirms by text, and chases the deliverables."
-   ],
-   "compare": [
-    "The same, limited to the authorized user's approved roster with current credentials, and nothing goes to a vendor without the authorized user's release."
-   ],
-   "user_part": [
-    "The vendor roster.",
-    "Releasing each booking.",
-    "Picking a replacement vendor."
-   ],
-   "never": [
-    "Book a vendor who is not on the roster.",
-    "Book a vendor whose credentials are expired or missing.",
-    "Send a booking without release."
-   ],
-   "process": "Matches vendor coordination for listing preparation and inspections.",
-   "not_built": [
-    "The calendar entry carries the day of the request, not the appointment day.",
-    "The agent does not open the deliverable file itself."
-   ]
-  },
-  {
-   "id": "10", "name": "Market Data", "team": "Listing",
-   "job": "Assembles market data (comparable sales, neighborhood figures) with a source and a date on every figure, and no opinion. The output has no field for a recommendation, on purpose.",
-   "steps": [
-    "A request arrives (from the authorized user; comparables for Agent 19; briefing sections for Agent 18).",
-    "It builds a comparables or neighborhood package from the figures supplied.",
-    "Each figure is checked for a source, a date and freshness. A figure without a source is dropped; stale ones are left out and counted.",
-    "It checks there are enough comparables (5 unless set otherwise).",
-    "The package is delivered with no opinion, value or characterization."
-   ],
-   "today": [
-    "The agent pulls comparables in the MLS to prepare a comparative market analysis (CMA) and adjusts them by judgment.",
-    "Neighborhood information comes from websites and the agent's own knowledge."
-   ],
-   "compare": [
-    "It assembles the data only. It gives no opinion, no value and no description of a neighborhood. The pricing judgment stays with the authorized user."
-   ],
-   "user_part": [
-    "Every price opinion.",
-    "Interpreting the comparables.",
-    "Deciding what is shared with clients."
-   ],
-   "never": [
-    "Describe a neighborhood (\"safe\", \"good schools\").",
-    "Recommend a price.",
-    "Share MLS data outside the MLS license."
-   ],
-   "process": "Matches the data-gathering half of a CMA, not the opinion half.",
-   "not_built": [
-    "No MLS or data source is connected; figures come with the request.",
-    "Farm-area trend tracking.",
-    "Supplied neighborhood figures are not scanned for characterizations."
-   ]
-  },
-  {
-   "id": "11", "name": "Client Communication", "team": "Clients and records",
-   "job": "The one voice that sends routine updates to clients. Other agents supply the fact; this agent delivers it, word for word, only with consent. Anything that needs judgment goes to the authorized user.",
-   "steps": [
-    "A message request arrives from the agent that owns the fact.",
-    "It asks Agent 14 for the client's consent. No channel marked yes: not sent, logged, and the authorized user told once.",
-    "Inside quiet hours: queued, and the authorized user told.",
-    "A complaint hold on this client: not sent.",
-    "It sends the fact as given and logs it to Agent 14.",
-    "A client reply goes to the agent that owns it. A request for advice, or a reply with no owner, is held for the authorized user. An angry reply raises a complaint alert.",
-    "A request with no message template (a client's own question) goes to the authorized user as \"reply needed\"; nothing is sent."
-   ],
-   "today": [
-    "The agent texts and emails clients personally. How often and how well depends on the agent's memory and the day."
-   ],
-   "compare": [
-    "Every routine update goes out the same way: facts only, only with consent. Anything that needs judgment goes to the authorized user."
-   ],
-   "user_part": [
-    "Every answer that involves advice.",
-    "Responding to complaints and lifting a complaint hold."
-   ],
-   "never": [
-    "Turn a fact into an opinion (\"the appraisal came in\" never becomes \"came in strong\").",
-    "Give advice.",
-    "Message a client without consent.",
-    "Reply to an angry client."
-   ],
-   "process": "Matches routine client updates, with consent and contact hours (TCPA) applied to every message.",
+   "process": {
+    "t": "Corresponds to lead qualification: scoring readiness and deciding who gets a call first.",
+    "src": "definition"
+   },
    "not_built": []
   },
   {
-   "id": "12", "name": "Marketing Campaign", "team": "Listing",
-   "job": "Schedules and publishes marketing: listing posts, campaigns and ads, from approved material. Nothing is published before the listing is on the MLS, and nothing is published without the authorized user's release.",
+   "id": "03",
+   "name": "Lead Nurture",
+   "team": "Leads",
+   "job": {
+    "t": "Follows up with warm leads using sequences the authorized user wrote and signed, and sends leads back to Agent 02 for a new score. It sends only the authorized user's own text, after Compliance clears it.",
+    "src": "dispatcher/listing_spokes_03.py::if env.intent == \"config.update\" and \"nurture_sequences\" in env.payload:; dispatcher/listing_spokes_03.py::def send_scheduled_touch("
+   },
    "steps": [
-    "The authorized user starts a campaign with signed copy and targeting, or an approved listing description arrives from Agent 04.",
-    "It checks the targeting: no demographic targeting; housing ad rules apply.",
-    "It checks Clear Cooperation: no public marketing until Agent 05 confirms the listing is on the MLS, or the listing is exempt with the seller's signed disclosure on file.",
-    "Copy it did not receive approved goes to Compliance (Agent 17).",
-    "Every publication is held for the authorized user's release.",
-    "Platform figures are reported as the platform measured them, naming the platform."
+    {
+     "t": "The authorized user signs the follow-up sequences: for each, a list of touches, each with a day number and its exact text. A malformed set is rejected whole.",
+     "src": "dispatcher/listing_spokes_03.py::if env.intent == \"config.update\" and \"nurture_sequences\" in env.payload:"
+    },
+    {
+     "t": "A warm lead arrives from Agent 02 with its consent.",
+     "src": "dispatcher/listing_spokes_03.py::if env.intent == \"lead.nurture\":"
+    },
+    {
+     "t": "No channel with consent marked yes: nothing is sent and a legal-line alert is raised.",
+     "src": "dispatcher/listing_spokes_03.py::\"trigger\": \"nurture assignment with no \""
+    },
+    {
+     "t": "A sequence the authorized user has not defined: nothing is sent and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_03.py::\"reason\": f\"nurture sequence {requested_seq!r} is not \""
+    },
+    {
+     "t": "A second, different sequence for a lead already in one is held for the authorized user, unless it comes from a new score (then the new one replaces the old, and that is logged).",
+     "src": "dispatcher/listing_spokes_03.py::if existing and existing[\"sequence_id\"] != requested_seq; dispatcher/listing_spokes_03.py::\"reason\": \"overlapping sequences\","
+    },
+    {
+     "t": "The sequence's exact text goes to Compliance (Agent 17) before anything is sent.",
+     "src": "dispatcher/listing_spokes_03.py::self.hub.send(_env(\"03\", \"17\", \"content.review\", ctx,"
+    },
+    {
+     "t": "Approved: the day-0 touch goes at once if it is inside contact hours (8:00 to 21:00 by default); later touches go on the daily clock on their day. Flagged: the sequence is paused, nothing is sent, and the authorized user is told.",
+     "src": "dispatcher/listing_spokes_03.py::def _send_day0(; dispatcher/listing_spokes_03.py::if verdict == \"approved\":; dispatcher/listing_spokes_03.py::\"reason\": \"Compliance (17) flagged the nurture sequence - \"; dispatcher/listing_spokes_03.py:90-104; dispatcher/clock.py:46"
+    },
+    {
+     "t": "Each touch is held if it falls outside contact hours or if the lead has already had 3 touches from this agent that week (the default cap, or the lead's own lower cap after a \"too many\" reply); it is tried again on the next clock run. Touches go to Agent 11, which sends them.",
+     "src": "dispatcher/listing_spokes_03.py::if hour is not None and not self._in_legal_contact_hours(hour):; dispatcher/listing_spokes_03.py::if this_week_count >= self.lead_cap(ctx):; dispatcher/listing_spokes_03.py::{\"template\": \"sequence_touch\", \"content\": content}))"
+    },
+    {
+     "t": "A reply pauses the sequence. A reply of exactly \"stop\", \"unsubscribe\", \"opt out\" or \"optout\" opts the lead out on every channel, logs it with Agent 14 and sends one confirmation on the channel it came in on; with no channel known, none is sent and the authorized user is asked (owner decision of 2026-10-28). A reply containing \"too many\" (or \"stop sending so many\") lowers that lead's weekly cap by one (never below one), then confirms and resumes the sequence. Other leads keep their cap.",
+     "src": "dispatcher/listing_spokes_03.py::seq[\"paused\"] = True  # tuple 1: reply pauses, never auto-continue; dispatcher/listing_spokes_03.py::if low in (\"stop\", \"unsubscribe\", \"opt out\", \"optout\"):; dispatcher/listing_spokes_03.py::channel = env.payload.get(\"channel\"); dispatcher/listing_spokes_03.py::if \"stop sending so many\" in low or \"too many\" in low:; dispatcher/listing_spokes_03.py::cap = max(1, self.lead_cap(ctx) - 1)"
+    },
+    {
+     "t": "A reply that crosses the legal line raises a legal-line alert. Any other reply goes to the authorized user as \"reply needed\" (through Agent 11); the sequence stays paused.",
+     "src": "dispatcher/listing_spokes_03.py::trigger = self._legal_line_hit(message); dispatcher/listing_spokes_03.py::{\"reason\": \"substantive drip reply\",; dispatcher/listing_spokes_11.py::{\"reason\": \"reply needed: the client asked a question \""
+    },
+    {
+     "t": "Every 7 days, each warm lead is sent back to Agent 02 with its stated timeline counted down by the days since it was scored. A lead that does not come back warm, has opted out, or whose sequence is paused leaves or skips the re-score.",
+     "src": "dispatcher/listing_spokes_03.py::def rescore_cadence(self, ctx: str, today: str):; dispatcher/listing_spokes_03.py::RESCORE_INTERVAL_DAYS = 7; dispatcher/clock.py:47"
+    },
+    {
+     "t": "An engagement spike reported by Agent 12 (at or over the spike threshold, 50 unless the signal says otherwise) pauses the sequence and sends the lead to Agent 02 for a new score. If the new score is warm, the pause is lifted and the sequence goes on at its next touch on its own day (owner decision of 2026-10-28). It never reaches out on a signal itself.",
+     "src": "dispatcher/listing_spokes_03.py::spike = score_delta >= env.payload.get(\"spike_threshold\", 50); dispatcher/listing_spokes_03.py::def _resume_after_spike(self, ctx: str, seq: dict, env: Envelope):"
+    },
+    {
+     "t": "If Agent 11 reports a touch was not sent, the touch is not counted (it is tried again); if the reason is an opt-out on every channel, the sequence stops.",
+     "src": "dispatcher/listing_spokes_03.py::if env.intent == \"client.message.not_sent\":"
+    }
    ],
-   "today": [
-    "The agent or a marketing assistant posts \"just listed\" on social media, runs ads and sends newsletters, sometimes before the MLS entry."
-   ],
-   "compare": [
-    "The same channels, with nothing public before the MLS entry, nothing published without the authorized user's release, and no demographic targeting."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "The copy and the budget.",
-    "Releasing each publication."
+    {
+     "t": "Writing and signing every sequence, word for word.",
+     "src": "dispatcher/listing_spokes_03.py::if env.intent == \"config.update\" and \"nurture_sequences\" in env.payload:"
+    },
+    {
+     "t": "Answering the lead's real questions.",
+     "src": "dispatcher/listing_spokes_03.py::{\"reason\": \"substantive drip reply\","
+    },
+    {
+     "t": "Choosing between two sequences for one lead.",
+     "src": "dispatcher/listing_spokes_03.py::\"reason\": \"overlapping sequences\","
+    },
+    {
+     "t": "Correcting a sequence Compliance flagged.",
+     "src": "dispatcher/listing_spokes_03.py::\"reason\": \"Compliance (17) flagged the nurture sequence - \""
+    }
    ],
    "never": [
-    "Publish before Clear Cooperation is met.",
-    "Change an approved description.",
-    "Target ads by demographics."
+    {
+     "t": "Send anything without consent on some channel.",
+     "src": "dispatcher/listing_spokes_03.py::\"trigger\": \"nurture assignment with no \""
+    },
+    {
+     "t": "Send text the authorized user did not write, or text Compliance has not approved.",
+     "src": "dispatcher/listing_spokes_03.py::if not seq or seq.get(\"compliance_status\") != \"cleared\" or seq.get(\"paused\"):"
+    },
+    {
+     "t": "Send market data (retired by owner decision J5, 2026-10-12).",
+     "src": "dispatcher/listing_spokes_03.py:51"
+    },
+    {
+     "t": "Reach out because of an engagement spike.",
+     "src": "dispatcher/listing_spokes_03.py::never converting the"
+    }
    ],
-   "process": "Matches NAR's Clear Cooperation policy and the platforms' housing ad category rules.",
+   "process": {
+    "t": "Corresponds to lead follow-up (nurture) for people not ready to transact.",
+    "src": "definition"
+   },
    "not_built": [
-    "No social or ad platform is connected.",
-    "It does not write newsletter or ad copy itself.",
-    "No farm-area boundary setting to check geography against."
+    {
+     "t": "Legal holidays: the check exists, but the daily clock never says a day is a holiday, so holidays are not skipped.",
+     "src": "dispatcher/listing_spokes_03.py::if is_legal_holiday:; dispatcher/clock.py:46"
+    },
+    {
+     "t": "Unsubscribe links: nothing sends email in this build (see Agent 00).",
+     "src": "dispatcher/swarm.py:220-222"
+    }
    ]
   },
   {
-   "id": "13", "name": "Buyer Search & Match", "team": "Buyers and showings",
-   "job": "Keeps each buyer's criteria exactly as the buyer stated them, matches new listings against them, sends matches, and asks for showings when the buyer is interested. It never adds or infers a criterion: inferred preferences are steering.",
+   "id": "04",
+   "name": "Listing Description",
+   "team": "Listing",
+   "job": {
+    "t": "Builds the listing description from the property data it is given, sends it to Compliance, and releases it to Agents 05 and 12 only on approval.",
+    "src": "dispatcher/listing_spokes_04.py::def _build_facts(; dispatcher/listing_spokes_04.py::self.hub.send(_env(\"04\", \"12\", \"asset.release\", ctx,"
+   },
    "steps": [
-    "The authorized user signs the buyer's criteria, word for word.",
-    "A criterion marked fair housing sensitive goes to Compliance (Agent 17); one not approved is not used.",
-    "It checks that the written buyer agreement is on file with Agent 14. Matches wait until it is.",
-    "It matches new listings (Agent 05) and opportunities (Agent 19) against the criteria.",
-    "Up to 5 matches a day go to the buyer one by one through Agent 11; the rest go in one digest. Every match is logged to Agent 14.",
-    "On the buyer's interest it sends a showing request to Agent 06 with the buyer agreement flag.",
-    "Criteria change only from the buyer's own explicit feedback."
+    {
+     "t": "The listing data arrives from Agent 05.",
+     "src": "dispatcher/listing_spokes_04.py::if env.intent == \"listing.data\":"
+    },
+    {
+     "t": "If the photos show features the data does not list, or the data lists features the photos do not show, the authorized user is asked and nothing is drafted.",
+     "src": "dispatcher/listing_spokes_04.py::contradictions = data.get(\"photo_data_contradictions\"); dispatcher/listing_spokes_04.py::{\"reason\": \"photos contradict data sheet\","
+    },
+    {
+     "t": "A photo marked as possibly revealing protected-class information raises a legal-line alert and nothing is drafted.",
+     "src": "dispatcher/listing_spokes_04.py::if data.get(\"photo_reveals_protected_class\"):"
+    },
+    {
+     "t": "The draft is a list of facts from the data only: bedrooms, bathrooms, square footage with its source, roof and HVAC only when a source is given, and the listed features. A value with no source is left out and noted.",
+     "src": "dispatcher/listing_spokes_04.py:93-157"
+    },
+    {
+     "t": "Square footage: when the tax record and the seller's figure differ, the tax-record figure is used with \"per county tax records\", never an average, and the authorized user is asked to reconcile.",
+     "src": "dispatcher/listing_spokes_04.py:121-127; dispatcher/listing_spokes_04.py::{\"reason\": \"source discrepancy \""
+    },
+    {
+     "t": "Over the MLS length limit (800 characters by default), whole facts are dropped, adjectives first, then facts without a source; a fact with a source is never dropped and nothing is cut mid-sentence.",
+     "src": "dispatcher/listing_spokes_04.py:43-44; dispatcher/listing_spokes_04.py::def _cut_to_limit("
+    },
+    {
+     "t": "With model drafting turned on by the authorized user's signature, a local model writes remarks from the facts if it passes its gate; otherwise the draft is built by rules and the authorized user is told why.",
+     "src": "dispatcher/listing_spokes_04.py::def _configure_drafting(; dispatcher/listing_spokes_04.py::def _model_remarks("
+    },
+    {
+     "t": "The draft goes to Compliance (Agent 17) with the property's state.",
+     "src": "dispatcher/listing_spokes_04.py::self.draft_states[ctx] = _state_of(data.get(\"address\"))"
+    },
+    {
+     "t": "Approved: the draft is filed in the client's drawer with the verdict, released to Agents 12 and 05, and logged with Agent 14.",
+     "src": "dispatcher/listing_spokes_04.py::file_record(self.hub, \"04\", ctx, \"artifacts\"; dispatcher/listing_spokes_04.py::self.hub.send(_env(\"04\", \"05\", \"asset.release\", ctx,"
+    },
+    {
+     "t": "Flagged: the facts (and model sentences) containing each cited phrase are removed and the draft goes back to Compliance. If a finding cites no phrase, or the phrase is not found, the authorized user is asked instead.",
+     "src": "dispatcher/listing_spokes_04.py:464-549"
+    },
+    {
+     "t": "A client's reply about the listing copy is logged and held for the authorized user; nothing changes.",
+     "src": "dispatcher/listing_spokes_04.py::\"reason\": \"client reply about listing copy - no tuple covers acting \""
+    }
    ],
-   "today": [
-    "The agent sets up an MLS saved search for the buyer and sends listings.",
-    "Criteria often drift with the agent's impressions of what the buyer \"really\" wants."
-   ],
-   "compare": [
-    "The same saved-search idea, with the criteria only as the buyer stated them, and the buyer agreement checked before anything else."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Recording the buyer's criteria.",
-    "The buyer agreement.",
-    "Any advice about neighborhoods."
+    {
+     "t": "The property data, and reconciling conflicting sources.",
+     "src": "dispatcher/listing_spokes_04.py::\"in published listing \""
+    },
+    {
+     "t": "Deciding when photos and data disagree.",
+     "src": "dispatcher/listing_spokes_04.py::{\"reason\": \"photos contradict data sheet\","
+    },
+    {
+     "t": "Turning model drafting on or off (signed).",
+     "src": "dispatcher/listing_spokes_04.py::def _configure_drafting("
+    },
+    {
+     "t": "Answering clients about the copy.",
+     "src": "dispatcher/listing_spokes_04.py::\"reason\": \"client reply about listing copy - no tuple covers acting \""
+    }
    ],
    "never": [
-    "Add or infer a criterion.",
-    "Send neighborhood information.",
-    "Ask for a showing without the buyer agreement."
+    {
+     "t": "Mention a feature that is not in the data.",
+     "src": "dispatcher/listing_spokes_04.py:93-96, 154-155"
+    },
+    {
+     "t": "Release a description Compliance has not approved.",
+     "src": "dispatcher/listing_spokes_04.py:429-462"
+    },
+    {
+     "t": "Average two square-footage figures.",
+     "src": "dispatcher/listing_spokes_04.py:121-127"
+    }
    ],
-   "process": "Matches buyer search practice and the written buyer agreement required since August 17, 2024.",
-   "not_built": []
-  },
-  {
-   "id": "14", "name": "CRM & Pipeline", "team": "Clients and records",
-   "job": "The office's system of record: every contact, every interaction, consent and opt-outs, client dates and property access grants. It stores and reports; it never messages clients.",
-   "steps": [
-    "It logs every interaction any agent reports, word for word, with the message it came from.",
-    "It answers record requests: duplicates, consent, the buyer agreement.",
-    "It stores consent and opt-outs and serves them on every request.",
-    "From the authorized user's client list, it sends date reminders (birthdays, anniversaries) to Agent 16.",
-    "It keeps property access grants (who, until when, a custody reference, never the code itself) and flags a window that ended without being closed.",
-    "It files a copy of every entry in the client's drawer.",
-    "Reports go to the authorized user only, built from stored records only."
-   ],
-   "today": [
-    "A CRM (Follow Up Boss, kvCORE and similar) holds the contacts. Agents log some calls; gaps are common."
-   ],
-   "compare": [
-    "Every hand-off is logged automatically, and no report contains a figure that cannot be traced to a record."
-   ],
-   "user_part": [
-    "Signed record updates: consent, client dates, the buyer agreement, access grants, closings and deletions."
-   ],
-   "never": [
-    "Message a client.",
-    "Change a stage by inference.",
-    "Report a figure it cannot trace."
-   ],
-   "process": "Matches the system-of-record role of a brokerage CRM.",
+   "process": {
+    "t": "Corresponds to writing the MLS listing remarks.",
+    "src": "definition"
+   },
    "not_built": [
-    "Consent changes are not pushed to Agents 03, 11 and 16 (Agent 11 asks before every send).",
-    "Pipeline stages and referral sources."
+    {
+     "t": "Separate social caption, flyer and tour-script versions: one draft is used everywhere.",
+     "src": "dispatcher/listing_spokes_04.py:380-384 (one draft per listing)"
+    },
+    {
+     "t": "Copy the authorized user supplies is checked only for a short list of protected-class words; it is not sent to Compliance (open item, procedure 04-03).",
+     "src": "dispatcher/listing_spokes_04.py::human_copy = data.get(\"human_supplied_copy\"); synth/tuples/REPORT.md 04-03 VARIANCE"
+    },
+    {
+     "t": "The draft carries no photos or media; a media item without confirmed usage rights is only noted in the agent's trace.",
+     "src": "dispatcher/listing_spokes_04.py::def _media_rights_ok(; dispatcher/listing_spokes_04.py:369-375"
+    }
    ]
   },
   {
-   "id": "15", "name": "Financial Tracking", "team": "Clients and records",
-   "job": "Tracks the money (commissions, expenses, profit and loss) and reports it to the authorized user only. It records; it never moves money.",
+   "id": "05",
+   "name": "MLS & Listing Management",
+   "team": "Listing",
+   "job": {
+    "t": "Keeps the listing record: the signed listing package, the status, and each change the authorized user signs, exactly as signed. It never decides a price; it records the price the authorized user signed.",
+    "src": "dispatcher/listing_spokes_05.py:1-8, 318-564"
+   },
    "steps": [
-    "A commission is recorded when a transaction closes.",
-    "Expenses and figures the authorized user enters are recorded.",
-    "Tax-relevant expenses are flagged for the accountant.",
-    "Profit and loss and the end-of-day books are built from recorded figures; anything estimated is labeled.",
-    "Reports go to the authorized user only."
+    {
+     "t": "The authorized user signs a new listing package (property data, price, and whether it may go live).",
+     "src": "dispatcher/listing_spokes_05.py:318-324"
+    },
+    {
+     "t": "It files the signed package in the client's drawer, opens a draft record, and orders photography from Agent 09.",
+     "src": "dispatcher/listing_spokes_05.py:324-363"
+    },
+    {
+     "t": "The photos come back from Agent 09. A delivery not marked as opening correctly is held and the authorized user is asked; otherwise the property data goes to Agent 04 for the description.",
+     "src": "dispatcher/listing_spokes_05.py:579-615"
+    },
+    {
+     "t": "The approved description comes back from Agent 04. If its square footage differs from the record, the record wins: Agent 04 is sent the record's figure to redraft, once; a second difference goes to the authorized user and nothing goes live.",
+     "src": "dispatcher/listing_spokes_05.py:212-269"
+    },
+    {
+     "t": "If the signed package allowed it, the listing becomes active: Agents 11, 12 and 14 are told, and the listing data goes to Agents 06, 01, 13 and 10.",
+     "src": "dispatcher/listing_spokes_05.py:271-308, 105-123"
+    },
+    {
+     "t": "A signed status change (active, pending, sold, withdrawn, or expired since 2026-10-28) is carried out and Agents 11, 12, 14, 06 and 01 are told. Pending needs the signed contract named; sold needs the closing document named; otherwise the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_05.py:22, 89-90, 412-484, 105-123"
+    },
+    {
+     "t": "Withdrawal or expiry while under contract: not carried out; a legal-line alert goes to the authorized user and Compliance is notified.",
+     "src": "dispatcher/listing_spokes_05.py:431-446"
+    },
+    {
+     "t": "A signed price change is recorded and Agents 11, 12 and 14 are told; for an active listing the new data goes to Agents 13 and 10. A price that differs from an agreement amendment named in the same change is held for the authorized user.",
+     "src": "dispatcher/listing_spokes_05.py:486-526"
+    },
+    {
+     "t": "Two signed changes to the same field from different signers, with different values: neither is carried out; the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_05.py:180-194, 391-427"
+    },
+    {
+     "t": "A request to fill buyer-broker compensation: refused, with a legal-line alert.",
+     "src": "dispatcher/listing_spokes_05.py:368-379"
+    },
+    {
+     "t": "A listing marked vacant gets a property check ordered from Agent 09 every day (or at the signed interval) on the daily run, until it is marked occupied or the listing ends.",
+     "src": "dispatcher/listing_spokes_05.py:96-98, 125-178; dispatcher/clock.py:48"
+    },
+    {
+     "t": "Agent 06 may ask it for a listing's status (the only agent with that route); it answers from its record.",
+     "src": "dispatcher/listing_spokes_05.py:566-577; identity/routes.json"
+    }
    ],
-   "today": [
-    "A bookkeeper or accounting software (QuickBooks and similar), with commissions tracked in the transaction platform."
-   ],
-   "compare": [
-    "Records only. It has no way to move money: the default build contains no payment, transfer or wire capability."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "All money.",
-    "Tax and accounting advice, which comes from the accountant."
+    {
+     "t": "The price and every price change.",
+     "src": "dispatcher/listing_spokes_05.py:486-526"
+    },
+    {
+     "t": "Signing the listing package and every status change.",
+     "src": "dispatcher/listing_spokes_05.py:318-484"
+    },
+    {
+     "t": "Releasing the photographer's booking (held at the dispatcher).",
+     "src": "dispatcher/hub.py:604-646; identity/routes.json vendor.schedule audience counterparty"
+    }
    ],
    "never": [
-    "Move money.",
-    "Advise on taxes.",
-    "Mix estimates with recorded figures."
+    {
+     "t": "Change a price without the authorized user's signed change.",
+     "src": "dispatcher/listing_spokes_05.py:1-8; dispatcher/hub.py:559-566 (listing.change.authorized is signed)"
+    },
+    {
+     "t": "Fill in buyer-broker compensation.",
+     "src": "dispatcher/listing_spokes_05.py:368-379"
+    },
+    {
+     "t": "Put a value in a field that is not one of its listing fields.",
+     "src": "dispatcher/listing_spokes_05.py:20-21, 381-389"
+    }
    ],
-   "process": "Matches brokerage bookkeeping, record-keeping side only.",
+   "process": {
+    "t": "Listing input and status changes.",
+    "src": "definition"
+   },
    "not_built": [
-    "No platform export or accounting system is connected."
+    {
+     "t": "No MLS, syndication feed or portal is connected: the record is the agent's own. Entering data in an MLS, checking the portals, days on market and MLS reporting windows do not happen.",
+     "src": "dispatcher/listing_spokes_05.py:47-65"
+    },
+    {
+     "t": "It does not compare the record field by field with the signed package; it keeps the package's fields as signed.",
+     "src": "dispatcher/listing_spokes_05.py:333-341"
+    }
    ]
   },
   {
-   "id": "16", "name": "After-Close & Referral", "team": "Clients and records",
-   "job": "Keeps in touch after closing: check-ins at 30, 90 and 365 days, greetings, review and referral requests, only for people on the authorized user's client list, and stopping for opt-outs and hard times.",
+   "id": "06",
+   "name": "Showing Scheduler",
+   "team": "Buyers and showings",
+   "job": {
+    "t": "Books showings, confirms them to the buyer through Agent 11, asks for feedback afterwards, schedules open houses, and prepares the weekly seller report. It never gives out access codes.",
+    "src": "dispatcher/listing_spokes_06.py:367-789"
+   },
    "steps": [
-    "When a deal closes, the 30, 90 and 365-day check-ins are scheduled.",
-    "Greetings come from Agent 14's date reminders, only for people on the authorized user's client list.",
-    "Before every touch it checks for an opt-out, a hard life event on record and a contact that no longer works. Any of these blocks the touch and records why.",
-    "Each touch goes through Agent 11, which checks consent again.",
-    "A past client mentioning new business is passed on as a new lead.",
-    "A question about a referral reward goes to Compliance (Agent 17), then to the authorized user."
+    {
+     "t": "A showing request arrives (from Agent 13, or from a client through Agent 11).",
+     "src": "dispatcher/listing_spokes_06.py:471-472; identity/routes.json showing.request"
+    },
+    {
+     "t": "A request for access raises a legal-line alert; nothing is scheduled. Access is recognized by a flag on the request or by these phrases: \"let them in\", \"access code\", \"lockbox combo\", \"gate code\", \"just let\", \"combo for the\" (other wording, such as a door code, is caught only by the flag).",
+     "src": "dispatcher/listing_spokes_06.py:18-19, 474-496"
+    },
+    {
+     "t": "No buyer agreement on file: a legal-line alert, nothing scheduled.",
+     "src": "dispatcher/listing_spokes_06.py:500-513"
+    },
+    {
+     "t": "The requester's identity not verified: the showing is cancelled and logged with Agent 14; the authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer is requested, which Agent 11 holds until the authorized user signs its wording (owner decision of 2026-10-28).",
+     "src": "dispatcher/listing_spokes_06.py:517-541"
+    },
+    {
+     "t": "For the office's own listings, whether the home is occupied, its status and its state come from Agent 05's record, not from the request.",
+     "src": "dispatcher/listing_spokes_06.py:275-305, 442-447"
+    },
+    {
+     "t": "A listing that may not be active: it asks Agent 05; anything but active goes to the authorized user and nothing is scheduled.",
+     "src": "dispatcher/listing_spokes_06.py:546-578"
+    },
+    {
+     "t": "An occupied home needs the minimum notice (24 hours unless set per state), counted from when the client wrote to the requested time. Too short: the client is sent the notice rule, and nothing is scheduled.",
+     "src": "dispatcher/listing_spokes_06.py:90, 298-304, 639-655"
+    },
+    {
+     "t": "A clash within 30 minutes (the default) with a confirmed showing for the same buyer or the same listing goes to the authorized user. A claimed protected deadline from a hot lead is held for the authorized user's signed decision; the claim alone never bumps a showing.",
+     "src": "dispatcher/listing_spokes_06.py:662-735, 385-421"
+    },
+    {
+     "t": "It sends the showing to the calendar (Agent 18). If the calendar refuses it, the showing is held: continue confirms it to the buyer, cancel sends nothing (owner decision 2026-10-27).",
+     "src": "dispatcher/listing_spokes_06.py:747-768, 244-262, 462-469"
+    },
+    {
+     "t": "Otherwise it confirms the showing to the buyer through Agent 11 and logs it with Agent 14.",
+     "src": "dispatcher/listing_spokes_06.py:777-789"
+    },
+    {
+     "t": "On the first daily run after the showing's date, it asks for feedback through Agent 11: at most once a day and twice in all for each showing. A reply is logged with Agent 14.",
+     "src": "dispatcher/listing_spokes_06.py:314-366, 580-594; dispatcher/clock.py:49"
+    },
+    {
+     "t": "A no-show is logged and feedback is asked. A showing agent with 2 no-shows goes to the authorized user before another confirmation.",
+     "src": "dispatcher/listing_spokes_06.py:596-614"
+    },
+    {
+     "t": "Open house: the authorized user signs the time; only for a listing active on the record. It goes on the calendar, signage is requested from Agent 09, and it is logged; the authorized user signs the result afterwards.",
+     "src": "dispatcher/listing_spokes_06.py:105-173"
+    },
+    {
+     "t": "Weekly seller report: on the authorized user's signed weekday, it counts each listing's showings in the last 7 days and how many have feedback, and holds the report; continue sends it to the seller through Agent 11, cancel skips the week.",
+     "src": "dispatcher/listing_spokes_06.py:175-242, 263-273; dispatcher/clock.py:50"
+    },
+    {
+     "t": "A late vendor cancellation is logged and the authorized user is asked whether a showing depends on it.",
+     "src": "dispatcher/listing_spokes_06.py:423-440"
+    }
    ],
-   "today": [
-    "A closing gift, perhaps a card; follow-ups fade after a few months. Client appreciation services automate some of it."
-   ],
-   "compare": [
-    "Every past client gets the same follow-up schedule, and it stops for opt-outs and hard times."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Whether to reach out during a hard time.",
-    "Answering referral reward questions.",
-    "The client list."
+    {
+     "t": "Deciding clashes, held showings and protected-deadline bumps.",
+     "src": "dispatcher/listing_spokes_06.py:671-735, 747-768"
+    },
+    {
+     "t": "Signing open house times and results, and the seller report weekday.",
+     "src": "dispatcher/listing_spokes_06.py:105-199"
+    },
+    {
+     "t": "Releasing (continue) or skipping each weekly seller report.",
+     "src": "dispatcher/listing_spokes_06.py:236-240, 263-273"
+    }
    ],
    "never": [
-    "Greet someone who is not on the list.",
-    "Offer or promise a referral reward.",
-    "Search for new contact details."
+    {
+     "t": "Schedule a showing without the buyer agreement on file.",
+     "src": "dispatcher/listing_spokes_06.py:500-513"
+    },
+    {
+     "t": "Give out an access code or let anyone in.",
+     "src": "dispatcher/listing_spokes_06.py:474-496"
+    },
+    {
+     "t": "Confirm a showing the calendar refused without the authorized user's decision.",
+     "src": "dispatcher/listing_spokes_06.py:752-768"
+    },
+    {
+     "t": "Bump a confirmed showing on a claim alone.",
+     "src": "dispatcher/listing_spokes_06.py:713-735"
+    }
    ],
-   "process": "Matches post-closing relationship practice, with the license and RESPA limits on referral rewards respected.",
+   "process": {
+    "t": "Corresponds to showing coordination.",
+    "src": "definition"
+   },
    "not_built": [
-    "Maintenance tips and a self-running referral schedule.",
-    "Routine touch content does not go to Compliance before sending."
+    {
+     "t": "No seller availability is checked; no alternative time is worked out (the client gets the notice rule, not a time).",
+     "src": "dispatcher/listing_spokes_06.py:60-65, 652-654"
+    },
+    {
+     "t": "Open house RSVPs and showing reminders.",
+     "src": "dispatcher/listing_spokes_06.py (no RSVP or reminder code)"
+    }
    ]
   },
   {
-   "id": "17", "name": "Compliance & Fair Housing", "team": "Oversight",
-   "job": "Checks outbound text against the authorized user's signed rules before it is used. It approves or flags, citing the exact phrase and the rule. It never rewrites: a checker that writes cannot check itself.",
+   "id": "07",
+   "name": "Transaction Coordinator",
+   "team": "Transaction",
+   "job": {
+    "t": "Keeps a deal's timeline from the dates the authorized user signs: it asks for the documents and vendors each milestone needs, watches each deadline on the daily run, and reports the close. It calculates no contract date; the only counting it does is days (how long a vendor request has gone unanswered, whether a date has passed).",
+    "src": "dispatcher/listing_spokes_07.py:270-312, 584-610, 657-727, 177-184"
+   },
    "steps": [
-    "Content arrives for review (from Agents 03, 04, 12, 13, 16 and 20).",
-    "It checks the content against the signed rules, including the strictest state rule that applies.",
-    "Verdict: approved, or flagged with each phrase and rule. Never a rewrite.",
-    "The rules version used is recorded with the verdict.",
-    "A review past its turnaround time raises an alert; a pattern of near misses from one agent is reported."
+    {
+     "t": "The authorized user signs the timeline: each milestone with its date, already calculated.",
+     "src": "dispatcher/listing_spokes_07.py:270-280"
+    },
+    {
+     "t": "The timeline is filed in the client's drawer, logged with Agent 14, and each date goes to the calendar (Agent 18).",
+     "src": "dispatcher/listing_spokes_07.py:276-288"
+    },
+    {
+     "t": "For each milestone that needs a document (by default inspection, appraisal, title, HOA documents, financing contingency, seller disclosure) it asks Agent 08 for it; for inspection and appraisal it asks Agent 09 for the vendor.",
+     "src": "dispatcher/listing_spokes_07.py:114-123, 291-311"
+    },
+    {
+     "t": "A vendor request unanswered for 7 days raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_07.py:125, 584-610; dispatcher/clock.py:52"
+    },
+    {
+     "t": "A milestone counts as met when Agent 08 reports its document on file (an inspection report or an appraisal counts it met whatever it says), or when the authorized user continues a closing held for open milestones (they are recorded as waived).",
+     "src": "dispatcher/listing_spokes_07.py:548-554, 432-480, 186-207"
+    },
+    {
+     "t": "A document whose date differs from the tracked date: a legal-line alert, both dates go to the calendar, nothing is picked.",
+     "src": "dispatcher/listing_spokes_07.py:396-430"
+    },
+    {
+     "t": "An inspection report gives the authorized user one item, saying to send the report to the contract parties: a legal-line alert when repair requests are present or not stated, a plain question when the sender stated none. An appraisal below the contract price, a title exception, or an earnest-money receipt not confirmed raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_07.py:432-500"
+    },
+    {
+     "t": "On the daily run: on a due date, and once when a date has passed unmet, a deadline notice goes to the client through Agent 11 and to the calendar through Agent 18. A passed financing-contingency or earnest-money date also raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_07.py:657-727; dispatcher/listing_spokes_11.py:458, 539-547"
+    },
+    {
+     "t": "Any message mentioning wire instructions, wiring details, a routing number or similar stops: a legal-line alert, nothing else done.",
+     "src": "dispatcher/listing_spokes_07.py:20-21, 154-175, 218-219"
+    },
+    {
+     "t": "An offer status the authorized user records goes to the authorized user only and is logged; never to a client.",
+     "src": "dispatcher/listing_spokes_07.py:251-268"
+    },
+    {
+     "t": "An extension claimed with no amendment on file, a closing date said to have moved verbally, a date that could be calculated two ways, or unclear possession terms go to the authorized user; the original date stands. A verbal move is also logged with Agent 14 as stated by a party.",
+     "src": "dispatcher/listing_spokes_07.py:314-383"
+    },
+    {
+     "t": "A signed amendment (milestone, new date, amendment reference) changes that one milestone's date: the old and new dates are logged with Agent 14 and the calendar moves the date; the other milestones, and whether this one is met, are unchanged. With no reference, no valid date or a milestone not on the timeline, it is refused and the authorized user is told.",
+     "src": "dispatcher/listing_spokes_07.py:347-348, 612-655"
+    },
+    {
+     "t": "When the settlement statement is on file: if other milestones are still open, the close is held (continue closes and records them as waived by the authorized user; cancel leaves the deal open). Otherwise the close goes to Agents 16, 14 and 15.",
+     "src": "dispatcher/listing_spokes_07.py:502-546, 186-207"
+    },
+    {
+     "t": "A late vendor cancellation raises a legal-line alert naming the milestone at risk.",
+     "src": "dispatcher/listing_spokes_07.py:221-249"
+    }
    ],
-   "today": [
-    "The writer's own judgment, sometimes a broker's review of ads, and fair housing training."
-   ],
-   "compare": [
-    "Every piece of outbound text is checked against the same written rules, the same way. It flags; it does not fix."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "The rules, reviewed by the office's counsel.",
-    "Fixing flagged text."
+    {
+     "t": "The contract, every date in the timeline, and every signed amendment to a date.",
+     "src": "dispatcher/listing_spokes_07.py:270-275, 612-655"
+    },
+    {
+     "t": "Every legal-line alert (repairs, appraisal, title, earnest money, financing contingency, wire topics, contradicting dates, vendor hold-ups and late cancellations) and each inspection report.",
+     "src": "dispatcher/listing_spokes_07.py:154-175, 221-249, 386-500, 584-610, 698-727"
+    },
+    {
+     "t": "Whether to close with milestones still open.",
+     "src": "dispatcher/listing_spokes_07.py:528-544"
+    }
    ],
    "never": [
-    "Rewrite content.",
-    "Approve because no rule says no.",
-    "Give a blanket approval."
+    {
+     "t": "Calculate a contract date.",
+     "src": "dispatcher/listing_spokes_07.py:270-275, 314-319"
+    },
+    {
+     "t": "Count a milestone met without its document (or the authorized user's waiver).",
+     "src": "dispatcher/listing_spokes_07.py:548-554, 198-202"
+    },
+    {
+     "t": "Send offer status to a client.",
+     "src": "dispatcher/listing_spokes_07.py:251-268"
+    },
+    {
+     "t": "Handle wire instructions.",
+     "src": "dispatcher/listing_spokes_07.py:154-175"
+    }
    ],
-   "process": "Matches a brokerage's advertising and fair housing review, applied to every piece of text.",
+   "process": {
+    "t": "Corresponds to transaction coordination from contract to closing.",
+    "src": "definition"
+   },
    "not_built": [
-    "Checking that required disclosures are present.",
-    "Detecting from the text alone that a construction is uncovered or a state rule uncertain (the sender marks these)."
+    {
+     "t": "Warnings ahead of a due date: notices go on the due date and once after it passes (the seller disclosure warning is Agent 08's).",
+     "src": "dispatcher/listing_spokes_07.py:673-678"
+    },
+    {
+     "t": "Offer response deadlines: stored with the offer status, nothing watches them.",
+     "src": "dispatcher/listing_spokes_07.py:136, 251-268"
+    }
    ]
   },
   {
-   "id": "18", "name": "Calendar & Task", "team": "Oversight",
-   "job": "The authorized user's calendar and morning briefing. The briefing is built only from what is on record.",
+   "id": "08",
+   "name": "Document Collection",
+   "team": "Transaction",
+   "job": {
+    "t": "Asks for a deal's documents, checks what comes in, files it, and reports each document's status to Agent 07. It does not set deadlines.",
+    "src": "dispatcher/listing_spokes_08.py:146-182, 327-551"
+   },
    "steps": [
-    "Calendar entries arrive from Agents 06, 07 and 09.",
-    "A showing it cannot add (a clash, a full day, no day, an unconfirmed time zone) is refused and Agent 06 is told, so the buyer is not told it is confirmed.",
-    "Deadline blocks from Agent 07 are protected.",
-    "On the daily clock it builds the morning briefing from logged messages and calendar records, with sections from Agents 14, 15, 19 and 10.",
-    "It checks showings for no-shows.",
-    "It tracks what each agent is waiting on, and since when."
+    {
+     "t": "Agent 07 asks for a document. A request is sent to the client through Agent 11.",
+     "src": "dispatcher/listing_spokes_08.py:146-182"
+    },
+    {
+     "t": "On each daily run, a missing document is followed up through Agent 11; on the third run it is reported missing to Agent 07 and a legal-line alert is raised (the cap of 3 is the default). The follow-up pauses while the authorized user's question about an unsigned copy of that document is open.",
+     "src": "dispatcher/listing_spokes_08.py:111-117, 235-274; dispatcher/clock.py:53"
+    },
+    {
+     "t": "A pending seller disclosure whose deadline is 3 days away or closer, and not yet filed, is reported to Agent 07 and raises one legal-line alert.",
+     "src": "dispatcher/listing_spokes_08.py:277-325; dispatcher/clock.py:54"
+    },
+    {
+     "t": "A document that arrives (from the client through Agent 11, or a vendor's report through Agent 09) is checked in this order.",
+     "src": "dispatcher/listing_spokes_08.py:184-190"
+    },
+    {
+     "t": "Addressed to the wrong client: not filed, the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_08.py:332-337"
+    },
+    {
+     "t": "Mentions wire instructions or similar: a legal-line alert, not filed.",
+     "src": "dispatcher/listing_spokes_08.py:125-137, 340-341"
+    },
+    {
+     "t": "A pre-approval letter, proof of funds or settlement statement is accepted only from a sender the authorized user listed for that deal; no list, or a different sender, raises a legal-line alert and it is not filed.",
+     "src": "dispatcher/listing_spokes_08.py:347-386, 192-223"
+    },
+    {
+     "t": "Partial: reported to Agent 07 as partial. A document type the agent does not recognize, while other documents are being asked for: the client is told what was asked for (a recognized type that was not asked for is filed as itself). Not marked as opening correctly: the client is asked to send it again.",
+     "src": "dispatcher/listing_spokes_08.py:391-441"
+    },
+    {
+     "t": "Missing a signature that is expected: reported to Agent 07 as incomplete, the authorized user is asked to get a signed copy, and a request for one goes to the client (its wording awaits the authorized user's signature; until it is signed, Agent 11 does not send it). Two different versions of the same document: both kept, reported as conflicting, and a legal-line alert is raised.",
+     "src": "dispatcher/listing_spokes_08.py:443-491; dispatcher/listing_spokes_11.py:256-266"
+    },
+    {
+     "t": "Otherwise: filed in the client's drawer, logged with Agent 14, and reported to Agent 07 as received, with what Agent 07 needs (repair requests, appraised value, title exception, sale price, earnest-money receipt).",
+     "src": "dispatcher/listing_spokes_08.py:494-551"
+    },
+    {
+     "t": "A question about keeping or disposing of documents goes to the authorized user; nothing is deleted.",
+     "src": "dispatcher/listing_spokes_08.py:225-233"
+    }
    ],
-   "today": [
-    "The agent's own calendar and phone; the morning starts by reading email."
-   ],
-   "compare": [
-    "The briefing comes only from what is on record; nothing is in it that the system cannot source."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Moving a protected deadline block.",
-    "Setting priorities."
+    {
+     "t": "Listing the expected senders for sensitive documents on each deal.",
+     "src": "dispatcher/listing_spokes_08.py:192-223"
+    },
+    {
+     "t": "Deciding quarantined, misaddressed and conflicting documents, and getting a signed copy of an unsigned one.",
+     "src": "dispatcher/listing_spokes_08.py:332-386, 443-491"
+    },
+    {
+     "t": "Retention and disposal of documents.",
+     "src": "dispatcher/listing_spokes_08.py:225-233"
+    }
    ],
    "never": [
-    "Move a deadline block without the authorized user's signature.",
-    "Put an unsourced status in a briefing."
+    {
+     "t": "File a pre-approval letter, proof of funds or settlement statement from a sender not on the list.",
+     "src": "dispatcher/listing_spokes_08.py:347-386"
+    },
+    {
+     "t": "Count a document that is not marked as opening correctly.",
+     "src": "dispatcher/listing_spokes_08.py:434-441"
+    },
+    {
+     "t": "Handle wire instructions.",
+     "src": "dispatcher/listing_spokes_08.py:125-137"
+    }
    ],
-   "process": "Matches an assistant's calendar and daily planning role.",
+   "process": {
+    "t": "Corresponds to transaction file management.",
+    "src": "definition"
+   },
    "not_built": [
-    "To-do lists, time-blocking rules and recurring tasks."
+    {
+     "t": "Whether a file opens is read from a flag on the submission; the agent does not open the file.",
+     "src": "dispatcher/listing_spokes_08.py:434"
+    },
+    {
+     "t": "The expected-sender check covers only pre-approval letters, proof of funds and settlement statements; other documents are not checked against a sender list.",
+     "src": "dispatcher/listing_spokes_08.py:348-350"
+    },
+    {
+     "t": "Requests always go to the client through Agent 11; there is no route to ask a lender, title company or other party directly.",
+     "src": "dispatcher/listing_spokes_08.py:168-171; identity/routes.json (08 sends client.message.request to 11 only)"
+    }
    ]
   },
   {
-   "id": "19", "name": "Prospecting", "team": "Leads",
-   "job": "Finds opportunities (new listings, expired listings, homes for sale by owner) in the authorized user's zip codes and puts them in front of the authorized user. It never contacts anyone.",
+   "id": "09",
+   "name": "Vendor Coordination",
+   "team": "Transaction",
+   "job": {
+    "t": "Books vendors (photographers, inspectors, appraisers, property checks and others) from the authorized user's approved roster, and passes on what they deliver once it comes with proof.",
+    "src": "dispatcher/listing_spokes_09.py:144-301, 355-402"
+   },
    "steps": [
-    "A record arrives from a discovery feed.",
-    "Outside the monitored zip codes: not recorded. From a source the authorized user has not approved: excluded and flagged.",
-    "It records whether the owner is represented and whether the number is on the Do Not Call list, with the source.",
-    "An expired listing or a home for sale by owner raises a legal-line alert before any contact.",
-    "The prospect goes to the authorized user (and to Agent 13 where a buyer's criteria match).",
-    "It never contacts anyone."
+    {
+     "t": "The roster is read at start-up from the office's vendor_panel.json, only if that file is ratified; the result is on the record.",
+     "src": "dispatcher/swarm.py:98-130, 272-273"
+    },
+    {
+     "t": "A vendor request arrives (from Agent 05, 06 or 07). With no date on it, the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_09.py:144-158"
+    },
+    {
+     "t": "It picks the first roster vendor of that kind whose license and insurance dates are current. If only lapsed vendors exist, a legal-line alert; if none exist, the authorized user is asked. A named vendor not on the roster is refused and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_09.py:73-83, 170-221"
+    },
+    {
+     "t": "Two requests for the same vendor slot: the higher deadline priority wins; a tie goes to the authorized user.",
+     "src": "dispatcher/listing_spokes_09.py:227-247"
+    },
+    {
+     "t": "The booking message to the vendor goes out through the dispatcher, which holds it for the authorized user's release; the appointment goes on the calendar (Agent 18).",
+     "src": "dispatcher/listing_spokes_09.py:276-295; dispatcher/hub.py::elif audience in AUDIENCE_GATED:"
+    },
+    {
+     "t": "A daily vacant-property check is not booked again while the last booking is still held or has had no proven delivery; the authorized user is told once.",
+     "src": "dispatcher/listing_spokes_09.py:254-274"
+    },
+    {
+     "t": "A delivery counts only if it is marked as carrying proof. If the booking message was never released, the delivery is held for the authorized user. Accepted photos go to Agent 05; reports go to Agent 08.",
+     "src": "dispatcher/listing_spokes_09.py:355-402, 97-121"
+    },
+    {
+     "t": "A late cancellation is reported to Agents 07 and 06 with the roster's other vendors of that kind; for a regulated role the authorized user is asked to pick. A no-show on a deadline-critical job goes to the authorized user with the alternatives.",
+     "src": "dispatcher/listing_spokes_09.py:85-95, 303-333, 421-441"
+    },
+    {
+     "t": "A rate change, a request for access codes, or an invoice that differs from the quote raises a legal-line alert. Work that grows on site gets a stop-work message (held for release) and the authorized user is told.",
+     "src": "dispatcher/listing_spokes_09.py:335-353, 404-419, 443-461"
+    }
    ],
-   "today": [
-    "The agent or an inside sales person pulls expireds and for-sale-by-owner lists from a lead service and calls them."
-   ],
-   "compare": [
-    "Discovery only. Outreach is the authorized user's decision, every time, with the legal position shown first."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Approving sources.",
-    "Deciding whether and how to reach out."
+    {
+     "t": "The roster and its ratification.",
+     "src": "dispatcher/swarm.py:98-130"
+    },
+    {
+     "t": "Releasing each booking and stop-work message.",
+     "src": "dispatcher/hub.py::elif audience in AUDIENCE_GATED:"
+    },
+    {
+     "t": "Picking replacements, deciding held deliveries and slot ties.",
+     "src": "dispatcher/listing_spokes_09.py:123-138, 231-239, 325-332, 425-436"
+    }
    ],
    "never": [
-    "Contact any party.",
-    "Use a source that is not approved.",
-    "Profile individual households."
+    {
+     "t": "Book a vendor who is not on the roster, or whose license or insurance has lapsed.",
+     "src": "dispatcher/listing_spokes_09.py:170-221"
+    },
+    {
+     "t": "Count a delivery without proof.",
+     "src": "dispatcher/listing_spokes_09.py:360-369"
+    },
+    {
+     "t": "Pass on access codes.",
+     "src": "dispatcher/listing_spokes_09.py:344-353"
+    },
+    {
+     "t": "Approve a different price or a bigger scope.",
+     "src": "dispatcher/listing_spokes_09.py:404-419, 443-461"
+    }
    ],
-   "process": "Matches prospecting research. Contact rules for represented sellers (REALTOR Code of Ethics Article 16) and do-not-call rules are respected by leaving outreach to the authorized user.",
+   "process": {
+    "t": "Corresponds to vendor coordination for listing preparation and inspections.",
+    "src": "definition"
+   },
    "not_built": [
-    "No prospecting source is connected; it does not poll on its own.",
-    "When two sources disagree on a property's status, the later one wins; the disagreement is not flagged."
+    {
+     "t": "The calendar entry carries the day of the request, not the appointment day.",
+     "src": "dispatcher/listing_spokes_09.py:293-295"
+    },
+    {
+     "t": "Proof of a delivery is a flag on the vendor's message; the agent does not open the file.",
+     "src": "dispatcher/listing_spokes_09.py:357"
+    },
+    {
+     "t": "Booking messages are held and, once released, kept in the run; nothing is sent to a vendor (see Agent 00).",
+     "src": "dispatcher/swarm.py:220-222"
+    }
    ]
   },
   {
-   "id": "20", "name": "Social Media Monitoring", "team": "Oversight",
-   "job": "Listens on the social channels the authorized user designated, and routes what it hears. It never posts a public reply.",
+   "id": "10",
+   "name": "Market Data",
+   "team": "Listing",
+   "job": {
+    "t": "Assembles comparable-sale and neighborhood packages from the figures it is given, keeping only figures with a source and a retrieval date, and gives no opinion. It has no data source of its own.",
+    "src": "dispatcher/listing_spokes_10.py:66-79, 197-327"
+   },
    "steps": [
-    "A mention arrives from a designated channel, with its sentiment.",
-    "A question or a lead goes to Agent 01 as a lead, with its channel.",
-    "A complaint (or a mixed mention) raises a complaint alert for the authorized user and holds scheduled messages to that person.",
-    "Praise is logged only.",
-    "A suggested reply comes only from the authorized user's signed templates, is checked by Compliance and is held for the authorized user.",
-    "It never posts."
+    {
+     "t": "A request for a package comes only from the authorized user (Agent 19's route to this agent was removed on 2026-10-28); Agent 18 asks for the briefing section.",
+     "src": "dispatcher/listing_spokes_10.py:110-135; identity/routes.json:147-153"
+    },
+    {
+     "t": "A request for an opinion (\"your opinion\", \"what would you price it\" and similar) is refused; asked again, it raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_10.py:16-17, 138-152"
+    },
+    {
+     "t": "The code also checks who asked: a request not marked for internal use, from anyone but the authorized user, would get only a note to the authorized user and no package, because sharing MLS-derived data outside is the authorized user's decision. Since only the authorized user can send a request, this check is not reached.",
+     "src": "dispatcher/listing_spokes_10.py:157-171; identity/routes.json:147-153"
+    },
+    {
+     "t": "A request for a period past the retention window (730 days by default) is answered as absent; nothing is reconstructed.",
+     "src": "dispatcher/listing_spokes_10.py:86, 174-182"
+    },
+    {
+     "t": "Comparables: each must carry a source and a retrieval date; when the request gives today's date, those older than 30 days (the default) are dropped and counted (with no date given, none is dropped for age); the same address with two different prices is shown as a conflict; fewer than 5 marks the package thin. It is still delivered, with those counts.",
+     "src": "dispatcher/listing_spokes_10.py:197-259"
+    },
+    {
+     "t": "Neighborhood figures: the same source and date checks, and the same age check when today's date is given; two sources that disagree are both shown, not chosen between.",
+     "src": "dispatcher/listing_spokes_10.py:261-327"
+    },
+    {
+     "t": "Wording that sounds like a request for a valuation (\"is this worth\", \"give me a value\") adds a note that the package is not an appraisal, and Compliance (Agent 17) is notified with who asked and the date; Agent 17 puts it in the next morning briefing.",
+     "src": "dispatcher/listing_spokes_10.py:18-19, 155-156, 241-248, 309-316; dispatcher/listing_spokes_17.py:349-373"
+    },
+    {
+     "t": "Every delivered comparable or neighborhood package is logged with Agent 14; a refusal, an \"absent\" answer and the note to the authorized user are not logged.",
+     "src": "dispatcher/listing_spokes_10.py:144-151, 157-182, 257-259, 325-327"
+    },
+    {
+     "t": "For the morning briefing it reports the listing data it has received from Agent 05 since the last briefing (the office's own listings, not the market).",
+     "src": "dispatcher/listing_spokes_10.py:106-131"
+    }
    ],
-   "today": [
-    "The agent checks notifications and replies personally, or does not."
-   ],
-   "compare": [
-    "It listens and routes; it never replies in public and never confirms who is a client."
-   ],
+   "today": [],
+   "compare": [],
    "user_part": [
-    "Every public reply."
+    {
+     "t": "Every price opinion and valuation.",
+     "src": "dispatcher/listing_spokes_10.py:138-152"
+    },
+    {
+     "t": "Supplying the figures (there is no data source connected).",
+     "src": "dispatcher/listing_spokes_10.py:66-79"
+    },
+    {
+     "t": "Deciding what may be shared outside.",
+     "src": "dispatcher/listing_spokes_10.py:163-171"
+    }
    ],
    "never": [
-    "Post.",
-    "Confirm or deny that someone is a client.",
-    "Engage automatically, even with praise."
+    {
+     "t": "Give an opinion, a value or a recommended price.",
+     "src": "dispatcher/listing_spokes_10.py:138-152, 230-240 (no opinion field)"
+    },
+    {
+     "t": "Keep a figure that has no source or retrieval date.",
+     "src": "dispatcher/listing_spokes_10.py:200-201, 268-270"
+    },
+    {
+     "t": "Choose between two sources that disagree.",
+     "src": "dispatcher/listing_spokes_10.py:225-226, 294-297"
+    }
    ],
-   "process": "Matches reputation monitoring, with the reply left to a person.",
+   "process": {
+    "t": "Corresponds to the data-gathering half of a comparative market analysis.",
+    "src": "definition"
+   },
    "not_built": [
-    "No social platform is connected.",
-    "Sentiment arrives with the mention; the agent does not classify the text itself."
+    {
+     "t": "No MLS or market data source: comparables and figures come with the request.",
+     "src": "dispatcher/listing_spokes_10.py:66-79"
+    },
+    {
+     "t": "Market trend tracking for a farm area.",
+     "src": "dispatcher/listing_spokes_10.py (no trend code)"
+    },
+    {
+     "t": "Supplied neighborhood figures are not checked for characterizations such as \"safe\" or \"good schools\".",
+     "src": "dispatcher/listing_spokes_10.py:280-300 (values passed through unchecked)"
+    }
+   ]
+  },
+  {
+   "id": "11",
+   "name": "Client Communication",
+   "team": "Clients and records",
+   "job": {
+    "t": "The only agent that sends messages to the office's clients. Other agents give it a message template and the facts; it checks consent and holds, sends, and logs. It also reads each client reply and routes it, or holds it for the authorized user.",
+    "src": "dispatcher/listing_spokes_11.py:240-360, 458-550, 552-812"
+   },
+   "steps": [
+    {
+     "t": "A message request arrives (a status update from Agent 05, a deadline notice from Agent 07, or a request from another agent).",
+     "src": "dispatcher/listing_spokes_11.py:458"
+    },
+    {
+     "t": "A request with no message template is a client's own question: nothing is sent, the authorized user gets it as \"reply needed\", and it is logged.",
+     "src": "dispatcher/listing_spokes_11.py:475-499"
+    },
+    {
+     "t": "A client under a complaint hold gets nothing except an opt-out confirmation; the blocked message is logged.",
+     "src": "dispatcher/listing_spokes_11.py:459-474, 503-518, 243-255"
+    },
+    {
+     "t": "A template with a missing value is not sent, and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_11.py:268-281"
+    },
+    {
+     "t": "A message whose wording the authorized user has not signed yet (identity verification needed, a request to resend an unsigned document, a question about an unknown buying criterion) is not sent and is logged with Agent 14; a signed setting naming the template releases that wording for later messages.",
+     "src": "dispatcher/listing_spokes_11.py:26-31, 256-266, 429-440"
+    },
+    {
+     "t": "Quiet hours (21:00 to 8:00 by default): the message is held, logged with Agent 14, and the authorized user is told it goes at 08:00; it goes on the first daily run at or after 08:00, through every check again (complaint hold, signed wording, missing values, consent). The hour is the one the message carries; with none, this computer's clock. Not held: an alert class set as exempt (none by default), and Agent 03's follow-up touches, which Agent 03 tries again on its own clock.",
+     "src": "dispatcher/listing_spokes_11.py:111-119, 121-124, 150-154, 231-238, 283-318, 362-387; dispatcher/clock.py:29-39, 55"
+    },
+    {
+     "t": "Before every send (except an opt-out confirmation) it asks Agent 14 for the client's consent. No channel marked yes: not sent and logged, and if there is no consent on record at all, the authorized user is told once.",
+     "src": "dispatcher/listing_spokes_11.py:320-353"
+    },
+    {
+     "t": "Otherwise the message goes out through the dispatcher (on the channel named, when the request names call, text or email) and the touch is logged with Agent 14.",
+     "src": "dispatcher/listing_spokes_11.py:33, 354-360, 545"
+    },
+    {
+     "t": "A follow-up touch from Agent 03 that is not sent is reported back to Agent 03.",
+     "src": "dispatcher/listing_spokes_11.py:389-400"
+    },
+    {
+     "t": "A client reply is checked in order: angry or negative words (a fixed list), or those labels set by an upstream classifier, raise a complaint alert and hold all routine messages to that client; wire wording or a request for access raises a legal-line alert; \"what would you do\" raises a legal-line alert and nothing more; another advice phrase raises a legal-line alert and the client gets an acknowledgement that a person will answer, unless the reply also has a routine part, which then goes to its owning agent with no acknowledgement.",
+     "src": "dispatcher/listing_spokes_11.py:552-648; dispatcher/message_tags.py:20-31, 58-69"
+    },
+    {
+     "t": "A request to change channel is logged with consent for the new channel. It is confirmed to the client only if Agent 14 then shows consent on that channel. While Agent 14's record is frozen nothing is confirmed (the change waits there and Agent 14 has asked the authorized user); with an earlier opt-out, or no consent shown, nothing is confirmed and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_11.py:664-717"
+    },
+    {
+     "t": "A showing request is checked with Agent 14: no buyer agreement sends it to Agent 13; otherwise it goes to Agent 06 with the agreement and identity flags. Showing feedback or a no-show goes to Agent 06. An attached document goes to Agent 08.",
+     "src": "dispatcher/listing_spokes_11.py:732-767, 776-812"
+    },
+    {
+     "t": "Any other reply goes to the agent named as its owner (Agents 03, 04, 12, 13, 16 or 20); with no valid owner it is held for the authorized user, who names the agent or closes it.",
+     "src": "dispatcher/listing_spokes_11.py:40, 167-229, 769-774"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Every answer that involves advice, and closing the advice wait with a signed setting.",
+     "src": "dispatcher/listing_spokes_11.py:442-447, 633-644"
+    },
+    {
+     "t": "Responding to complaints and lifting a complaint hold (signed).",
+     "src": "dispatcher/listing_spokes_11.py:448-456"
+    },
+    {
+     "t": "Recording consent for clients who did not come in as leads (at Agent 14).",
+     "src": "dispatcher/listing_spokes_11.py:343-350"
+    },
+    {
+     "t": "Routing replies that name no owner.",
+     "src": "dispatcher/listing_spokes_11.py:196-229"
+    },
+    {
+     "t": "Signing the wording of the three messages that wait for it.",
+     "src": "dispatcher/listing_spokes_11.py:26-31, 429-440"
+    }
+   ],
+   "never": [
+    {
+     "t": "Send to a client without consent marked yes on some channel (an opt-out confirmation excepted).",
+     "src": "dispatcher/listing_spokes_11.py:320-353"
+    },
+    {
+     "t": "Send with a missing template value.",
+     "src": "dispatcher/listing_spokes_11.py:268-281"
+    },
+    {
+     "t": "Answer an advice question or an angry message itself.",
+     "src": "dispatcher/listing_spokes_11.py:552-664"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to routine client updates and inbox triage.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "Nothing reaches a client: sent messages are kept in the run (see Agent 00).",
+     "src": "dispatcher/swarm.py:220-222"
+    },
+    {
+     "t": "Quiet hours use this computer's clock and time zone; a client's own time zone is not known.",
+     "src": "dispatcher/clock.py:29-39; dispatcher/listing_spokes_11.py:231-238"
+    }
+   ]
+  },
+  {
+   "id": "12",
+   "name": "Marketing Campaign",
+   "team": "Listing",
+   "job": {
+    "t": "Publishes marketing: the approved listing description from Agent 04, and campaigns the authorized user signs. Every publication is held by the dispatcher for the authorized user's release.",
+    "src": "dispatcher/listing_spokes_12.py:106-137, 268-300, 322-365"
+   },
+   "steps": [
+    {
+     "t": "An approved listing description arrives from Agent 04, or the authorized user signs a new campaign (copy and audience).",
+     "src": "dispatcher/listing_spokes_12.py:268-279, 322-323"
+    },
+    {
+     "t": "A campaign asking for demographic targeting raises a legal-line alert and is refused. A farm campaign (an area, no listing) must use general targeting, or it raises a legal-line alert. A tie-in to a trending topic goes to the authorized user first.",
+     "src": "dispatcher/listing_spokes_12.py:326-351"
+    },
+    {
+     "t": "Campaign copy goes to Compliance (Agent 17). Flagged: nothing is published and the authorized user is told. The listing description from Agent 04 was already approved and is not sent again.",
+     "src": "dispatcher/listing_spokes_12.py:354-365, 377-419"
+    },
+    {
+     "t": "Clear Cooperation: nothing for a listing is published until Agent 05 reports it active, or the authorized user records an exemption with the seller's disclosure on file. Approved material waits (the wait is reported to Agent 18) and is published automatically when that happens. A farm campaign is not tied to a listing and is not held this way.",
+     "src": "dispatcher/listing_spokes_12.py:95-99, 139-153, 181-185, 280-298, 318-321, 384-402"
+    },
+    {
+     "t": "Every ad carries the office's brokerage identification; with none on file, the approved ad is held and the authorized user is asked to sign it.",
+     "src": "dispatcher/listing_spokes_12.py:101-123, 302-317"
+    },
+    {
+     "t": "The publication goes out through the dispatcher, which holds it for the authorized user's release, and it is logged with Agent 14.",
+     "src": "dispatcher/listing_spokes_12.py:124-137; dispatcher/hub.py::elif audience in AUDIENCE_GATED:"
+    },
+    {
+     "t": "When the listing becomes pending, sold or withdrawn, marketing for it stops: a live ad gets a halt message, an ad still held is put to the authorized user to decline. A price change on an ad that shows the old price goes to the authorized user.",
+     "src": "dispatcher/listing_spokes_12.py:186-266"
+    },
+    {
+     "t": "Platform figures are logged with the platform named; two platforms that disagree go to the authorized user. A figure at or over the spike threshold (50 unless set) is passed to Agent 03.",
+     "src": "dispatcher/listing_spokes_12.py:534-563"
+    },
+    {
+     "t": "A platform that shortened the ad sends the shortened copy back to Compliance; a platform rejection is logged and the authorized user is told; a stale ad is reopened for correction, or retracted when retraction is asked for (the retraction is held for release). If no ad was ever published, or the ad is still held for release, nothing is retracted and the authorized user is told (asked to decline a held ad).",
+     "src": "dispatcher/listing_spokes_12.py:425-532"
+    },
+    {
+     "t": "A client's reply about marketing is logged and held for the authorized user.",
+     "src": "dispatcher/listing_spokes_12.py:158-178"
+    },
+    {
+     "t": "A setting that names a campaign budget is refused and the authorized user is told; nothing is stored (budgets were retired on 2026-10-28: no ad carries a cost).",
+     "src": "dispatcher/listing_spokes_12.py:366-375"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Signing campaigns, exemptions and the brokerage identification.",
+     "src": "dispatcher/listing_spokes_12.py:302-365"
+    },
+    {
+     "t": "Releasing (or declining) every publication.",
+     "src": "dispatcher/hub.py:325-394"
+    },
+    {
+     "t": "Answering flagged copy, platform rejections and replies.",
+     "src": "dispatcher/listing_spokes_12.py:405-419, 443-454, 158-178"
+    }
+   ],
+   "never": [
+    {
+     "t": "Publish a listing's marketing before Clear Cooperation is met.",
+     "src": "dispatcher/listing_spokes_12.py:95-99, 280-298"
+    },
+    {
+     "t": "Publish an ad without the brokerage identification.",
+     "src": "dispatcher/listing_spokes_12.py:106-123"
+    },
+    {
+     "t": "Target by demographics.",
+     "src": "dispatcher/listing_spokes_12.py:326-334"
+    },
+    {
+     "t": "Accept a platform's edit without a new compliance review.",
+     "src": "dispatcher/listing_spokes_12.py:425-447"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to listing marketing and advertising.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "No social or ad platform is connected; publications are kept in the run after release (see Agent 00).",
+     "src": "dispatcher/swarm.py:220-222"
+    },
+    {
+     "t": "It writes no copy of its own: campaigns are the authorized user's signed text.",
+     "src": "dispatcher/listing_spokes_12.py:322-365"
+    },
+    {
+     "t": "Engagement figures are kept per platform per client; a second figure from the same platform replaces the first.",
+     "src": "dispatcher/listing_spokes_12.py:534-538"
+    }
+   ]
+  },
+  {
+   "id": "13",
+   "name": "Buyer Search & Match",
+   "team": "Buyers and showings",
+   "job": {
+    "t": "Keeps each buyer's criteria as the authorized user signed them, matches new listings against them, and sends matches through Agent 11 once the buyer agreement is on file. It never adds a criterion the buyer did not state.",
+    "src": "dispatcher/listing_spokes_13.py:447-482, 118-438"
+   },
+   "steps": [
+    {
+     "t": "The authorized user signs the buyer's criteria: added to the list, or replacing the whole list (a signed replace; the old and new lists are logged with Agent 14 and kept matches are checked again). A criterion that touches a protected class (a fixed word list, such as \"school rating\" or \"demographics\") raises a legal-line alert and is not added. One marked fair-housing sensitive goes to Compliance and is used only if approved; if not, the authorized user is told.",
+     "src": "dispatcher/listing_spokes_13.py:18-20, 326-350, 447-469, 484-503"
+    },
+    {
+     "t": "A new listing from Agent 05, or an opportunity from Agent 19, is checked against every buyer's criteria; one sent under a buyer's own record is checked for that buyer only.",
+     "src": "dispatcher/listing_spokes_13.py:505-530; identity/routes.json:229-237"
+    },
+    {
+     "t": "Over the buyer's budget: not matched, unless it is in the buyer's stated area, in which case the authorized user is asked. A listing with a data anomaly is not presented and the authorized user is asked. A colleague's own listing raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_13.py:126-160, 222-231"
+    },
+    {
+     "t": "A listing that lacks a field the buyer marked as a must is kept, not presented: the authorized user is asked, and the buyer is asked once per listing (that message's wording awaits the authorized user's signature; until it is signed, Agent 11 does not send it). When the authorized user records the buyer's answer as a standing preference to receive such listings, the kept matches are checked again; with that preference already on record, the listing is matched with the missing field marked unknown.",
+     "src": "dispatcher/listing_spokes_13.py:181-217, 318-324, 470-475; dispatcher/listing_spokes_11.py:256-266"
+    },
+    {
+     "t": "A number in the criteria is a minimum, except the budget, which is a maximum compared with the price; other values must match exactly; a field the listing lacks is not counted against the match (in the digest ranking it counts as not met).",
+     "src": "dispatcher/listing_spokes_13.py:27-34, 128-150, 162-179, 396-412"
+    },
+    {
+     "t": "Before a match goes out, it asks Agent 14 whether the buyer agreement is on file. If not, the match is held, logged, and the authorized user is told once; the daily run asks again, and held matches go out when it is recorded.",
+     "src": "dispatcher/listing_spokes_13.py:258-316, 352-357; dispatcher/clock.py:56"
+    },
+    {
+     "t": "Up to 5 matches a day go to the buyer one at a time through Agent 11; the rest go in one ranked digest on the daily run. Every match is logged with Agent 14.",
+     "src": "dispatcher/listing_spokes_13.py:359-394, 414-438; dispatcher/clock.py:57"
+    },
+    {
+     "t": "A change to a listing already matched (for example a price) is sent to the buyer through Agent 11 when Agent 05 names the changed field, and only if the listing still passes the checks above: a price that rises over the buyer's budget, for example, sends nothing.",
+     "src": "dispatcher/listing_spokes_13.py:118-150, 233-256"
+    },
+    {
+     "t": "A buyer's reply asking for a price opinion or the seller's position, or touching a protected class, raises a legal-line alert. A reply that contradicts the stated criteria asks the buyer to confirm; criteria change only from the buyer's explicit feedback or the authorized user's signed criteria.",
+     "src": "dispatcher/listing_spokes_13.py:21-25, 556-599"
+    },
+    {
+     "t": "A buyer asking for a showing: it checks Agent 14 for the buyer agreement; without it, a legal-line alert; with it, a showing request goes to Agent 06.",
+     "src": "dispatcher/listing_spokes_13.py:601-607, 627-662"
+    },
+    {
+     "t": "Any other reply is logged and held for the authorized user.",
+     "src": "dispatcher/listing_spokes_13.py:609-625"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Recording the buyer's criteria, word for word, and replacing them when the buyer changes them (signed).",
+     "src": "dispatcher/listing_spokes_13.py:447-469"
+    },
+    {
+     "t": "Recording the buyer agreement (at Agent 14).",
+     "src": "dispatcher/listing_spokes_13.py:306-316"
+    },
+    {
+     "t": "Answering price, seller-position and protected-class questions, and any buyer reply no rule covers.",
+     "src": "dispatcher/listing_spokes_13.py:559-580, 609-625"
+    },
+    {
+     "t": "Recording the buyer's answer about listings that lack a must-have field (a signed standing preference).",
+     "src": "dispatcher/listing_spokes_13.py:203-212, 470-475"
+    }
+   ],
+   "never": [
+    {
+     "t": "Add a criterion the buyer did not state, or one that touches a protected class.",
+     "src": "dispatcher/listing_spokes_13.py:326-343, 447-469, 575-580"
+    },
+    {
+     "t": "Send a match before the buyer agreement is on file.",
+     "src": "dispatcher/listing_spokes_13.py:258-316"
+    },
+    {
+     "t": "Ask for a showing without the buyer agreement.",
+     "src": "dispatcher/listing_spokes_13.py:636-645"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to buyer search and listing alerts.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "A showing request it sends to Agent 06 carries no time. If the buyer's identity is not verified on record, Agent 06 cancels it (see Agent 06); if it is, Agent 18 cannot place it on the calendar and the showing is held for the authorized user.",
+     "src": "dispatcher/listing_spokes_13.py:627-662; dispatcher/listing_spokes_06.py:517-541, 745-768"
+    },
+    {
+     "t": "No MLS search: it matches only listings that come from Agent 05 or Agent 19.",
+     "src": "dispatcher/listing_spokes_13.py:505-530"
+    }
+   ]
+  },
+  {
+   "id": "14",
+   "name": "CRM & Pipeline",
+   "team": "Clients and records",
+   "job": {
+    "t": "The office's record of each client: every interaction other agents log, consent per channel, the buyer agreement and identity flags, client dates and property access grants. Other agents ask it before acting. It does not message clients.",
+    "src": "dispatcher/listing_spokes.py:89-138, 493-734"
+   },
+   "steps": [
+    {
+     "t": "Every interaction an agent logs is appended to the client's record with the message it came from, and a copy is filed in the client's drawer. A value that differs from the last entry of the same kind of event is marked as a conflict on the new entry and listed in the next morning briefing.",
+     "src": "dispatcher/listing_spokes.py:187-258, 382-400, 580-603"
+    },
+    {
+     "t": "Consent is updated channel by channel: a \"no\" is never turned back to \"yes\" by a later log entry.",
+     "src": "dispatcher/listing_spokes.py:325-337, 580-585"
+    },
+    {
+     "t": "The authorized user can sign a client's consent (call, text, email). A channel the client opted out of stays \"no\" unless the signed record says the client reconfirmed, and the authorized user is told.",
+     "src": "dispatcher/listing_spokes.py:619-657"
+    },
+    {
+     "t": "It answers Agent 01's duplicate check (is this person known, and is the same phone or email on another client) and every other agent's record request with the record, consent, and the buyer agreement and identity flags.",
+     "src": "dispatcher/listing_spokes.py:519-578"
+    },
+    {
+     "t": "The authorized user signs the buyer agreement and identity flags, and client dates (yearly or one-off).",
+     "src": "dispatcher/listing_spokes.py:659-705"
+    },
+    {
+     "t": "On the daily run, a client date that falls today, for a client with consent on some channel, is sent to Agent 16.",
+     "src": "dispatcher/listing_spokes.py:402-429; dispatcher/clock.py:59"
+    },
+    {
+     "t": "Property access: the authorized user signs a grant (who, until when, a custody reference). A value containing a word that names the secret (code, combo, combination, password, pin, passcode) is rejected; a bare code with no such word is not detected. On the daily run, a grant whose window ended without being closed is raised with the authorized user once.",
+     "src": "dispatcher/listing_spokes.py:260-306, 308-323; dispatcher/clock.py:60"
+    },
+    {
+     "t": "A request to delete a record freezes it and raises a legal-line alert. On a frozen record an opt-out still takes effect and is recorded; every other change (a log entry, consent, the buyer agreement and identity flags, client dates, an access record) waits, nothing changes, and the authorized user is told. When the authorized user lifts the freeze, the waiting changes are applied in the order they came. Answers to record requests say the record is frozen.",
+     "src": "dispatcher/listing_spokes.py:187-209, 339-380, 511-517, 574-577, 707-734"
+    },
+    {
+     "t": "For the morning briefing it reports the leads captured since the last briefing and the record conflicts not reported before. On the evening run it sends its end-of-day counts to Agent 15.",
+     "src": "dispatcher/listing_spokes.py:382-400, 431-450, 452-491, 499-509; dispatcher/clock.py:58"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Signed record updates: consent, buyer agreement, identity, client dates, access grants and closings.",
+     "src": "dispatcher/listing_spokes.py:260-306, 619-705"
+    },
+    {
+     "t": "Deletion and retention of records.",
+     "src": "dispatcher/listing_spokes.py:707-734"
+    }
+   ],
+   "never": [
+    {
+     "t": "Message a client.",
+     "src": "identity/routes.json (14 sends record.response, date.trigger, report.package only)"
+    },
+    {
+     "t": "Turn a \"no\" back to \"yes\" without the client's reconfirmation.",
+     "src": "dispatcher/listing_spokes.py:325-337, 638-645"
+    },
+    {
+     "t": "Store an access code given by name (a value naming the code, combination, PIN or password is rejected).",
+     "src": "dispatcher/listing_spokes.py:260-286"
+    },
+    {
+     "t": "Delete a record.",
+     "src": "dispatcher/listing_spokes.py:722-734"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to the brokerage CRM, the system of record.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "Consent changes are not pushed to other agents; Agent 11 asks before every send except an opt-out confirmation.",
+     "src": "identity/routes.json (no consent route from 14); dispatcher/listing_spokes_11.py:320-353"
+    },
+    {
+     "t": "Pipeline stages and referral-source tracking.",
+     "src": "dispatcher/listing_spokes.py (no stage or referral code)"
+    },
+    {
+     "t": "A conflicting value is marked on the entry and listed in the next morning briefing; the authorized user is not asked to resolve it.",
+     "src": "dispatcher/listing_spokes.py:222-251, 382-400"
+    }
+   ]
+  },
+  {
+   "id": "15",
+   "name": "Financial Tracking",
+   "team": "Clients and records",
+   "job": {
+    "t": "Records commissions and expenses and reports figures to the authorized user. It has no way to move money.",
+    "src": "dispatcher/listing_spokes_15.py:66-378; identity/routes.json (15 sends report.package, record.request, agent.status only)"
+   },
+   "steps": [
+    {
+     "t": "When a deal closes it records the commission from the closing. With no commission amount but a sale price, it computes one at the default rate of 8% (the owner-ratified starting point, 2026-07-17) and labels it as computed. An unsigned close is labeled a projection.",
+     "src": "dispatcher/listing_spokes_15.py:66-68, 111-134"
+    },
+    {
+     "t": "It checks the recorded commission against what Agent 14 has logged for the close; a difference raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_15.py:148-182"
+    },
+    {
+     "t": "The authorized user enters expenses (signed); each is recorded with its date and marked verified only with a receipt on file, and filed in the client's drawer.",
+     "src": "dispatcher/listing_spokes_15.py:280-307"
+    },
+    {
+     "t": "Anything signed that mentions escrow, a trust account, earnest money or a disbursement, anywhere in it, raises a legal-line alert and is not recorded; so do commission language questions and a commission that differs from the contract figure.",
+     "src": "dispatcher/listing_spokes_15.py:18-19, 100-105, 230-278; dispatcher/listing_spokes_08.py:47-55"
+    },
+    {
+     "t": "Reports on request (signed): profit and loss naming the months with no data, pipeline value excluding leads of unknown tier, and a forecast no longer than the data supports. Two attribution claims from different sources for the same thing are both sent to the authorized user as soon as the second arrives.",
+     "src": "dispatcher/listing_spokes_15.py:309-377"
+    },
+    {
+     "t": "For the morning briefing it reports yesterday's recorded figures; on the evening run it adds the day's figures to Agent 14's counts and sends one report to the authorized user.",
+     "src": "dispatcher/listing_spokes_15.py:75-98, 184-206"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "All money, and every escrow, trust and disbursement matter.",
+     "src": "dispatcher/listing_spokes_15.py:230-254"
+    },
+    {
+     "t": "Entering expenses and asking for reports (signed).",
+     "src": "dispatcher/listing_spokes_15.py:280-377"
+    },
+    {
+     "t": "Resolving commission differences.",
+     "src": "dispatcher/listing_spokes_15.py:151-182, 264-278"
+    }
+   ],
+   "never": [
+    {
+     "t": "Move money (no route out exists for it).",
+     "src": "identity/routes.json (15 sends report.package, record.request, agent.status only)"
+    },
+    {
+     "t": "Record an escrow, trust or disbursement instruction.",
+     "src": "dispatcher/listing_spokes_15.py:230-254"
+    },
+    {
+     "t": "Present a computed or unsigned commission without its label.",
+     "src": "dispatcher/listing_spokes_15.py:120-134"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to brokerage bookkeeping, record-keeping side only.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "No accounting system or platform export is connected; figures come from closings and signed entries.",
+     "src": "dispatcher/listing_spokes_15.py:111-134, 280-307"
+    },
+    {
+     "t": "A forecast within the data horizon returns only the horizon; no forecast figures are produced.",
+     "src": "dispatcher/listing_spokes_15.py:374-376"
+    },
+    {
+     "t": "Tax-relevant expenses are recorded with the tax flags the authorized user gives; the agent does not determine them.",
+     "src": "dispatcher/listing_spokes_15.py:280-303"
+    }
+   ]
+  },
+  {
+   "id": "16",
+   "name": "After-Close & Referral",
+   "team": "Clients and records",
+   "job": {
+    "t": "Keeps in touch with past clients after closing (check-ins, greetings, and the alerts and requests the authorized user signs), only for people on the authorized user's client list, and routes what they write back.",
+    "src": "dispatcher/listing_spokes_16.py:59-325"
+   },
+   "steps": [
+    {
+     "t": "The authorized user puts a client on the list (signed). A close reported by Agent 07 records the close date.",
+     "src": "dispatcher/listing_spokes_16.py:142-144, 172-176"
+    },
+    {
+     "t": "Every touch first passes one check: on the list, not opted out, no hard life event marked, contact still working. A blocked touch is logged with Agent 14 with the reason.",
+     "src": "dispatcher/listing_spokes_16.py:71-96"
+    },
+    {
+     "t": "On the daily run, the 30, 90 and 365-day check-ins go through Agent 11 when due (one per run).",
+     "src": "dispatcher/listing_spokes_16.py:98-133; dispatcher/clock.py:61"
+    },
+    {
+     "t": "A date reminder from Agent 14 (a birthday or anniversary) becomes a greeting through Agent 11. For someone not on the list, nothing is sent and the authorized user is told.",
+     "src": "dispatcher/listing_spokes_16.py:146-170"
+    },
+    {
+     "t": "A rate alert, a referral request or a review request goes out only when the authorized user signs it; a rate alert needs its source, or it is not sent.",
+     "src": "dispatcher/listing_spokes_16.py:204-239"
+    },
+    {
+     "t": "A past client asking about a gift or incentive, or a pricing question, raises a legal-line alert. A mention of a referral reward goes to Compliance with the client's words, and the verdict comes back to the authorized user with Compliance's findings; nothing is sent to the client.",
+     "src": "dispatcher/listing_spokes_16.py:242-295"
+    },
+    {
+     "t": "A past client mentioning new business (for example \"thinking of selling\") is passed to Agent 02 as a new lead under a new client record; the old one stays closed.",
+     "src": "dispatcher/listing_spokes_16.py:297-309"
+    },
+    {
+     "t": "Any other reply is logged and held for the authorized user.",
+     "src": "dispatcher/listing_spokes_16.py:311-325"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "The client list, opt-outs, hard life events, and reinstating a contact (all signed).",
+     "src": "dispatcher/listing_spokes_16.py:172-203"
+    },
+    {
+     "t": "Signing rate alerts, referral requests and review requests.",
+     "src": "dispatcher/listing_spokes_16.py:204-239"
+    },
+    {
+     "t": "Answering referral reward and pricing questions.",
+     "src": "dispatcher/listing_spokes_16.py:242-295"
+    }
+   ],
+   "never": [
+    {
+     "t": "Contact someone who is not on the list, opted out, marked as in a hard time, or whose contact stopped working.",
+     "src": "dispatcher/listing_spokes_16.py:71-84"
+    },
+    {
+     "t": "Offer a referral reward.",
+     "src": "dispatcher/listing_spokes_16.py:261-287"
+    },
+    {
+     "t": "Search for new contact details.",
+     "src": "dispatcher/listing_spokes_16.py:55-56, 189-195"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to past-client follow-up and referrals.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "A new lead from a past client goes straight to Agent 02, skipping Agent 01's consent capture and duplicate check.",
+     "src": "dispatcher/listing_spokes_16.py:297-305"
+    },
+    {
+     "t": "Maintenance tips (there is no code for them). Referral and review requests go only when the authorized user signs each one; nothing schedules them.",
+     "src": "dispatcher/listing_spokes_16.py:224-239"
+    },
+    {
+     "t": "Touch text is a template sent through Agent 11; it is not checked by Compliance first.",
+     "src": "dispatcher/listing_spokes_16.py:129-130, 166-167"
+    }
+   ]
+  },
+  {
+   "id": "17",
+   "name": "Compliance & Fair Housing",
+   "team": "Oversight",
+   "job": {
+    "t": "Checks outgoing text against the compliance rules the authorized user signs: lists of prohibited phrases, each with its rule. It approves or flags, citing the phrase and the rule; it never rewrites.",
+    "src": "dispatcher/listing_spokes_17.py:81-105, 199-347"
+   },
+   "steps": [
+    {
+     "t": "The authorized user signs the rules: prohibited phrases with rule IDs, rules per state, and optionally which kinds of content and which states the rules cover. Malformed rules are rejected whole. Until rules are signed, nothing can be approved.",
+     "src": "dispatcher/listing_spokes_17.py:68-69, 148-197"
+    },
+    {
+     "t": "Content arrives for review from Agents 03, 04, 12, 13, 16 or 20. With no rules signed, it waits and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_17.py:199-229"
+    },
+    {
+     "t": "It looks for each prohibited phrase, and each rule for the content's state, anywhere in the text, ignoring capital letters.",
+     "src": "dispatcher/listing_spokes_17.py:81-105, 231-247"
+    },
+    {
+     "t": "For advertising it checks that the brokerage identification the authorized user signed appears in the text; with none on file the ad is blocked.",
+     "src": "dispatcher/listing_spokes_17.py:126-138, 266-280"
+    },
+    {
+     "t": "A kind of content the rules do not cover, or a state the rules do not list as reviewed, is flagged; the state case also raises a legal-line alert.",
+     "src": "dispatcher/listing_spokes_17.py:285-311"
+    },
+    {
+     "t": "The verdict (approved or flagged, with each finding and the rules version) goes back to the sender and is logged with Agent 14.",
+     "src": "dispatcher/listing_spokes_17.py:313-346"
+    },
+    {
+     "t": "The same content sent again after being flagged raises a legal-line alert. Three flags for the same agent produce a report to the authorized user, then the count restarts.",
+     "src": "dispatcher/listing_spokes_17.py:243-260, 325-333"
+    },
+    {
+     "t": "A request to approve a whole kind of content in advance is refused.",
+     "src": "dispatcher/listing_spokes_17.py:139-147, 206-214"
+    },
+    {
+     "t": "On the daily run, a review waiting longer than 1 day (the default) is raised with the authorized user, once per review.",
+     "src": "dispatcher/listing_spokes_17.py:64, 376-410; dispatcher/clock.py:62"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Writing and signing the rules and the brokerage identification; the rules can list the states the office's counsel has reviewed.",
+     "src": "dispatcher/listing_spokes_17.py:126-197, 291-311"
+    },
+    {
+     "t": "Acting on flagged text that the sending agent passes on (each agent's page says what it does with a flag).",
+     "src": "dispatcher/listing_spokes_17.py:333-337"
+    }
+   ],
+   "never": [
+    {
+     "t": "Rewrite content.",
+     "src": "dispatcher/listing_spokes_17.py:335-339 (a verdict and findings only)"
+    },
+    {
+     "t": "Approve anything while no rules are signed.",
+     "src": "dispatcher/listing_spokes_17.py:217-229"
+    },
+    {
+     "t": "Approve a whole kind of content in advance.",
+     "src": "dispatcher/listing_spokes_17.py:139-147"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to an office's advertising and fair housing review.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "It finds only the exact phrases on the signed list; it does not judge meaning, so a reworded phrase is not caught.",
+     "src": "dispatcher/listing_spokes_17.py:81-105"
+    },
+    {
+     "t": "Checking that required disclosures are present.",
+     "src": "dispatcher/listing_spokes_17.py (no disclosure check)"
+    },
+    {
+     "t": "No rules ship with the product: the office must sign its own.",
+     "src": "dispatcher/listing_spokes_17.py:68-69; config/ (no ruleset file)"
+    },
+    {
+     "t": "A compliance notice from Agent 05 is only logged; one from Agent 10 is logged and listed in the next morning briefing.",
+     "src": "dispatcher/listing_spokes_17.py:349-374"
+    }
+   ]
+  },
+  {
+   "id": "18",
+   "name": "Calendar & Task",
+   "team": "Oversight",
+   "job": {
+    "t": "Keeps the authorized user's calendar, tracks what every agent is waiting on, and builds the morning briefing from what is on record.",
+    "src": "dispatcher/listing_spokes_18.py:126-573"
+   },
+   "steps": [
+    {
+     "t": "Calendar entries arrive from Agents 06, 07 and 09. One with no day, or with its time zone not confirmed, is not added and the authorized user is asked.",
+     "src": "dispatcher/listing_spokes_18.py:186-217"
+    },
+    {
+     "t": "An entry at exactly the same time as another on that day, or on a day that already has 8 entries (the default), is not added; the authorized user is asked, with a proposed order for a full day.",
+     "src": "dispatcher/listing_spokes_18.py:88-91, 228-255"
+    },
+    {
+     "t": "When a showing from Agent 06 is not added, Agent 06 is told, so the buyer is not told it is confirmed (owner decision 2026-10-27).",
+     "src": "dispatcher/listing_spokes_18.py:117-124"
+    },
+    {
+     "t": "Deadlines from Agent 07 become protected blocks. Two different dates for one milestone are both kept and the authorized user is asked; a softer event on a deadline day is raised with the authorized user. A date moved by a signed amendment (at Agent 07) leaves its old day.",
+     "src": "dispatcher/listing_spokes_18.py:269-327"
+    },
+    {
+     "t": "A protected block is moved only on the authorized user's signed request naming the new day: it leaves its old day, stays protected, and the move is logged with Agent 14; a request naming no day is refused and nothing moves. An event the authorized user asks for after a deadline it must precede is held for the authorized user; the deadline is never moved.",
+     "src": "dispatcher/listing_spokes_18.py:329-443"
+    },
+    {
+     "t": "Agents report what they are waiting on and when that ends (all but Agents 10, 14 and 18 have this route); the list is kept for the briefing.",
+     "src": "dispatcher/listing_spokes_18.py:148-184; identity/routes.json:515-539"
+    },
+    {
+     "t": "On the daily run it builds the morning briefing: it asks Agents 14 (new leads, and record conflicts), 15, 19, 10 and 17 for their sections (a section with no answer is named as missing), adds the calendar, everything waiting and every decision waiting for the authorized user, and sends one briefing to the authorized user.",
+     "src": "dispatcher/listing_spokes_18.py:511-573; dispatcher/clock.py:64"
+    },
+    {
+     "t": "On the daily run, from the day after a showing, a showing whose time passed more than 60 minutes ago (the default) with no feedback activity is reported to Agent 06 as a no-show. Agent 06's check runs first in the daily run, and its feedback request on the day after counts as activity, so for a showing Agent 06 confirmed no no-show is reported this way.",
+     "src": "dispatcher/listing_spokes_18.py:148-154, 445-488; dispatcher/clock.py:49, 63; dispatcher/sweep_runner.py:62-65; dispatcher/listing_spokes_06.py:346-349, 353-365"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Deciding entries that were not added, and conflicting deadline dates.",
+     "src": "dispatcher/listing_spokes_18.py:186-327"
+    },
+    {
+     "t": "Moving a protected deadline block to a day the authorized user names (signed).",
+     "src": "dispatcher/listing_spokes_18.py:332-390"
+    },
+    {
+     "t": "Reading the briefing and setting priorities.",
+     "src": "dispatcher/listing_spokes_18.py:572"
+    }
+   ],
+   "never": [
+    {
+     "t": "Move a deadline block without the authorized user's signed request.",
+     "src": "dispatcher/listing_spokes_18.py:332-346"
+    },
+    {
+     "t": "Pick one of two conflicting deadline dates.",
+     "src": "dispatcher/listing_spokes_18.py:280-290"
+    },
+    {
+     "t": "Present a wait as sourced when its source message is not on the log: it is listed under gaps (and also in the waiting list).",
+     "src": "dispatcher/listing_spokes_18.py:524-533, 553, 556-559"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to an assistant's calendar and daily planning.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "Clashes are found only at exactly the same time; overlapping times are not compared here (Agent 06 compares showing times itself).",
+     "src": "dispatcher/listing_spokes_18.py:228-229"
+    },
+    {
+     "t": "To-do lists and time-blocking rules. A check for recurring tasks exists, but the daily run does not call it.",
+     "src": "dispatcher/listing_spokes_18.py:490-509; dispatcher/clock.py:63-64"
+    }
+   ]
+  },
+  {
+   "id": "19",
+   "name": "Prospecting",
+   "team": "Leads",
+   "job": {
+    "t": "Records prospects from a discovery feed (new listings, expired listings, homes for sale by owner) in the authorized user's zip codes and passes them to the authorized user. It has no route to contact anyone.",
+    "src": "dispatcher/listing_spokes_19.py:137-280; identity/routes.json (19 sends no client or external message)"
+   },
+   "steps": [
+    {
+     "t": "The authorized user signs the zip codes, the approved sources, Do Not Call entries and known client records.",
+     "src": "dispatcher/listing_spokes_19.py:81-93"
+    },
+    {
+     "t": "A record arrives from a discovery feed. Outside the zip codes: not recorded. An expired or for-sale-by-owner record from a source not approved: not recorded, and the authorized user is told.",
+     "src": "dispatcher/listing_spokes_19.py:137-161"
+    },
+    {
+     "t": "An expired listing reported as relisted with another broker closes the opportunity, with the reason logged.",
+     "src": "dispatcher/listing_spokes_19.py:165-173"
+    },
+    {
+     "t": "It records the source, date, status, whether the owner is represented (listed, expired, by owner, or unknown when not given) and whether the owner's contact is on the Do Not Call list. A contact on the list is logged as suppressed by rule; the prospect still reaches the authorized user, marked.",
+     "src": "dispatcher/listing_spokes_19.py:176-234"
+    },
+    {
+     "t": "A ranking whose basis is weaker than its threshold is left off, with the reason.",
+     "src": "dispatcher/listing_spokes_19.py:214-226"
+    },
+    {
+     "t": "An expired listing or a sale by owner raises a legal-line alert. A prospect that matches an existing client goes to the authorized user as a question.",
+     "src": "dispatcher/listing_spokes_19.py:240-256"
+    },
+    {
+     "t": "It marks the prospect's market context as \"none - no comp source connected\" (it no longer asks Agent 10; owner decision D-A16, 2026-10-28), then passes the prospect to the authorized user (and to Agent 13 when the feed names a buyer it fits) and logs it with Agent 14.",
+     "src": "dispatcher/listing_spokes_19.py:62-75, 257-279"
+    },
+    {
+     "t": "A request for farm data at household level raises a legal-line alert and is refused; for an area-level request the authorized user is told that no neighborhood data source is connected, so there is nothing to aggregate.",
+     "src": "dispatcher/listing_spokes_19.py:115-134"
+    },
+    {
+     "t": "For the morning briefing it lists the prospects the authorized user has not marked handled.",
+     "src": "dispatcher/listing_spokes_19.py:282-295"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Zip codes, approved sources and the Do Not Call list (signed).",
+     "src": "dispatcher/listing_spokes_19.py:81-93"
+    },
+    {
+     "t": "Every decision to contact a prospect, and marking prospects handled.",
+     "src": "dispatcher/listing_spokes_19.py:94-114"
+    }
+   ],
+   "never": [
+    {
+     "t": "Contact a prospect: a signed bulk outreach instruction is recorded and changes nothing.",
+     "src": "dispatcher/listing_spokes_19.py:103-114; identity/routes.json"
+    },
+    {
+     "t": "Record an expired or by-owner prospect from a source that is not approved.",
+     "src": "dispatcher/listing_spokes_19.py:154-161"
+    },
+    {
+     "t": "Provide household-level data.",
+     "src": "dispatcher/listing_spokes_19.py:115-127"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to prospecting research.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "No prospecting source is connected; records arrive from a feed through the console or a connected system.",
+     "src": "identity/routes.json discovery.feed from external"
+    },
+    {
+     "t": "Comparables and market data: no comp source is connected, so a prospect carries none.",
+     "src": "dispatcher/listing_spokes_19.py:62-75; dispatcher/listing_spokes_10.py:66-79"
+    },
+    {
+     "t": "Two sources that disagree on a property's status are not flagged; the later record replaces the earlier.",
+     "src": "dispatcher/listing_spokes_19.py:228"
+    }
+   ]
+  },
+  {
+   "id": "20",
+   "name": "Social Media Monitoring",
+   "team": "Oversight",
+   "job": {
+    "t": "Takes social media mentions from the channels the authorized user names and routes them: complaints to the authorized user, questions and leads to Agent 01. It never posts.",
+    "src": "dispatcher/listing_spokes_20.py:124-263; identity/routes.json (20 has no route to post)"
+   },
+   "steps": [
+    {
+     "t": "A mention arrives from a connected system, with its sentiment label. A channel the authorized user has not named is ignored.",
+     "src": "dispatcher/listing_spokes_20.py:88-89, 124-134"
+    },
+    {
+     "t": "With no label, it is treated as a complaint if it contains an angry or negative phrase from the fixed list. A mixed label is treated as a complaint.",
+     "src": "dispatcher/listing_spokes_20.py:145-152; dispatcher/message_tags.py:20-31"
+    },
+    {
+     "t": "Every mention is logged with Agent 14 with its text, word for word.",
+     "src": "dispatcher/listing_spokes_20.py:154-158"
+    },
+    {
+     "t": "Complaint: a complaint alert for the authorized user (marked viral when the mention says so; noting, without naming anyone, when it may involve a client), and all routine messages to that person are held through Agent 11.",
+     "src": "dispatcher/listing_spokes_20.py:160-195"
+    },
+    {
+     "t": "Question: goes to Agent 01 as a lead with consent unknown; if it may involve an existing client, that person is sent a \"team will follow up\" message through Agent 11 instead.",
+     "src": "dispatcher/listing_spokes_20.py:197-228"
+    },
+    {
+     "t": "Lead signal: goes to Agent 01 as a lead. Praise: logged; with a signed praise template, a suggested reply is drafted (see the next step). Any other label goes to the authorized user.",
+     "src": "dispatcher/listing_spokes_20.py:233-263"
+    },
+    {
+     "t": "A suggested reply is made only from the authorized user's signed templates (for questions and praise); one that would mention pricing, legal or contract matters raises a legal-line alert. Otherwise Compliance checks it: flagged ones are discarded, approved ones are held for the authorized user to post or discard.",
+     "src": "dispatcher/listing_spokes_20.py:73-87, 92-122, 278-319"
+    }
+   ],
+   "today": [],
+   "compare": [],
+   "user_part": [
+    {
+     "t": "Naming the channels and signing the reply templates.",
+     "src": "dispatcher/listing_spokes_20.py:72-90"
+    },
+    {
+     "t": "Every public reply: the system never posts.",
+     "src": "dispatcher/listing_spokes_20.py:117-121"
+    },
+    {
+     "t": "Responding to complaints.",
+     "src": "dispatcher/listing_spokes_20.py:179"
+    }
+   ],
+   "never": [
+    {
+     "t": "Post a reply.",
+     "src": "identity/routes.json (no posting route from 20)"
+    },
+    {
+     "t": "Confirm or deny that someone is a client.",
+     "src": "dispatcher/listing_spokes_20.py:174-178, 202-221"
+    },
+    {
+     "t": "Write a reply that is not from the authorized user's templates.",
+     "src": "dispatcher/listing_spokes_20.py:229-245, 278-304"
+    }
+   ],
+   "process": {
+    "t": "Corresponds to social media monitoring.",
+    "src": "definition"
+   },
+   "not_built": [
+    {
+     "t": "No social platform is connected; mentions arrive through the console or a connected system with their label.",
+     "src": "dispatcher/listing_spokes_20.py:137"
+    },
+    {
+     "t": "Without a label it only recognizes the fixed phrase list; it does not read meaning.",
+     "src": "dispatcher/listing_spokes_20.py:145-148"
+    }
    ]
   }
  ]

@@ -73,6 +73,9 @@ class Spoke17ComplianceFairHousing:
         self.sla_days = sla_days
         # the text every ad must carry (tuple 7; signed setting, 2026-10-14)
         self.brokerage_identification: str | None = brokerage_identification
+        # D-A19 (owner decision 2026-10-28, finding AV): appraisal-substitution
+        # notices from Agent 10, listed in the next morning briefing, once each
+        self.compliance_notices: list[dict] = []
         register_spoke(hub, "17", self)
 
     def _find_prohibited(self, text: str) -> list[dict]:
@@ -347,6 +350,27 @@ class Spoke17ComplianceFairHousing:
             self.hub.send(_env("17", "14", "interaction.log", ctx,
                                {"kind": "compliance_notice_received",
                                 "trigger": payload.get("trigger")}))
+            # D-A19: Agent 05's notices stay on the record (05 alerts the
+            # owner itself); Agent 10's go to the morning briefing
+            if env.from_agent == "10":
+                self.compliance_notices.append(
+                    {"context": ctx, "trigger": payload.get("trigger"),
+                     "requested_by": payload.get("requested_by"),
+                     "date": payload.get("today"), "envelope_id": env.envelope_id,
+                     "briefed": False})
+            return
+
+        if env.intent == "briefing.request":
+            fresh = [n for n in self.compliance_notices if not n["briefed"]]
+            for n in fresh:
+                n["briefed"] = True
+            self.hub.send(_env("17", "18", "report.package", ctx,
+                               {"section": "compliance_notices",
+                                "data": {"count": len(fresh),
+                                         "notices": [{k: v for k, v in n.items() if k != "briefed"}
+                                                     for n in fresh],
+                                         "basis": "Agent 10 compliance notices not in an "
+                                                  "earlier briefing"}}))
             return
 
     def check_sla(self, ctx: str, today: str):
@@ -367,6 +391,11 @@ class Spoke17ComplianceFairHousing:
         elapsed_days = (datetime.date.fromisoformat(today) -
                         datetime.date.fromisoformat(submitted)).days
         if elapsed_days > self.sla_days:
+            # finding AU (2026-10-28): told once per waiting review, not on
+            # every daily run (same fix as Agent 08's, 2026-10-11)
+            if pending.get("sla_alerted"):
+                return "breached_already_alerted"
+            pending["sla_alerted"] = True
             self.hub.send(_env("17", "queue", "clarification.request", ctx,
                                {"reason": f"SLA breach: {elapsed_days} day(s) "
                                          f"elapsed, threshold "

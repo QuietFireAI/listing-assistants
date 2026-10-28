@@ -318,7 +318,7 @@ never makes pricing decisions.
 
 ### Job components
 - Enter and maintain listing data in MLS systems.
-- Execute status changes (active, pending, sold, withdrawn) and track days-on-market.
+- Execute status changes (active, pending, sold, withdrawn, expired; expired added 2026-10-28, owner decision D-A9) and track days-on-market.
 - Syndicate feeds to Zillow, Realtor.com, and Redfin; verify syndication landed (check the live listing, not the push log).
 - Manage photo ordering and uploads (vendor scheduling via 09).
 - Execute price adjustments ONLY when the envelope carries explicit human authorization with the authorizing identity in provenance.
@@ -509,7 +509,7 @@ the supplied data would pass through.
 **Type:** Client-facing messaging
 **Summary:** Routine client messaging. Use for delivering scheduling and milestone updates and the broker-approved weekly seller report to clients and routing their replies; escalates all advice-seeking immediately.
 **Sends:** agent.status, client.message.not_sent, client.message.send, document.submission, interaction.log, lead.reply, record.request, showing.feedback_response, showing.no_show, showing.request
-**Receives:** client.message.request, client.reply, deadline.alert, record.response, status.update
+**Receives:** client.message.request, client.reply, clock.tick, deadline.alert, record.response, status.update
 **Predeliberated tuples:** 14 (see 11-client-communication/DECISIONS.md)
 **Picture:** who it works with, in [11-client-communication](../11-client-communication/README.md)
 
@@ -528,7 +528,7 @@ giving advice, and it only ever does the first.
 - Client replies go only to agents that handle them (03, 04, 12, 13, 16, 20; owner decision 2026-10-11); a reply that names no owning agent holds for the broker, who continues it with `route_to` or cancels it.
 - An angry client (the reply's `angry` flag) goes straight to the broker (`escalation.complaint`, the words verbatim) and is logged to 14; nothing is sent to the client (owner decision 2026-10-12 - the response is human). Routine updates to that client are not sent (each one is logged to 14) until the broker signs `resolve_complaint_hold`.
 - A `client.message.request` with no template is a client's own question for a person, not a message to send (03's substantive reply from inside a sequence, tuples 03-01 and 03-11): nothing goes to the client; the broker gets it in the queue as "reply needed" with the client's words, and it is logged to 14 (fixed 2026-10-27: the template used to default to the intent name and the question went back out to the client).
-- Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is queued and the broker is told; the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
+- Quiet hours (`quiet_hours`, default 21-8): a routine send inside them is held and the broker is told "held until 08:00"; it goes on the first daily run outside quiet hours, if consent is on record and no complaint hold is open then. A message that carries no hour uses this computer's clock (owner decision D-A4, 2026-10-28; before, it was dropped, and a message with no hour counted as noon). Agent 03's nurture touches are not held here: 03 tries them again on its own clock. the broker closes an advice wait or a complaint hold with a signed `resolve_advice_response` / `resolve_complaint_hold`.
 
 ## Agent 12 - Marketing Campaign Agent
 
@@ -556,8 +556,9 @@ itself goes through Compliance (17) before publication.
 - Every publication waits for the broker's signed release: the hub holds each `campaign.publish` (audience: public) until the broker releases that one message.
 
 How the code does it today (checked 2026-10-12): the broker starts a campaign
-with a signed `new_campaign` (copy and targeting), sets `exempt_status` and
-`signed_budget`; this agent checks the copy, the targeting and the Clear
+with a signed `new_campaign` (copy and targeting) and sets `exempt_status`
+(campaign budgets were retired 2026-10-28, owner decision D-A17: no ad
+carries a cost); this agent checks the copy, the targeting and the Clear
 Cooperation gate, sends self-written copy to 17, and publishes. It does not
 write newsletter or ad copy itself, and no social or ad platform is
 connected; publications leave only through the held external route. Copy 17
@@ -702,7 +703,7 @@ verdict goes to the broker, who answers the client.
 **Type:** Guardrail / validator
 **Summary:** Compliance guardrail, validation only. Use for reviewing outbound listings, ads, emails, sequences, and criteria language for fair-housing compliance, prohibited language, steering, and required disclosures.
 **Sends:** agent.status, content.verdict, interaction.log, report.package
-**Receives:** clock.tick, compliance.notice, content.review
+**Receives:** briefing.request, clock.tick, compliance.notice, content.review
 **Predeliberated tuples:** 10 (see 17-compliance-fair-housing/DECISIONS.md)
 **Picture:** who it works with, in [17-compliance-fair-housing](../17-compliance-fair-housing/README.md)
 
@@ -768,8 +769,8 @@ code (nothing in the swarm reports a recurring task as completed).
 
 **Type:** Opportunity discovery (new)
 **Summary:** Prospecting discovery with zero outreach. Use for monitoring predefined zip codes for new listings and flagging expired and FSBO opportunities into the human review queue.
-**Sends:** agent.status, data.request, interaction.log, prospect.opportunity, report.package
-**Receives:** briefing.request, data.package, discovery.feed
+**Sends:** agent.status, interaction.log, prospect.opportunity, report.package
+**Receives:** briefing.request, discovery.feed
 **Predeliberated tuples:** 10 (see 19-prospecting/DECISIONS.md)
 **Picture:** who it works with, in [19-prospecting](../19-prospecting/README.md)
 

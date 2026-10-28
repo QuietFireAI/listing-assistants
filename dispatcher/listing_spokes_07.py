@@ -344,16 +344,35 @@ class Spoke07TransactionCoordinator:
                                        confidence=STATED_BY_PARTY))
                 return
 
+            if "milestone_amendment" in payload:
+                return self._amend_milestone(ctx, payload["milestone_amendment"], env)
+
             if "closing_date_moved_verbally" in payload:
                 claim = payload["closing_date_moved_verbally"]
-                if not claim.get("signed_amendment"):
-                    self.hub.ingest_spoke_trace(
-                        "07", env.envelope_id,
-                        thought="closing date reportedly moved verbally, no "
-                                "signed amendment - tracking the original "
-                                "date until one exists; claim recorded "
-                                "stated_by_party",
-                        result="original closing date retained")
+                # D-A5 (owner decision 2026-10-28, finding AE): a verbal move
+                # always raises a question; the date never changes on it.
+                # Before, only a trace was written and nobody was asked.
+                self.hub.ingest_spoke_trace(
+                    "07", env.envelope_id,
+                    thought="closing date reportedly moved verbally - tracking "
+                            "the original date; only a signed milestone_amendment "
+                            "changes it; claim recorded stated_by_party, owner asked",
+                    result="original closing date retained, owner asked")
+                self.hub.send(_env("07", "queue", "clarification.request", ctx,
+                                   {"reason": "closing date reportedly moved verbally - the "
+                                              "original date stands; send a signed "
+                                              "milestone_amendment (milestone, new_date, "
+                                              "amendment_ref) if it really moved",
+                                    "milestone": claim.get("milestone", "closing"),
+                                    "tracked_deadline": (self.timelines.get(ctx, {})
+                                                         .get(claim.get("milestone", "closing"))
+                                                         or {}).get("deadline"),
+                                    "claimed_date": claim.get("new_date")},
+                                   confidence=STATED_BY_PARTY))
+                self.hub.send(_env("07", "14", "interaction.log", ctx,
+                                   {"kind": "date_move_claimed", "source": STATED_BY_PARTY,
+                                    "milestone": claim.get("milestone", "closing"),
+                                    "claimed_date": claim.get("new_date")}))
                 return
 
             if "possession_terms_ambiguous" in payload:
@@ -411,14 +430,31 @@ class Spoke07TransactionCoordinator:
                 return
 
             if milestone == "inspection" and payload.get("report_received"):
-                # tuple 6: log + distribute; repair NEGOTIATION is human-only
+                # tuple 6: log + distribute; repair NEGOTIATION is human-only.
+                # D-A14/D-A15 (owner decisions 2026-10-28, findings AD, AG):
+                # "distribute" is the owner's job (no parties list, nothing
+                # sends a file), so the owner gets ONE item per report: a
+                # legal-line alert when repair requests are present or not
+                # stated, a plain queue item when the sender stated none.
+                repairs = payload.get("repair_requests_present")
                 self.hub.send(_env("07", "14", "interaction.log", ctx,
-                                   {"kind": "inspection_report_received"}))
-                if payload.get("repair_requests_present"):
+                                   {"kind": "inspection_report_received",
+                                    "repair_requests": ("present" if repairs is True else
+                                                        "none" if repairs is False else
+                                                        "not stated")}))
+                send_line = "send the report to the contract parties"
+                if repairs is False:
+                    self.hub.send(_env("07", "queue", "clarification.request", ctx,
+                                       {"reason": f"Inspection report received "
+                                                  f"({payload.get('today') or 'date not stated'}): "
+                                                  f"no repair requests stated - {send_line}"}))
+                else:
+                    state = "present" if repairs is True else "not stated"
                     self.hub.escalate("escalation.legal_line",
                                       {"client_context_id": ctx,
-                                       "trigger": "repair negotiation content "
-                                                 "- human-only, full stop",
+                                       "trigger": f"Inspection report received: repair "
+                                                 f"requests {state} - repair negotiation "
+                                                 f"is yours, human-only; {send_line}",
                                        "agent": "07"})
                 if entry:
                     entry["satisfied"] = True
@@ -572,6 +608,51 @@ class Spoke07TransactionCoordinator:
                                    "agent": "07"})
                 flagged.append(milestone)
         return flagged
+
+    def _amend_milestone(self, ctx: str, amendment, env: Envelope):
+        """D-A5 (owner decision 2026-10-28, finding AB): a signed amendment
+        changes ONE milestone's date. Every other milestone, and whether this
+        one is met, stays as it is; the calendar moves the block; old date,
+        new date and the amendment are on the record. Before, the only way
+        to change a date was to load the whole timeline again, which reset
+        every milestone to not met and re-sent every request."""
+        import datetime
+        a = amendment if isinstance(amendment, dict) else {}
+        milestone, new_date, ref = a.get("milestone"), a.get("new_date"), a.get("amendment_ref")
+        entry = self.timelines.get(ctx, {}).get(milestone)
+        problem = None
+        if entry is None:
+            problem = f"milestone {milestone!r} is not on this timeline"
+        elif not ref:
+            problem = "no amendment_ref - a date changes only with a signed amendment"
+        else:
+            try:
+                datetime.date.fromisoformat(str(new_date))
+            except ValueError:
+                problem = f"new_date {new_date!r} is not a date (YYYY-MM-DD)"
+        if problem:
+            self.hub.send(_env("07", "queue", "clarification.request", ctx,
+                               {"reason": f"milestone amendment refused: {problem}; "
+                                          f"nothing changed"}))
+            return "refused"
+        old = entry["deadline"]
+        entry["deadline"] = new_date
+        entry["amendment_ref"] = ref
+        if hasattr(self, "_overdue_alerted"):
+            self._overdue_alerted.discard((ctx, milestone))
+        self.hub.ingest_spoke_trace(
+            "07", env.envelope_id,
+            thought=f"signed amendment {ref!r}: {milestone!r} moves {old!r} -> "
+                    f"{new_date!r}; every other milestone and its met/not met "
+                    f"state unchanged",
+            result="milestone amended")
+        self.hub.send(_env("07", "14", "interaction.log", ctx,
+                           {"kind": "milestone_amended", "milestone": milestone,
+                            "old_date": old, "new_date": new_date, "amendment_ref": ref}))
+        self.hub.send(_env("07", "18", "deadline.alert", ctx,
+                           {"milestone": milestone, "deadline": new_date, "tracked": True,
+                            "amended_from": old}))
+        return "amended"
 
     def check_deadlines(self, ctx: str, today: str):
         """Alert lead time is configuration, not judgment - called by an

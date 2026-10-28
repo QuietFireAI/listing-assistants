@@ -1,215 +1,526 @@
 [
  {
   "id": "06-01",
-  "rev": 2,
-  "title": "Two showing requests want the same time",
-  "when": "Two buyers ask for showings that overlap on the calendar.",
+  "rev": 3,
+  "title": {
+   "t": "Two buyers ask for the same showing time",
+   "src": "tuple:06-01"
+  },
+  "when": {
+   "t": "A buyer asks to see a listing less than 30 minutes from a showing already confirmed there for another buyer.",
+   "src": "dispatcher/listing_spokes_06.py:662-670"
+  },
   "steps": [
-   "If one of them protects a deadline (for example a hot lead), it wins and the authorized user is offered the chance to move the other.",
-   "Otherwise the first one confirmed keeps the slot.",
-   "Agent 06 (Showing Scheduler) does not book the second; it asks the authorized user about the calendar conflict."
+   {
+    "t": "The first confirmed showing keeps the slot.",
+    "src": "check:06-01:spoke.trace"
+   },
+   {
+    "t": "Agent 06 does not book the second; it asks the authorized user about the calendar conflict.",
+    "src": "dispatcher/listing_spokes_06.py:671-679; check:06-01:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "No other time is worked out for the second buyer.",
+    "src": "06-showing-scheduler/DECISIONS.md:33-35; spec:06-01"
+   },
+   {
+    "t": "A request that claims to protect a deadline goes differently: if Agent 14's record says the lead is hot, moving the confirmed showing is held for the authorized user to confirm; otherwise it is the same conflict question. The claim alone never moves a confirmed showing.",
+    "src": "dispatcher/listing_spokes_06.py:680-735; spec:06-01"
+   }
   ],
   "never": [
-   "Book both and hope it works out."
+   {
+    "t": "Book both and hope.",
+    "src": "tuple:06-01"
+   }
   ],
-  "why": "A double-booked showing leaves a buyer waiting on a doorstep and an occupant disturbed twice.",
-  "you_see": "A question about the calendar conflict for the second buyer.",
-  "test": "Buyer B1 asks for 10:00 and buyer B2 for 10:15 at the same listing. B1 is confirmed; B2 goes to the authorized user. No alternative time is worked out for B2 today (stated in the agent's DECISIONS.md). The protected-deadline case is played in a separate scene (scene 8, showing bump)."
+  "you_see": {
+   "t": "A question about the calendar conflict for the second buyer.",
+   "src": "check:06-01:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Buyers B1 and B2 both have a buyer agreement and a verified identity on record. B1 asks to see SYN-L001 at 10:00, B2 at 10:15 the same day. B1 is confirmed; B2 goes to the authorized user.",
+   "src": "spec:06-01"
+  }
  },
  {
   "id": "06-02",
-  "rev": 2,
-  "title": "The person asking for a showing cannot be identified",
-  "when": "Someone asks for a showing, which means access to a home, and their identity has not been verified.",
+  "rev": 3,
+  "title": {
+   "t": "The person asking for a showing is not verified",
+   "src": "tuple:06-02"
+  },
+  "when": {
+   "t": "A showing request reaches Agent 06 and the client's record at Agent 14 does not mark the requester's identity as verified.",
+   "src": "dispatcher/listing_spokes_11.py:759-787; dispatcher/listing_spokes_06.py:515-517"
+  },
   "steps": [
-   "Agent 06 cancels the showing; it is never confirmed.",
-   "The cancellation and the reason (identity not verified) are written in the client's history."
+   {
+    "t": "Agent 06 cancels it: nothing is booked or confirmed.",
+    "src": "dispatcher/listing_spokes_06.py:517-541; check:06-02:spoke.trace"
+   },
+   {
+    "t": "The cancellation and the reason (identity not verified) are written in the client's history.",
+    "src": "dispatcher/listing_spokes_06.py:526-528; check:06-02:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer that identity must be verified first is requested from Agent 11. That message's wording waits for the authorized user's signature; until then Agent 11 holds it, as in this test (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes_06.py::showing cancelled: the requester's identity; dispatcher/listing_spokes_06.py::{\"template\": \"identity_verification_needed\"}; check:06-02:envelope.persisted:clarification.request; check:06-02:envelope.persisted:client.message.request; check:06-02:envelope.persisted:client.message.send"
+   },
+   {
+    "t": "Identity counts as verified only when the client's record at Agent 14 says so: the authorized user records it with a signed setting, or an agent's log entry carries it. Agent 06 does no checking of its own.",
+    "src": "dispatcher/listing_spokes_11.py:762-763, 780-787; dispatcher/listing_spokes.py::if \"requester_identity_verified\" in payload:; dispatcher/listing_spokes.py::or \"requester_identity_verified\" in env.payload):; spec:06-02"
+   }
   ],
   "never": [
-   "Give access to a home to someone whose identity is not verified. No exceptions."
+   {
+    "t": "Give access to a home on an unverified request. No exceptions.",
+    "src": "tuple:06-02"
+   }
   ],
-  "why": "Showings put strangers inside people's homes. Unverified access is a safety and liability risk.",
-  "you_see": "The cancelled showing in the client's history, with the reason.",
-  "test": "Buyer B1 has a buyer agreement on file but no verified identity, and asks for a 10:00 showing."
+  "you_see": {
+   "t": "The cancelled showing in the client's history, with the reason.",
+   "src": "check:06-02:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "Buyer B1 has a buyer agreement on record but no identity verification, and asks to see SYN-L001 at 10:00.",
+   "src": "spec:06-02"
+  }
  },
  {
   "id": "06-03",
-  "rev": 2,
-  "title": "Someone asks to \"just let them in\"",
-  "when": "A message asks for someone to be let into a property without a scheduled, verified showing.",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks to \"just let them in\"",
+   "src": "tuple:06-03"
+  },
+  "when": {
+   "t": "A client's message contains one of these phrases: \"let them in\", \"just let\", \"access code\", \"lockbox combo\", \"gate code\", \"combo for the\".",
+   "src": "dispatcher/listing_spokes_06.py:18-19; dispatcher/listing_spokes_11.py:592-594"
+  },
   "steps": [
-   "Agent 11 (Client Communication) catches the request and raises a legal-line alert for the authorized user.",
-   "Nobody is let in; no access is arranged."
+   {
+    "t": "Agent 11 raises a legal-line alert quoting the message and logs the refused request. Nothing is arranged.",
+    "src": "dispatcher/listing_spokes_11.py:594-603; check:06-03:escalation.raised"
+   },
+   {
+    "t": "Only those phrases are caught; other wording is not recognized.",
+    "src": "dispatcher/listing_spokes_06.py:18-19"
+   }
   ],
   "never": [
-   "Arrange access outside the showing process."
+   {
+    "t": "Grant access because a message asked. Access is the line.",
+    "src": "tuple:06-03"
+   }
   ],
-  "why": "Access to a home is the line. Letting someone in on a message is how break-ins and liability start.",
-  "you_see": "A legal-line alert quoting the request.",
-  "test": "A client writes: \"We're running late, can you just let them in to the house?\""
+  "you_see": {
+   "t": "A legal-line alert quoting the request.",
+   "src": "check:06-03:escalation.raised"
+  },
+  "test": {
+   "t": "A client writes: \"We're running late, can you just let them in to the house?\"",
+   "src": "spec:06-03"
+  }
  },
  {
   "id": "06-04",
-  "rev": 2,
-  "title": "Someone does not show up for a showing",
-  "when": "A showing is reported as a no-show.",
+  "rev": 3,
+  "title": {
+   "t": "A showing is reported as a no-show",
+   "src": "tuple:06-04"
+  },
+  "when": {
+   "t": "A client's message marked as a no-show report arrives, or the calendar finds a showing with nothing reported after it.",
+   "src": "dispatcher/listing_spokes_11.py:724-728; dispatcher/listing_spokes_18.py:445-488"
+  },
   "steps": [
-   "Agent 06 records the no-show.",
-   "It asks Agent 11 to send a feedback request in a neutral tone, with no reproach."
+   {
+    "t": "Agent 06 logs the no-show.",
+    "src": "dispatcher/listing_spokes_06.py:600-601; check:06-04:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "It asks Agent 11 to send a feedback request marked neutral, with no reproach.",
+    "src": "dispatcher/listing_spokes_06.py:602; dispatcher/listing_spokes_06.py::{\"template\": \"feedback_request\",; check:06-04:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Agent 11 routes on the no-show marker in the message, not on its words.",
+    "src": "dispatcher/listing_spokes_11.py:724-728"
+   }
   ],
   "never": [
-   "Send a scolding or blaming message about the no-show."
+   {
+    "t": "Send a message that reproaches anyone for the no-show.",
+    "src": "tuple:06-04"
+   }
   ],
-  "why": "People miss appointments for many reasons. A neutral note keeps the relationship and still gets the facts.",
-  "you_see": "The no-show in the client's history; a neutral feedback request sent.",
-  "test": "Buyer B1 has a confirmed 10:00 showing, then writes \"The other agent never showed up\"."
+  "you_see": {
+   "t": "The no-show in the client's history; a neutral feedback request sent.",
+   "src": "check:06-04:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "Buyer B1 has a confirmed 10:00 showing at SYN-L001, then writes \"The other agent never showed up\" (marked as a no-show report).",
+   "src": "spec:06-04"
+  }
  },
  {
   "id": "06-05",
-  "rev": 2,
-  "title": "A same-day showing is asked for at an occupied home",
-  "when": "A buyer asks for a showing at an occupied home with less notice than the minimum.",
+  "rev": 3,
+  "title": {
+   "t": "A same-day showing is asked for at an occupied home",
+   "src": "tuple:06-05"
+  },
+  "when": {
+   "t": "A buyer asks to see one of the office's listings whose record says occupied, with less notice than the minimum.",
+   "src": "dispatcher/listing_spokes_06.py:285-290, 639-643"
+  },
   "steps": [
-   "Agent 06 reads occupancy from the listing record.",
-   "The notice rule still applies (24 hours in the authorized user's settings), same day or not.",
-   "Nothing is booked; the buyer is offered the first time that meets the notice rule."
+   {
+    "t": "Agent 06 reads occupancy from the listing record Agent 05 keeps. Notice is counted from when the client wrote to the requested time.",
+    "src": "dispatcher/listing_spokes_06.py:275-305; check:06-05:spoke.trace"
+   },
+   {
+    "t": "The minimum is 24 hours, the tuning default; it applies whether the request is for the same day or not.",
+    "src": "dispatcher/listing_spokes_06.py:90, 637-643; docs/TUNING_MANUAL.md:322"
+   },
+   {
+    "t": "Nothing is booked. Agent 11 is asked to send the buyer the next-legal-slot message, which carries the required notice (24 hours). No time is worked out.",
+    "src": "dispatcher/listing_spokes_06.py:644-655; 06-showing-scheduler/DECISIONS.md:33-35; check:06-05:envelope.persisted:client.message.request; check:06-05:envelope.persisted:calendar.event"
+   }
   ],
   "never": [
-   "Squeeze in a showing at an occupied home without the required notice."
+   {
+    "t": "Squeeze a showing into an occupied home without the required notice.",
+    "src": "tuple:06-05"
+   }
   ],
-  "why": "Occupants are entitled to notice. Short-notice showings breed seller complaints.",
-  "you_see": "A message to the buyer offering the first allowed time.",
-  "test": "The listing record says occupied. At 10:00 a buyer asks for 15:00 the same day (5 hours' notice against 24)."
+  "you_see": {
+   "t": "A next-legal-slot message to the buyer naming the 24-hour notice.",
+   "src": "check:06-05:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "Listing L1 goes live with its record saying occupied. At 10:00 a buyer asks to see it at 15:00 the same day (5 hours' notice against 24).",
+   "src": "spec:06-05"
+  }
  },
  {
   "id": "06-06",
-  "rev": 2,
-  "title": "Someone asks for a lockbox code or access code in a message",
-  "when": "A message asks for a lockbox combination or an access code.",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks for a lockbox or access code in a message",
+   "src": "tuple:06-06"
+  },
+  "when": {
+   "t": "A client's message contains one of the access phrases (for example \"lockbox combo\" or \"access code\").",
+   "src": "dispatcher/listing_spokes_06.py:18-19; dispatcher/listing_spokes_11.py:592-594"
+  },
   "steps": [
-   "Agent 11 catches the request and raises a legal-line alert for the authorized user.",
-   "The code is never sent in a message; access goes only through the access-custody process."
+   {
+    "t": "Agent 11 raises a legal-line alert quoting the message and logs the refused request. No code is sent.",
+    "src": "dispatcher/listing_spokes_11.py:594-603; check:06-06:escalation.raised"
+   },
+   {
+    "t": "No agent holds a code to send: access grants are recorded at Agent 14 with who and until when, and a grant that looks like it carries the code is rejected.",
+    "src": "dispatcher/listing_spokes.py:260-294"
+   },
+   {
+    "t": "Only the listed phrases are caught; other wording is not recognized.",
+    "src": "dispatcher/listing_spokes_06.py:18-19"
+   }
   ],
   "never": [
-   "Send an access code or lockbox combination in any message."
+   {
+    "t": "Send an access code or lockbox combination in a message.",
+    "src": "tuple:06-06"
+   }
   ],
-  "why": "A code in a message can be forwarded to anyone. Access stays in the custody process.",
-  "you_see": "A legal-line alert quoting the request.",
-  "test": "A client writes: \"What's the lockbox combo for the house on Elm?\""
+  "you_see": {
+   "t": "A legal-line alert quoting the request.",
+   "src": "check:06-06:escalation.raised"
+  },
+  "test": {
+   "t": "A client writes: \"What's the lockbox combo for the house on Elm?\"",
+   "src": "spec:06-06"
+  }
  },
  {
   "id": "06-07",
-  "rev": 2,
-  "title": "A showing is asked for inside an occupied home's notice window",
-  "when": "A buyer asks for a time that is too soon under the notice rule for an occupied home.",
+  "rev": 3,
+  "title": {
+   "t": "A showing is asked for inside an occupied home's notice window",
+   "src": "tuple:06-07"
+  },
+  "when": {
+   "t": "A buyer asks to see one of the office's listings with less than the minimum notice, and the record says occupied or says nothing about occupancy.",
+   "src": "dispatcher/listing_spokes_06.py:285-290, 639-643"
+  },
   "steps": [
-   "If the listing record does not say whether the home is occupied, Agent 06 treats it as occupied.",
-   "Nothing is booked; the buyer is offered the first time that meets the notice rule.",
-   "Nobody is asked to waive the notice."
+   {
+    "t": "A listing record that does not say whether the home is occupied is treated as occupied.",
+    "src": "dispatcher/listing_spokes_06.py:287-289"
+   },
+   {
+    "t": "Nothing is booked; Agent 11 is asked to send the buyer the next-legal-slot message with the required notice (24 hours).",
+    "src": "dispatcher/listing_spokes_06.py:644-655; check:06-07:envelope.persisted:client.message.request; check:06-07:envelope.persisted:calendar.event"
+   },
+   {
+    "t": "No message asks the seller to waive the notice.",
+    "src": "dispatcher/listing_spokes_06.py:644-655; check:06-07:envelope.persisted:client.message.request (no message containing waive)"
+   }
   ],
   "never": [
-   "Ask the seller to waive notice unprompted."
+   {
+    "t": "Ask the seller to waive notice unprompted.",
+    "src": "tuple:06-07"
+   }
   ],
-  "why": "Pressure on a seller to give up their notice protection is a complaint waiting to happen. If they want to waive it, that is their call.",
-  "you_see": "A message to the buyer offering the first allowed time.",
-  "test": "The listing record says nothing about occupancy. A buyer asks at noon for 08:00 the next day (20 hours against 24)."
+  "you_see": {
+   "t": "A next-legal-slot message to the buyer naming the 24-hour notice.",
+   "src": "check:06-07:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "Listing L1's record says nothing about occupancy. At noon a buyer asks to see it at 08:00 the next day (20 hours against 24).",
+   "src": "spec:06-07"
+  }
  },
  {
   "id": "06-08",
-  "rev": 2,
-  "title": "The same showing agent no-shows twice",
-  "when": "A showing agent has failed to show up twice.",
+  "rev": 3,
+  "title": {
+   "t": "The same showing agent no-shows twice",
+   "src": "tuple:06-08"
+  },
+  "when": {
+   "t": "A showing agent has failed to appear twice.",
+   "src": "tuple:06-08"
+  },
   "steps": [
-   "Before confirming a third showing with that agent, Agent 06 flags the pattern to the authorized user."
+   {
+    "t": "The rule: before a third confirmation with that agent, the pattern goes to the authorized user.",
+    "src": "tuple:06-08"
+   },
+   {
+    "t": "Agent 06 counts no-shows per named showing agent and asks the authorized user at two.",
+    "src": "dispatcher/listing_spokes_06.py:603-613"
+   },
+   {
+    "t": "No way in yet: a client's no-show report names no showing agent, and the calendar's no-show report says it was not the agent, so the count never starts.",
+    "src": "dispatcher/listing_spokes_11.py:726-728; dispatcher/listing_spokes_18.py:484-487; spec:06-08"
+   }
   ],
   "never": [
-   "Keep booking an agent who keeps not showing up, without telling the authorized user."
+   {
+    "t": "Keep confirming with an agent who keeps not showing, without telling the authorized user.",
+    "src": "tuple:06-08"
+   }
   ],
-  "why": "Repeated no-shows waste sellers' time and the office's reputation with them.",
-  "you_see": "A flag naming the pattern before the third confirmation.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not reachable.",
+   "src": "spec:06-08"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:06-08"
+  }
  },
  {
   "id": "06-09",
-  "rev": 2,
-  "title": "A buyer asks for two showings too close together",
-  "when": "One buyer asks for two showings that fall within the buffer time between appointments.",
+  "rev": 3,
+  "title": {
+   "t": "One buyer asks for two showings too close together",
+   "src": "tuple:06-09"
+  },
+  "when": {
+   "t": "One buyer asks for a showing less than 30 minutes from another showing already confirmed for them, at any listing.",
+   "src": "dispatcher/listing_spokes_06.py:662-670"
+  },
   "steps": [
-   "Agent 06 confirms the first.",
-   "It does not book the second; it asks the authorized user about the conflict (inside the 30-minute buffer)."
+   {
+    "t": "Agent 06 confirms the first.",
+    "src": "check:06-09:spoke.trace"
+   },
+   {
+    "t": "It does not book the second; it asks the authorized user about the conflict inside the 30-minute buffer.",
+    "src": "dispatcher/listing_spokes_06.py:671-679; check:06-09:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "The 30 minutes is the default; no message sets another buffer.",
+    "src": "dispatcher/listing_spokes_06.py:663; dispatcher/listing_spokes_11.py:780-787"
+   }
   ],
   "never": [
-   "Double-book and hope the buyer gets there in time."
+   {
+    "t": "Double-book and hope the buyer gets there in time.",
+    "src": "tuple:06-09"
+   }
   ],
-  "why": "Travel and overruns are real. A late buyer means a waiting occupant and a bad first impression.",
-  "you_see": "A question about the calendar conflict within the 30-minute buffer.",
-  "test": "Buyer B1 asks for one listing at 10:00 and another at 10:20 the same day."
+  "you_see": {
+   "t": "A question about the calendar conflict within the 30-minute buffer.",
+   "src": "check:06-09:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Buyer B1 asks to see SYN-L001 at 10:00 and SYN-L002 at 10:20 the same day.",
+   "src": "spec:06-09"
+  }
  },
  {
   "id": "06-10",
-  "rev": 2,
-  "title": "A feedback request goes unanswered",
-  "when": "Feedback was asked for after a showing and nobody answers.",
+  "rev": 3,
+  "title": {
+   "t": "A feedback request goes unanswered",
+   "src": "tuple:06-10"
+  },
+  "when": {
+   "t": "Feedback was asked for after a showing and nobody answers.",
+   "src": "tuple:06-10"
+  },
   "steps": [
-   "Agent 06 asks for feedback through Agent 11 on the daily run after the showing.",
-   "After two asks with no answer, it stops and records that the cap was reached."
+   {
+    "t": "Agent 06 asks for feedback through Agent 11 on the first daily run after the day of the showing, and at most once a day for each showing.",
+    "src": "dispatcher/listing_spokes_06.py:353-366; dispatcher/listing_spokes_06.py::if today and self.feedback_last_ask.get(key) == today:"
+   },
+   {
+    "t": "Agent 18 never records a no-show on the showing's own day (owner decision of 2026-10-28). From the next day it could, but Agent 06's feedback request on that day's run comes first and tells Agent 18 the showing is being followed up, so it records none for a showing Agent 06 confirmed.",
+    "src": "dispatcher/listing_spokes_18.py::return \"same_day_waits\"; dispatcher/listing_spokes_18.py:148-154; dispatcher/clock.py:47-62; check:06-10:envelope.persisted:showing.no_show"
+   },
+   {
+    "t": "After two requests with no answer it stops and records that the cap was reached.",
+    "src": "dispatcher/listing_spokes_06.py:314-340; check:06-10:spoke.trace; check:06-10:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "The count is kept per showing (fixed 2026-10-28: it was per buyer, so a buyer's second showing was never asked about); any answer from the buyer resets it for that buyer's showings.",
+    "src": "dispatcher/listing_spokes_06.py::def _showing_key(ctx: str, showing: dict) -> str:; dispatcher/listing_spokes_06.py::for k in [k for k in self.feedback_asks if k == ctx or k.startswith(f\"{ctx}|\")]:"
+   }
   ],
   "never": [
-   "Ask a third time."
+   {
+    "t": "Ask a third time.",
+    "src": "tuple:06-10"
+   }
   ],
-  "why": "Nagging the people who show the authorized user's listings burns goodwill with the agent network.",
-  "you_see": "At most two feedback requests per showing.",
-  "test": "A showing on October 17. The daily clock runs every day from the 16th to the 20th. Exactly two feedback requests go out, then the cap stops them."
+  "you_see": {
+   "t": "At most two unanswered feedback requests per showing, at most one a day; no no-show recorded.",
+   "src": "dispatcher/listing_spokes_06.py:315-346; check:06-10:envelope.persisted:client.message.request; check:06-10:envelope.persisted:showing.no_show"
+  },
+  "test": {
+   "t": "A showing on October 17 at 10:00; the daily run runs at the end of each day from the 16th to the 20th. Nothing happens on the 17th. The first request goes out on the 18th, the second on the 19th; on the 20th the cap stops them. No no-show is recorded.",
+   "src": "spec:06-10; check:06-10:envelope.persisted:client.message.request; check:06-10:spoke.trace; check:06-10:envelope.persisted:showing.no_show"
+  }
  },
  {
   "id": "06-11",
-  "rev": 2,
-  "title": "A showing is asked for at a property under contract",
-  "when": "A buyer asks to see a property whose listing record says it is under contract (pending).",
+  "rev": 3,
+  "title": {
+   "t": "A showing is asked for at a property under contract",
+   "src": "tuple:06-11"
+  },
+  "when": {
+   "t": "A buyer asks to see one of the office's listings whose record does not say active.",
+   "src": "dispatcher/listing_spokes_06.py:290, 546"
+  },
   "steps": [
-   "Agent 06 checks the listing's current status with Agent 05 (MLS & Listing Management) first.",
-   "The status is not one that allows showings, so nothing is booked.",
-   "It asks the authorized user, naming the status."
+   {
+    "t": "Agent 06 asks Agent 05 for the listing's current status before booking anything.",
+    "src": "dispatcher/listing_spokes_06.py:546-556; check:06-11:envelope.persisted:status.request"
+   },
+   {
+    "t": "Agent 05 answers pending. That is not active, so nothing is booked and the authorized user is asked, naming the status.",
+    "src": "dispatcher/listing_spokes_06.py:561-576; check:06-11:envelope.persisted:status.response; check:06-11:envelope.persisted:clarification.request; check:06-11:envelope.persisted:calendar.event"
+   }
   ],
   "never": [
-   "Assume a listing is active and book the showing."
+   {
+    "t": "Assume a listing is active and book it.",
+    "src": "tuple:06-11"
+   }
   ],
-  "why": "Showing a property under contract can interfere with the deal and mislead the buyer.",
-  "you_see": "A question saying the property status \"pending\" does not allow showings.",
-  "test": "A listing goes live and then pending with a signed contract. A buyer asks to see it."
+  "you_see": {
+   "t": "A question saying the property status \"pending\" is not show-able.",
+   "src": "check:06-11:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Listing L1 goes live and then pending with a signed contract named. A buyer asks to see it.",
+   "src": "spec:06-11"
+  }
  },
  {
   "id": "06-12",
-  "rev": 2,
-  "title": "The weekly seller report is due",
-  "when": "The weekday the authorized user signed for seller reports arrives.",
+  "rev": 3,
+  "title": {
+   "t": "The weekly seller report is due",
+   "src": "tuple:06-12"
+  },
+  "when": {
+   "t": "The daily run reaches Agent 06 on the weekday the authorized user signed for seller reports.",
+   "src": "dispatcher/listing_spokes_06.py:199-212; dispatcher/clock.py:49-50"
+  },
   "steps": [
-   "For each listing in the authorized user's setting, Agent 06 counts the week's showings and feedback.",
-   "It holds the report and asks the authorized user: continue sends it to the seller through Agent 11; cancel skips this week.",
-   "It holds only one report per listing per week, however many times the daily run happens.",
-   "Agent 11 sends to the seller only with the seller's consent on record; without it, it tells the authorized user to record the consent."
+   {
+    "t": "For each listing in the setting, Agent 06 counts the showings confirmed for that listing in the 7 days ending that day, and how many have feedback. The report is counts only, no text.",
+    "src": "dispatcher/listing_spokes_06.py:200-206, 215-233"
+   },
+   {
+    "t": "It holds the report for the authorized user: continue sends it to the seller through Agent 11; cancel skips the week and logs it.",
+    "src": "dispatcher/listing_spokes_06.py:234-240, 263-273; check:06-12:envelope.persisted:agent.status"
+   },
+   {
+    "t": "One report per listing per week, however many daily runs happen.",
+    "src": "dispatcher/listing_spokes_06.py:213-219, 234; check:06-12:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Agent 11 sends it only if the seller's consent is on record; otherwise it is not sent and the authorized user is told once to record the consent.",
+    "src": "dispatcher/listing_spokes_11.py:319-359; check:06-12:envelope.persisted:client.message.send"
+   }
   ],
   "never": [
-   "Send a seller report the authorized user has not seen, or send two in one week."
+   {
+    "t": "Send a seller report the authorized user has not seen, or two in one week.",
+    "src": "tuple:06-12"
+   }
   ],
-  "why": "The seller report speaks for the office to its client. The authorized user sees it before it goes.",
-  "you_see": "A held report with its counts, asking the authorized user to continue or cancel.",
-  "test": "The authorized user signs Monday reports for listing SYN-L001 (seller S1), and the seller's consent is on record. One showing happens. On Monday the report is held (1 showing, 0 with feedback); the authorized user continues and it is sent to the seller once; the daily run on the same day does not hold a second one."
+  "you_see": {
+   "t": "A held report with its counts, asking the authorized user to continue or cancel.",
+   "src": "check:06-12:envelope.persisted:agent.status"
+  },
+  "test": {
+   "t": "The authorized user signs Monday reports for SYN-L001 (seller S1); the seller's consent is on record. Buyer B1 is confirmed for Saturday October 17. On Monday the 19th the report is held (1 showing, 0 with feedback); the authorized user continues and it goes to the seller once; a second daily run the same day holds no second report.",
+   "src": "spec:06-12"
+  }
  },
  {
   "id": "06-13",
-  "rev": 2,
-  "title": "The seller report setting is wrong",
-  "when": "A signed seller report setting cannot be read (for example the weekday \"funday\").",
+  "rev": 3,
+  "title": {
+   "t": "The seller report setting is malformed",
+   "src": "tuple:06-13"
+  },
+  "when": {
+   "t": "A signed seller report setting is not exactly a weekday name and a list of listings, each with its seller.",
+   "src": "dispatcher/listing_spokes_06.py:175-186"
+  },
   "steps": [
-   "Agent 06 rejects the whole setting; nothing changes.",
-   "It tells the authorized user the setting was rejected."
+   {
+    "t": "Agent 06 rejects the whole setting; nothing changes.",
+    "src": "dispatcher/listing_spokes_06.py:187-190; check:06-13:spoke.trace"
+   },
+   {
+    "t": "It tells the authorized user the setting was rejected and why.",
+    "src": "dispatcher/listing_spokes_06.py:188-189; check:06-13:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Apply part of a broken setting, or guess what it meant."
+   {
+    "t": "Apply part of a broken setting.",
+    "src": "tuple:06-13"
+   }
   ],
-  "why": "A half-applied setting gives reports on the wrong day or for the wrong listings.",
-  "you_see": "A question saying the seller report setting was rejected.",
-  "test": "A signed seller report setting with the weekday \"funday\"."
+  "you_see": {
+   "t": "A question saying the seller report setting was rejected.",
+   "src": "check:06-13:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A signed seller report setting with the weekday \"funday\".",
+   "src": "spec:06-13"
+  }
  }
 ]

@@ -212,7 +212,7 @@ def test_explicit_stop_suppresses_all_channels(tmp_path):
                                    "sequence_id": "seq_a"}))
 
     env = Envelope(from_agent="11", to_agent="03", intent="lead.reply",
-                  client_context_id="n-008", payload={"message": "STOP"},
+                  client_context_id="n-008", payload={"message": "STOP", "channel": "text"},
                   provenance={"source": "spoke-11", "captured_at": "runtime",
                               "verbatim_available": True})
     hub.send(env)
@@ -222,6 +222,9 @@ def test_explicit_stop_suppresses_all_channels(tmp_path):
     confirmations = persisted(hub, "client.message.request")
     assert any(c["payload"].get("template") == "opt_out_confirmed" for c in confirmations), \
         "STOP must send a real client-facing confirmation, not just log internally"
+    # D-A8 (owner, 2026-10-28): only on the channel the STOP came in on
+    assert [c["payload"].get("channel") for c in confirmations
+            if c["payload"].get("template") == "opt_out_confirmed"] == ["text"]
 
 
 def test_engagement_spike_pauses_and_rescores(tmp_path):
@@ -357,7 +360,10 @@ def test_frequency_complaint_reduces_cadence_but_does_not_kill_sequence(tmp_path
                                     "verbatim_available": True})
     hub.send(complaint)
 
-    assert spoke.frequency_cap_per_week == 2, "cadence must actually reduce"
+    assert spoke.lead_cap(ctx) == 2, "this lead's cadence must actually reduce"
+    # finding R (2026-10-27): the reduction is this lead's only
+    assert spoke.frequency_cap_per_week == 3, "the agent-wide cap must not change"
+    assert spoke.lead_cap("someone-else") == 3
     assert spoke.active_sequences[ctx]["paused"] is False, \
         "sequence must resume after a frequency complaint, not stay paused forever"
     # THE FIX: "+ confirm" half of the tuple never sent anything before.
@@ -430,3 +436,61 @@ def test_touch_sends_normally_inside_legal_contact_hours(tmp_path):
 
     result = spoke.send_scheduled_touch(ctx, {"body": "daytime touch"}, "2026-W32", hour=14)
     assert result == "sent"
+
+
+def test_rescore_without_a_sequence_keeps_the_running_one(tmp_path):
+    """Finding Q (procedures audit, 2026-10-27): Agent 02's re-score sends
+    lead.nurture with reassignment=True and no sequence_id. That read as
+    default_drip, so a lead on any other sequence was moved to default_drip
+    and restarted at day 0. No sequence named keeps the current one."""
+    hub = make_hub(str(tmp_path))
+    spoke = with_sequences(Spoke03LeadNurture(hub))
+    spoke.sequences["spring_buyers"] = {"touches": [{"day": 0, "text": "Spring touch"}]}
+    hub.on_turn_start()
+    ctx = "q-001"
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "spring_buyers"}))
+    assert spoke.active_sequences[ctx]["sequence_id"] == "spring_buyers"
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "reassignment": True}))
+    assert spoke.active_sequences[ctx]["sequence_id"] == "spring_buyers"
+    logs = persisted(hub, "interaction.log")
+    assert not any(l["payload"].get("kind") == "sequence_reassigned" for l in logs), \
+        "a re-score naming no sequence must not reassign"
+
+
+def test_reassignment_naming_another_sequence_still_supersedes(tmp_path):
+    """The other half stays as it was: a reassignment that names a new
+    sequence replaces the running one (tuple 10)."""
+    hub = make_hub(str(tmp_path))
+    spoke = with_sequences(Spoke03LeadNurture(hub))
+    spoke.sequences["spring_buyers"] = {"touches": [{"day": 0, "text": "Spring touch"}]}
+    hub.on_turn_start()
+    ctx = "q-002"
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "spring_buyers"}))
+    hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "reassignment": True,
+                               "sequence_id": "seq_a"}))
+    assert spoke.active_sequences[ctx]["sequence_id"] == "seq_a"
+
+
+def test_frequency_complaint_lowers_only_that_leads_cap(tmp_path):
+    """Finding R (procedures audit, 2026-10-27): 'too many' from one lead
+    lowered frequency_cap_per_week for every lead. Now only that lead's."""
+    hub = make_hub(str(tmp_path))
+    spoke = with_sequences(Spoke03LeadNurture(hub, frequency_cap_per_week=2))
+    hub.on_turn_start()
+    for ctx in ("r-a", "r-b"):
+        hub.send(nurture_env(ctx, {"consent": {"email": "yes"}, "sequence_id": "seq_a"}))
+        hub.send(Envelope(from_agent="17", to_agent="03", intent="content.verdict",
+                          client_context_id=ctx, payload={"verdict": "approved"},
+                          provenance={"source": "spoke-17", "captured_at": "runtime",
+                                      "verbatim_available": True}))
+    hub.send(Envelope(from_agent="11", to_agent="03", intent="lead.reply",
+                      client_context_id="r-a", payload={"message": "too many emails"},
+                      provenance={"source": "spoke-11", "captured_at": "runtime",
+                                  "verbatim_available": True}))
+    assert spoke.lead_cap("r-a") == 1
+    assert spoke.lead_cap("r-b") == 2
+    week = "2026-W43"
+    assert spoke.send_scheduled_touch("r-a", {"touch": 1}, week) == "sent"
+    assert spoke.send_scheduled_touch("r-a", {"touch": 2}, week) == "held_frequency_cap"
+    assert spoke.send_scheduled_touch("r-b", {"touch": 1}, week) == "sent"
+    assert spoke.send_scheduled_touch("r-b", {"touch": 2}, week) == "sent"

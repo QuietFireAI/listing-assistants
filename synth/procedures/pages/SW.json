@@ -1,227 +1,498 @@
 [
  {
   "id": "SW-01",
-  "rev": 2,
-  "title": "One trigger matches two playbooks",
-  "when": "Something happens that would start two different playbooks.",
+  "rev": 3,
+  "title": {
+   "t": "One message would start two playbooks",
+   "src": "tuple:SW-01"
+  },
+  "when": {
+   "t": "A message matches the start of two or more playbooks.",
+   "src": "dispatcher/run_tracker.py:13-17, 421-422"
+  },
   "steps": [
-   "The dispatcher runs neither.",
-   "It asks the authorized user which one, naming both."
+   {
+    "t": "The dispatcher delivers it to no one and asks the authorized user, naming each playbook: continue with the chosen one starts it; cancel drops the message.",
+    "src": "dispatcher/run_tracker.py:585-595"
+   },
+   {
+    "t": "No way in today: since the owner's comparables decision of 2026-10-21, no message starts two playbooks. The hold is tested with a made-up table where two playbooks share a start.",
+    "src": "spec:SW-01"
+   }
   ],
   "never": [
-   "Pick a playbook on its own."
+   {
+    "t": "Pick a playbook on its own.",
+    "src": "tuple:SW-01"
+   }
   ],
-  "why": "Two playbooks for one event can send conflicting messages. The authorized user chooses.",
-  "you_see": "A question naming both playbooks.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not reachable.",
+   "src": "spec:SW-01"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:SW-01"
+  }
  },
  {
   "id": "SW-02",
-  "rev": 2,
-  "title": "A playbook step would cross the closed track",
-  "when": "A step in a playbook asks an agent to do something the track does not allow (for example an agent other than 11 messaging a client directly).",
+  "rev": 3,
+  "title": {
+   "t": "A playbook step would cross the closed track",
+   "src": "tuple:SW-02"
+  },
+  "when": {
+   "t": "During a playbook run, an agent sends something its track does not allow.",
+   "src": "dispatcher/run_tracker.py:381-390"
+  },
   "steps": [
-   "The dispatcher refuses the step.",
-   "The playbook is halted and the halt is recorded as a defect in the playbook (an integrity violation).",
-   "Nobody decides it on the spot: the playbook itself must be fixed."
+   {
+    "t": "The dispatcher refuses the message.",
+    "src": "dispatcher/hub.py:590-595; check:SW-02:reject"
+   },
+   {
+    "t": "The run is halted and an integrity violation records it as a defect in the playbook, to be fixed in the playbook, not decided on the spot.",
+    "src": "dispatcher/run_tracker.py:553-570; check:SW-02:playbook.completed; check:SW-02:playbook.integrity_violation"
+   }
   ],
   "never": [
-   "Let a playbook step override the track, or treat it as a judgment call."
+   {
+    "t": "Let a playbook step override the track.",
+    "src": "tuple:SW-02"
+   }
   ],
-  "why": "A playbook that asks for something forbidden is wrongly written. Fixing the playbook is the only safe answer.",
-  "you_see": "The halted playbook and the integrity record naming the defect.",
-  "test": "During an open house playbook, Agent 06 tries to send a client an invitation directly (only Agent 11 may message clients). Stand-in: the test sends it as Agent 06."
+  "you_see": {
+   "t": "The halted playbook and the integrity record naming the defect.",
+   "src": "check:SW-02:playbook.integrity_violation"
+  },
+  "test": {
+   "t": "During an open house run, the test, standing in as Agent 06, sends a client an invitation directly; only Agent 11 may message clients.",
+   "src": "spec:SW-02"
+  }
  },
  {
   "id": "SW-03",
-  "rev": 2,
-  "title": "There is more work than capacity",
-  "when": "Work is waiting because the system is at capacity.",
+  "rev": 3,
+  "title": {
+   "t": "There is more work than capacity",
+   "src": "tuple:SW-03"
+  },
+  "when": {
+   "t": "While 25 or more questions wait for the authorized user, a message from outside the agents would start a new playbook run.",
+   "src": "dispatcher/run_tracker.py:32-38, 79, 417-420"
+  },
   "steps": [
-   "Work is let in by priority: alerts first, then active transaction deadlines, then client requests, then internal and marketing work, then prospecting.",
-   "Within the same priority, the older item goes first."
+   {
+    "t": "The start waits; the authorized user is told once that the queue is full. Nothing is dropped.",
+    "src": "dispatcher/run_tracker.py:615-638"
+   },
+   {
+    "t": "When fewer than 25 questions wait, the waiting starts go in priority class order (1 escalation, 2 time-critical, 3 scheduled, 4 background, set per playbook), older first within a class.",
+    "src": "dispatcher/run_tracker.py:656-689; identity/priority.json; check:SW-03:playbook.waiting_released"
+   },
+   {
+    "t": "The classes are per playbook; the tuple's five levels (escalations, transaction deadlines, client requests, internal work, discovery) are not separate classes in the code.",
+    "src": "identity/priority.json; tuple:SW-03"
+   }
   ],
   "never": [
-   "Let low-priority work jump the line."
+   {
+    "t": "Let low-priority work jump the line.",
+    "src": "tuple:SW-03"
+   }
   ],
-  "why": "When everything cannot happen at once, deadlines and people come before marketing and discovery.",
-  "you_see": "Nothing to do; the record shows the order.",
-  "test": "The authorized user's queue is full with 25 questions, so a withdrawal, two new listings and a prospecting lead wait. Three questions are marked done; the withdrawal goes first, then the two listings (older first), then the prospecting lead."
+  "you_see": {
+   "t": "One note that the queue is full; the record of the release order.",
+   "src": "check:SW-03:playbook.waiting_released"
+  },
+  "test": {
+   "t": "The test fills the queue with 25 questions (rejected settings), then a withdrawal, two new listings and a prospect arrive and wait. Three questions are marked done; the withdrawal goes first, then the two listings (older first), then the prospect.",
+   "src": "spec:SW-03"
+  }
  },
  {
   "id": "SW-04",
-  "rev": 2,
-  "title": "The authorized user's signed instruction conflicts with a playbook",
-  "when": "A playbook says to do something and the authorized user signs a decision not to.",
+  "rev": 3,
+  "title": {
+   "t": "A signed decision overrides a playbook step",
+   "src": "tuple:SW-04"
+  },
+  "when": {
+   "t": "A playbook holds a step for the authorized user, who signs a decision not to go ahead.",
+   "src": "dispatcher/run_tracker.py:845-858"
+  },
   "steps": [
-   "The authorized user's signed decision wins.",
-   "The playbook ends and its after-action report records the authorized user's decision as a deviation."
+   {
+    "t": "The decision stands: the step does not happen.",
+    "src": "check:SW-04:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "The run ends and its after-action report lists the authorized user's signed decision.",
+    "src": "dispatcher/run_tracker.py:826-842, 869-874; check:SW-04:after_action.written; check:SW-04:playbook.completed"
+   }
   ],
   "never": [
-   "Carry on with the playbook against the authorized user's signed decision."
+   {
+    "t": "Carry on against the signed decision.",
+    "src": "tuple:SW-04"
+   }
   ],
-  "why": "Playbooks serve the authorized user. The signed decision stands, and the report shows where it departed from the standard.",
-  "you_see": "The after-action report listing the authorized user's decision.",
-  "test": "The weekly seller report playbook (P18) holds this week's report; the authorized user cancels it. Nothing is sent to the seller and the report lists the authorized user's cancellation."
+  "you_see": {
+   "t": "The after-action report listing the decision.",
+   "src": "check:SW-04:after_action.written"
+  },
+  "test": {
+   "t": "The weekly seller report run (P18) holds this week's report; the authorized user cancels it. Nothing goes to the seller.",
+   "src": "spec:SW-04"
+  }
  },
  {
   "id": "SW-05",
-  "rev": 2,
-  "title": "Data is too old",
-  "when": "Data a task needs is older than its freshness limit.",
+  "rev": 3,
+  "title": {
+   "t": "Data is too old",
+   "src": "tuple:SW-05"
+  },
+  "when": {
+   "t": "A comparables request includes a sale retrieved more than 30 days before.",
+   "src": "dispatcher/listing_spokes_10.py:203-218"
+  },
   "steps": [
-   "It is regenerated fresh; stale items are left out and counted."
+   {
+    "t": "Agent 10 builds the package fresh, leaving out and counting the stale sale (10-04).",
+    "src": "dispatcher/listing_spokes_10.py:203-240; check:SW-05:envelope.persisted:data.package"
+   }
   ],
   "never": [
-   "Present old data as current."
+   {
+    "t": "Present old data as current.",
+    "src": "tuple:SW-05"
+   }
   ],
-  "why": "Old data in a moving market misleads.",
-  "you_see": "Fresh data, with a count of what was dropped as stale.",
-  "test": "A comparables request where one sale was retrieved too long ago."
+  "you_see": {
+   "t": "The package with one sale left out as stale.",
+   "src": "check:SW-05:envelope.persisted:data.package"
+  },
+  "test": {
+   "t": "A comparables request where one sale was retrieved too long ago.",
+   "src": "spec:SW-05"
+  }
  },
  {
   "id": "SW-06",
-  "rev": 2,
-  "title": "One step fails while others run alongside it",
-  "when": "Several independent steps happen together and one of them fails.",
+  "rev": 3,
+  "title": {
+   "t": "One step fails while others go on",
+   "src": "tuple:SW-06"
+  },
+  "when": {
+   "t": "Filing a record in the client's drawer fails while the lead is being captured.",
+   "src": "dispatcher/drawer_filing.py:88-116"
+  },
   "steps": [
-   "The steps that do not depend on it still finish.",
-   "The failed step is flagged and held for the authorized user; anything that depends on it waits.",
-   "The work is never abandoned silently."
+   {
+    "t": "The failure is recorded and held for the authorized user.",
+    "src": "dispatcher/drawer_filing.py:107-116; check:SW-06:drawer.refused; check:SW-06:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Capture, scoring and the record entries still complete.",
+    "src": "check:SW-06:envelope.persisted:lead.captured; check:SW-06:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Drop the whole job, or hide the failure."
+   {
+    "t": "Drop the job, or hide the failure.",
+    "src": "tuple:SW-06"
+   }
   ],
-  "why": "One broken step should not stop unrelated work, and must not go unnoticed.",
-  "you_see": "A question about the failed step; the rest done.",
-  "test": "A lead named \"Jane Synth\": filing into the client drawer fails (a space is not allowed in the folder name); capture, scoring and the CRM log still complete."
+  "you_see": {
+   "t": "A question about the failed filing; the rest done.",
+   "src": "check:SW-06:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A lead under the thread name \"Jane Synth\": a name with a space cannot be a drawer folder.",
+   "src": "spec:SW-06; dispatcher/client_drawer.py:42-58"
+  }
  },
  {
   "id": "SW-07",
-  "rev": 2,
-  "title": "The same message arrives twice",
-  "when": "An identical message (same ID) arrives a second time.",
+  "rev": 3,
+  "title": {
+   "t": "The same message arrives twice",
+   "src": "tuple:SW-07"
+  },
+  "when": {
+   "t": "A message with an ID the dispatcher has already seen arrives.",
+   "src": "dispatcher/hub.py:532-535"
+  },
   "steps": [
-   "The dispatcher processes it once.",
-   "The second arrival is answered as a duplicate and does nothing."
+   {
+    "t": "The dispatcher answers it as a duplicate and does nothing else with it.",
+    "src": "dispatcher/hub.py:535-538; check:SW-07:dedupe.hit; check:SW-07:envelope.persisted:lead.captured"
+   }
   ],
   "never": [
-   "Act on the same message twice."
+   {
+    "t": "Act on the same message twice.",
+    "src": "tuple:SW-07"
+   }
   ],
-  "why": "A retry that runs twice could double a message to a client or a booking.",
-  "you_see": "Nothing; one lead, one capture.",
-  "test": "The test sends one inquiry twice with the same message ID."
+  "you_see": {
+   "t": "Nothing: one lead, one capture.",
+   "src": "check:SW-07:envelope.persisted:lead.inbound"
+  },
+  "test": {
+   "t": "A test harness sends one inquiry twice with the same message ID.",
+   "src": "spec:SW-07"
+  }
  },
  {
   "id": "SW-08",
-  "rev": 2,
-  "title": "It is unclear whether a legal line is crossed",
-  "when": "An agent cannot tell whether something crosses the legal line.",
+  "rev": 3,
+  "title": {
+   "t": "It is unclear whether a legal line is crossed",
+   "src": "tuple:SW-08"
+  },
+  "when": {
+   "t": "An agent cannot verify something its legal line depends on.",
+   "src": "tuple:SW-08"
+  },
   "steps": [
-   "It treats it as crossed.",
-   "It stops and raises a legal-line alert for the authorized user."
+   {
+    "t": "It treats it as crossed: in the test, Agent 08 cannot verify the sender of a settlement statement (no sender list), so it does not file it and raises a legal-line alert.",
+    "src": "dispatcher/listing_spokes_08.py:351-372; check:SW-08:escalation.raised; check:SW-08:spoke.trace"
+   },
+   {
+    "t": "The statement is not filed, so the closing milestone is not met.",
+    "src": "dispatcher/listing_spokes_08.py:351-372; dispatcher/listing_spokes_07.py:502-546"
+   }
   ],
   "never": [
-   "Give the benefit of the doubt on a legal question."
+   {
+    "t": "Give the benefit of the doubt on a legal question.",
+    "src": "tuple:SW-08"
+   }
   ],
-  "why": "A false alarm costs a minute; a missed legal problem can cost a license.",
-  "you_see": "A legal-line alert.",
-  "test": "A closing statement arrives and Agent 08 has no list of expected senders, so it cannot tell if the sender is legitimate: it is quarantined and escalated, and nothing moves the closing."
+  "you_see": {
+   "t": "A legal-line alert.",
+   "src": "check:SW-08:escalation.raised"
+  },
+  "test": {
+   "t": "Closing October 20; a settlement statement arrives with no expected-sender list set.",
+   "src": "spec:SW-08"
+  }
  },
  {
   "id": "SW-09",
-  "rev": 2,
-  "title": "No decision exists for the situation",
-  "when": "Something happens that no tuple covers.",
+  "rev": 3,
+  "title": {
+   "t": "No rule covers the situation",
+   "src": "tuple:SW-09"
+  },
+  "when": {
+   "t": "An agent meets a case none of its tuples covers.",
+   "src": "tuple:SW-09"
+  },
   "steps": [
-   "The agent stops.",
-   "It asks the authorized user and waits."
+   {
+    "t": "It stops and asks the authorized user, saying no rule covers it.",
+    "src": "dispatcher/listing_spokes_20.py:259-263; check:SW-09:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Improvise."
+   {
+    "t": "Improvise.",
+    "src": "tuple:SW-09"
+   }
   ],
-  "why": "A missing decision is a gap in the design, to be decided by the authorized user, not filled in on the fly.",
-  "you_see": "A question saying no rule covers this and the item is held.",
-  "test": "A social media mention reading \"lol\", labeled noise, which no rule covers."
+  "you_see": {
+   "t": "A question saying no rule covers it.",
+   "src": "check:SW-09:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A social mention \"lol\" labelled noise, which no Agent 20 rule covers.",
+   "src": "spec:SW-09"
+  }
  },
  {
   "id": "SW-10",
-  "rev": 2,
-  "title": "Keeping the agents on their rules over long runs",
-  "when": "An agent has been working for a long time, or reaches a major step.",
+  "rev": 3,
+  "title": {
+   "t": "Keeping the agents on their rules over long runs",
+   "src": "tuple:SW-10"
+  },
+  "when": {
+   "t": "A major step (a phase gate) is crossed, or an agent handles 10 messages with no gate.",
+   "src": "dispatcher/manners_reinjection.py:7-21, 38"
+  },
   "steps": [
-   "At every major step (for example taking in a new listing, going live), the agents are handed the conduct rules again.",
-   "If many turns pass without that, a backstop hands them over anyway."
+   {
+    "t": "A re-reading of MANNERS.md is recorded on the audit log at each gate and at the 10-message backstop.",
+    "src": "dispatcher/manners_reinjection.py:26-29, 57-75; check:SW-10:manners.reinjection"
+   },
+   {
+    "t": "The agents are fixed code with nothing to re-read; the record is all that happens. Only Agent 04's model drafting prompt carries the MANNERS.md text, on every call.",
+    "src": "dispatcher/manners_reinjection.py:26-32"
+   }
   ],
   "never": [
-   "Run for long stretches on fading instructions."
+   {
+    "t": "Run long stretches without the record.",
+    "src": "tuple:SW-10"
+   }
   ],
-  "why": "Software agents can drift from their instructions over long runs. Re-reading the rules keeps behavior consistent.",
-  "you_see": "Nothing; the record shows each re-reading.",
-  "test": "A new listing goes live; the record shows the conduct rules re-read at its phase gates."
+  "you_see": {
+   "t": "Nothing; the record shows each re-reading.",
+   "src": "check:SW-10:manners.reinjection"
+  },
+  "test": {
+   "t": "A new listing goes live; the record shows re-readings at its phase gates.",
+   "src": "spec:SW-10"
+  }
  },
  {
   "id": "SW-11",
-  "rev": 2,
-  "title": "Acting when not everything is known yet",
-  "when": "The path looks clear but not everything is confirmed.",
+  "rev": 3,
+  "title": {
+   "t": "Acting before everything is confirmed",
+   "src": "tuple:SW-11"
+  },
+  "when": {
+   "t": "A message would go outside the system to a vendor, another party or the public.",
+   "src": "dispatcher/hub.py:604-611"
+  },
   "steps": [
-   "Agents go ahead only with steps that can be undone.",
-   "Anything that cannot be undone or that a client or other party will see waits for the authorized user's full, signed authority."
+   {
+    "t": "The dispatcher holds it until the authorized user signs its release.",
+    "src": "dispatcher/hub.py:611-646; check:SW-11:absolute_signal.hold"
+   },
+   {
+    "t": "Messages between the agents, and to the authorized user, go on.",
+    "src": "dispatcher/hub.py:604-610"
+   }
   ],
   "never": [
-   "Take an irreversible or public step on partial information."
+   {
+    "t": "Take an irreversible or public step without signed authority.",
+    "src": "tuple:SW-11"
+   }
   ],
-  "why": "Reversible steps keep work moving; irreversible ones need certainty.",
-  "you_see": "The photographer booking and the listing ad waiting for the authorized user's release.",
-  "test": "A new listing: the photographer booking and the marketing publish are both held for the authorized user's signed release."
+  "you_see": {
+   "t": "The photographer booking and the listing ad waiting for release.",
+   "src": "check:SW-11:absolute_signal.hold"
+  },
+  "test": {
+   "t": "A new listing: the photographer booking and the ad are both held for release.",
+   "src": "spec:SW-11"
+  }
  },
  {
   "id": "SW-12",
-  "rev": 2,
-  "title": "Two jobs need the same agent at once",
-  "when": "Two running playbooks need the same agent at the same moment.",
+  "rev": 3,
+  "title": {
+   "t": "Two jobs need the same agent at once",
+   "src": "tuple:SW-12"
+  },
+  "when": {
+   "t": "Waiting playbook starts are released and two of them go to the same agent.",
+   "src": "dispatcher/run_tracker.py:39-46, 665-676"
+  },
   "steps": [
-   "The higher-priority job goes ahead.",
-   "The other waits on a \"siding\" and resumes when the agent is free.",
-   "Neither job is cancelled."
+   {
+    "t": "The higher class goes first; the other waits on a siding and resumes when the first is through. Neither is cancelled.",
+    "src": "dispatcher/run_tracker.py:676-703; check:SW-12:siding.hold; check:SW-12:siding.resume"
+   },
+   {
+    "t": "This applies only to work released from waiting; agents answer at once, so nothing waits mid-delivery.",
+    "src": "dispatcher/run_tracker.py:44-46"
+   }
   ],
   "never": [
-   "Abort a job because of a clash."
+   {
+    "t": "Abort a job because of a clash.",
+    "src": "tuple:SW-12"
+   }
   ],
-  "why": "Clashes are normal on a busy day; waiting the authorized user's turn is safe, aborting loses work.",
-  "you_see": "Nothing; the record shows the hold and the resume.",
-  "test": "A withdrawal and two new listings all need Agent 05; the withdrawal goes first and the two listings wait on the siding, then resume in arrival order."
+  "you_see": {
+   "t": "Nothing; the record shows the hold and the resume.",
+   "src": "check:SW-12:siding.resume"
+  },
+  "test": {
+   "t": "With the queue full, a withdrawal and two new listings for Agent 05 and a prospect wait. On release the withdrawal goes first; the two listings wait on the siding and resume in arrival order; the prospect starts last.",
+   "src": "spec:SW-12"
+  }
  },
  {
   "id": "SW-13",
-  "rev": 2,
-  "title": "A task would need a route that does not exist",
-  "when": "An agent tries to send something on a path the track does not declare.",
+  "rev": 3,
+  "title": {
+   "t": "A task would need a route that does not exist",
+   "src": "tuple:SW-13"
+  },
+  "when": {
+   "t": "A message is sent on a path the track does not declare.",
+   "src": "dispatcher/hub.py:590-591"
+  },
   "steps": [
-   "The dispatcher refuses it before delivery."
+   {
+    "t": "If the track knows the kind of message, the dispatcher refuses it before delivery.",
+    "src": "dispatcher/hub.py:592-595; check:SW-13:reject"
+   },
+   {
+    "t": "If the kind of message is on no track at all, it is held and the authorized user is asked.",
+    "src": "dispatcher/hub.py:596-603"
+   }
   ],
   "never": [
-   "Treat a missing route as permission."
+   {
+    "t": "Treat a missing route as permission.",
+    "src": "tuple:SW-13"
+   }
   ],
-  "why": "An undeclared path is a sign something is wrong, not an opportunity.",
-  "you_see": "The refusal in the record.",
-  "test": "Agent 06 asks Agent 14 for a client's record (no such route). Stand-in: the test sends it as Agent 06."
+  "you_see": {
+   "t": "The refusal on the record.",
+   "src": "check:SW-13:reject"
+  },
+  "test": {
+   "t": "Standing in as Agent 06, the test asks Agent 14 for a client's record; that route does not exist.",
+   "src": "spec:SW-13"
+  }
  },
  {
   "id": "SW-14",
-  "rev": 2,
-  "title": "A situation comes up that no rule covers, during a playbook",
-  "when": "Inside a playbook, an agent meets something no tuple covers.",
+  "rev": 3,
+  "title": {
+   "t": "No rule covers a situation during a playbook",
+   "src": "tuple:SW-14"
+  },
+  "when": {
+   "t": "During a playbook run, an agent asks the authorized user because no tuple covers a case.",
+   "src": "dispatcher/run_tracker.py:859-862"
+  },
   "steps": [
-   "The agent holds it and asks the authorized user.",
-   "The playbook's after-action report proposes a new tuple for it, for the authorized user to approve."
+   {
+    "t": "The agent holds it and asks.",
+    "src": "dispatcher/listing_spokes_12.py:158-178; check:SW-14:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "The run's after-action report lists it as a proposed tuple, with the response left blank for the authorized user to ratify.",
+    "src": "dispatcher/run_tracker.py:859-866, 875-876; check:SW-14:after_action.written"
+   }
   ],
   "never": [
-   "Handle it on the fly."
+   {
+    "t": "Handle it on the fly.",
+    "src": "tuple:SW-14"
+   }
   ],
-  "why": "Each gap found becomes a new decision. That is how the system gets more complete over time, with the authorized user deciding each addition.",
-  "you_see": "A question saying no rule covers it; a proposed tuple in the after-action report.",
-  "test": "During an open house, a client asks \"Can you run the ad on Instagram too?\"; Agent 12 has no rule for it. The open house report proposes one."
+  "you_see": {
+   "t": "A question; a proposed tuple in the after-action report.",
+   "src": "check:SW-14:after_action.written"
+  },
+  "test": {
+   "t": "During an open house, a client asks \"Can you run the ad on Instagram too?\"; Agent 12 has no rule for it.",
+   "src": "spec:SW-14"
+  }
  }
 ]

@@ -185,13 +185,17 @@ def test_flagged_verdict_never_publishes(tmp_path):
     assert not persisted(hub, "campaign.publish")
 
 
-def test_verbal_budget_change_ignored_signed_stands(tmp_path):
+def test_budget_settings_are_refused_since_tuple_10_was_retired(tmp_path):
+    """Tuple 10 (signed budget stands over a verbal change) RETIRED
+    2026-10-28, owner decision D-A17: no ad carries a cost, so the budget
+    guarded nothing. A budget setting is refused, not silently stored."""
     hub, signer = make_hub(str(tmp_path))
     spoke = Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
     hub.on_turn_start()
     hub.send(config_update(signer, "m-011", {"signed_budget": 500}))
-    hub.send(config_update(signer, "m-011", {"budget_change_verbal": 800}))
-    assert spoke.signed_budgets["m-011"] == 500
+    assert not hasattr(spoke, "signed_budgets")
+    assert any("campaign budgets were retired" in q["payload"]["reason"]
+               for q in persisted(hub, "clarification.request"))
 
 
 def test_conflicting_engagement_sources_reports_both_named(tmp_path):
@@ -256,6 +260,9 @@ def test_stale_asset_retraction_actually_pulls_it_down(tmp_path):
     hub.send(status_update("m-016", "active"))
     hub.send(config_update(signer, "m-016", {"new_campaign": {"body": "x"}}))
     hub.send(verdict("m-016", {"verdict": "approved"}))
+    # the ad goes live first (finding AM, 2026-10-28: a retraction is only
+    # for an ad that was released; a held one is declined instead)
+    release_all_held(hub, signer)
 
     hub.send(platform_event("m-016", {"event_kind": "stale_detected",
                                       "delta": "listing withdrawn",
@@ -316,3 +323,21 @@ def test_REGRESSION_platform_truncation_goes_back_through_17(tmp_path):
     review = persisted(hub, "content.review")
     assert review and review[0]["to_agent"] == "17"
     assert "truncation" in review[0]["payload"]["reason"]
+
+
+def test_truncation_verdict_applies_to_the_cut_copy(tmp_path):
+    """Finding AL (procedures audit, 2026-10-27): the verdict on a platform
+    cut found nothing pending, so an approval published None. The cut copy
+    is what was reviewed and is what is published (held for release)."""
+    hub, signer = make_hub(str(tmp_path))
+    Spoke12MarketingCampaign(hub, brokerage_identification="Synth Realty, Testville OH")
+    hub.on_turn_start()
+    hub.send(status_update("m-019", "active"))
+    cut = {"body": "3 bedrooms... Synth Realty, Testville OH"}
+    hub.send(platform_event("m-019", {"event_kind": "truncated", "truncated_content": cut}))
+    hub.send(verdict("m-019", {"verdict": "approved", "findings": []}))
+    release_all_held(hub, signer)
+    pub = persisted(hub, "campaign.publish")
+    assert pub, "the approved cut copy is published after release"
+    assert pub[-1]["payload"]["content"] is not None
+    assert pub[-1]["payload"]["content"]["body"] == cut["body"]

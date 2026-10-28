@@ -1,215 +1,462 @@
 [
  {
   "id": "05-01",
-  "rev": 2,
-  "title": "A listing change has no matching MLS field",
-  "when": "A signed change names a piece of data that has no valid field in the MLS record (for example lot size in acres where the MLS has no such field).",
+  "rev": 3,
+  "title": {
+   "t": "A signed listing change names a field the record does not have",
+   "src": "tuple:05-01"
+  },
+  "when": {
+   "t": "A signed change names a field outside Agent 05's listing fields (beds, baths, square footage, price, status, remarks, address, photos).",
+   "src": "dispatcher/listing_spokes_05.py:20-21"
+  },
   "steps": [
-   "Agent 05 (MLS & Listing Management) does not enter it anywhere.",
-   "It asks the authorized user, naming the data that has no valid MLS field."
+   {
+    "t": "Agent 05 enters nothing.",
+    "src": "dispatcher/listing_spokes_05.py:384-389"
+   },
+   {
+    "t": "It asks the authorized user, naming the field.",
+    "src": "dispatcher/listing_spokes_05.py:384-389; check:05-01:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Squeeze the data into the nearest-looking field."
+   {
+    "t": "Put the value in the nearest-looking field.",
+    "src": "tuple:05-01"
+   }
   ],
-  "why": "Data in the wrong field misleads buyers and agents who search on that field.",
-  "you_see": "A question naming the data with no valid MLS field.",
-  "test": "A live listing; the authorized user signs a change setting lot_acres to 0.5."
+  "you_see": {
+   "t": "A question naming the field.",
+   "src": "check:05-01:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A listing on record; the authorized user signs a change setting lot_acres to 0.5.",
+   "src": "spec:05-01"
+  }
  },
  {
   "id": "05-02",
-  "rev": 2,
-  "title": "A listing portal shows different data than the MLS",
-  "when": "A syndicated portal (for example a public listing site) shows data that differs from the MLS record.",
+  "rev": 3,
+  "title": {
+   "t": "A listing portal shows different data than the MLS",
+   "src": "tuple:05-02"
+  },
+  "when": {
+   "t": "A portal shows data different from the MLS record.",
+   "src": "tuple:05-02"
+  },
   "steps": [
-   "Agent 05 corrects the source record first.",
-   "It then checks every portal again."
+   {
+    "t": "The rule: correct the source record, then check every portal again.",
+    "src": "tuple:05-02"
+   },
+   {
+    "t": "Not built: there is no MLS or portal connection, so nothing can start it.",
+    "src": "dispatcher/listing_spokes_05.py:53-70; spec:05-02"
+   }
   ],
   "never": [
-   "Patch a single portal and leave the source wrong."
+   {
+    "t": "Fix one portal and leave the source wrong.",
+    "src": "tuple:05-02"
+   }
   ],
-  "why": "Portals copy the MLS. Fixing the source is the only fix that sticks everywhere.",
-  "you_see": "Nothing yet: this is not built.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not built.",
+   "src": "spec:05-02"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:05-02"
+  }
  },
  {
   "id": "05-03",
-  "rev": 2,
-  "title": "Two signed listing changes contradict each other",
-  "when": "Two authorized changes to the same listing conflict (for example from two people with signing authority).",
+  "rev": 3,
+  "title": {
+   "t": "Two signed changes to the same field disagree",
+   "src": "tuple:05-03"
+  },
+  "when": {
+   "t": "Two signed changes to the same field, from different signers, have different values.",
+   "src": "dispatcher/listing_spokes_05.py:180-188"
+  },
   "steps": [
-   "Agent 05 carries out neither change.",
-   "It asks the authorized user which one stands."
+   {
+    "t": "The first change was already carried out when it arrived. Agent 05 holds the second, undoes nothing, and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_05.py::already-executed {field}=; dispatcher/listing_spokes_05.py:536-546; dispatcher/listing_spokes_05.py:409-418"
+   },
+   {
+    "t": "No way in yet: the console and the Desk sign with one key, and the signer list that would name two different signers is not armed.",
+    "src": "spec:05-03"
+   }
   ],
   "never": [
-   "Apply the later one, or either one, without asking."
+   {
+    "t": "Carry out either change.",
+    "src": "tuple:05-03"
+   }
   ],
-  "why": "Two signed instructions that disagree mean one is a mistake; the listing must not change on a guess.",
-  "you_see": "A question naming both changes.",
-  "test": ""
+  "you_see": {
+   "t": "A question naming both changes.",
+   "src": "dispatcher/listing_spokes_05.py:412-421"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:05-03"
+  }
  },
  {
   "id": "05-04",
-  "rev": 2,
-  "title": "A portal is still out of date after the check window",
-  "when": "A portal still shows old data after the time allowed for it to update.",
+  "rev": 3,
+  "title": {
+   "t": "A portal is still out of date after the check window",
+   "src": "tuple:05-04"
+  },
+  "when": {
+   "t": "A portal still shows old data after the allowed time.",
+   "src": "tuple:05-04"
+  },
   "steps": [
-   "Agent 05 records it and tells the authorized user.",
-   "It never marks the update complete."
+   {
+    "t": "The rule: record it, tell the authorized user, and never mark it complete.",
+    "src": "tuple:05-04"
+   },
+   {
+    "t": "Not built: there is no MLS or portal connection, so nothing can start it.",
+    "src": "dispatcher/listing_spokes_05.py:53-70; spec:05-04"
+   }
   ],
   "never": [
-   "Mark an update done while a portal still shows the old data."
+   {
+    "t": "Mark the update complete.",
+    "src": "tuple:05-04"
+   }
   ],
-  "why": "A stale price or status on a public site misleads buyers. Done means done everywhere.",
-  "you_see": "Nothing yet: this is not built.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not built.",
+   "src": "spec:05-04"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:05-04"
+  }
  },
  {
   "id": "05-05",
-  "rev": 2,
-  "title": "A status change arrives without the document it needs",
-  "when": "A signed status change needs a supporting document that is missing (for example \"sold\" without the closing document).",
+  "rev": 3,
+  "title": {
+   "t": "A status change arrives without its required document",
+   "src": "tuple:05-05"
+  },
+  "when": {
+   "t": "A signed change to sold names no closing document, or to pending names no signed contract.",
+   "src": "dispatcher/listing_spokes_05.py:87-90"
+  },
   "steps": [
-   "Agent 05 refuses the change.",
-   "It asks the authorized user for the missing document, naming it."
+   {
+    "t": "Agent 05 does not change the status and asks the authorized user, naming the document needed.",
+    "src": "dispatcher/listing_spokes_05.py:448-456; check:05-05:envelope.persisted:clarification.request; check:05-05:spoke.trace"
+   }
   ],
   "never": [
-   "Change a status before the required document is on file."
+   {
+    "t": "Change the status before the document is named.",
+    "src": "tuple:05-05"
+   }
   ],
-  "why": "A status without its proof is a false public statement about the property.",
-  "you_see": "A question naming the document the change requires.",
-  "test": "A live listing; the authorized user signs a change to \"sold\" with no closing document. No status change is carried out."
+  "you_see": {
+   "t": "A question naming the required document.",
+   "src": "check:05-05:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A listing on record; the authorized user signs a change to sold with no closing document.",
+   "src": "spec:05-05"
+  }
  },
  {
   "id": "05-06",
-  "rev": 2,
-  "title": "A status change arrives without the authorized user's signature",
-  "when": "A status change arrives that the authorized user did not sign (for example a verbal or emailed instruction typed in).",
+  "rev": 3,
+  "title": {
+   "t": "A status change arrives without a valid signature",
+   "src": "tuple:05-06"
+  },
+  "when": {
+   "t": "An instruction to change a listing arrives unsigned.",
+   "src": "spec:05-06"
+  },
   "steps": [
-   "The dispatcher refuses it before Agent 05 sees it.",
-   "It is recorded as an integrity violation and the authorized user is alerted."
+   {
+    "t": "The dispatcher refuses it before Agent 05 sees it, records an integrity violation and notifies the authorized user.",
+    "src": "dispatcher/hub.py:559-566; check:05-06:integrity.violation; check:05-06:reject"
+   },
+   {
+    "t": "The status does not change.",
+    "src": "check:05-06:spoke.trace"
+   }
   ],
   "never": [
-   "Treat a verbal or emailed instruction as authority."
+   {
+    "t": "Treat a verbal or emailed instruction as authority.",
+    "src": "tuple:05-06"
+   }
   ],
-  "why": "Only the authorized user's signature can change a listing. Anything else could be a mistake or an impersonation.",
-  "you_see": "An integrity alert naming the refused change.",
-  "test": "A live listing; an unsigned instruction to withdraw it arrives. The status is not changed."
+  "you_see": {
+   "t": "An integrity alert.",
+   "src": "check:05-06:integrity.violation"
+  },
+  "test": {
+   "t": "A listing on record; an unsigned instruction to withdraw it arrives.",
+   "src": "spec:05-06"
+  }
  },
  {
   "id": "05-07",
-  "rev": 2,
-  "title": "The MLS rejects an entry",
-  "when": "The MLS refuses an entry on one of its rules.",
+  "rev": 3,
+  "title": {
+   "t": "The MLS rejects an entry",
+   "src": "tuple:05-07"
+  },
+  "when": {
+   "t": "The MLS refuses an entry on one of its rules.",
+   "src": "tuple:05-07"
+  },
   "steps": [
-   "Agent 05 records the MLS's rejection exactly as given.",
-   "It tells the authorized user."
+   {
+    "t": "The rule: record the rejection as given, tell the authorized user, never change the data to pass.",
+    "src": "tuple:05-07"
+   },
+   {
+    "t": "Not built: there is no MLS or portal connection, so nothing can start it.",
+    "src": "dispatcher/listing_spokes_05.py:53-70; spec:05-07"
+   }
   ],
   "never": [
-   "Change the data just to get past the MLS's check."
+   {
+    "t": "Change data to pass the MLS's check.",
+    "src": "tuple:05-07"
+   }
   ],
-  "why": "Bending data to pass validation creates a listing that is wrong in a way nobody chose.",
-  "you_see": "Nothing yet: this is not built.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not built.",
+   "src": "spec:05-07"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:05-07"
+  }
  },
  {
   "id": "05-08",
-  "rev": 2,
-  "title": "A signed price change disagrees with the amendment on file",
-  "when": "The price in a signed change differs from the price in the listing agreement amendment on file.",
+  "rev": 3,
+  "title": {
+   "t": "A signed price differs from the agreement amendment",
+   "src": "tuple:05-08"
+  },
+  "when": {
+   "t": "A signed price change names an agreement amendment price that differs.",
+   "src": "dispatcher/listing_spokes_05.py:484-487"
+  },
   "steps": [
-   "Agent 05 stops and does not change the price.",
-   "It asks the authorized user, naming both amounts."
+   {
+    "t": "Agent 05 does not change the price and asks the authorized user, with both amounts.",
+    "src": "dispatcher/listing_spokes_05.py:486-494; check:05-08:envelope.persisted:clarification.request; check:05-08:spoke.trace"
+   }
   ],
   "never": [
-   "Pick one of the two prices."
+   {
+    "t": "Pick one of the two prices.",
+    "src": "tuple:05-08"
+   }
   ],
-  "why": "The listing agreement is a contract with the seller. Publishing a price it does not support is a breach risk.",
-  "you_see": "A question saying the price conflicts with the agreement amendment.",
-  "test": "A live listing; the authorized user signs a price of $440,000 while the amendment on file says $435,000. The price is not changed."
+  "you_see": {
+   "t": "A question saying the price conflicts with the amendment.",
+   "src": "check:05-08:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A listing on record; the authorized user signs a price of 440,000 naming an amendment at 435,000.",
+   "src": "spec:05-08"
+  }
  },
  {
   "id": "05-09",
-  "rev": 2,
-  "title": "Someone asks to fill in buyer-broker compensation on the MLS",
-  "when": "A change asks to fill in the buyer-broker compensation field.",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks to fill in buyer-broker compensation",
+   "src": "tuple:05-09"
+  },
+  "when": {
+   "t": "A signed change names the buyer-broker compensation field, or carries a compensation offer.",
+   "src": "dispatcher/listing_spokes_05.py:370-374"
+  },
   "steps": [
-   "Agent 05 leaves the field blank: offers of compensation are not allowed on the MLS since August 17, 2024.",
-   "It raises a legal-line alert for the authorized user naming the request."
+   {
+    "t": "Agent 05 enters nothing and raises a legal-line alert naming the request. The alert gives the reason: compensation offers are prohibited on the MLS since August 17, 2024.",
+    "src": "dispatcher/listing_spokes_05.py:374-382; tuple:05-09; check:05-09:escalation.raised"
+   }
   ],
   "never": [
-   "Fill in, or work around, the compensation field."
+   {
+    "t": "Fill in compensation.",
+    "src": "tuple:05-09"
+   }
   ],
-  "why": "Putting a compensation offer on the MLS breaks the rules that came out of the 2024 national settlement.",
-  "you_see": "A legal-line alert about the compensation request.",
-  "test": "A live listing; the authorized user signs a change setting buyer_broker_comp to 2.5%."
+  "you_see": {
+   "t": "A legal-line alert about the compensation request.",
+   "src": "check:05-09:escalation.raised"
+  },
+  "test": {
+   "t": "A listing on record; the authorized user signs a change setting buyer_broker_comp to 2.5%.",
+   "src": "spec:05-09"
+  }
  },
  {
   "id": "05-10",
-  "rev": 2,
-  "title": "The marketing copy and the MLS record disagree",
-  "when": "A released description says something different from the MLS record (for example a different square footage).",
+  "rev": 3,
+  "title": {
+   "t": "The approved description's square footage differs from the record",
+   "src": "tuple:05-10"
+  },
+  "when": {
+   "t": "The approved description from Agent 04 states a square footage different from the listing record.",
+   "src": "dispatcher/listing_spokes_05.py:212, 223-231"
+  },
   "steps": [
-   "The MLS record is the truth.",
-   "Agent 05 sends the corrected data to Agent 04, which redrafts; the corrected copy goes through Compliance and is released again.",
-   "The discrepancy is written in the client's history.",
-   "The correction runs once; it does not loop."
+   {
+    "t": "The record wins: Agent 05 logs the discrepancy and sends Agent 04 the record's figure; Agent 04 redrafts and the new draft goes through Compliance again.",
+    "src": "dispatcher/listing_spokes_05.py:256-271; check:05-10:envelope.persisted:interaction.log; check:05-10:envelope.persisted:listing.data; flow:05-10:05->04 listing.data; flow:05-10:04->17 content.review"
+   },
+   {
+    "t": "Agent 05 sends this correction once per listing. If a second draft still differs, it holds for the authorized user and nothing goes live. The test does not reach this second case.",
+    "src": "dispatcher/listing_spokes_05.py:240-254; spec:05-10"
+   },
+   {
+    "t": "Only square footage is compared.",
+    "src": "dispatcher/listing_spokes_05.py:226-231"
+   },
+   {
+    "t": "Agent 04 sends each approved draft to Agent 12 as well as to Agent 05. In the test the first (1,800 sq ft) draft reached Agent 12 before the listing was active, so Agent 12 only kept it; the copy it later published, held for the authorized user's release, says 2,000 sq ft.",
+    "src": "flow:05-10:04->12 asset.release; dispatcher/listing_spokes_12.py:279-299; flow:05-10:12->external campaign.publish"
+   }
   ],
   "never": [
-   "Leave copy on the market that contradicts the MLS."
+   {
+    "t": "Let a description that contradicts the record go out.",
+    "src": "tuple:05-10"
+   }
   ],
-  "why": "Two different numbers in public invite a misrepresentation claim; one source of truth avoids it.",
-  "you_see": "The corrected copy; the discrepancy in the history.",
-  "test": "The MLS record says 2,000 sq ft; the first description was built from the 1,800 sq ft tax record. After the correction the released copy says 2,000 sq ft and the listing goes live once."
+  "you_see": {
+   "t": "The corrected description; the discrepancy in the history.",
+   "src": "check:05-10:envelope.persisted:asset.release; check:05-10:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "The record says 2,000 sq ft; the first description used the 1,800 sq ft tax record. After the correction the released copy says 2,000 sq ft, the listing goes live once, and the exchange is not suspended as a loop.",
+   "src": "spec:05-10; check:05-10:loop.suspended"
+  }
  },
  {
   "id": "05-11",
-  "rev": 2,
-  "title": "A withdrawal is asked for while the listing is under contract",
-  "when": "A signed withdrawal arrives for a listing that has a signed purchase contract.",
+  "rev": 3,
+  "title": {
+   "t": "A withdrawal is signed while the listing is under contract",
+   "src": "tuple:05-11"
+  },
+  "when": {
+   "t": "A signed withdrawal (or, since 2026-10-28, an expiry) arrives for a listing set to pending.",
+   "src": "dispatcher/listing_spokes_05.py:431-432"
+  },
   "steps": [
-   "Agent 05 stops; the listing is not withdrawn.",
-   "It sends the matter to Compliance (Agent 17) and raises a legal-line alert for the authorized user."
+   {
+    "t": "Agent 05 does not change the status; it raises a legal-line alert and sends a notice to Compliance.",
+    "src": "dispatcher/listing_spokes_05.py:431-446; check:05-11:escalation.raised; check:05-11:envelope.persisted:compliance.notice; check:05-11:spoke.trace"
+   }
   ],
   "never": [
-   "Change a listing's status on its own while a contract is live."
+   {
+    "t": "Change status under a live contract on its own.",
+    "src": "tuple:05-11"
+   }
   ],
-  "why": "Withdrawing during a contract can breach it. That is a legal decision, not a data change.",
-  "you_see": "A legal-line alert saying a withdrawal was requested while under contract.",
-  "test": "A live listing goes to pending with a signed contract; then the authorized user signs a withdrawal."
+  "you_see": {
+   "t": "A legal-line alert saying a withdrawal was requested while under contract.",
+   "src": "check:05-11:escalation.raised"
+  },
+  "test": {
+   "t": "A listing goes to pending with a contract named; then the authorized user signs a withdrawal.",
+   "src": "spec:05-11"
+  }
  },
  {
   "id": "05-12",
-  "rev": 2,
-  "title": "A vacant listing gets regular property checks",
-  "when": "The authorized user marks a listing as vacant.",
+  "rev": 3,
+  "title": {
+   "t": "A vacant listing gets a property check ordered on each daily run (every day, the owner's interval)",
+   "src": "tuple:05-12; dispatcher/listing_spokes_05.py::VACANT_CHECK_INTERVAL_DAYS = 1"
+  },
+  "when": {
+   "t": "The authorized user marks a listing vacant.",
+   "src": "dispatcher/listing_spokes_05.py:125-151"
+  },
   "steps": [
-   "Agent 05 starts a vacancy watch and records it.",
-   "On each daily run it asks Agent 09 (Vendor Coordination) for a property condition check.",
-   "Agent 09 books the first check; the booking waits for the authorized user's release like any vendor booking.",
-   "While that check is open, Agent 09 does not book another one; it tells the authorized user once that it was not booked again."
+   {
+    "t": "Agent 05 starts a vacancy watch and logs it.",
+    "src": "dispatcher/listing_spokes_05.py:141-146; check:05-12:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "On each daily run it asks Agent 09 for a property check (every day unless the authorized user signs another interval).",
+    "src": "dispatcher/listing_spokes_05.py:98, 153-178; check:05-12:envelope.persisted:vendor.request"
+   },
+   {
+    "t": "Agent 09 books the first one; the booking waits for the authorized user's release. While it is open, no second one is booked, and the authorized user is told once.",
+    "src": "dispatcher/listing_spokes_09.py:254-274; check:05-12:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Stack up duplicate check bookings while one is open."
+   {
+    "t": "Book a second check while one is open.",
+    "src": "dispatcher/listing_spokes_09.py:254-274"
+   }
   ],
-  "why": "Empty houses invite damage and break-ins, and insurance can depend on regular checks. One open booking at a time keeps the vendor schedule honest.",
-  "you_see": "The first check booking waiting for the authorized user's release; one note that further checks were not booked while it is open.",
-  "test": "A vacant listing goes live. The daily clock runs on days 1, 3 and 8: Agent 05 asks three times, one check is booked, and the authorized user is told once."
+  "you_see": {
+   "t": "The first booking waiting for release; one note that no further check was booked while it is open.",
+   "src": "check:05-12:envelope.persisted:calendar.event; check:05-12:envelope.persisted:clarification.request; dispatcher/listing_spokes_09.py::is not booked again: the last one is"
+  },
+  "test": {
+   "t": "A vacant listing is authorized to go live (it does not go live: no photos or description arrive); the daily run runs on days 1, 3 and 8.",
+   "src": "spec:05-12"
+  }
  },
  {
   "id": "05-13",
-  "rev": 2,
-  "title": "A vacant listing is occupied again",
-  "when": "A vacant listing is marked occupied, or the listing ends.",
+  "rev": 3,
+  "title": {
+   "t": "A vacant listing is marked occupied",
+   "src": "tuple:05-13"
+  },
+  "when": {
+   "t": "A vacant listing is marked occupied, or the listing ends.",
+   "src": "dispatcher/listing_spokes_05.py:134-140, 163-168"
+  },
   "steps": [
-   "Agent 05 stops the vacancy watch.",
-   "It records that the watch ended.",
-   "No further property checks are asked for."
+   {
+    "t": "Agent 05 ends the vacancy watch and logs it; no more checks are asked for.",
+    "src": "dispatcher/listing_spokes_05.py:136-140; check:05-13:envelope.persisted:interaction.log; check:05-13:envelope.persisted:vendor.request"
+   }
   ],
   "never": [
-   "Keep ordering checks for an occupied home."
+   {
+    "t": "Keep ordering checks for an occupied home.",
+    "src": "tuple:05-13"
+   }
   ],
-  "why": "Checks on an occupied home cost money and intrude on the people living there.",
-  "you_see": "The watch's end in the client's history.",
-  "test": "A vacant listing goes live; two days later the authorized user marks it occupied; the clock runs a week later and no check is asked for."
+  "you_see": {
+   "t": "The end of the watch in the history.",
+   "src": "check:05-13:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A vacant listing is authorized to go live; two days later it is marked occupied; the daily run runs six days after that.",
+   "src": "spec:05-13"
+  }
  }
 ]

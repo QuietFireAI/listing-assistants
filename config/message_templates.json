@@ -1,5 +1,5 @@
 {
- "_status": "PROPOSED DRAFT - owner must review, edit, ratify (date + sign-off), then load; loads fail closed while status is not RATIFIED. Every template_id below is one the code actually references by name - this is not a hypothetical list. | ALL TEMPLATES RATIFIED Jeff Phillips 2026-07-18 (owner blanket sign-off, Section B decision)",
+ "_status": "PROPOSED DRAFT - owner must review, edit, ratify (date + sign-off), then load; loads fail closed while status is not RATIFIED. Every template_id below is one the code actually references by name - this is not a hypothetical list. | ALL TEMPLATES RATIFIED Jeff Phillips 2026-07-18 (owner blanket sign-off, Section B decision) | 2026-10-28: three templates added by owner decisions D-A2, D-A11, D-A12 are NOT signed (approved_by says so); Agent 11 sends none of them until a signed config.update {\"template_signed\": id} names it",
  "_table": "message_templates",
  "_purpose": "Approved outbound templates per audience/purpose",
  "_fields": [
@@ -219,6 +219,27 @@
    "purpose": "1-year post-close check-in",
    "body": "Hi {{first_name}}, can't believe it's been a year already! Hope you're loving the home.",
    "approved_by": "Jeff Phillips 2026-07-18"
+  },
+  {
+   "template_id": "identity_verification_needed",
+   "audience": "buyer",
+   "purpose": "A showing was cancelled because the requester's identity is not verified (Agent 06, owner decision D-A2)",
+   "body": "Before we can book a showing we need to verify your identity. Your agent will be in touch to complete that.",
+   "approved_by": "NOT SIGNED - draft wording, waiting for the owner (2026-10-28)"
+  },
+  {
+   "template_id": "doc_unsigned_resend",
+   "audience": "party",
+   "purpose": "A document arrived unsigned where a signature is expected (Agent 08, owner decision D-A11)",
+   "body": "Thanks - the {{doc_type}} you sent isn't signed yet. Could you send the signed copy?",
+   "approved_by": "NOT SIGNED - draft wording, waiting for the owner (2026-10-28)"
+  },
+  {
+   "template_id": "unknown_criterion_ask",
+   "audience": "buyer",
+   "purpose": "A new listing fits a buyer's search but does not say whether it has a must-have (Agent 13, owner decision D-A12)",
+   "body": "A new listing fits your search but doesn't say whether it has {{field}}. Want listings like that sent to you, marked unknown?",
+   "approved_by": "NOT SIGNED - draft wording, waiting for the owner (2026-10-28)"
   }
  ]
 }

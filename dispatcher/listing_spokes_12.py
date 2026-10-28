@@ -66,8 +66,8 @@ class Spoke12MarketingCampaign:
          retract_requested; defaults to correct (the non-destructive
          option) when absent, matching the tuple's "or" as a real choice
          rather than one silently-always path.
-      10. budget change requested verbally -> signed budget stands until
-          config.update
+      10. RETIRED 2026-10-28 (owner decision D-A17): campaign budgets were
+          removed; a setting that names one is refused
     """
 
     def __init__(self, hub, brokerage_identification: str | None = None):
@@ -84,7 +84,6 @@ class Spoke12MarketingCampaign:
         self.pending_review: dict[str, dict] = {}  # ctx -> content awaiting 17
         self.published: dict[str, dict] = {}  # ctx -> {content, verdict_locked}
         self.approved_awaiting_ccp: dict[str, dict] = {}  # ctx -> approved content, gate not yet clear
-        self.signed_budgets: dict[str, float] = {}  # ctx -> current signed budget
         self.engagement_sources: dict[str, dict[str, dict]] = {}  # ctx -> source -> metrics
         # The brokerage identification every ad must carry (Agent 17 tuple 7,
         # owner decision 2026-10-14): a signed setting, appended to every ad.
@@ -284,6 +283,11 @@ class Spoke12MarketingCampaign:
                 # for automatic publish once the gate clears, don't lose it.
                 self.approved_awaiting_ccp[ctx] = {"campaign": draft,
                                                    "source": "04_asset"}
+                # finding AN (2026-10-28): tracked like the self-written
+                # path, so the wait shows on the calendar and the briefing
+                self.hub.send(_env("12", "18", "agent.status", ctx,
+                                   {"waiting_on": "ccp_gate",
+                                    "since": payload.get("today")}))
                 self.hub.ingest_spoke_trace(
                     "12", env.envelope_id,
                     thought="asset received from 04, but CCP gate not "
@@ -359,18 +363,14 @@ class Spoke12MarketingCampaign:
                                    {"campaign": campaign, "content_type": "advertising",
                                     "state": campaign.get("state") if isinstance(campaign, dict) else None}))
                 return
-            if "budget_change_verbal" in payload:
-                # tuple 10: verbal budget change -> signed budget stands
-                # until config.update actually carries the new figure
-                self.hub.ingest_spoke_trace(
-                    "12", env.envelope_id,
-                    thought="verbal budget change reported - current "
-                            "signed budget stands until a real "
-                            "config.update carries the new figure",
-                    result="held: signed_budget_stands")
-                return
-            if "signed_budget" in payload:
-                self.signed_budgets[ctx] = payload["signed_budget"]
+            # tuple 10 (signed budget; verbal change refused) RETIRED
+            # 2026-10-28 by owner decision D-A17: no ad carries a cost and
+            # nothing is bought, so the budget guarded nothing. A setting
+            # that names it is refused, not silently kept.
+            if "signed_budget" in payload or "budget_change_verbal" in payload:
+                self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                   {"reason": "campaign budgets were retired 2026-10-28 (no ad "
+                                              "carries a cost); nothing was stored"}))
                 return
             return
 
@@ -427,6 +427,12 @@ class Spoke12MarketingCampaign:
             # silently accepted, goes back through 17 like any other
             # change to an already-approved asset.
             truncated_content = payload.get("truncated_content")
+            # 2026-10-27 (procedures audit, finding AL): the verdict on the
+            # cut copy found nothing in pending_review, so an approval would
+            # have published None. The cut copy is what gets reviewed, as the
+            # platform reports it (a cut that drops the brokerage
+            # identification is flagged: no format exceptions, Agent 17).
+            self.pending_review[ctx] = truncated_content
             self.hub.send(_env("12", "17", "content.review", ctx,
                                {"campaign": truncated_content,
                                 "content_type": "advertising",
@@ -465,6 +471,29 @@ class Spoke12MarketingCampaign:
             # while the retraction sat in the hub's hold. The log now names
             # what happened, and the broker is told either way.
             published = self.published.get(ctx)
+            # finding AM (2026-10-28): a retraction went out for an ad that
+            # was never published, or still held for the broker's release.
+            # Now the same check as the status path: nothing published,
+            # nothing to retract; still held, the broker is asked to decline.
+            held = bool(published and published.get("envelope_id")) and \
+                self.hub.outbound_state(published["envelope_id"]) == "held"
+            if payload.get("retract_requested") and (not published or held):
+                self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                   {"kind": "stale_signal_no_live_ad",
+                                    "ad": "held, never published" if held else "none published",
+                                    "delta": payload.get("delta")}))
+                self.hub.send(_env("12", "queue", "clarification.request", ctx,
+                                   {"reason": ("stale ad reported, but it is still held for your "
+                                               "release - decline it; nothing was retracted"
+                                               if held else
+                                               "stale ad reported, but no ad for this listing was "
+                                               "ever published - nothing to retract"),
+                                    "delta": payload.get("delta"), "agent": "12"}))
+                self.hub.ingest_spoke_trace(
+                    "12", env.envelope_id,
+                    thought="stale signal with no live ad - no retraction sent",
+                    result="no retraction: " + ("ad still held" if held else "nothing published"))
+                return
             if payload.get("retract_requested"):
                 if published:
                     published["retracted"] = True

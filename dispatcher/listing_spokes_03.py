@@ -25,8 +25,8 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN, in_reply_to=None):
 
 
 def _local_now_iso() -> str:
-    import datetime
-    return datetime.datetime.now().isoformat(timespec="seconds")
+    from .clock import local_now_iso   # LISTING_CLOCK_NOW pins it for synthetic runs
+    return local_now_iso()
 
 
 _LEGAL_LINE_WORDS = ("what should i offer", "should i list at",
@@ -102,6 +102,8 @@ class Spoke03LeadNurture:
         self.hub = guard(hub, "03")   # handoff rule (audit TU-2)
         self.active_sequences: dict[str, dict] = {}  # ctx -> {sequence_id, paused, touch_count}
         self.frequency_cap_per_week = frequency_cap_per_week
+        # a lead's own lower cap after a "too many" reply (finding R, 2026-10-27)
+        self.lead_frequency_caps: dict[str, int] = {}
         self.legal_contact_hours = legal_contact_hours
         self.touch_log: dict[str, list] = {}  # ctx -> list of touch timestamps/weeks
         # broker-signed sequence definitions (owner decision 7a, 2026-10-11):
@@ -112,6 +114,11 @@ class Spoke03LeadNurture:
         self.rescore_pool: dict[str, dict] = {}
         self.rescore_interval_days = self.RESCORE_INTERVAL_DAYS
         register_spoke(hub, "03", self)
+
+    def lead_cap(self, ctx: str) -> int:
+        """Touches a week for this lead: its own reduced cap if it asked for
+        fewer, else the agent's cap."""
+        return self.lead_frequency_caps.get(ctx, self.frequency_cap_per_week)
 
     def _in_legal_contact_hours(self, hour: int) -> bool:
         start, end = self.legal_contact_hours
@@ -209,7 +216,7 @@ class Spoke03LeadNurture:
         hour = int(now_iso[11:13]) if now_iso and len(now_iso) >= 13 else None
         sent_now = []
         for i, t in enumerate(seq["touches"]):
-            if i in seq["sent"] or t["day"] > day_n:
+            if i in seq["sent"] or i in seq.get("skipped", ()) or t["day"] > day_n:
                 continue
             # counted as sent before it is handed to 11: 11 answers inside the
             # send, and a client.message.not_sent from it takes it back out
@@ -225,6 +232,40 @@ class Spoke03LeadNurture:
                 return f"held:{result}" if not sent_now else f"sent:{sent_now},held:{result}"
             sent_now.append(i)
         return f"sent:{sent_now}" if sent_now else "none_due"
+
+    def _resume_after_spike(self, ctx: str, seq: dict, env: Envelope):
+        """D-A7 (owner decision 2026-10-28, finding P): an engagement spike
+        paused the sequence and asked 02 to re-score; 02 answered WARM, so
+        the reason for the pause is gone. The sequence carries on at the
+        next unsent touch on its own day. Touches whose day passed while it
+        was paused are skipped, never sent in a burst, and it is not
+        restarted. Before this, nothing ever lifted a spike pause: the lead
+        got no further touches and nobody was told."""
+        import datetime
+        today = env.payload.get("today") or type(self).NOW()[:10]
+        try:
+            day_n = (datetime.date.fromisoformat(today)
+                     - datetime.date.fromisoformat(seq.get("started_on") or today)).days
+        except (TypeError, ValueError):
+            day_n = 0
+        skipped = [i for i, t in enumerate(seq.get("touches") or [])
+                   if i not in seq.get("sent", []) and t["day"] < day_n]
+        seq.setdefault("skipped", []).extend(i for i in skipped if i not in seq["skipped"])
+        seq["paused"] = False
+        seq.pop("paused_for", None)
+        self.hub.ingest_spoke_trace(
+            "03", env.envelope_id,
+            thought=f"re-score after the engagement spike came back WARM for "
+                    f"ctx={ctx!r} - lifting the spike pause on "
+                    f"{seq['sequence_id']!r}; touches missed while paused "
+                    f"{skipped} are skipped, the next one goes on its day",
+            result="resumed after spike re-score: WARM")
+        self.hub.send(_env("03", "14", "interaction.log", ctx,
+                           {"kind": "sequence_resumed",
+                            "reason": "resumed after spike re-score: WARM",
+                            "sequence_id": seq["sequence_id"],
+                            "skipped_touches": skipped}))
+        return "resumed"
 
     def _send_day0(self, ctx: str, seq: dict, envelope_id: str):
         """Owner decision 7 (2026-10-21): the day-0 touch goes at once when
@@ -281,11 +322,11 @@ class Spoke03LeadNurture:
 
         weeks_log = self.touch_log.setdefault(ctx, [])
         this_week_count = sum(1 for w in weeks_log if w == today_week)
-        if this_week_count >= self.frequency_cap_per_week:
+        if this_week_count >= self.lead_cap(ctx):
             self.hub.ingest_spoke_trace(
                 "03", "internal",
                 thought=f"ctx={ctx!r} already at {this_week_count}/"
-                        f"{self.frequency_cap_per_week} touches for week "
+                        f"{self.lead_cap(ctx)} touches for week "
                         f"{today_week!r} - holding, cap enforced for real",
                 result="held: frequency_cap")
             return "held_frequency_cap"
@@ -352,17 +393,26 @@ class Spoke03LeadNurture:
                                           "awaiting": False}
             elif prior is not None:
                 prior["awaiting"] = False
-            if prior is not None:
+            if env.payload.get("reassignment"):
                 # 2026-10-14 (tuple runs, 03-08): this check used to sit inside
                 # the dated branch, so a re-score answer with no date (an
                 # engagement spike reported without one) fell through and
-                # restarted the running sequence from day 0
+                # restarted the running sequence from day 0. 2026-10-27: it
+                # also sat behind the re-score pool, so a reassignment for a
+                # lead not in the pool restarted the same sequence.
                 existing_seq = self.active_sequences.get(ctx)
+                # 2026-10-27 (procedures audit, finding Q): Agent 02's re-score
+                # names no sequence; that used to read as default_drip, so a
+                # lead on any other sequence was moved to default_drip and
+                # restarted at day 0. No sequence named = the current one.
                 if (env.payload.get("reassignment") and existing_seq
-                        and existing_seq["sequence_id"] == env.payload.get("sequence_id", "default_drip")):
+                        and env.payload.get("sequence_id") in (None, existing_seq["sequence_id"])):
                     # a cadence re-score kept the lead WARM on the same
                     # sequence: the pool entry is refreshed and the running
                     # sequence carries on - it is NOT restarted from day 0
+                    if existing_seq.get("paused") \
+                            and existing_seq.get("paused_for") == "engagement_spike":
+                        return self._resume_after_spike(ctx, existing_seq, env)
                     self.hub.ingest_spoke_trace(
                         "03", env.envelope_id,
                         thought=f"re-score kept ctx={ctx!r} WARM on "
@@ -387,8 +437,13 @@ class Spoke03LeadNurture:
                 return
 
             existing = self.active_sequences.get(ctx)
-            requested_seq = env.payload.get("sequence_id", "default_drip")
             is_reassignment = env.payload.get("reassignment", False)
+            # finding Q (2026-10-27): a reassignment that names no sequence
+            # keeps the one running; only a fresh assignment defaults
+            requested_seq = env.payload.get("sequence_id") or (
+                existing["sequence_id"] if (is_reassignment and existing
+                                            and not existing.get("superseded"))
+                else "default_drip")
             if existing and existing["sequence_id"] != requested_seq \
                     and not existing.get("superseded"):
                 if is_reassignment:
@@ -432,6 +487,7 @@ class Spoke03LeadNurture:
                                         "existing": existing["sequence_id"],
                                         "requested": requested_seq}))
                     self.active_sequences[ctx] = {**existing, "paused": True,
+                                                  "paused_for": "overlap",
                                                   "overlap_with": requested_seq}
                     return
 
@@ -478,6 +534,7 @@ class Spoke03LeadNurture:
             seq = self.active_sequences.get(ctx)
             if seq:
                 seq["paused"] = True  # tuple 1: reply pauses, never auto-continue
+                seq["paused_for"] = "reply"
             message = env.payload.get("message", "")
 
             trigger = self._legal_line_hit(message)
@@ -505,6 +562,7 @@ class Spoke03LeadNurture:
                 if seq:
                     seq["consent"] = {k: "no" for k in seq.get("consent", {})}
                     seq["paused"] = True
+                    seq["paused_for"] = "opt_out"
                 self.hub.ingest_spoke_trace(
                     "03", env.envelope_id,
                     thought="explicit STOP received - full opt-out, "
@@ -512,11 +570,30 @@ class Spoke03LeadNurture:
                             "propagating to CRM same-day, confirming to "
                             "the client once",
                     result="opted out: all channels")
+                # D-A8 (owner decision 2026-10-28, finding S): exactly one
+                # confirmation, only on the channel the STOP came in on, with
+                # no marketing in it; nothing on any other channel. A STOP
+                # that does not say its channel gets no confirmation - the
+                # owner is asked instead. Before, a confirmation always went,
+                # on no named channel.
+                channel = env.payload.get("channel")
+                if channel not in ("call", "text", "email"):
+                    channel = None
                 self.hub.send(_env("03", "14", "interaction.log", ctx,
                                    {"kind": "opt_out", "scope": "all_channels",
-                                    "consent": seq["consent"] if seq else {}}))
-                self.hub.send(_env("03", "11", "client.message.request", ctx,
-                                   {"template": "opt_out_confirmed"}))
+                                    "consent": seq["consent"] if seq else {},
+                                    "confirmation_channel": channel}))
+                if channel:
+                    self.hub.send(_env("03", "11", "client.message.request", ctx,
+                                       {"template": "opt_out_confirmed",
+                                        "channel": channel}))
+                else:
+                    self.hub.send(_env("03", "queue", "clarification.request", ctx,
+                                       {"reason": "STOP received with no channel on it: the "
+                                                  "lead is opted out on every channel; no "
+                                                  "confirmation was sent because the channel "
+                                                  "it came in on is unknown",
+                                        "verbatim": message}))
                 return
 
             if "stop sending so many" in low or "too many" in low:
@@ -531,16 +608,20 @@ class Spoke03LeadNurture:
                 # 2026-07-17: the "+ confirm" half never sent anything
                 # to the client either - reducing cadence silently isn't
                 # the same as confirming it to the person who asked.
-                self.frequency_cap_per_week = max(1, self.frequency_cap_per_week - 1)
+                # finding R (2026-10-27): the reduction is this lead's, not the
+                # agent's - it lowered the weekly cap for every lead
+                cap = max(1, self.lead_cap(ctx) - 1)
+                self.lead_frequency_caps[ctx] = cap
                 if seq:
                     seq["paused"] = False
+                    seq.pop("paused_for", None)
                 self.hub.ingest_spoke_trace(
                     "03", env.envelope_id,
                     thought="frequency complaint, not an explicit opt-out - "
                             "reducing cadence and confirming to the client, "
                             "sequence resumes (not left paused) at lower "
                             "frequency",
-                    result=f"frequency reduced to {self.frequency_cap_per_week}/wk, "
+                    result=f"frequency reduced to {cap}/wk for this lead, "
                           f"resumed")
                 self.hub.send(_env("03", "11", "client.message.request", ctx,
                                    {"template": "frequency_reduced_confirmed"}))
@@ -566,6 +647,9 @@ class Spoke03LeadNurture:
                 seq = self.active_sequences.get(ctx)
                 if seq:
                     seq["paused"] = True  # tuples 5 + 8: pause, never drip on a hot signal
+                    # D-A7 (owner, 2026-10-28): this pause, and only this one,
+                    # is lifted when the re-score comes back WARM
+                    seq["paused_for"] = "engagement_spike"
                 self.hub.ingest_spoke_trace(
                     "03", env.envelope_id,
                     thought="engagement spike detected - pausing sequence "
@@ -622,6 +706,7 @@ class Spoke03LeadNurture:
                 weeks.pop()   # the unsent touch does not count against the weekly cap
             if why == "opted_out":
                 seq["paused"] = True
+                seq["paused_for"] = "opt_out"
                 seq["consent"] = {k: "no" for k in seq.get("consent", {})}
                 self.hub.send(_env("03", "14", "interaction.log", ctx,
                                    {"kind": "sequence_stopped", "reason": "opted out on every channel"}))
@@ -655,6 +740,7 @@ class Spoke03LeadNurture:
                 if seq:
                     seq["compliance_status"] = "pending"
                     seq["paused"] = True
+                    seq["paused_for"] = "compliance_flag"
                 findings = env.payload.get("findings", [])
                 self.hub.ingest_spoke_trace(
                     "03", env.envelope_id,

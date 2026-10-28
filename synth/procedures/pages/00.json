@@ -1,290 +1,702 @@
 [
  {
   "id": "00-01",
-  "rev": 2,
-  "title": "A message arrives that no route allows",
-  "when": "A message comes in naming a kind of work that no route on the track carries (for example an outside system sending something nothing in the system handles).",
+  "rev": 3,
+  "title": {
+   "t": "A message arrives that no route allows",
+   "src": "tuple:00-01; spec:00-01"
+  },
+  "when": {
+   "t": "A well-formed message arrives whose kind of work is on no route of the track.",
+   "src": "tuple:00-01; spec:00-01; dispatcher/hub.py:590-603"
+  },
   "steps": [
-   "The dispatcher checks every message against the closed track: the fixed list of who may send what to whom.",
-   "This message is on no route, so it is not delivered to anyone.",
-   "It is held in the clarification queue, with its sender and contents, for the authorized user to look at."
+   {
+    "t": "The dispatcher checks every message against the closed track: the fixed list of who may send what to whom.",
+    "src": "dispatcher/hub.py:590-591"
+   },
+   {
+    "t": "A kind of message the track does not know at all is not delivered to anyone.",
+    "src": "dispatcher/hub.py:592-603; flow:00-01:external->01 listing.mystery"
+   },
+   {
+    "t": "It is held in the clarification queue, with its sender and contents, and the authorized user is notified.",
+    "src": "dispatcher/hub.py:597-603; check:00-01:hold.clarification"
+   }
   ],
   "never": [
-   "Deliver the message to the agent it most likely belongs to."
+   {
+    "t": "Deliver the message to the agent it most likely belongs to.",
+    "src": "tuple:00-01"
+   }
   ],
-  "why": "A guess at routing means an agent acts on something it was never meant to receive. The closed track is what keeps every handoff predictable and on the record.",
-  "you_see": "The held message in the authorized user's clarification queue.",
-  "test": "An outside system sends \"listing.mystery\" to Agent 01, a kind of message no route carries."
+  "why": {
+   "t": "Routing on a guess is exactly what the rule forbids: no message goes on \"most likely\".",
+   "src": "tuple:00-01"
+  },
+  "you_see": {
+   "t": "The held message in the clarification queue.",
+   "src": "dispatcher/hub.py:597-598"
+  },
+  "test": {
+   "t": "An outside system sends \"listing.mystery\" to Agent 01, a kind of message no route carries.",
+   "src": "spec:00-01"
+  }
  },
  {
   "id": "00-02",
-  "rev": 2,
-  "title": "A message claims the authorized user's authority without their signature",
-  "when": "A message that only the authorized user may send (a listing or price change, a release, a setting) arrives without a valid signature from that user's key.",
+  "rev": 3,
+  "title": {
+   "t": "A message claims the authorized user's authority without a valid signature",
+   "src": "tuple:00-02"
+  },
+  "when": {
+   "t": "A message that only the authorized user may send (a listing or price change, a setting, a release or decision) arrives without a valid signature.",
+   "src": "tuple:00-02; dispatcher/hub.py:55-64"
+  },
   "steps": [
-   "The dispatcher checks the signature on every message that carries the authorized user's authority before anything else happens.",
-   "The signature does not verify, so the message is refused and never reaches any agent.",
-   "The refusal is recorded as an integrity violation and the authorized user is told about it at once."
+   {
+    "t": "The dispatcher checks the signature on every message that carries the authorized user's authority, before the route and before recording it as work.",
+    "src": "dispatcher/hub.py:559-566"
+   },
+   {
+    "t": "The signature does not verify, so the message is refused and never reaches an agent.",
+    "src": "dispatcher/hub.py:566; check:00-02:reject"
+   },
+   {
+    "t": "The refusal is recorded as an integrity violation, and the authorized user is notified.",
+    "src": "dispatcher/hub.py:562-565; check:00-02:integrity.violation; check:00-02:human.notified"
+   }
   ],
   "never": [
-   "Act on an instruction in the authorized user's name that their key did not sign."
+   {
+    "t": "Act on an instruction in the authorized user's name that their key did not sign.",
+    "src": "tuple:00-02"
+   }
   ],
-  "why": "Anyone who can fake the authorized user's instruction could change a price or release a message in their name. Only that user's signature carries that authority.",
-  "you_see": "An integrity alert naming the refused message.",
-  "test": "A message claiming to be from the authorized user tells Agent 05 to set a listing's price to $1, with no valid signature."
+  "you_see": {
+   "t": "An integrity alert naming the refused message.",
+   "src": "check:00-02:human.notified"
+  },
+  "test": {
+   "t": "A message claiming the authorized user's authority tells Agent 05 to set a listing's price to 1, with no valid signature.",
+   "src": "spec:00-02"
+  }
  },
  {
   "id": "00-03",
-  "rev": 2,
-  "title": "Two signed settings contradict each other",
-  "when": "Two setting changes, both signed by the authorized user, arrive and contradict each other.",
+  "rev": 3,
+  "title": {
+   "t": "Two signed settings contradict each other",
+   "src": "tuple:00-03"
+  },
+  "when": {
+   "t": "Two setting changes, both signed, arrive and contradict each other.",
+   "src": "tuple:00-03"
+  },
   "steps": [
-   "The dispatcher applies neither setting.",
-   "It asks the authorized user which one stands."
+   {
+    "t": "The rule: apply neither, and ask the authorized user.",
+    "src": "tuple:00-03"
+   },
+   {
+    "t": "Not built: the dispatcher does not compare two signed settings.",
+    "src": "spec:00-03; 00-dispatcher/DECISIONS.md"
+   }
   ],
   "never": [
-   "Apply whichever arrived last, or either one, without asking the authorized user."
+   {
+    "t": "Apply either setting without the authorized user's decision.",
+    "src": "tuple:00-03"
+   }
   ],
-  "why": "Two signed instructions that disagree mean one of them is a mistake. Picking one could put the wrong setting in force under the authorized user's name.",
-  "you_see": "Nothing yet: this is not built.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: this is not built.",
+   "src": "spec:00-03"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:00-03"
+  }
  },
  {
   "id": "00-04",
-  "rev": 2,
-  "title": "An alert cannot be put in the authorized user's queue: the system stops",
-  "when": "The authorized user's queue cannot take another item (it is full, or it cannot be written).",
+  "rev": 3,
+  "title": {
+   "t": "An alert cannot be put in the authorized user's queue: the system stops",
+   "src": "tuple:00-04"
+  },
+  "when": {
+   "t": "The authorized user's queue cannot take another item.",
+   "src": "tuple:00-04; spec:00-04"
+  },
   "steps": [
-   "The dispatcher stops accepting messages at once: a system halt.",
-   "It sends a system-halt alert straight to the authorized user, outside the record, because the record may be what failed.",
-   "Every message after that is refused with \"halted\" and nothing is processed until the system is restarted on a record it can write."
+   {
+    "t": "A failure inside the dispatcher's own handling of a message halts it at once. (A failure inside an agent is caught: the message goes to the dead-letter list and a system-error alert is raised, without halting.)",
+    "src": "dispatcher/hub.py:490-513; dispatcher/hub.py:696-717"
+   },
+   {
+    "t": "It tries to alert the authorized user directly, outside the record, because the record may be what failed.",
+    "src": "dispatcher/hub.py:515-528"
+   },
+   {
+    "t": "Every later message is refused with \"halted\" until the system is restarted.",
+    "src": "dispatcher/hub.py:496-499; check:00-04:harness.halted_result"
+   }
   ],
   "never": [
-   "Keep working while alerts cannot reach the authorized user."
+   {
+    "t": "Keep accepting work while alerts cannot reach the authorized user.",
+    "src": "tuple:00-04"
+   }
   ],
-  "why": "If the system kept going while the authorized user's alerts were failing, things that need a person (a hot lead, a legal question) would pile up unseen. Stopping loudly is safer than working blind.",
-  "you_see": "A system-halt alert. The system takes nothing in until it is restarted.",
-  "test": "A hot lead (T1) comes in normally. Then the test makes every queue write fail. The next hot lead (T2) raises an alert that cannot be queued; the dispatcher halts. A third lead (T3) is refused and never enters the record."
+  "why": {
+   "t": "The rule is to fail closed, loudly.",
+   "src": "tuple:00-04"
+  },
+  "you_see": {
+   "t": "A system-halt alert; the system takes nothing in until it is restarted.",
+   "src": "dispatcher/hub.py:515-528"
+  },
+  "test": {
+   "t": "A hot lead (T1) comes in normally. Then every queue write is made to fail; the next hot lead (T2) raises an alert that cannot be queued and the dispatcher halts. A third lead (T3) is refused and never enters the record.",
+   "src": "spec:00-04"
+  }
  },
  {
   "id": "00-05",
-  "rev": 2,
-  "title": "One message would start two playbooks",
-  "when": "A message matches the start of two different playbooks at once.",
+  "rev": 3,
+  "title": {
+   "t": "One message would start two playbooks",
+   "src": "tuple:00-05"
+  },
+  "when": {
+   "t": "A message matches the start of two different playbooks.",
+   "src": "tuple:00-05"
+  },
   "steps": [
-   "The dispatcher starts neither playbook.",
-   "It asks the authorized user which one to run, naming both.",
-   "The authorized user chooses one, or cancel the message."
+   {
+    "t": "The dispatcher starts neither playbook.",
+    "src": "tuple:00-05; spec:00-05"
+   },
+   {
+    "t": "It asks the authorized user which one, naming both; the authorized user picks one or cancels.",
+    "src": "spec:00-05; tests_listing/test_run_tracker.py"
+   },
+   {
+    "t": "No way in yet: no message in the playbook table starts two playbooks since the owner's decision of 2026-10-21.",
+    "src": "spec:00-05"
+   }
   ],
   "never": [
-   "Pick the likelier playbook and run it."
+   {
+    "t": "Pick one of the two playbooks without the authorized user.",
+    "src": "tuple:00-05"
+   }
   ],
-  "why": "Two playbooks for one situation can send different messages to the same client. The choice is for the authorized user.",
-  "you_see": "A question naming both playbooks.",
-  "test": ""
+  "you_see": {
+   "t": "A question naming both playbooks.",
+   "src": "tuple:00-05"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:00-05"
+  }
  },
  {
   "id": "00-06",
-  "rev": 2,
-  "title": "Waiting work is let in by priority, and two jobs for one agent take turns",
-  "when": "Several pieces of work are waiting to start at once (for example after the authorized user's queue was full), and two of them need the same agent.",
+  "rev": 3,
+  "title": {
+   "t": "Waiting work is let in by priority, and two jobs for one agent take turns",
+   "src": "tuple:00-06; spec:00-06"
+  },
+  "when": {
+   "t": "Several starts are waiting at once (for example after the queue was full), and two of them need the same agent.",
+   "src": "spec:00-06"
+  },
   "steps": [
-   "Waiting work is let in by priority class: 1 alerts, 2 time-critical, 3 scheduled, 4 background. Within a class, the older goes first.",
-   "When two waiting jobs need the same agent, the lower class waits on a \"siding\" while the higher one goes ahead.",
-   "The job on the siding resumes when the agent is free, in arrival order.",
-   "Every hold and every resume is recorded."
+   {
+    "t": "Waiting work is let in by priority class (1 escalation, 2 time-critical, 3 scheduled, 4 background); within a class, the older goes first.",
+    "src": "dispatcher/run_tracker.py:40-43; check:00-06:playbook.waiting_released"
+   },
+   {
+    "t": "Two starts for the same agent take turns: the lower class waits on a \"siding\" while the other goes ahead; in the same class, the one already holding the agent keeps it and the next waits in arrival order.",
+    "src": "tuple:00-06; dispatcher/run_tracker.py:43-46; check:00-06:siding.hold"
+   },
+   {
+    "t": "The job on the siding resumes when the agent is free. Every hold and resume is recorded.",
+    "src": "check:00-06:siding.resume; dispatcher/priority.py:46-89"
+   }
   ],
   "never": [
-   "Let background work overtake time-critical work, or run two jobs through one agent at the same moment."
+   {
+    "t": "Let a lower class overtake a higher one, or skip recording a hold.",
+    "src": "tuple:00-06"
+   }
   ],
-  "why": "A listing withdrawal has deadlines; a new prospecting lead does not. Order by importance keeps the urgent work first and the record shows why each job waited.",
-  "you_see": "Nothing to do. The record shows each job's place in line.",
-  "test": "Twenty-five open questions fill the authorized user's queue, so four new starts wait: a listing withdrawal (P05, class 2), two new listings (P01, class 3) and a prospecting lead (P24, class 4, which arrived first). Three questions are marked done. The withdrawal goes first; the two new listings wait on the siding behind it (all three need Agent 05) and then resume in arrival order; the prospecting lead goes last."
+  "you_see": {
+   "t": "Nothing to do; the record shows each job's place in line.",
+   "src": "check:00-06:siding.hold"
+  },
+  "test": {
+   "t": "Twenty-five open questions fill the queue, so four new starts wait: a listing withdrawal (P05, class 2), two new listings (P01, class 3) and a prospecting lead (P24, class 4). Three questions are marked done. The withdrawal goes first; the two new listings wait on the siding behind it (all three need Agent 05) and resume in arrival order; the prospecting lead starts last.",
+   "src": "spec:00-06"
+  }
  },
  {
   "id": "00-07",
-  "rev": 2,
-  "title": "A message arrives with its sequence number already filled in",
-  "when": "A message arrives that already carries a sequence number. Only the dispatcher stamps sequence numbers, when it records a message.",
+  "rev": 3,
+  "title": {
+   "t": "A message arrives with its sequence number already filled in",
+   "src": "tuple:00-07"
+  },
+  "when": {
+   "t": "A message arrives carrying a sequence number. Only the dispatcher sets sequence numbers.",
+   "src": "tuple:00-07; dispatcher/core.py:52, 62-63"
+  },
   "steps": [
-   "The dispatcher treats a pre-filled sequence number as a sign of forgery or replay.",
-   "It refuses the message; nothing is delivered and nothing is recorded as received work."
+   {
+    "t": "The dispatcher checks the message's form; a sender-set sequence number fails the check.",
+    "src": "dispatcher/core.py:62-63; dispatcher/hub.py:555-558"
+   },
+   {
+    "t": "The message is refused; nothing is delivered.",
+    "src": "check:00-07:reject"
+   }
   ],
   "never": [
-   "Accept a sequence number from the sender."
+   {
+    "t": "Accept a sequence number from the sender.",
+    "src": "tuple:00-07"
+   }
   ],
-  "why": "Sequence numbers are how the record proves order. A sender who could set its own could slip a message into the past.",
-  "you_see": "The refusal in the record.",
-  "test": "The test sends an inquiry straight to the dispatcher with sequence number 5 already set."
+  "why": {
+   "t": "The tuple's reason: a pre-filled sequence number is a forgery signal.",
+   "src": "tuple:00-07"
+  },
+  "you_see": {
+   "t": "The refusal in the record.",
+   "src": "check:00-07:reject"
+  },
+  "test": {
+   "t": "The test sends an inquiry straight to the dispatcher with a sequence number already set.",
+   "src": "spec:00-07"
+  }
  },
  {
   "id": "00-08",
-  "rev": 2,
-  "title": "An agent answers but does not record its reasoning",
-  "when": "An agent accepts a message and returns a result, but writes no record of how it reached it.",
+  "rev": 3,
+  "title": {
+   "t": "An agent answers but records no reasoning",
+   "src": "tuple:00-08"
+  },
+  "when": {
+   "t": "An agent returns a result with no reasoning trace.",
+   "src": "tuple:00-08"
+  },
   "steps": [
-   "The acceptance stands, so the message is not lost.",
-   "The result is quarantined: it is marked tainted when it comes in and is not used.",
-   "It goes to the integrity queue for the authorized user."
+   {
+    "t": "The trace is checked when it arrives; one with no reasoning is marked tainted.",
+    "src": "dispatcher/hub.py:218-238"
+   },
+   {
+    "t": "It goes to the integrity queue for the authorized user.",
+    "src": "dispatcher/hub.py:228-236"
+   },
+   {
+    "t": "No way in yet: the twenty agents always write a trace; this fires only on an empty model trace, which this test runner does not have.",
+    "src": "spec:00-08"
+   }
   ],
   "never": [
-   "Use a result whose reasoning is not on the record."
+   {
+    "t": "Use a result whose reasoning is not on the record.",
+    "src": "tuple:00-08"
+   }
   ],
-  "why": "Every result must be explainable after the fact. A result with no trace cannot be checked, so it cannot be trusted with a client.",
-  "you_see": "An integrity item naming the quarantined result.",
-  "test": ""
+  "you_see": {
+   "t": "An integrity item naming the tainted result.",
+   "src": "dispatcher/hub.py:228-236"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:00-08"
+  }
  },
  {
   "id": "00-09",
-  "rev": 2,
-  "title": "A correctly signed instruction is sent where no route allows it",
-  "when": "A message the authorized user signed is addressed to an agent that is not on the track for that kind of instruction.",
+  "rev": 3,
+  "title": {
+   "t": "A correctly signed instruction is sent where no route allows it",
+   "src": "tuple:00-09"
+  },
+  "when": {
+   "t": "A message the authorized user signed is addressed to an agent the track does not allow for it.",
+   "src": "tuple:00-09; spec:00-09"
+  },
   "steps": [
-   "The signature verifies, but the dispatcher also checks the route.",
-   "The route is not on the track, so the message is refused.",
-   "The agent never receives it and records nothing."
+   {
+    "t": "The signature verifies.",
+    "src": "dispatcher/hub.py:559-589"
+   },
+   {
+    "t": "The route is then checked; it is not on the track, so the message is refused.",
+    "src": "dispatcher/hub.py:590-595; check:00-09:reject"
+   },
+   {
+    "t": "The agent never receives it.",
+    "src": "flow:00-09:human->07 listing.change.authorized"
+   }
   ],
   "never": [
-   "Let a good signature override the closed track."
+   {
+    "t": "Let a good signature override the closed track.",
+    "src": "tuple:00-09"
+   }
   ],
-  "why": "The authorized user's signature says who sent it; the track says where it may go. Both must hold, so a signed message cannot be misdirected into an agent that should never act on it.",
-  "you_see": "The refusal in the record, naming the illegal route.",
-  "test": "A correctly signed new-listing instruction is sent to Agent 07 (Transaction Coordinator), which does not take listing changes."
+  "you_see": {
+   "t": "The refusal in the record, naming the route.",
+   "src": "check:00-09:reject"
+  },
+  "test": {
+   "t": "A correctly signed new-listing instruction is sent to Agent 07, which does not take listing changes.",
+   "src": "spec:00-09"
+  }
  },
  {
   "id": "00-10",
-  "rev": 2,
-  "title": "An alert is not marked done in time",
-  "when": "An alert waits in the authorized user's queue and nobody marks it done.",
+  "rev": 3,
+  "title": {
+   "t": "An alert is not marked done in time",
+   "src": "tuple:00-10"
+  },
+  "when": {
+   "t": "An alert waits and nobody marks it done.",
+   "src": "tuple:00-10"
+  },
   "steps": [
-   "After 30 minutes, the alert is sent to the authorized user again, once.",
-   "After 60 minutes, the owner is paged about it.",
-   "An alert the authorized user marked done is left alone. No alert ever expires silently."
+   {
+    "t": "After 30 minutes the alert is sent again, once.",
+    "src": "dispatcher/escalation_watch.py:32, 86-92; check:00-10:escalation.realerted"
+   },
+   {
+    "t": "After 60 minutes the owner is paged about it.",
+    "src": "dispatcher/escalation_watch.py:33, 93-102; check:00-10:escalation.owner_paged"
+   },
+   {
+    "t": "An alert marked done (on the Desk or the console) is left alone; no alert expires on time alone.",
+    "src": "dispatcher/escalation_watch.py:13-17, 81-82; check:00-10:desk.acknowledged"
+   },
+   {
+    "t": "This check runs only when started: in each daily run, on the console's watch command, or from a scheduled command.",
+    "src": "dispatcher/escalation_watch.py:19-22"
+   }
   ],
   "never": [
-   "Let an alert quietly time out."
+   {
+    "t": "Let an alert expire silently.",
+    "src": "tuple:00-10"
+   }
   ],
-  "why": "An unanswered legal question or hot lead costs money or a license the longer it sits. Repeating, then paging, makes sure a person sees it.",
-  "you_see": "The same alert again at 30 minutes; at 60 minutes the owner gets a page.",
-  "test": "Two leads each ask \"What should I offer?\" (a legal-line alert each). The authorized user marks the second one done. The clock moves 31 minutes and the check runs twice: the first alert is re-sent exactly once. The clock moves 30 more minutes: the owner is paged for the first alert. The second alert gets neither."
+  "you_see": {
+   "t": "The same alert again at 30 minutes; at 60 minutes the owner is paged.",
+   "src": "check:00-10:human.notified"
+  },
+  "test": {
+   "t": "Two leads each ask \"What should I offer?\" (a legal-line alert each); the second is marked done. The clock moves 31 minutes and the check runs twice: the first alert is re-sent once. The clock moves 30 more minutes: the owner is paged for the first alert. The second gets neither.",
+   "src": "spec:00-10"
+  }
  },
  {
   "id": "00-11",
-  "rev": 2,
-  "title": "A settings reload is asked for while work is open",
-  "when": "Someone asks to reload the system's identity settings (the track, the playbooks, the agents' settings) while messages are held or playbooks are still running.",
+  "rev": 3,
+  "title": {
+   "t": "A reload of the track is asked for while work is open",
+   "src": "tuple:00-11"
+  },
+  "when": {
+   "t": "Someone asks to reload the closed track (identity/routes.json) while messages are held, threads are paused, or playbooks are open.",
+   "src": "tuple:00-11; dispatcher/identity_reload.py:22-45"
+  },
   "steps": [
-   "The reload is refused, and the refusal names what is open (held messages, open playbook runs).",
-   "The authorized user can force it; a forced reload goes ahead and the record says what was open at the time.",
-   "Once nothing is open, a plain reload goes through."
+   {
+    "t": "The reload is refused, and the record names what is open.",
+    "src": "dispatcher/identity_reload.py:33-39; check:00-11:identity.reload_refused"
+   },
+   {
+    "t": "A forced reload goes ahead, and the record says what was open.",
+    "src": "dispatcher/identity_reload.py:40-45; check:00-11:identity.reloaded"
+   },
+   {
+    "t": "With nothing open, a plain reload goes through.",
+    "src": "check:00-11:identity.reloaded"
+   }
   ],
   "never": [
-   "Change the track under live work without the authorized user's say-so."
+   {
+    "t": "Change the track under open work unless forced.",
+    "src": "tuple:00-11"
+   }
   ],
-  "why": "Changing the rules in the middle of a job can strand it halfway, on rules it did not start under.",
-  "you_see": "A refusal naming the open work, or the authorized user's forced reload on the record.",
-  "test": "A new listing's photographer booking is held for the authorized user's release. A reload is refused; a forced reload goes ahead. After the authorized user releases the booking, the listing's playbook (P01) is still open, so a plain reload is refused again. The authorized user ends the run, and the plain reload goes through."
+  "why": {
+   "t": "The tuple's reason: a track change under live traffic derails it.",
+   "src": "tuple:00-11"
+  },
+  "you_see": {
+   "t": "The refusal naming the open work, or the forced reload on the record.",
+   "src": "dispatcher/identity_reload.py:35-45"
+  },
+  "test": {
+   "t": "A new listing's photographer booking is held for release. A reload is refused; a forced reload goes ahead. After the booking is released, the listing's playbook (P01) is still open, so a plain reload is refused again. The run is ended, and the plain reload goes through.",
+   "src": "spec:00-11"
+  }
  },
  {
   "id": "00-12",
-  "rev": 2,
-  "title": "Too many questions are waiting for the authorized user: no new work starts",
-  "when": "25 or more questions are waiting for the authorized user's answer.",
+  "rev": 3,
+  "title": {
+   "t": "Too many questions are waiting: no new work starts",
+   "src": "tuple:00-12"
+  },
+  "when": {
+   "t": "25 or more questions are waiting for the authorized user.",
+   "src": "dispatcher/run_tracker.py:31-37, 79"
+  },
   "steps": [
-   "Any new piece of work from outside that would start a playbook waits instead of starting.",
-   "The authorized user is told once that the queue is full.",
-   "When the count drops below 25, the waiting work is let in, in priority order."
+   {
+    "t": "A message from outside the agents that would start a new playbook waits instead.",
+    "src": "dispatcher/run_tracker.py:31-35; check:00-12:playbook.start_waiting"
+   },
+   {
+    "t": "The authorized user is told once, with a queue-full alert.",
+    "src": "dispatcher/run_tracker.py:36-37; check:00-12:escalation.raised"
+   },
+   {
+    "t": "When the count drops below 25, the waiting starts go in, in priority order.",
+    "src": "dispatcher/run_tracker.py:37-38; check:00-12:playbook.waiting_released"
+   }
   ],
   "never": [
-   "Take on new work while the questions the authorized user needs to answer keep piling up."
+   {
+    "t": "Take on new work while the open questions are at the cap.",
+    "src": "tuple:00-12"
+   }
   ],
-  "why": "A system that cannot get answers from the authorized user should not take on more clients it cannot serve properly.",
-  "you_see": "A \"queue full\" alert; the new work starts once the authorized user has answered some questions.",
-  "test": "Twenty-five unrecognized settings make 25 open questions. A new lead comes in and waits. The authorized user marks one question done; the lead is let in and its playbook (P11) starts."
+  "why": {
+   "t": "The tuple's reason: a system that cannot get answers must not take on more.",
+   "src": "tuple:00-12"
+  },
+  "you_see": {
+   "t": "A queue-full alert; the waiting work starts after some questions are answered.",
+   "src": "check:00-12:escalation.raised; check:00-12:playbook.waiting_released; check:00-12:playbook.started"
+  },
+  "test": {
+   "t": "Twenty-five unrecognized settings make 25 open questions. A new lead waits. One question is marked done; the lead goes in and its playbook (P11) starts.",
+   "src": "spec:00-12"
+  }
  },
  {
   "id": "00-13",
-  "rev": 2,
-  "title": "The record cannot be written: everything stops",
-  "when": "The record (the audit log) can no longer be written.",
+  "rev": 3,
+  "title": {
+   "t": "The record cannot be written: everything stops",
+   "src": "tuple:00-13"
+  },
+  "when": {
+   "t": "The record (the audit log) can no longer be written.",
+   "src": "tuple:00-13"
+  },
   "steps": [
-   "No message can be recorded, so none is accepted and no agent does any work.",
-   "The dispatcher halts and alerts the authorized user directly, outside the record.",
-   "Every message after that is refused until the system is restarted on a record it can write."
+   {
+    "t": "A message is recorded before it is delivered; if the write fails, it is not delivered, not numbered and not acknowledged.",
+    "src": "dispatcher/hub.py:647-658"
+   },
+   {
+    "t": "The failure halts the dispatcher, which tries to alert the authorized user directly.",
+    "src": "dispatcher/hub.py:500-528"
+   },
+   {
+    "t": "Every later message is refused until the system is restarted on a record it can write.",
+    "src": "dispatcher/hub.py:496-499; check:00-13:harness.halted_result"
+   }
   ],
   "never": [
-   "Do any work that is not on the record."
+   {
+    "t": "Do work that is not on the record.",
+    "src": "tuple:00-13"
+   }
   ],
-  "why": "The record is the proof of everything the system did. Work done off the record cannot be checked or defended.",
-  "you_see": "A system-halt alert. The system takes nothing in until it is restarted.",
-  "test": "A lead (T1) comes in normally. Then the test makes every write to the record fail. The next two leads (T2, T3) are refused and never enter the record."
+  "why": {
+   "t": "The tuple's reason: no record, no acknowledgement, no work; run on a log or do not run.",
+   "src": "tuple:00-13"
+  },
+  "you_see": {
+   "t": "A system-halt alert; the system takes nothing in until it is restarted.",
+   "src": "dispatcher/hub.py:515-528"
+  },
+  "test": {
+   "t": "A lead (T1) comes in normally. Then every write to the record is made to fail. The next two leads (T2, T3) never enter the record.",
+   "src": "spec:00-13"
+  }
  },
  {
   "id": "00-14",
-  "rev": 2,
-  "title": "The clocks disagree: time-driven work is held",
-  "when": "This computer's clock is more than one minute behind the times already on the record.",
+  "rev": 3,
+  "title": {
+   "t": "The clocks disagree: time-driven work is held",
+   "src": "tuple:00-14"
+  },
+  "when": {
+   "t": "The record holds an entry stamped more than 60 seconds ahead of this computer's clock (another process's clock is ahead).",
+   "src": "dispatcher/escalation_watch.py:34, 105-118"
+  },
   "steps": [
-   "The daily check sees the clocks disagree.",
-   "It holds every time-driven job (deadlines, follow-ups, reminders) instead of running it.",
-   "It tells the authorized user that every time-triggered check is held."
+   {
+    "t": "The live daily run compares the clocks before running anything.",
+    "src": "dispatcher/sweep_runner.py:47-60"
+   },
+   {
+    "t": "It holds every time-driven check, and the authorized user is notified.",
+    "src": "dispatcher/sweep_runner.py:53-60; check:00-14:clock.skew_hold; check:00-14:human.notified"
+   },
+   {
+    "t": "A scripted run with its own date is not compared.",
+    "src": "spec:00-14"
+   }
   ],
   "never": [
-   "Compute a deadline from a clock that may be wrong."
+   {
+    "t": "Run time-driven work on a clock that disagrees.",
+    "src": "tuple:00-14"
+   }
   ],
-  "why": "A deadline worked out on a wrong clock is a made-up deadline. It could make a contract date look met or missed when it was not.",
-  "you_see": "A notice that time-triggered checks are held until the clock is right.",
-  "test": "The test sets this computer's clock 5 minutes behind the times on the record, then runs the live daily check. Nothing time-driven is sent."
+  "why": {
+   "t": "The tuple's reason: deadlines computed on a bad clock are fabricated deadlines.",
+   "src": "tuple:00-14"
+  },
+  "you_see": {
+   "t": "A notice that every time-triggered check is held.",
+   "src": "check:00-14:human.notified"
+  },
+  "test": {
+   "t": "The computer's clock is set 5 minutes behind the times already on the record, then the live daily run starts. Nothing time-driven runs.",
+   "src": "spec:00-14"
+  }
  },
  {
   "id": "00-15",
-  "rev": 2,
-  "title": "Two playbooks want different next steps for the same client",
-  "when": "A client is in one playbook (for example an open house) and a message starts another one for the same client that conflicts with it (for example a withdrawal).",
+  "rev": 3,
+  "title": {
+   "t": "Two playbooks want different next steps for the same client",
+   "src": "tuple:00-15"
+  },
+  "when": {
+   "t": "A client is in an open playbook and a message starts another that the playbook table lists as conflicting (for example an open house, then a withdrawal).",
+   "src": "dispatcher/run_tracker.py:20-30; identity/playbooks.json conflicts_with"
+  },
   "steps": [
-   "The dispatcher holds both playbooks.",
-   "Anything that arrives for the open playbook while they are held waits.",
-   "The authorized user decides the order. If the authorized user puts the new playbook first, the open one ends by that decision and the work waiting for it is dropped (on the record). If the authorized user puts the open one first, the new message waits until it ends. Cancel drops the new message."
+   {
+    "t": "Both are held: the new message is not delivered, and anything for the open playbook on that client waits.",
+    "src": "dispatcher/run_tracker.py:20-25; check:00-15:playbook.conflict; check:00-15:playbook.entry_waiting"
+   },
+   {
+    "t": "The authorized user decides the order. New one first: the open playbook ends by that decision and its waiting work is dropped (on the record). Open one first: the new message waits until it ends. Cancel drops the new message.",
+    "src": "dispatcher/run_tracker.py:25-30; check:00-15:playbook.sequenced; check:00-15:playbook.entries_dropped"
+   }
   ],
   "never": [
-   "Let two playbooks act on one client at the same time with conflicting steps."
+   {
+    "t": "Run two conflicting playbooks on one client at once.",
+    "src": "tuple:00-15"
+   }
   ],
-  "why": "Running an open house and a withdrawal at once would send the seller and buyers mixed messages. The authorized user decides which comes first.",
-  "you_see": "A question asking which playbook goes first, naming both.",
-  "test": "A live listing has an open house set (P04). The listing is then withdrawn (P05) and the open house result is sent while both are held. The authorized user puts the withdrawal first: the open house playbook ends, its waiting result is dropped and never logged, and the withdrawal playbook starts."
+  "you_see": {
+   "t": "A question naming both playbooks.",
+   "src": "flow:00-15:00->queue decision.required; check:00-15:playbook.conflict"
+  },
+  "test": {
+   "t": "A listing has an open house set (P04). It is then withdrawn (P05), and the open house result is sent while both are held. The authorized user puts the withdrawal first: the open house playbook ends, its waiting result is dropped, and the withdrawal playbook starts.",
+   "src": "spec:00-15"
+  }
  },
  {
   "id": "00-16",
-  "rev": 2,
-  "title": "The plain-language log cannot be written",
-  "when": "The readable copy of the record (the plain-language log) cannot be written, while the record itself still can.",
+  "rev": 3,
+  "title": {
+   "t": "The plain-language log cannot be written",
+   "src": "tuple:00-16"
+  },
+  "when": {
+   "t": "The readable copy of the record cannot be written, while the record itself can.",
+   "src": "tuple:00-16"
+  },
   "steps": [
-   "Every entry in the record itself still stands; work goes on.",
-   "Each failed write to the plain-language log is counted.",
-   "The count is reported at the end of the session. Nothing halts."
+   {
+    "t": "Every entry in the record still stands; work goes on.",
+    "src": "dispatcher/readable_audit.py:162-171; check:00-16:envelope.persisted"
+   },
+   {
+    "t": "Each failed write to the readable copy is counted.",
+    "src": "dispatcher/readable_audit.py:159, 169-170"
+   },
+   {
+    "t": "The count is reported at the end of the session; nothing halts.",
+    "src": "check:00-16:harness.end"
+   }
   ],
   "never": [
-   "Stop the business because the readable copy failed, or hide that it failed."
+   {
+    "t": "Stop work because the readable copy failed, or hide that it failed.",
+    "src": "tuple:00-16"
+   }
   ],
-  "why": "The record is the proof; the plain-language log is a convenience for reading it. Losing the copy must be reported, but it is not a reason to stop serving clients.",
-  "you_see": "A report at the end of the session saying how many plain-language lines failed.",
-  "test": "The test makes the plain-language log fail, then a lead comes in. The lead is captured and handed on as normal."
+  "you_see": {
+   "t": "A count of failed lines at the end of the session.",
+   "src": "check:00-16:harness.end"
+  },
+  "test": {
+   "t": "The readable copy is made to fail, then a lead comes in; it is captured and handed on as normal.",
+   "src": "spec:00-16"
+  }
  },
  {
   "id": "00-17",
-  "rev": 2,
-  "title": "A text alert to the authorized user fails to send",
-  "when": "The system tries to text the authorized user an alert and the text service refuses it.",
+  "rev": 3,
+  "title": {
+   "t": "A text alert to the authorized user fails to send",
+   "src": "tuple:00-17"
+  },
+  "when": {
+   "t": "The text service refuses an alert.",
+   "src": "tuple:00-17"
+  },
   "steps": [
-   "The failed text is recorded, with the reason the service gave.",
-   "The alert itself stands in the authorized user's queue on screen.",
-   "Nothing else waits for the text to go through."
+   {
+    "t": "The failure is recorded with the alert and the service's answer (its status, the channel and the error), never the service's reply body.",
+    "src": "dispatcher/hub.py:460-466; check:00-17:human.notify_failed"
+   },
+   {
+    "t": "The alert itself stands.",
+    "src": "check:00-17:escalation.raised"
+   },
+   {
+    "t": "Nothing else waits for the text.",
+    "src": "dispatcher/hub.py:432-435"
+   }
   ],
   "never": [
-   "Treat a failed text as delivered, or hold up other work waiting for it."
+   {
+    "t": "Record a failed text as delivered.",
+    "src": "dispatcher/hub.py:423-466"
+   }
   ],
-  "why": "The authorized user needs to know a text did not arrive, so they can check the screen and fix the text setup. The alert must still be there when the authorized user looks.",
-  "you_see": "The alert on screen, and a record that its text failed.",
-  "test": "The text service answers \"HTTP 401\" (not authorized). A hot lead comes in and raises an alert."
+  "you_see": {
+   "t": "The alert in the queue, and a record that its text failed.",
+   "src": "check:00-17:escalation.raised; check:00-17:human.notify_failed"
+  },
+  "test": {
+   "t": "The text service answers \"HTTP 401\". A hot lead comes in and raises an alert.",
+   "src": "spec:00-17"
+  }
  }
 ]

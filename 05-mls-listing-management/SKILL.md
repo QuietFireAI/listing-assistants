@@ -22,7 +22,7 @@ never makes pricing decisions.
 ## 2. Job Components
 
 - Enter and maintain listing data in MLS systems.
-- Execute status changes (active, pending, sold, withdrawn) and track days-on-market.
+- Execute status changes (active, pending, sold, withdrawn, expired; expired added 2026-10-28, owner decision D-A9) and track days-on-market.
 - Syndicate feeds to Zillow, Realtor.com, and Redfin; verify syndication landed (check the live listing, not the push log).
 - Manage photo ordering and uploads (vendor scheduling via 09).
 - Execute price adjustments ONLY when the envelope carries explicit human authorization with the authorizing identity in provenance.

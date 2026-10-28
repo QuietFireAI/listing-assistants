@@ -19,7 +19,18 @@ UNKNOWN = "unknown"
 _ADVICE_WORDS = ("what would you do", "should i offer", "what's it worth",
                  "negotiate", "legal opinion", "pricing strategy")
 _WIRE_WORDS = ("wire instructions", "wiring details", "wire transfer",
-              "updated wire", "routing number")
+              "updated wire", "routing number", "account number for closing")
+# finding AH (2026-10-28): the same list as Agents 07 and 08; 11 lacked the
+# last phrase
+
+# Templates whose wording the owner has not signed yet (owner decisions
+# D-A2, D-A11, D-A12, 2026-10-28). Agent 11 sends none of them until a
+# signed config.update {"template_signed": id} names it; the agent that
+# asked has already put its question in the owner's queue.
+TEMPLATES_AWAITING_SIGNATURE = ("identity_verification_needed", "doc_unsigned_resend",
+                                "unknown_criterion_ask")
+# The channels a message can go back on (owner decision D-A8)
+MESSAGE_CHANNELS = ("call", "text", "email")
 
 # Agents whose handlers process lead.reply. 04 and 12 were route receivers
 # with no handler (the hub acked and the reply was dropped); per the owner's
@@ -99,6 +110,14 @@ class Spoke11ClientCommunication:
 
     # TUNABLE (owner-ratified 2026-07-16): quiet_hours=(21, 8).
     # See docs/TUNING_MANUAL.md to change.
+    # The time of day used when a message carries no hour (owner decision
+    # D-A4, 2026-10-28, same as Agent 03's owner decision 7): this computer's
+    # clock, or LISTING_CLOCK_NOW when a synthetic run pins it.
+    @staticmethod
+    def NOW() -> str:
+        from .clock import local_now_iso
+        return local_now_iso()
+
     def __init__(self, hub, quiet_hours: tuple[int, int] = (21, 8),
                  exempt_alert_classes: set[str] | None = None):
         self.hub = guard(hub, "11")   # handoff rule (audit TU-2)
@@ -120,6 +139,11 @@ class Spoke11ClientCommunication:
         self.no_consent_reported: set[str] = set()   # broker told once per client
         self._consent_check_open: str | None = None
         self._last_block = None   # why the last client message did not go (P11, 2026-10-21)
+        # D-A4 (owner, 2026-10-28): client messages held for quiet hours,
+        # sent on the next daily run outside quiet hours (ctx -> [held])
+        self.quiet_held: dict[str, list] = {}
+        self.templates_awaiting_signature: set[str] = set(TEMPLATES_AWAITING_SIGNATURE)
+        self.frozen_seen: dict[str, bool] = {}   # 14's record frozen, as last reported
         register_spoke(hub, "11", self)
         register_resumer(hub, "11", self._resume)
 
@@ -165,6 +189,8 @@ class Spoke11ClientCommunication:
         # a reject / dead.letter is handled by HandoffGuard (handoff.failed +
         # clarification.request with the failed envelope, which carries the
         # client's message)
+        if env is not None and (env.payload or {}).get("channel") and "channel" not in body:
+            body = {**body, "channel": env.payload["channel"]}   # D-A8
         return self.hub.send(_env("11", str(owner), "lead.reply", ctx, body))
 
     def _resume(self, ws, decision_payload: dict):
@@ -202,9 +228,18 @@ class Spoke11ClientCommunication:
                            {"kind": "reply_thread_cancelled", "verbatim": body.get("message")}))
         return "cancelled"
 
+    def _hour(self, value) -> tuple[int, str]:
+        """The hour a message would go out, and where it came from. D-A4:
+        a message that carries no hour uses this computer's clock; it used
+        to default to noon, so quiet hours never applied to it."""
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 23:
+            return value, "the message"
+        now = type(self).NOW()
+        return int(now[11:13]), f"this computer's clock ({now})"
+
     def _send_client_message(self, ctx: str, template: str, variables: dict,
-                             hour: int, alert_class: str | None = None,
-                             env: Envelope | None = None):
+                             hour, alert_class: str | None = None,
+                             env: Envelope | None = None, channel: str | None = None):
         # P14 hold, every send (2026-10-14): only scheduled touches were held,
         # so a client who wrote angrily and also asked a pricing question got
         # the automatic hand-off note. The opt-out confirmation still goes.
@@ -217,6 +252,18 @@ class Spoke11ClientCommunication:
             self.hub.send(_env("11", "14", "interaction.log", ctx,
                                {"kind": "touch_held_complaint_hold", "template": template}))
             self._last_block = "complaint_hold"
+            return False
+        # wording the owner has not signed (D-A2, D-A11, D-A12): not sent
+        if template in self.templates_awaiting_signature:
+            self.hub.ingest_spoke_trace(
+                "11", env.envelope_id if env else "internal",
+                thought=f"template {template!r} has no signed wording yet - not sent to "
+                        f"{ctx!r}; the asking agent's question is already with the owner",
+                result="held: template_not_signed")
+            self.hub.send(_env("11", "14", "interaction.log", ctx,
+                               {"kind": "send_blocked_template_not_signed",
+                                "template": template}))
+            self._last_block = "template_not_signed"
             return False
         # tuple 8: unresolved template variable -> does not send
         unresolved = [k for k, v in variables.items() if v is None]
@@ -233,18 +280,40 @@ class Spoke11ClientCommunication:
             self._last_block = "unresolved_variables"
             return False
 
-        # tuple 4/7: quiet hours / legal contact hours gate
+        # tuple 4/7: quiet hours / legal contact hours gate. D-A4 (owner
+        # decision 2026-10-28, findings AI and M): the message is HELD and
+        # sent on the next daily run outside quiet hours (if consent is on
+        # record and no complaint hold is open then). Before, it was dropped
+        # while the note said "send queued", and a message with no hour was
+        # taken as noon. Agent 03's nurture touches are not held here: 03
+        # checks its own contact hours and tries again on its clock.
+        hour, hour_from = self._hour(hour)
         if self._in_quiet_hours(hour) and alert_class not in self.exempt_alert_classes:
+            from_03 = bool(env and env.from_agent == "03" and template == "sequence_touch")
+            if not from_03:
+                self.quiet_held.setdefault(ctx, []).append(
+                    {"template": template, "variables": dict(variables),
+                     "alert_class": alert_class, "channel": channel,
+                     "held_hour": hour, "from_agent": env.from_agent if env else None})
+            end = self.quiet_hours[1]
             self.hub.ingest_spoke_trace(
                 "11", env.envelope_id if env else "internal",
-                thought=f"send would land inside quiet hours (hour={hour}) "
-                        f"and alert_class={alert_class!r} is not config-"
-                        f"exempt - queuing for the next window, waking the "
-                        f"human instead of the client",
-                result="queued: quiet_hours")
-            self.hub.send(_env("11", "queue", "clarification.request", ctx,
-                               {"reason": "send queued - quiet hours, "
-                                         "human notified instead"}))
+                thought=f"send would land inside quiet hours (hour={hour}, from "
+                        f"{hour_from}) and alert_class={alert_class!r} is not "
+                        f"exempt - " + ("Agent 03 tries it again on its own clock"
+                                        if from_03 else
+                                        f"held, sent on the next daily run at or after "
+                                        f"{end:02d}:00"),
+                result="held: quiet_hours")
+            if not from_03:
+                self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                   {"kind": "message_held_quiet_hours", "template": template,
+                                    "hour": hour}))
+                self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                   {"reason": f"{template!r} held until {end:02d}:00 - quiet "
+                                              f"hours (hour {hour}); it goes on the next daily "
+                                              f"run at or after {end:02d}:00",
+                                    "template": template}))
             self._last_block = "quiet_hours"
             return False
 
@@ -282,11 +351,40 @@ class Spoke11ClientCommunication:
                                         "first_blocked_template": template}))
                 self._last_block = why
                 return False
-        self.hub.send(_env("11", "external", "client.message.send", ctx,
-                           {"template": template, "variables": variables}))
+        send = {"template": template, "variables": variables}
+        if channel:
+            send["channel"] = channel   # D-A8: the STOP confirmation's channel
+        self.hub.send(_env("11", "external", "client.message.send", ctx, send))
         self.hub.send(_env("11", "14", "interaction.log", ctx,
                            {"kind": "client_touch", "template": template}))
         return True
+
+    def release_quiet_held(self, ctx: str, now_iso: str | None = None):
+        """Daily clock check (D-A4, owner decision 2026-10-28): messages held
+        for quiet hours go on the first daily run whose time is outside
+        quiet hours (at or after 08:00 with the ratified (21, 8)). Each one
+        goes through the full send path again: consent on record, no
+        complaint hold, a signed template."""
+        held = self.quiet_held.get(ctx)
+        if not held:
+            return "none_held"
+        hour, hour_from = self._hour(int(now_iso[11:13]) if now_iso and len(now_iso) >= 13
+                                     else None)
+        if self._in_quiet_hours(hour):
+            return f"still_quiet_hours:{hour}"
+        self.quiet_held.pop(ctx)
+        out = []
+        for m in held:
+            self._last_block = None
+            ok = self._send_client_message(ctx, m["template"], m["variables"], hour,
+                                           m.get("alert_class"), None, m.get("channel"))
+            out.append(f"{m['template']}:{'sent' if ok else self._last_block}")
+        self.hub.ingest_spoke_trace(
+            "11", "internal",
+            thought=f"daily run at hour {hour} ({hour_from}) is outside quiet hours - "
+                    f"releasing {len(held)} held message(s) for {ctx!r}",
+            result="; ".join(out))
+        return out
 
     def _tell_not_sent(self, env: Envelope, why: str):
         """P11 sign-off (2026-10-21): a nurture touch that did not go out is
@@ -319,11 +417,27 @@ class Spoke11ClientCommunication:
     # 7b), nothing called it, and any market package that reached 11 was
     # forwarded to the client - including comps a broker had asked for to
     # make a pricing decision. Market data now goes only to the broker
-    # (human) and to Agent 19 (owner decision 7c).
+    # (human); Agent 19's route was removed 2026-10-28 (owner decision D-A16).
 
     def handle(self, env: Envelope):
+        if env.intent == "clock.tick":   # daily clock, through the hub (D-A4 release)
+            from .clock import handle_tick
+            return handle_tick(self, "11", env)
         ctx = env.client_context_id
         payload = env.payload
+
+        if env.intent == "config.update" and "template_signed" in payload:
+            tid = payload["template_signed"]
+            if tid not in TEMPLATES_AWAITING_SIGNATURE:
+                self.hub.send(_env("11", "queue", "clarification.request", ctx,
+                                   {"reason": f"template_signed names {tid!r}, which is not a "
+                                              f"template waiting for its wording to be signed "
+                                              f"{list(TEMPLATES_AWAITING_SIGNATURE)}; nothing changed"}))
+                return
+            self.templates_awaiting_signature.discard(tid)
+            self.hub.send(_env("11", "14", "interaction.log", ctx,
+                               {"kind": "template_wording_signed", "template": tid}))
+            return
 
         if env.intent == "config.update":
             resolved_ctx = payload.get("resolve_advice_response")
@@ -383,12 +497,15 @@ class Spoke11ClientCommunication:
                                    {"kind": "reply_needed_from_broker",
                                     "verbatim": verbatim}))
                 return
-            hour = payload.get("hour", 12)
+            hour = payload.get("hour")
             alert_class = payload.get("alert_class")
 
             # P14 step 2: outbound hold - no scheduled touches fire while a
-            # complaint is open for this context.
-            if ctx in self.complaint_hold:
+            # complaint is open for this context. The opt-out confirmation
+            # still goes (finding CA, 2026-10-28: this check ran before the
+            # exception in _send_client_message, so a lead on complaint hold
+            # who said STOP never got the confirmation).
+            if ctx in self.complaint_hold and payload.get("template") != "opt_out_confirmed":
                 self.hub.ingest_spoke_trace(
                     "11", env.envelope_id,
                     thought=f"ctx={ctx!r} has an open complaint hold (P14) - "
@@ -424,10 +541,11 @@ class Spoke11ClientCommunication:
             template = payload.get("template", env.intent)
             variables = payload.get("variables", {k: v for k, v in payload.items()
                                                   if k not in ("hour", "alert_class",
-                                                              "template")})
+                                                              "template", "channel")})
+            channel = payload.get("channel") if payload.get("channel") in MESSAGE_CHANNELS else None
             self._last_block = None
             if not self._send_client_message(ctx, template, variables, hour,
-                                             alert_class, env):
+                                             alert_class, env, channel):
                 self._tell_not_sent(env, self._last_block or "not_sent")
             return
 
@@ -522,7 +640,7 @@ class Spoke11ClientCommunication:
                                    {"waiting_on": "human_advice_response",
                                     "since": payload.get("hour_date")}))
                 self._send_client_message(ctx, "advice_ack_handoff", {},
-                                          payload.get("hour", 12), env=env)
+                                          payload.get("hour"), env=env)
                 return
 
             # tuple 2, amended 2026-10-12 (owner decision): an angry client
@@ -560,28 +678,49 @@ class Spoke11ClientCommunication:
                 # (Agent 14 tuple 14), but the client was still told the
                 # change was made. Confirm only what 14 now records.
                 now = self._consent_from_14(ctx)
+                if self.frozen_seen.pop(ctx, False):
+                    # D-A6 (owner decision 2026-10-28): the record is frozen,
+                    # so the change waits there and Agent 14 has asked the
+                    # owner; nothing is confirmed to the client meanwhile
+                    self.hub.ingest_spoke_trace(
+                        "11", env.envelope_id,
+                        thought=f"channel change to {new_channel!r} for {ctx!r}: the record is "
+                                f"frozen, the change waits there - not confirming it",
+                        result="not confirmed: record frozen")
+                    self.hub.send(_env("11", "14", "interaction.log", ctx,
+                                       {"kind": "channel_change_not_confirmed",
+                                        "new_channel": new_channel, "reason": "record frozen"}))
+                    return
                 if new_channel and now.get(new_channel) != "yes":
                     self.hub.send(_env("11", "14", "interaction.log", ctx,
                                        {"kind": "channel_change_not_confirmed",
                                         "new_channel": new_channel,
                                         "consent_on_record": now.get(new_channel)}))
+                    # 2026-10-28: the reason is named from the record - an earlier
+                    # opt-out, or a change that did not take (a frozen record
+                    # holds it, owner decision D-A6); it used to always say
+                    # "opted out earlier"
+                    reason = (f"client asked to be reached by {new_channel!r}, which they "
+                              f"opted out of earlier; the opt-out stands and nothing was "
+                              f"confirmed to the client. To honor the request, record a "
+                              f"signed consent_record with reconfirmed_by_client: true"
+                              if now.get(new_channel) == "no" else
+                              f"client asked to be reached by {new_channel!r}, but the record "
+                              f"at Agent 14 does not show consent for it "
+                              f"({now.get(new_channel) or 'nothing recorded'}); nothing was "
+                              f"confirmed to the client")
                     self.hub.send(_env("11", "queue", "clarification.request", ctx,
-                                       {"reason": f"client asked to be reached by {new_channel!r}, "
-                                                  f"which they opted out of earlier; the opt-out "
-                                                  f"stands and nothing was confirmed to the client. "
-                                                  f"To honor the request, record a signed "
-                                                  f"consent_record with reconfirmed_by_client: true",
-                                        "verbatim": message}))
+                                       {"reason": reason, "verbatim": message}))
                     return
                 self._send_client_message(ctx, "channel_change_confirmed", {},
-                                          payload.get("hour", 12), env=env)
+                                          payload.get("hour"), env=env)
                 return
 
             # tuple 9: references an off-log conversation -> acknowledge +
             # ask for particulars, never pretend recall
             if payload.get("references_unlogged_conversation"):
                 self._send_client_message(ctx, "ask_for_particulars", {},
-                                          payload.get("hour", 12), env=env)
+                                          payload.get("hour"), env=env)
                 return
 
             # client-requested showing -> query 14 for the facts 06
@@ -638,6 +777,7 @@ class Spoke11ClientCommunication:
             if getattr(self, "_consent_check_open", None) == ctx:
                 # the answer to the consent check before a client send
                 self.consent_seen[ctx] = dict(payload.get("consent") or {})
+                self.frozen_seen[ctx] = bool(payload.get("frozen"))
                 return
             pending = self.pending_showing_requests.pop(ctx, None)
             if pending is None:

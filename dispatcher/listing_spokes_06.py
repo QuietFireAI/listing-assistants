@@ -80,7 +80,10 @@ class Spoke06ShowingScheduler:
         self.no_show_pattern_threshold = no_show_pattern_threshold
         self.confirmed_showings: dict[str, list[dict]] = {}  # ctx -> showings
         self.showing_agent_no_shows: dict[str, int] = {}  # requester_id -> count
-        self.feedback_asks: dict[str, int] = {}  # showing_id -> ask count
+        self.feedback_asks: dict[str, int] = {}  # showing key -> ask count
+        # finding Z (2026-10-28): the day of the last ask per showing, so two
+        # daily runs on one day do not send two asks
+        self.feedback_last_ask: dict[str, str] = {}
         self.pending_status_checks: dict[str, dict] = {}  # ctx -> held request
         self.pending_bumps: dict[str, dict] = {}  # ctx -> held protected-bump request
         # per-state or per-property minimum notice hours for occupied homes
@@ -308,12 +311,24 @@ class Spoke06ShowingScheduler:
                 return text.strip()
         return None
 
-    def request_showing_feedback(self, ctx: str, today: str | None = None):
+    @staticmethod
+    def _showing_key(ctx: str, showing: dict) -> str:
+        return f"{ctx}|{showing.get('time')}|{showing.get('listing_id')}"
+
+    def request_showing_feedback(self, ctx: str, today: str | None = None,
+                                 key: str | None = None):
         """Tuple 10: feedback unanswered after two asks, stop asking. This
         was previously a declared dict (feedback_asks) that nothing ever
         read or incremented - the tuple was never actually implemented.
-        Schedule-driven re-ask, matching the established pattern."""
-        count = self.feedback_asks.get(ctx, 0)
+        Schedule-driven re-ask, matching the established pattern.
+
+        Finding Z (2026-10-28): counted per showing (key), not per buyer, so
+        a buyer's second showing is asked about too; and at most one ask per
+        showing per day."""
+        key = key or ctx
+        if today and self.feedback_last_ask.get(key) == today:
+            return "already_asked_today"
+        count = self.feedback_asks.get(key, 0)
         if count >= self.feedback_ask_cap:
             self.hub.ingest_spoke_trace(
                 "06", "internal", thought=f"feedback unanswered after "
@@ -323,7 +338,9 @@ class Spoke06ShowingScheduler:
                                {"waiting_on": "showing_feedback",
                                 "resolved": True}))
             return "stopped"
-        self.feedback_asks[ctx] = count + 1
+        self.feedback_asks[key] = count + 1
+        if today:
+            self.feedback_last_ask[key] = today
         self.hub.send(_env("06", "11", "client.message.request", ctx,
                            {"template": "feedback_request",
                             "tone": "neutral_no_reproach"}))
@@ -338,10 +355,14 @@ class Spoke06ShowingScheduler:
         the clock called request_showing_feedback directly, so feedback was
         asked for on the day a showing was booked, before it happened. It
         asks only once a confirmed showing's date has passed."""
-        dates = [str(s.get("time") or "")[:10] for s in self.confirmed_showings.get(ctx, [])]
-        if not any(d and d < today for d in dates):
+        past = [s for s in self.confirmed_showings.get(ctx, [])
+                if str(s.get("time") or "")[:10] and str(s.get("time") or "")[:10] < today
+                and not s.get("feedback_received")]
+        if not past:
             return "not_yet_shown"
-        return self.request_showing_feedback(ctx, today)
+        results = [self.request_showing_feedback(ctx, today, self._showing_key(ctx, s))
+                   for s in past]
+        return results[0] if len(results) == 1 else results
 
     def handle(self, env: Envelope):
         if env.intent == "clock.tick":   # daily clock, through the hub (owner rule 2026-10-11)
@@ -505,6 +526,18 @@ class Spoke06ShowingScheduler:
                 self.hub.send(_env("06", "14", "interaction.log", ctx,
                                    {"kind": "showing_cancelled",
                                     "reason": "identity_unverified"}))
+                # D-A2 (owner decision 2026-10-28, finding V): the cancel is no
+                # longer silent. The owner gets an item to verify and rebook,
+                # and the buyer gets a neutral message that identity must be
+                # verified first (template wording awaits the owner's
+                # signature; Agent 11 holds it until then).
+                self.hub.send(_env("06", "queue", "clarification.request", ctx,
+                                   {"reason": "showing cancelled: the requester's identity "
+                                              "is not verified - verify it and rebook",
+                                    "listing_id": payload.get("listing_id"),
+                                    "requested_time": payload.get("requested_time")}))
+                self.hub.send(_env("06", "11", "client.message.request", ctx,
+                                   {"template": "identity_verification_needed"}))
                 return
 
             # tuple 11: property under contract -> confirm show-ability via
@@ -545,7 +578,8 @@ class Spoke06ShowingScheduler:
             return
 
         if env.intent == "showing.feedback_response":
-            self.feedback_asks.pop(ctx, None)
+            for k in [k for k in self.feedback_asks if k == ctx or k.startswith(f"{ctx}|")]:
+                self.feedback_asks.pop(k, None)
             for s in self.confirmed_showings.get(ctx, []):   # P18 counts these
                 s["feedback_received"] = True
             self.hub.send(_env("06", "18", "agent.status", ctx,

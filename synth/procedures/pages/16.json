@@ -1,163 +1,378 @@
 [
  {
   "id": "16-01",
-  "rev": 2,
-  "title": "Something hard has happened in a past client's life",
-  "when": "A past client's record shows an adverse life event (for example a death or a divorce).",
+  "rev": 3,
+  "title": {
+   "t": "A past client is going through a hard time",
+   "src": "tuple:16-01"
+  },
+  "when": {
+   "t": "A check-in or other touch is due for a past client the authorized user has marked with a hard time (adverse event).",
+   "src": "dispatcher/listing_spokes_16.py:80-81, 98-126"
+  },
   "steps": [
-   "Agent 16 (After-Close & Referral) holds the scheduled check-in.",
-   "It records that the touch was blocked and why. Whether and when to reach out is the authorized user's decision."
+   {
+    "t": "Agent 16 sends nothing and logs the blocked touch with the reason.",
+    "src": "dispatcher/listing_spokes_16.py:123-126, 86-96; check:16-01:envelope.persisted:interaction.log; check:16-01:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Only the authorized user can set or clear the mark.",
+    "src": "dispatcher/listing_spokes_16.py:185-188"
+   },
+   {
+    "t": "The mark is a signed setting the authorized user records; Agent 16 does not read it from messages.",
+    "src": "dispatcher/listing_spokes_16.py:172-203"
+   },
+   {
+    "t": "Every touch from Agent 16 first checks, in order: on the authorized user's client list, not opted out, no hard time on record, contact not marked stale.",
+    "src": "dispatcher/listing_spokes_16.py:71-84"
+   }
   ],
   "never": [
-   "Send a cheerful scheduled message into someone's hard time."
+   {
+    "t": "Contact someone during a hard time on a schedule.",
+    "src": "tuple:16-01"
+   }
   ],
-  "why": "A routine \"how's the new house?\" after a death or divorce is hurtful and damages the relationship.",
-  "you_see": "The blocked check-in in the client's history.",
-  "test": "A closed client is on the authorized user's client list; an adverse event is marked; the 30-day check-in date arrives. Nothing is sent."
+  "you_see": {
+   "t": "The blocked touch in the client's history.",
+   "src": "check:16-01:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A deal closes October 20; the authorized user marks a hard time; the daily run on November 20 finds the 30-day check-in due.",
+   "src": "spec:16-01"
+  }
  },
  {
   "id": "16-02",
-  "rev": 2,
-  "title": "A past client opts out between touches",
-  "when": "A past client opts out while their follow-up schedule is running.",
+  "rev": 3,
+  "title": {
+   "t": "A past client opts out",
+   "src": "tuple:16-02"
+  },
+  "when": {
+   "t": "The authorized user records that a past client opted out.",
+   "src": "dispatcher/listing_spokes_16.py:177-184"
+  },
   "steps": [
-   "Agent 16 stops every remaining touch for that client the same day.",
-   "Each blocked touch is recorded."
+   {
+    "t": "From then on every touch from Agent 16 to that client is blocked and logged: check-ins, greetings, review and referral requests, rate alerts.",
+    "src": "dispatcher/listing_spokes_16.py:78-79, 123-126, 148-157, 214-238; check:16-02:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Only the authorized user can reinstate the client.",
+    "src": "dispatcher/listing_spokes_16.py:181-184"
+   },
+   {
+    "t": "Agent 11 separately blocks any client message without consent on record (only the one opt-out confirmation is exempt).",
+    "src": "dispatcher/listing_spokes_11.py:319-352"
+   },
+   {
+    "t": "The opt-out is a signed setting the authorized user records; Agent 16 does not read it from messages.",
+    "src": "dispatcher/listing_spokes_16.py:172-203"
+   }
   ],
   "never": [
-   "Send any later touch after an opt-out."
+   {
+    "t": "Send one more scheduled touch after an opt-out.",
+    "src": "tuple:16-02"
+   }
   ],
-  "why": "An opt-out must be honored at once and everywhere.",
-  "you_see": "The blocked touches in the client's history.",
-  "test": "The 30-day check-in goes out; the client then opts out. The 90-day check-in and a later review request are both blocked."
+  "you_see": {
+   "t": "Blocked touches in the client's history.",
+   "src": "check:16-02:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "Close October 20; the 30-day check-in goes on November 20; the client opts out; the 90-day check-in on January 19 and a review request are both blocked.",
+   "src": "spec:16-02"
+  }
  },
  {
   "id": "16-03",
-  "rev": 2,
-  "title": "A past client mentions new business",
-  "when": "A past client says they may buy or sell again.",
+  "rev": 3,
+  "title": {
+   "t": "A past client mentions new business",
+   "src": "tuple:16-03"
+  },
+  "when": {
+   "t": "A past client's reply reaching Agent 16 contains \"thinking of selling\", \"looking to buy again\", \"want to list\" or \"ready to move\".",
+   "src": "dispatcher/listing_spokes_16.py:17-18, 297"
+  },
   "steps": [
-   "Agent 16 hands it over as a new lead to Agent 02 (Lead Qualification), marked as a past-client signal.",
-   "It records that it routed the signal.",
-   "It never negotiates or discusses terms."
+   {
+    "t": "Agent 16 opens a new thread and sends it straight to Agent 02 as a new lead; it negotiates nothing.",
+    "src": "dispatcher/listing_spokes_16.py:297-309; check:16-03:envelope.persisted:lead.captured; check:16-03:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The new lead skips Agent 01: no consent check and no duplicate check.",
+    "src": "spec:16-03"
+   },
+   {
+    "t": "It carries no details, so Agent 02 cannot score it and asks the authorized user.",
+    "src": "flow:16-03:02->queue clarification.request; dispatcher/listing_spokes_16.py:301-305"
+   }
   ],
   "never": [
-   "Negotiate or quote terms with the past client."
+   {
+    "t": "Negotiate or quote anything.",
+    "src": "tuple:16-03"
+   }
   ],
-  "why": "A new deal is new business for the authorized user, with its own agreement. The system's job is to make sure the authorized user knows.",
-  "you_see": "A new lead from the past client.",
-  "test": "A past client writes \"We're thinking of selling next spring, can we talk?\". (The new lead goes to Agent 02 directly, without Agent 01's consent and duplicate checks: listed as a finding in the test file.)"
+  "you_see": {
+   "t": "A question from Agent 02 that the new lead cannot be scored.",
+   "src": "flow:16-03:02->queue clarification.request"
+  },
+  "test": {
+   "t": "After a close, the past client writes \"We're thinking of selling next spring, can we talk?\".",
+   "src": "spec:16-03"
+  }
  },
  {
   "id": "16-04",
-  "rev": 2,
-  "title": "A greeting is due for someone not on the authorized user's client list",
-  "when": "A date (for example a birthday) comes up for someone who is not on the client list the authorized user supplied.",
+  "rev": 3,
+  "title": {
+   "t": "A greeting is due for someone not on the client list",
+   "src": "tuple:16-04"
+  },
+  "when": {
+   "t": "A date greeting is due for a client who is not on the authorized user's client list.",
+   "src": "dispatcher/listing_spokes_16.py:146-158"
+  },
   "steps": [
-   "Agent 16 sends nothing.",
-   "It tells the authorized user the person is not on the supplied list."
+   {
+    "t": "Agent 16 sends nothing, logs it, and tells the authorized user the client is not on the list.",
+    "src": "dispatcher/listing_spokes_16.py:148-165; check:16-04:envelope.persisted:clarification.request; check:16-04:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Dates come from Agent 14, where the authorized user records them; the daily run checks them.",
+    "src": "dispatcher/listing_spokes.py:402-406, 655-672; check:16-04:envelope.persisted:date.trigger"
+   }
   ],
   "never": [
-   "Send a greeting to someone not on the authorized user's list."
+   {
+    "t": "Contact anyone not on the list.",
+    "src": "tuple:16-04"
+   }
   ],
-  "why": "The supplied list says who the office keeps in touch with. Anyone else gets nothing unless the authorized user adds them.",
-  "you_see": "A question saying the person is not on the supplied list.",
-  "test": "A contact with a birthday on file and email consent, but not on the authorized user's client list; the daily clock runs on the birthday."
+  "you_see": {
+   "t": "A question saying the contact is not on the list.",
+   "src": "check:16-04:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A birthday of October 15 is recorded for T9, who is not on the client list; the daily run runs October 15.",
+   "src": "spec:16-04"
+  }
  },
  {
   "id": "16-05",
-  "rev": 2,
-  "title": "A referral gift or incentive comes up",
-  "when": "A past client asks about a gift or reward for sending someone the authorized user's way.",
+  "rev": 3,
+  "title": {
+   "t": "A past client asks about a gift for referrals",
+   "src": "tuple:16-05"
+  },
+  "when": {
+   "t": "A past client's reply reaching Agent 16 contains \"gift card\", \"referral bonus\", \"pay you for\" or \"reward for referring\".",
+   "src": "dispatcher/listing_spokes_16.py:21-22, 264"
+  },
   "steps": [
-   "Agent 16 raises a legal-line alert for the authorized user with the message."
+   {
+    "t": "Agent 16 raises a legal-line alert with the message; nothing is sent to the client.",
+    "src": "dispatcher/listing_spokes_16.py:264-270; check:16-05:escalation.raised"
+   },
+   {
+    "t": "This check comes before the referral-reward check in 16-08.",
+    "src": "dispatcher/listing_spokes_16.py:264-287"
+   }
   ],
   "never": [
-   "Offer or promise a referral gift."
+   {
+    "t": "Offer or discuss an incentive.",
+    "src": "tuple:16-05"
+   }
   ],
-  "why": "Referral rewards are restricted by license law and, for settlement services, by RESPA.",
-  "you_see": "A legal-line alert quoting the message.",
-  "test": "A past client writes \"If I send my sister your way, do I get a gift card?\"."
+  "you_see": {
+   "t": "A legal-line alert quoting the message.",
+   "src": "check:16-05:escalation.raised"
+  },
+  "test": {
+   "t": "\"If I send my sister your way, do I get a gift card?\"",
+   "src": "spec:16-05"
+  }
  },
  {
   "id": "16-06",
-  "rev": 2,
-  "title": "An anniversary greeting would land during a hard time",
-  "when": "A purchase anniversary comes up for a client with a known adverse event on record.",
+  "rev": 3,
+  "title": {
+   "t": "An anniversary falls during a hard time",
+   "src": "tuple:16-06"
+  },
+  "when": {
+   "t": "A purchase-anniversary greeting is due for a client marked with a hard time.",
+   "src": "dispatcher/listing_spokes_16.py:146-149"
+  },
   "steps": [
-   "Agent 16 suppresses the greeting and records why.",
-   "Whether to reach out is the authorized user's decision."
+   {
+    "t": "Agent 16 sends nothing and logs the blocked greeting.",
+    "src": "dispatcher/listing_spokes_16.py:149-157; check:16-06:spoke.trace; check:16-06:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Nobody is alerted; the authorized user set the mark and decides when to clear it.",
+    "src": "dispatcher/listing_spokes_16.py:149-165, 185-188"
+   }
   ],
   "never": [
-   "Send an anniversary greeting into a known hard time."
+   {
+    "t": "Send a celebration during a hard time.",
+    "src": "tuple:16-06"
+   }
   ],
-  "why": "A celebration message at the wrong moment can hurt more than silence.",
-  "you_see": "The suppressed greeting in the client's history.",
-  "test": "A closed client's purchase anniversary arrives a year later; an adverse event is on record."
+  "you_see": {
+   "t": "The blocked greeting in the client's history.",
+   "src": "check:16-06:spoke.trace"
+  },
+  "test": {
+   "t": "Close October 20, 2026; anniversary recorded for October 20, 2027; a hard time is marked; the daily run runs October 20, 2027.",
+   "src": "spec:16-06"
+  }
  },
  {
   "id": "16-07",
-  "rev": 2,
-  "title": "A past client asks about a new purchase",
-  "when": "A past client asks about a new transaction.",
+  "rev": 3,
+  "title": {
+   "t": "A past client asks about a new purchase",
+   "src": "tuple:16-07"
+  },
+  "when": {
+   "t": "A past client's reply contains a new-business phrase.",
+   "src": "dispatcher/listing_spokes_16.py:17-18, 297"
+  },
   "steps": [
-   "Agent 16 opens a new client record for the new deal and routes it as a new lead.",
-   "The old transaction stays closed; the new record notes where it came from."
+   {
+    "t": "Agent 16 opens a new thread (the old name plus \"-new\") for the new lead; the closed one is not reopened.",
+    "src": "dispatcher/listing_spokes_16.py:300-309; check:16-07:envelope.persisted:lead.captured"
+   },
+   {
+    "t": "As in 16-03, the new lead goes straight to Agent 02, which cannot score it and asks the authorized user.",
+    "src": "flow:16-07:16->02 lead.captured; flow:16-07:02->queue clarification.request"
+   }
   ],
   "never": [
-   "Reopen the old transaction for new business."
+   {
+    "t": "Reopen the closed thread.",
+    "src": "tuple:16-07"
+   }
   ],
-  "why": "Each deal has its own record, consent and timeline. Mixing them muddles both.",
-  "you_see": "A new lead linked to the original client.",
-  "test": "A past client writes \"We're looking to buy again, a rental this time. Can you help?\"."
+  "you_see": {
+   "t": "A question from Agent 02 about the new lead.",
+   "src": "flow:16-07:02->queue clarification.request"
+  },
+  "test": {
+   "t": "\"We're looking to buy again, a rental this time. Can you help?\"",
+   "src": "spec:16-07"
+  }
  },
  {
   "id": "16-08",
-  "rev": 2,
-  "title": "A referral reward is mentioned",
-  "when": "A past client's message mentions a referral reward (for example a referral fee).",
+  "rev": 3,
+  "title": {
+   "t": "A past client mentions a referral reward",
+   "src": "tuple:16-08"
+  },
+  "when": {
+   "t": "A past client's reply contains a referral-reward phrase such as \"referral fee\" or \"finder's fee\"; Agent 11 marks it.",
+   "src": "dispatcher/message_tags.py:41-43; dispatcher/listing_spokes_11.py:576"
+  },
   "steps": [
-   "Agent 16 sends the client's words to Compliance (Agent 17) first.",
-   "Nothing about a reward goes to the client before that."
+   {
+    "t": "Agent 16 sends the client's words to Compliance (Agent 17) first.",
+    "src": "dispatcher/listing_spokes_16.py:272-287; check:16-08:envelope.persisted:content.review"
+   },
+   {
+    "t": "No legal-line alert is raised for this phrase; the verdict goes to the authorized user (16-10).",
+    "src": "dispatcher/listing_spokes_16.py:272-287; check:16-08:escalation.raised"
+   }
   ],
   "never": [
-   "Answer a reward question before Compliance has looked."
+   {
+    "t": "Answer about a referral reward before Compliance has looked.",
+    "src": "tuple:16-08"
+   }
   ],
-  "why": "Inducement rules differ by state. Compliance checks before anyone replies.",
-  "you_see": "The message under review.",
-  "test": "A past client writes \"Is there a referral fee if my friend lists with you?\"."
+  "you_see": {
+   "t": "Compliance's verdict, to the authorized user.",
+   "src": "flow:16-08:17->16 content.verdict; flow:16-08:16->queue clarification.request"
+  },
+  "test": {
+   "t": "\"Is there a referral fee if my friend lists with you?\"",
+   "src": "spec:16-08"
+  }
  },
  {
   "id": "16-09",
-  "rev": 2,
-  "title": "A past client's contact details stop working",
-  "when": "Messages to a past client bounce or their number is disconnected.",
+  "rev": 3,
+  "title": {
+   "t": "A past client's contact details no longer work",
+   "src": "tuple:16-09"
+  },
+  "when": {
+   "t": "The authorized user records that a past client's contact bounced.",
+   "src": "dispatcher/listing_spokes_16.py:189-195"
+  },
   "steps": [
-   "Agent 16 marks the contact stale and stops touches.",
-   "It does not search for new contact details.",
-   "Asking them again for permission is the authorized user's choice."
+   {
+    "t": "Agent 16 marks the client stale; every touch is blocked and logged.",
+    "src": "dispatcher/listing_spokes_16.py:82-83, 123-126; check:16-09:envelope.persisted:interaction.log; check:16-09:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Nothing looks for new details. Only the authorized user's signed reinstatement clears it.",
+    "src": "dispatcher/listing_spokes_16.py:189-203"
+   }
   ],
   "never": [
-   "Hunt down new contact details (skip-tracing)."
+   {
+    "t": "Search for new contact details.",
+    "src": "tuple:16-09"
+   }
   ],
-  "why": "Tracking people down without permission is intrusive and can break privacy rules.",
-  "you_see": "The blocked touch in the client's history, marked stale contact.",
-  "test": "A closed client's contact bounces; the 30-day check-in date arrives. Nothing is sent."
+  "you_see": {
+   "t": "The blocked touch in the client's history.",
+   "src": "check:16-09:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "Close October 20; the contact is marked bounced; the daily run on November 20 finds the 30-day check-in due.",
+   "src": "spec:16-09"
+  }
  },
  {
   "id": "16-10",
-  "rev": 2,
-  "title": "Compliance has reviewed a referral reward message",
-  "when": "Compliance returns its verdict on a past client's message about a referral reward.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance answers about a referral-reward mention",
+   "src": "tuple:16-10"
+  },
+  "when": {
+   "t": "Compliance's verdict on a past client's referral-reward message arrives.",
+   "src": "dispatcher/listing_spokes_16.py:242"
+  },
   "steps": [
-   "Agent 16 sends the verdict to the authorized user with the client's own words.",
-   "Nothing is sent to the client: the reply is for the authorized user."
+   {
+    "t": "Agent 16 sends the authorized user the verdict and findings; the reply to the client is the authorized user's. Nothing is sent to the client.",
+    "src": "dispatcher/listing_spokes_16.py:242-259; check:16-10:envelope.persisted:clarification.request; check:16-10:envelope.persisted:client.message.request"
+   }
   ],
   "never": [
-   "Reply to the client about a reward."
+   {
+    "t": "Answer the client itself.",
+    "src": "tuple:16-10"
+   }
   ],
-  "why": "Whatever the verdict, how to answer a reward question is a judgment for the authorized user.",
-  "you_see": "A question with Compliance's verdict and the client's words.",
-  "test": "A past client asks \"Is there a referral fee if my friend lists with you?\"; Compliance reviews it."
+  "you_see": {
+   "t": "A question with Compliance's verdict.",
+   "src": "check:16-10:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "\"Is there a referral fee if my friend lists with you?\"",
+   "src": "spec:16-10"
+  }
  }
 ]

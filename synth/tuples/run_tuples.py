@@ -104,9 +104,18 @@ def session_lines(spec):
     return lines + [json.dumps(a) for a in spec.get("lines", [])]
 
 
+# The agents' clock for a synthetic run (owner decision D-A4, 2026-10-28;
+# finding T): Agents 03 and 11 use this computer's clock when a message
+# carries no time of day, so an unpinned run gave different flows, and since
+# D-A4 different results, depending on when it ran. Every run is pinned to
+# noon on the specs' day unless LISTING_CLOCK_NOW is already set.
+CLOCK_NOW = "2026-10-15T12:00:00"
+
+
 def _env():
     env = dict(os.environ)
     env.pop("LISTINGASSISTANTS_STATE_DIR", None)
+    env.setdefault("LISTING_CLOCK_NOW", CLOCK_NOW)
     return env
 
 

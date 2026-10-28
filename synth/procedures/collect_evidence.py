@@ -39,16 +39,24 @@ OUTCOME_KINDS = {
 }
 
 
-def own_part(entries):
-    """The entries after the starting settings: the setup lines are signed
-    settings with client 'setup'; the tuple's own part starts after the last
-    entry that names one of them."""
-    setup_ids = {e["envelope_id"] for e in entries
-                 if e.get("kind") == "envelope.persisted" and e.get("client_context_id") == "setup"
-                 and e.get("from_agent") == "human"}
-    last = -1
+def own_part(entries, spec=None):
+    """The entries after the starting settings. The setup lines are signed
+    settings with client 'setup', and the run applies them first; the
+    tuple's own part starts after the last of them. Counted (2026-10-27):
+    a tuple whose own lines also sign a 'setup' setting (a new ruleset in
+    17-01, 17-04, 17-08, 17-09) used to lose everything before that line."""
+    n_setup = 0
+    if spec is None or spec.get("setup") is not False:
+        skip = set((spec or {}).get("setup_skip", []))
+        with open(run_tuples.SETUP, encoding="utf-8") as f:
+            n_setup = sum(1 for ln in f if ln.strip() and json.loads(ln).get("to") not in skip)
+    seen, last = 0, -1
     for i, e in enumerate(entries):
-        if e.get("envelope_id") in setup_ids:
+        if seen >= n_setup:
+            break
+        if (e.get("kind") == "envelope.persisted" and e.get("client_context_id") == "setup"
+                and e.get("from_agent") == "human"):
+            seen += 1
             last = i
     return entries[last + 1:]
 
@@ -147,7 +155,7 @@ def flow(part):
 
 
 def evidence(spec, result, entries):
-    part = own_part(entries) if entries else []
+    part = own_part(entries, spec) if entries else []
     idx = run_tuples.ctx_index(entries)
     checks = []
     for c in spec.get("expect", []):

@@ -1,248 +1,542 @@
 [
  {
   "id": "04-01",
-  "rev": 2,
-  "title": "The photos contradict the listing data",
-  "when": "The listing data names a feature that the photos do not show (for example a pool listed but not in any photo).",
+  "rev": 3,
+  "title": {
+   "t": "The photos contradict the listing data",
+   "src": "tuple:04-01"
+  },
+  "when": {
+   "t": "The listing data names a feature the photos do not show, or the photos show one the data does not list.",
+   "src": "dispatcher/listing_spokes_04.py:173-181"
+  },
   "steps": [
-   "Agent 04 (Listing Description) stops: no description is drafted for this listing.",
-   "It asks the authorized user, naming the conflict (\"photos contradict data sheet\") and the feature."
+   {
+    "t": "Agent 04 drafts nothing for the listing.",
+    "src": "dispatcher/listing_spokes_04.py:365-367; check:04-01:envelope.persisted:content.review"
+   },
+   {
+    "t": "It asks the authorized user, naming the features on each side.",
+    "src": "dispatcher/listing_spokes_04.py:182-188; check:04-01:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Describe a feature the photos do not support, or quietly drop it."
+   {
+    "t": "Draft over a contradiction.",
+    "src": "tuple:04-01"
+   }
   ],
-  "why": "Advertising a pool that is not there is a misrepresentation claim waiting to happen. The authorized user decides which source is right.",
-  "you_see": "A question naming the feature the photos do not show.",
-  "test": "A new listing says garage and pool; the photo check finds only a garage. The photographer is booked (the authorized user releases the booking) and the photos arrive. Nothing goes to Compliance for review."
+  "you_see": {
+   "t": "A question naming the feature the photos do not show.",
+   "src": "check:04-01:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A new listing says garage and pool; the photo check finds only a garage. The photos arrive after the authorized user releases the photographer's booking. Nothing goes to Compliance.",
+   "src": "spec:04-01"
+  }
  },
  {
   "id": "04-02",
-  "rev": 2,
-  "title": "A feature cannot be verified",
-  "when": "The listing data includes a fact with no source (for example an HVAC year nobody can back up).",
+  "rev": 3,
+  "title": {
+   "t": "A feature has no source",
+   "src": "tuple:04-02"
+  },
+  "when": {
+   "t": "A roof age or HVAC year comes with no source.",
+   "src": "dispatcher/listing_spokes_04.py:138-152"
+  },
   "steps": [
-   "Agent 04 leaves the fact out of the description.",
-   "It records that it left it out and why, in the client's history."
+   {
+    "t": "Agent 04 leaves the value out of the draft and notes why; the note is logged with Agent 14.",
+    "src": "dispatcher/listing_spokes_04.py:150-152, 394-397; check:04-02:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Hedge with \"may include\" or similar wording."
+   {
+    "t": "Hedge with \"may include\".",
+    "src": "tuple:04-02"
+   }
   ],
-  "why": "A hedged claim is still a claim. Leaving it out keeps the description to facts the authorized user can stand behind.",
-  "you_see": "The description without the fact; the history notes it was omitted.",
-  "test": "A new listing includes \"HVAC 2015\" with no source. The description sent for review does not mention it."
+  "you_see": {
+   "t": "The draft without the value; the note in the history.",
+   "src": "check:04-02:envelope.persisted:content.review; check:04-02:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "A new listing with HVAC 2015 and no source. The draft sent for review does not mention it.",
+   "src": "spec:04-02"
+  }
  },
  {
   "id": "04-03",
-  "rev": 2,
-  "title": "Copy the authorized user supplied may break fair housing rules",
-  "when": "Description wording supplied by the authorized user or the seller looks like a fair housing problem (for example it rates the schools).",
+  "rev": 3,
+  "title": {
+   "t": "Copy the authorized user supplied may break fair housing rules",
+   "src": "tuple:04-03"
+  },
+  "when": {
+   "t": "Supplied description copy contains a phrase from Agent 04's fixed protected-class list.",
+   "src": "dispatcher/listing_spokes_04.py:20-22, 346-362"
+  },
   "steps": [
-   "Agent 04 alerts the authorized user that the supplied copy is flagged.",
-   "It sends the supplied copy to Compliance (Agent 17) for a verdict.",
-   "It never rewrites the copy on its own."
+   {
+    "t": "Agent 04 raises a legal-line alert naming the flagged words.",
+    "src": "dispatcher/listing_spokes_04.py:346-362; check:04-03:escalation.raised"
+   },
+   {
+    "t": "Open item: the rule also requires sending the copy to Compliance; today it is not sent. The draft is built from the data fields only, so the supplied copy is neither reviewed nor used.",
+    "src": "result:04-03:VARIANCE; synth/tuples/REPORT.md 04-03"
+   }
   ],
   "never": [
-   "Rewrite the authorized user's copy silently, or use it without a compliance verdict."
+   {
+    "t": "Rewrite the supplied copy silently.",
+    "src": "tuple:04-03"
+   }
   ],
-  "why": "Language about schools or neighborhoods can steer buyers by protected class. Compliance must see the exact words, and the authorized user decides the fix.",
-  "you_see": "A legal-line alert saying the supplied copy was flagged.",
-  "test": "A new listing comes with the copy \"Close to great schools with a high school rating\". Today the authorized user is alerted, but the copy never goes to Compliance: Agent 04 drafts from the data fields only, so the copy is neither reviewed nor used. How supplied copy is used and reviewed is waiting on the authorized user's decision."
+  "you_see": {
+   "t": "A legal-line alert naming the flagged words.",
+   "src": "check:04-03:escalation.raised; dispatcher/listing_spokes_04.py:358-362"
+  },
+  "test": {
+   "t": "A new listing comes with the copy \"Close to great schools with a high school rating\". The alert is raised; the copy does not go to Compliance.",
+   "src": "spec:04-03"
+  }
  },
  {
   "id": "04-04",
-  "rev": 2,
-  "title": "The description is too long: cut adjectives before facts",
-  "when": "The description does not fit the space available.",
+  "rev": 3,
+  "title": {
+   "t": "The description is too long: adjectives go first",
+   "src": "tuple:04-04"
+  },
+  "when": {
+   "t": "The draft exceeds the MLS length limit (800 characters by default).",
+   "src": "dispatcher/listing_spokes_04.py:62, 71, 249-250"
+  },
   "steps": [
-   "Agent 04 cuts descriptive words first.",
-   "Facts (bedrooms, bathrooms, square footage) stay.",
-   "Source notes (\"per county tax records\") are never cut.",
-   "The draft is marked as cut for length."
+   {
+    "t": "Agent 04 drops whole feature entries first, then facts without a source; a fact with a source is never dropped.",
+    "src": "dispatcher/listing_spokes_04.py::def _cut_to_limit(; config/description_cut_priority.json"
+   },
+   {
+    "t": "The draft is marked as cut for length.",
+    "src": "check:04-04:envelope.persisted:content.review"
+   }
   ],
   "never": [
-   "Cut a fact or a source note to make room for description."
+   {
+    "t": "Cut a source attribution.",
+    "src": "tuple:04-04"
+   }
   ],
-  "why": "Buyers rely on the facts and their sources; adjectives are optional.",
-  "you_see": "A shorter description that still has every fact and its source.",
-  "test": "A new listing with twenty long feature phrases. The draft is marked cut for length and still says 3 bedrooms, 2 bathrooms and \"per county tax records\"."
+  "you_see": {
+   "t": "A shorter draft with bedrooms, bathrooms and the square footage source intact.",
+   "src": "check:04-04:envelope.persisted:content.review"
+  },
+  "test": {
+   "t": "A new listing with twenty long feature phrases. The draft is marked cut for length and still says 3 bedrooms, 2 bathrooms and \"per county tax records\".",
+   "src": "spec:04-04"
+  }
  },
  {
   "id": "04-05",
-  "rev": 2,
-  "title": "A superlative is requested in the description",
-  "when": "Someone asks for wording like \"the best block in town\".",
+  "rev": 3,
+  "title": {
+   "t": "A superlative is requested",
+   "src": "tuple:04-05"
+  },
+  "when": {
+   "t": "The requested wording contains a superlative from Agent 04's fixed list (for example \"best block\").",
+   "src": "dispatcher/listing_spokes_04.py:213-222"
+  },
   "steps": [
-   "Agent 04 declines the superlative and records that it did.",
-   "The description is drafted without it."
+   {
+    "t": "Agent 04 records that it declined the superlative.",
+    "src": "dispatcher/listing_spokes_04.py:213-222; check:04-05:spoke.trace"
+   },
+   {
+    "t": "The draft does not contain it: drafts are built from the data fields only.",
+    "src": "dispatcher/listing_spokes_04.py:93-157; check:04-05:envelope.persisted:content.review"
+   }
   ],
   "never": [
-   "Characterize a neighborhood or block as best, safest or similar."
+   {
+    "t": "Characterize a block or neighborhood.",
+    "src": "tuple:04-05"
+   }
   ],
-  "why": "Rating a neighborhood can steer buyers by who lives there, which fair housing law forbids.",
-  "you_see": "The description without the superlative; the record shows it was declined.",
-  "test": "A new listing asks: \"Call it the best block in town\"."
+  "why": {
+   "t": "The tuple's words: characterization is a steering vector.",
+   "src": "tuple:04-05"
+  },
+  "you_see": {
+   "t": "The draft without the superlative.",
+   "src": "check:04-05:envelope.persisted:content.review"
+  },
+  "test": {
+   "t": "A new listing asks: \"Call it the best block in town\".",
+   "src": "spec:04-05"
+  }
  },
  {
   "id": "04-06",
-  "rev": 2,
-  "title": "Square footage differs between the tax record and the seller",
-  "when": "The tax record and the seller give different square footage.",
+  "rev": 3,
+  "title": {
+   "t": "Square footage differs between the tax record and the seller",
+   "src": "tuple:04-06"
+  },
+  "when": {
+   "t": "The tax record and the seller give different square footage.",
+   "src": "dispatcher/listing_spokes_04.py:121-127"
+  },
   "steps": [
-   "Agent 04 uses the figure that can be verified (the tax record) and says where it came from.",
-   "It tells the authorized user about the discrepancy.",
-   "It never averages the two."
+   {
+    "t": "Agent 04 uses the tax-record figure, marked \"per county tax records\".",
+    "src": "dispatcher/listing_spokes_04.py:121-124; check:04-06:envelope.persisted:content.review"
+   },
+   {
+    "t": "It asks the authorized user to reconcile the two.",
+    "src": "dispatcher/listing_spokes_04.py::{\"reason\": \"source discrepancy \"; check:04-06:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "It never averages them.",
+    "src": "dispatcher/listing_spokes_04.py:121-127"
+   }
   ],
   "never": [
-   "Average the figures or publish the unverified one."
+   {
+    "t": "Average the two figures.",
+    "src": "tuple:04-06"
+   }
   ],
-  "why": "A made-up middle number is wrong for certain. The verifiable figure with its source is defensible.",
-  "you_see": "A question about the discrepancy; the description says \"1800 sq ft per county tax records\".",
-  "test": "Tax record 1,800 sq ft; the seller says 2,400. The description says 1,800 per county tax records and never 2,100 (the average)."
+  "you_see": {
+   "t": "A question about the discrepancy; the draft says 1800 sq ft per county tax records.",
+   "src": "check:04-06:envelope.persisted:clarification.request; check:04-06:envelope.persisted:content.review"
+  },
+  "test": {
+   "t": "Tax record 1,800 sq ft; the seller says 2,400. The draft says 1,800 per county tax records and never 2,100.",
+   "src": "spec:04-06"
+  }
  },
  {
   "id": "04-07",
-  "rev": 2,
-  "title": "The seller asks to mention schools or neighborhood make-up",
-  "when": "The seller asks for wording about school quality or who lives in the neighborhood.",
+  "rev": 3,
+  "title": {
+   "t": "The seller asks to mention schools or neighborhood make-up",
+   "src": "tuple:04-07"
+  },
+  "when": {
+   "t": "The requested wording contains a phrase from Agent 04's fixed protected-class list (for example \"school quality\").",
+   "src": "dispatcher/listing_spokes_04.py:20-22, 200-212"
+  },
   "steps": [
-   "Agent 04 refuses that wording and records the refusal.",
-   "The draft still goes to Compliance (Agent 17) for its verdict, as every draft does."
+   {
+    "t": "Agent 04 records that it refused that wording.",
+    "src": "dispatcher/listing_spokes_04.py:200-212; check:04-07:spoke.trace"
+   },
+   {
+    "t": "The draft (built from the data fields only) still goes to Compliance, and the verdict comes back.",
+    "src": "check:04-07:envelope.persisted:content.review; check:04-07:envelope.persisted:content.verdict"
+   }
   ],
   "never": [
-   "Put school-quality or demographic wording into a description."
+   {
+    "t": "Put school-quality or demographic wording in a draft.",
+    "src": "tuple:04-07"
+   }
   ],
-  "why": "These phrases are classic fair housing steering. Compliance reviews every draft regardless.",
-  "you_see": "The description without the requested wording; Compliance's verdict on the record.",
-  "test": "A new listing asks: \"Please mention the great schools nearby\"."
+  "you_see": {
+   "t": "A record that the wording was refused; the draft, built from the data fields only, and Compliance's verdict.",
+   "src": "check:04-07:spoke.trace; check:04-07:envelope.persisted:content.review; check:04-07:envelope.persisted:content.verdict; dispatcher/listing_spokes_04.py:93-157"
+  },
+  "test": {
+   "t": "A new listing asks: \"Please mention the great schools nearby\".",
+   "src": "spec:04-07"
+  }
  },
  {
   "id": "04-08",
-  "rev": 2,
-  "title": "A photo reveals something about who lives there",
-  "when": "A listing photo shows an item that reveals protected-class information (for example religious items or family photos).",
+  "rev": 3,
+  "title": {
+   "t": "A photo may reveal protected-class information",
+   "src": "tuple:04-08"
+  },
+  "when": {
+   "t": "The listing data marks a photo as possibly revealing protected-class information.",
+   "src": "dispatcher/listing_spokes_04.py::if data.get(\"photo_reveals_protected_class\"):"
+  },
   "steps": [
-   "Agent 04 alerts the authorized user before the photos are used anywhere.",
-   "No description is sent for review."
+   {
+    "t": "Agent 04 raises a legal-line alert and drafts nothing.",
+    "src": "dispatcher/listing_spokes_04.py::if data.get(\"photo_reveals_protected_class\"):; check:04-08:escalation.raised; check:04-08:envelope.persisted:content.review"
+   }
   ],
   "never": [
-   "Use a photo that reveals protected-class information without the authorized user's review."
+   {
+    "t": "Use the photo before the authorized user has looked.",
+    "src": "tuple:04-08"
+   }
   ],
-  "why": "Such photos can invite discrimination by buyers and expose the seller's privacy.",
-  "you_see": "A legal-line alert naming the protected-class concern.",
-  "test": "A new listing whose photo check flags protected-class information. Nothing goes to Compliance for review."
+  "you_see": {
+   "t": "A legal-line alert.",
+   "src": "check:04-08:escalation.raised"
+  },
+  "test": {
+   "t": "A new listing whose photo is marked as revealing protected-class information. Nothing goes to Compliance.",
+   "src": "spec:04-08"
+  }
  },
  {
   "id": "04-09",
-  "rev": 2,
-  "title": "A feature comes only from the seller",
-  "when": "A fact such as roof age comes only from the seller, with no document.",
+  "rev": 3,
+  "title": {
+   "t": "A feature comes only from the seller",
+   "src": "tuple:04-09"
+  },
+  "when": {
+   "t": "A roof age or HVAC year is marked as from the seller.",
+   "src": "dispatcher/listing_spokes_04.py:138-149"
+  },
   "steps": [
-   "Agent 04 includes it only with its source: \"per seller (unverified)\".",
-   "Without even a stated source, it leaves the fact out."
+   {
+    "t": "Agent 04 includes it with \"per seller (unverified)\".",
+    "src": "dispatcher/listing_spokes_04.py:146-149; check:04-09:envelope.persisted:content.review"
+   },
+   {
+    "t": "With no source at all, it is left out.",
+    "src": "dispatcher/listing_spokes_04.py:150-152"
+   }
   ],
   "never": [
-   "Print a seller's claim as a bare fact."
+   {
+    "t": "Print a seller's claim as a bare fact.",
+    "src": "tuple:04-09"
+   }
   ],
-  "why": "Buyers must be able to tell verified facts from what the seller said.",
-  "you_see": "The fact in the description with \"per seller (unverified)\".",
-  "test": "A new listing with roof age 5, source \"per seller\". The draft says roof 5, per seller (unverified)."
+  "you_see": {
+   "t": "\"roof: 5, per seller (unverified)\" in the draft.",
+   "src": "check:04-09:envelope.persisted:content.review"
+  },
+  "test": {
+   "t": "A new listing with roof age 5, source \"per seller\".",
+   "src": "spec:04-09"
+  }
  },
  {
   "id": "04-10",
-  "rev": 2,
-  "title": "Compliance requires changes to a description",
-  "when": "Compliance (Agent 17) returns its verdict asking for changes.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance flags a description",
+   "src": "tuple:04-10"
+  },
+  "when": {
+   "t": "Compliance returns a flagged verdict citing phrases.",
+   "src": "dispatcher/listing_spokes_04.py::if verdict == \"flagged\":"
+  },
   "steps": [
-   "Agent 04 makes exactly the changes required, no more and no fewer.",
-   "It sends the corrected draft back for review.",
-   "Only an approved draft is released."
+   {
+    "t": "Agent 04 removes each fact that contains a cited phrase, and nothing else.",
+    "src": "dispatcher/listing_spokes_04.py:504-518; check:04-10:spoke.trace"
+   },
+   {
+    "t": "It sends the corrected draft back to Compliance.",
+    "src": "dispatcher/listing_spokes_04.py:546-548; flow:04-10:04->17 content.review"
+   },
+   {
+    "t": "Only an approved draft is released.",
+    "src": "dispatcher/listing_spokes_04.py:429-462; check:04-10:envelope.persisted:asset.release"
+   }
   ],
   "never": [
-   "Argue with, work around or partly apply a compliance verdict."
+   {
+    "t": "Negotiate with Compliance or partly apply a verdict.",
+    "src": "tuple:04-10"
+   }
   ],
-  "why": "Compliance is the gate for fair housing. Its verdict is applied as written.",
-  "you_see": "The released description without the flagged wording.",
-  "test": "A new listing whose features include \"perfect for young families\". Compliance flags it, Agent 04 removes it and resubmits, and the released copy does not contain the phrase."
+  "you_see": {
+   "t": "The released description without the flagged phrase.",
+   "src": "check:04-10:envelope.persisted:asset.release"
+  },
+  "test": {
+   "t": "A new listing's features include \"perfect for young families\" (prohibited in the test rules). It is flagged, removed, resubmitted, and the released copy does not contain it.",
+   "src": "spec:04-10; synth/tuples/setup.jsonl:4"
+  }
  },
  {
   "id": "04-11",
-  "rev": 2,
-  "title": "The remarks are over the MLS length limit",
-  "when": "The remarks exceed the MLS field limit.",
+  "rev": 3,
+  "title": {
+   "t": "The remarks are over the MLS length limit",
+   "src": "tuple:04-11"
+  },
+  "when": {
+   "t": "The draft exceeds the MLS limit.",
+   "src": "dispatcher/listing_spokes_04.py:249-250"
+  },
   "steps": [
-   "Agent 04 cuts by the priority list in the authorized user's settings, whole entries at a time, starting from the end of the descriptive entries.",
-   "The first entry stays whole.",
-   "Nothing is cut off in the middle of a claim."
+   {
+    "t": "Agent 04 cuts by the priority list in the office's settings file, whole entries at a time; entries are kept from the start while they fit.",
+    "src": "dispatcher/listing_spokes_04.py::def _cut_to_limit(; config/description_cut_priority.json"
+   },
+   {
+    "t": "Nothing is cut in the middle of an entry.",
+    "src": "dispatcher/listing_spokes_04.py:231-236"
+   }
   ],
   "never": [
-   "Truncate in the middle of a sentence or claim."
+   {
+    "t": "Truncate in the middle of a claim.",
+    "src": "tuple:04-11"
+   }
   ],
-  "why": "A claim cut in half can say something false. Whole entries in, or whole entries out.",
-  "you_see": "Remarks within the limit, made of whole entries.",
-  "test": "Twenty long feature phrases. The draft is marked cut for length; entry 1 is there whole and entry 20 is gone."
+  "you_see": {
+   "t": "Remarks cut in whole entries, marked cut for length. They fit the limit unless the attributed facts alone are longer; those are never cut.",
+   "src": "check:04-11:envelope.persisted:content.review; dispatcher/listing_spokes_04.py:249-266"
+  },
+  "test": {
+   "t": "Twenty long feature phrases. The draft is marked cut for length; entry 1 is whole and entry 20 is gone.",
+   "src": "spec:04-11"
+  }
  },
  {
   "id": "04-12",
-  "rev": 2,
-  "title": "Model drafting is on but the model has not passed its exam",
-  "when": "The authorized user signed the drafting mode \"model\", but the active model has not passed the broker exam on the model actually being served.",
+  "rev": 3,
+  "title": {
+   "t": "Model drafting is on but the model is not ready",
+   "src": "tuple:04-12"
+  },
+  "when": {
+   "t": "The authorized user signed drafting mode \"model\" and no model that passed its exam is being served.",
+   "src": "dispatcher/listing_spokes_04.py::def _configure_drafting("
+  },
   "steps": [
-   "Agent 04 drafts by its rules instead of the model.",
-   "It tells the authorized user model drafting is on but was not used, and why."
+   {
+    "t": "Agent 04 drafts by its rules instead.",
+    "src": "dispatcher/listing_spokes_04.py::def _model_remarks(; check:04-12:envelope.persisted:content.review"
+   },
+   {
+    "t": "It tells the authorized user model drafting was not used, and why.",
+    "src": "dispatcher/listing_spokes_04.py::{\"reason\": \"model drafting is on but was not used - drafted by rules\",; check:04-12:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Draft with a model that has not passed the exam."
+   {
+    "t": "Draft with a model that has not passed its exam.",
+    "src": "tuple:04-12"
+   }
   ],
-  "why": "A model writes fluently but can invent. Only an examined model on the served version may draft the authorized user's listings.",
-  "you_see": "A question saying model drafting was not used and why.",
-  "test": "The authorized user signs drafting mode \"model\"; no examined model is being served. The listing is drafted by rules and goes to review as normal."
+  "you_see": {
+   "t": "A question saying model drafting was not used and why.",
+   "src": "check:04-12:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The authorized user signs drafting mode \"model\"; no examined model is served.",
+   "src": "spec:04-12"
+  }
  },
  {
   "id": "04-13",
-  "rev": 2,
-  "title": "A model draft fails its checks",
-  "when": "A model's draft has no recorded reasoning, is over the MLS limit, or contains a number that is not in the listing data.",
+  "rev": 3,
+  "title": {
+   "t": "A model draft fails its checks",
+   "src": "tuple:04-13"
+  },
+  "when": {
+   "t": "A model draft has no reasoning, is over the MLS limit, or has a number not in the data.",
+   "src": "tuple:04-13"
+  },
   "steps": [
-   "Agent 04 does not use the model's draft.",
-   "It drafts by rules and records why the model's draft was rejected."
+   {
+    "t": "The model draft is not used; the draft is built by rules and the reason recorded.",
+    "src": "tuple:04-13; tests_listing/test_wiring_2026_10_12.py"
+   },
+   {
+    "t": "No way in yet: the test runner has no served model.",
+    "src": "spec:04-13"
+   }
   ],
   "never": [
-   "Use a model draft that fails a check."
+   {
+    "t": "Use a model draft that fails a check.",
+    "src": "tuple:04-13"
+   }
   ],
-  "why": "A number not in the data is invented. Reasoning that is missing cannot be checked. Either one disqualifies the draft.",
-  "you_see": "The rules-based draft and the reason in the record.",
-  "test": ""
+  "you_see": {
+   "t": "The rules draft and the reason.",
+   "src": "tuple:04-13"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:04-13"
+  }
  },
  {
   "id": "04-14",
-  "rev": 2,
-  "title": "Compliance flags a phrase inside model-written remarks",
-  "when": "Compliance flags a phrase in remarks the model wrote.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance flags a phrase in model-written remarks",
+   "src": "tuple:04-14"
+  },
+  "when": {
+   "t": "Compliance cites a phrase inside model-written remarks.",
+   "src": "tuple:04-14"
+  },
   "steps": [
-   "Agent 04 removes exactly the sentence that carries the phrase.",
-   "It resubmits the draft for review."
+   {
+    "t": "Agent 04 removes each sentence of the remarks that contains a cited phrase and resubmits.",
+    "src": "dispatcher/listing_spokes_04.py:519-529"
+   },
+   {
+    "t": "No way in yet: the test runner has no served model.",
+    "src": "spec:04-14"
+   }
   ],
   "never": [
-   "Rewrite the rest of the remarks, or leave the flagged sentence in."
+   {
+    "t": "Leave the flagged sentence in.",
+    "src": "tuple:04-14"
+   }
   ],
-  "why": "Removing exactly the flagged sentence fixes the problem without changing anything Compliance already approved.",
-  "you_see": "The remarks without the flagged sentence, after a new review.",
-  "test": ""
+  "you_see": {
+   "t": "The remarks without the sentence, after a new review.",
+   "src": "dispatcher/listing_spokes_04.py:519-548"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:04-14"
+  }
  },
  {
   "id": "04-15",
-  "rev": 2,
-  "title": "Compliance flags a phrase Agent 04 cannot find in its draft",
-  "when": "Compliance flags a phrase, but no single fact in the draft contains it (for example the phrase is split across two features).",
+  "rev": 3,
+  "title": {
+   "t": "Compliance flags a phrase Agent 04 cannot find",
+   "src": "tuple:04-15"
+  },
+  "when": {
+   "t": "Compliance cites a phrase no single fact contains (for example split across two features).",
+   "src": "spec:04-15"
+  },
   "steps": [
-   "Agent 04 holds the draft for the authorized user.",
-   "It does not resubmit the same draft, and no copy is released."
+   {
+    "t": "Agent 04 holds the draft and asks the authorized user; nothing is resubmitted and nothing is released.",
+    "src": "dispatcher/listing_spokes_04.py:530-538; check:04-15:envelope.persisted:clarification.request; check:04-15:envelope.persisted:asset.release"
+   }
   ],
   "never": [
-   "Resubmit a draft unchanged after a flag."
+   {
+    "t": "Resubmit the same draft.",
+    "src": "tuple:04-15"
+   }
   ],
-  "why": "Resubmitting the same text would loop forever or slip a flagged phrase through. A person has to look.",
-  "you_see": "A question saying Compliance flagged a phrase Agent 04 could not find in its draft.",
-  "test": "A new listing with features \"perfect for\" and \"young families\". Compliance reads the whole draft and flags the phrase; neither feature contains it alone."
+  "you_see": {
+   "t": "A question saying the cited phrase was not found in the draft.",
+   "src": "check:04-15:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A new listing with features \"perfect for\" and \"young families\". Compliance reads the whole draft and flags the phrase.",
+   "src": "spec:04-15"
+  }
  }
 ]

@@ -1,160 +1,370 @@
 [
  {
   "id": "17-01",
-  "rev": 2,
-  "title": "The rules do not cover this kind of content",
-  "when": "Compliance (Agent 17) is asked to review content of a kind its signed rules do not cover (for example an ad when the rules cover only descriptions and messages).",
+  "rev": 3,
+  "title": {
+   "t": "The ruleset does not cover this kind of content",
+   "src": "tuple:17-01"
+  },
+  "when": {
+   "t": "The signed ruleset lists the content types it covers, and the content under review is another type.",
+   "src": "dispatcher/listing_spokes_17.py:282-287"
+  },
   "steps": [
-   "Agent 17 flags it as uncovered.",
-   "It does not approve it: silence in the rules is not approval."
+   {
+    "t": "Agent 17 flags it as uncovered; it is never approved by omission.",
+    "src": "dispatcher/listing_spokes_17.py:286-292, 313; check:17-01:envelope.persisted:content.verdict"
+   },
+   {
+    "t": "The type comes from the submitter, or from which agent sent it (Agent 12 sends advertising).",
+    "src": "dispatcher/listing_spokes_17.py:27-31, 266"
+   },
+   {
+    "t": "A ruleset that does not list the types it covers flags nothing as uncovered.",
+    "src": "dispatcher/listing_spokes_17.py:285-287"
+   }
   ],
   "never": [
-   "Approve something because no rule says no."
+   {
+    "t": "Approve content the ruleset does not address.",
+    "src": "tuple:17-01"
+   }
   ],
-  "why": "A rule set that does not mention ads has not cleared ads. Approval by omission is how violations slip through.",
-  "you_see": "A flagged verdict saying the rules do not address this kind of content.",
-  "test": "The authorized user signs rules that cover listing descriptions, nurture sequences, buyer criteria, client messages and social replies; then a Facebook ad \"Open house Sunday, bright kitchen\" is sent for review."
+  "you_see": {
+   "t": "A flagged verdict, passed to the authorized user by the submitting agent.",
+   "src": "flow:17-01:12->queue clarification.request"
+  },
+  "test": {
+   "t": "The ruleset covers listing descriptions, nurture sequences, buyer criteria, client messages and social replies, not advertising. A signed ad \"Open house Sunday, bright kitchen\" is reviewed.",
+   "src": "spec:17-01"
+  }
  },
  {
   "id": "17-02",
-  "rev": 2,
-  "title": "Flagged content is sent again unchanged",
-  "when": "Content that was flagged is resubmitted without changes.",
+  "rev": 3,
+  "title": {
+   "t": "Flagged content comes back unchanged",
+   "src": "tuple:17-02"
+  },
+  "when": {
+   "t": "Content that was flagged is submitted again unchanged.",
+   "src": "dispatcher/listing_spokes_17.py:243-244"
+  },
   "steps": [
-   "Agent 17 flags it again.",
-   "It raises a legal-line alert for the authorized user that it was resubmitted unchanged."
+   {
+    "t": "Agent 17 checks it again in full and raises a legal-line alert that it was resubmitted unchanged.",
+    "src": "dispatcher/listing_spokes_17.py:246-260; check:17-02:escalation.raised"
+   },
+   {
+    "t": "The verdict follows the fresh check.",
+    "src": "dispatcher/listing_spokes_17.py:313-339; check:17-02:envelope.persisted:content.verdict"
+   }
   ],
   "never": [
-   "Approve on the second try."
+   {
+    "t": "Let a repeat pass unnoticed.",
+    "src": "tuple:17-02"
+   }
   ],
-  "why": "Resubmitting flagged text unchanged is either a mistake or pressure; either way the authorized user should know.",
-  "you_see": "A legal-line alert about the unchanged resubmission.",
-  "test": "The same campaign \"Perfect for young families near the park\" is submitted twice; both are flagged, with one alert."
+  "you_see": {
+   "t": "A legal-line alert about the repeat, and the flagged verdict.",
+   "src": "check:17-02:escalation.raised"
+  },
+  "test": {
+   "t": "The ad \"Perfect for young families near the park\" is submitted twice.",
+   "src": "spec:17-02"
+  }
  },
  {
   "id": "17-03",
-  "rev": 2,
-  "title": "A review is taking too long",
-  "when": "A review has waited past the expected time (for example because no rules are loaded).",
+  "rev": 3,
+  "title": {
+   "t": "A review waits too long",
+   "src": "tuple:17-03"
+  },
+  "when": {
+   "t": "A review has waited more than 1 day on a daily run (the tuning default).",
+   "src": "dispatcher/listing_spokes_17.py:62-64, 376-393"
+  },
   "steps": [
-   "Agent 17 does not rush a verdict.",
-   "It alerts the authorized user to the delay instead, naming what is waiting and who sent it."
+   {
+    "t": "Agent 17 tells the authorized user the review is overdue, naming the submitting agent and whether a ruleset is active. It does not rush a verdict.",
+    "src": "dispatcher/listing_spokes_17.py:393-406; check:17-03:envelope.persisted:clarification.request; check:17-03:envelope.persisted:content.verdict"
+   },
+   {
+    "t": "A review only waits when no ruleset is loaded. The clock starts on the first daily run that sees it, because submitters send no date.",
+    "src": "dispatcher/listing_spokes_17.py:216-229, 387-390; spec:17-03"
+   },
+   {
+    "t": "The overdue note is sent once for each waiting review (fixed 2026-10-28; it used to repeat on every daily run).",
+    "src": "dispatcher/listing_spokes_17.py::if pending.get(\"sla_alerted\"):; tests_listing/test_owner_decisions_2026_10_28.py::def test_sla_breach_note_is_sent_once_per_waiting_review"
+   }
   ],
   "never": [
-   "Approve to meet a deadline."
+   {
+    "t": "Rush a verdict to meet a deadline.",
+    "src": "tuple:17-03"
+   }
   ],
-  "why": "A fast wrong verdict is worse than a late right one. The authorized user hears about the delay and can act.",
-  "you_see": "A question saying no rules are active, then an alert that the review is 2 days late.",
-  "test": "No compliance rules are loaded. A new listing's description waits for review; the daily clock runs that day and two days later."
+  "you_see": {
+   "t": "A note that the review is overdue and no ruleset is active.",
+   "src": "check:17-03:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "No ruleset is loaded. A listing description goes to review; daily runs on October 15 and 17.",
+   "src": "spec:17-03"
+  }
  },
  {
   "id": "17-04",
-  "rev": 2,
-  "title": "A state rule is stricter than the federal rule",
-  "when": "Content passes the federal rules but breaks a stricter rule for its state.",
+  "rev": 3,
+  "title": {
+   "t": "A state rule is stricter than the federal rules",
+   "src": "tuple:17-04"
+  },
+  "when": {
+   "t": "Content for a state matches one of that state's phrases in the ruleset.",
+   "src": "dispatcher/listing_spokes_17.py:94-105, 247"
+  },
   "steps": [
-   "The stricter rule wins: Agent 17 flags it.",
-   "The verdict names the state and the rule."
+   {
+    "t": "Agent 17 flags it, naming the phrase, the rule and the state.",
+    "src": "dispatcher/listing_spokes_17.py:247, 313-339; check:17-04:envelope.persisted:content.verdict"
+   },
+   {
+    "t": "The state travels with the content from the submitter.",
+    "src": "dispatcher/listing_spokes_17.py:262-267"
+   },
+   {
+    "t": "Agent 17 applies only the ruleset the authorized user signs: listed phrases, optional state phrases, and optionally the content types and states it covers. It matches exact phrases.",
+    "src": "dispatcher/listing_spokes_17.py:81-105, 148-196"
+   }
   ],
   "never": [
-   "Approve because the federal rules allow it."
+   {
+    "t": "Pass content because it meets the federal rules only.",
+    "src": "tuple:17-04"
+   }
   ],
-  "why": "The strictest rule that applies is the one the authorized user can be fined under.",
-  "you_see": "A flagged verdict naming the Ohio rule.",
-  "test": "An Ohio ad says \"An exclusive community near the park\"; only the Ohio rule forbids that phrase."
+  "you_see": {
+   "t": "A flagged verdict naming the Ohio rule.",
+   "src": "check:17-04:envelope.persisted:content.verdict"
+  },
+  "test": {
+   "t": "The ruleset has an Ohio rule against \"exclusive community\"; an Ohio ad says \"An exclusive community near the park\".",
+   "src": "spec:17-04"
+  }
  },
  {
   "id": "17-05",
-  "rev": 2,
-  "title": "Someone asks to pre-approve a whole kind of content",
-  "when": "A request asks Compliance to approve a whole class of content in advance (for example all open house invitations).",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks to pre-approve a kind of content",
+   "src": "tuple:17-05"
+  },
+  "when": {
+   "t": "The authorized user's signed setting asks Agent 17 to pre-approve a class of templates.",
+   "src": "dispatcher/listing_spokes_17.py:139"
+  },
   "steps": [
-   "Agent 17 refuses; nothing is stored.",
-   "It tells the authorized user verdicts are given one item at a time."
+   {
+    "t": "Agent 17 refuses and stores nothing: every piece of content gets its own review.",
+    "src": "dispatcher/listing_spokes_17.py:139-147; check:17-05:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Give a blanket approval."
+   {
+    "t": "Approve content in advance.",
+    "src": "tuple:17-05"
+   }
   ],
-  "why": "Each piece of text can go wrong in its own way. Only the actual words can be approved.",
-  "you_see": "A question saying the pre-approval was refused.",
-  "test": "A signed request to pre-approve \"all open house invitations\"."
+  "you_see": {
+   "t": "A note that pre-approval was refused.",
+   "src": "check:17-05:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A request to pre-approve \"all open house invitations\".",
+   "src": "spec:17-05"
+  }
  },
  {
   "id": "17-06",
-  "rev": 2,
-  "title": "Content contains steering language, however soft",
-  "when": "Content includes a phrase that steers buyers, even in a mild way.",
+  "rev": 3,
+  "title": {
+   "t": "Content contains steering language",
+   "src": "tuple:17-06"
+  },
+  "when": {
+   "t": "Content contains a phrase the ruleset prohibits.",
+   "src": "dispatcher/listing_spokes_17.py:81-92"
+  },
   "steps": [
-   "Agent 17 requires a change, citing the exact phrase and the rule."
+   {
+    "t": "Agent 17 flags it, citing the exact phrase and rule. There is no approve-with-a-note.",
+    "src": "dispatcher/listing_spokes_17.py:246, 313-339; check:17-06:envelope.persisted:content.verdict"
+   },
+   {
+    "t": "Only the exact listed phrases are caught.",
+    "src": "dispatcher/listing_spokes_17.py:87-91"
+   },
+   {
+    "t": "Agent 17 applies only the ruleset the authorized user signs: listed phrases, optional state phrases, and optionally the content types and states it covers. It matches exact phrases.",
+    "src": "dispatcher/listing_spokes_17.py:81-105, 148-196"
+   }
   ],
   "never": [
-   "Approve with a note attached."
+   {
+    "t": "Approve steering language with a note.",
+    "src": "tuple:17-06"
+   }
   ],
-  "why": "Soft steering is still steering. An approval with a caveat still puts the phrase in public.",
-  "you_see": "A flagged verdict with the phrase and the rule.",
-  "test": "An ad says \"A quiet street, perfect for young families\"; flagged under rule FH-1."
+  "you_see": {
+   "t": "A flagged verdict citing \"perfect for young families\" (FH-1).",
+   "src": "check:17-06:envelope.persisted:content.verdict"
+  },
+  "test": {
+   "t": "An ad \"A quiet street, perfect for young families\".",
+   "src": "spec:17-06"
+  }
  },
  {
   "id": "17-07",
-  "rev": 2,
-  "title": "An ad is missing the brokerage identification",
-  "when": "An ad does not include the brokerage's name as the authorized user's signed setting requires.",
+  "rev": 3,
+  "title": {
+   "t": "An ad lacks the brokerage identification",
+   "src": "tuple:17-07"
+  },
+  "when": {
+   "t": "Advertising under review does not contain the brokerage identification the authorized user signed, or none is signed.",
+   "src": "dispatcher/listing_spokes_17.py:269-280"
+  },
   "steps": [
-   "Agent 17 blocks it until it is corrected.",
-   "No exception is made for platforms with little space."
+   {
+    "t": "Agent 17 flags it; there is no exception for short formats.",
+    "src": "dispatcher/listing_spokes_17.py:272-280, 313; check:17-07:envelope.persisted:content.verdict; check:17-07:human.notified"
+   },
+   {
+    "t": "Agent 17 checks against its own signed setting, not what the submitter says.",
+    "src": "dispatcher/listing_spokes_17.py:269-271"
+   }
   ],
   "never": [
-   "Let an ad run without the brokerage identification."
+   {
+    "t": "Approve an ad without the brokerage identification.",
+    "src": "tuple:17-07"
+   }
   ],
-  "why": "License law requires ads to identify the brokerage. A short format is not an excuse.",
-  "you_see": "A flagged verdict saying the brokerage identification is missing; nothing published.",
-  "test": "A Facebook ad \"Open house Sunday, bright kitchen\" with no brokerage name."
+  "you_see": {
+   "t": "A flagged verdict: brokerage identification missing.",
+   "src": "check:17-07:envelope.persisted:content.verdict"
+  },
+  "test": {
+   "t": "Agent 12 has no brokerage identification; an ad \"Open house Sunday, bright kitchen\" is reviewed.",
+   "src": "spec:17-07"
+  }
  },
  {
   "id": "17-08",
-  "rev": 2,
-  "title": "Content is reviewed again",
-  "when": "The same content comes back for review.",
+  "rev": 3,
+  "title": {
+   "t": "Content is reviewed again",
+   "src": "tuple:17-08"
+  },
+  "when": {
+   "t": "Content Agent 17 has seen before comes back.",
+   "src": "dispatcher/listing_spokes_17.py:234-246"
+  },
   "steps": [
-   "Agent 17 reviews it fresh against the rules in force now.",
-   "It does not answer from its earlier verdict."
+   {
+    "t": "Agent 17 checks it fresh against the ruleset in force, not from its earlier verdict.",
+    "src": "dispatcher/listing_spokes_17.py:234-247; check:17-08:envelope.persisted:content.verdict"
+   },
+   {
+    "t": "If the earlier verdict was flagged, the repeat alert (17-02) is raised as well, even when the copy now passes.",
+    "src": "dispatcher/listing_spokes_17.py:254-260; flow:17-08:17->queue alert:escalation.legal_line"
+   }
   ],
   "never": [
-   "Repeat an old verdict without reviewing again."
+   {
+    "t": "Repeat an earlier verdict without checking.",
+    "src": "tuple:17-08"
+   }
   ],
-  "why": "Rules change. A verdict is only as good as the rules it was checked against.",
-  "you_see": "A new verdict, naming the rules version it used.",
-  "test": "\"Perfect for young families near the park\" is flagged under rules version r1. The authorized user then sign version r2, which drops that rule; the same text is approved under r2."
+  "you_see": {
+   "t": "A new verdict under the current ruleset.",
+   "src": "check:17-08:envelope.persisted:content.verdict"
+  },
+  "test": {
+   "t": "\"Perfect for young families near the park\" is flagged under ruleset r1; r2, without that phrase, is signed; the same copy is approved.",
+   "src": "spec:17-08"
+  }
  },
  {
   "id": "17-09",
-  "rev": 2,
-  "title": "No reviewed rules exist for the content's state",
-  "when": "Content is for a state the office's counsel has not reviewed rules for.",
+  "rev": 3,
+  "title": {
+   "t": "A state's rules have not been reviewed by counsel",
+   "src": "tuple:17-09"
+  },
+  "when": {
+   "t": "The ruleset lists the states counsel has reviewed, and the content is for another state or names none.",
+   "src": "dispatcher/listing_spokes_17.py:294-300"
+  },
   "steps": [
-   "Agent 17 blocks it.",
-   "It raises a legal-line alert for the authorized user: the state's rules have not been reviewed by counsel."
+   {
+    "t": "Agent 17 flags it and raises a legal-line alert for counsel.",
+    "src": "dispatcher/listing_spokes_17.py:299-311; check:17-09:envelope.persisted:content.verdict; check:17-09:escalation.raised"
+   },
+   {
+    "t": "A ruleset that lists no reviewed states raises nothing here.",
+    "src": "dispatcher/listing_spokes_17.py:298-300"
+   }
   ],
   "never": [
-   "Clear content on general knowledge of a state's law."
+   {
+    "t": "Clear content on general knowledge of a state's rules.",
+    "src": "tuple:17-09"
+   }
   ],
-  "why": "Only rules the office's counsel reviewed can clear a legal gate.",
-  "you_see": "A legal-line alert naming the unreviewed state.",
-  "test": "Counsel has reviewed Ohio only; a Pennsylvania ad \"Bright kitchen\" is submitted."
+  "you_see": {
+   "t": "A legal-line alert naming the state.",
+   "src": "check:17-09:escalation.raised"
+  },
+  "test": {
+   "t": "Counsel has reviewed Ohio only; a Pennsylvania ad \"Bright kitchen\" is reviewed.",
+   "src": "spec:17-09"
+  }
  },
  {
   "id": "17-10",
-  "rev": 2,
-  "title": "One agent keeps producing near-miss language",
-  "when": "Several submissions from the same agent are flagged.",
+  "rev": 3,
+  "title": {
+   "t": "One agent keeps sending near-miss language",
+   "src": "tuple:17-10"
+  },
+  "when": {
+   "t": "Agent 17 flags content from the same agent for the third time.",
+   "src": "dispatcher/listing_spokes_17.py:62-64, 325-328"
+  },
   "steps": [
-   "Agent 17 reports the pattern to the authorized user: which agent and how many times."
+   {
+    "t": "Agent 17 sends the authorized user a report naming the agent and the count, then starts counting again.",
+    "src": "dispatcher/listing_spokes_17.py:328-333; check:17-10:envelope.persisted:report.package"
+   }
   ],
   "never": [
-   "Treat each flag as a one-off."
+   {
+    "t": "Treat each flag as unrelated.",
+    "src": "tuple:17-10"
+   }
   ],
-  "why": "Single verdicts miss drift. A pattern shows an agent whose drafting needs fixing.",
-  "you_see": "A report naming the agent and the count.",
-  "test": "Three Marketing campaigns in a row are flagged (\"perfect for young families\", \"no kids next door\", \"truly perfect for young families\"). One report names Agent 12, count 3."
+  "you_see": {
+   "t": "A pattern report: Agent 12, 3 flags.",
+   "src": "check:17-10:envelope.persisted:report.package"
+  },
+  "test": {
+   "t": "Three ads from Agent 12 with prohibited phrases.",
+   "src": "spec:17-10"
+  }
  }
 ]

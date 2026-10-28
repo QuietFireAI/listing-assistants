@@ -93,8 +93,10 @@ def test_09_no_show_logged_to_14(swarm):
 def test_10_external_scope_package_to_human(swarm):
     hub, _, _ = swarm
     from test_agent10 import data_req
+    # the broker is the only sender of data.request since owner decision
+    # D-A16 (2026-10-28); the 10 -> human lane is the package coming back
     hub.send(data_req("m-007", {"mode": "comp", "license_scope": "external",
-                                "comps": [], "today": "2026-07-15"}, frm="19"))
+                                "comps": [], "today": "2026-07-15"}))
     assert delivered(hub, "10", "data.package", "human") and no_handoff_failures(hub)
 
 
@@ -148,14 +150,17 @@ def test_17_near_miss_pattern_to_human(swarm):
     assert delivered(hub, "17", "report.package", "human")
 
 
-def test_19_market_context_request_and_status(swarm):
+def test_19_market_context_says_no_comp_source(swarm):
     hub, signer, spokes = swarm
     from test_agent19 import _setup_zip, discovery
     hub.send(_setup_zip(signer))
     hub.send(discovery("d-014", {"listing_id": "L14", "zip_code": "44811", "status": "new", "source": "mls_feed"}))
     spokes["19"].request_market_context("L14")
-    assert delivered(hub, "19", "data.request", "10")
-    assert delivered(hub, "19", "agent.status", "18")
+    # owner decision D-A16 (2026-10-28): 19 no longer asks 10 for comps;
+    # the 19 -> 10 data.request lane was removed from routes.json
+    assert not delivered(hub, "19", "data.request", "10")
+    assert spokes["19"].opportunities["L14"]["market_context"] == \
+        "none - no comp source connected"
 
 
 def test_20_draft_review_and_status(swarm):

@@ -1,197 +1,442 @@
 [
  {
   "id": "09-01",
-  "rev": 2,
-  "title": "A vendor cancels late",
-  "when": "A booked vendor (for example the inspector) cancels close to the appointment.",
+  "rev": 3,
+  "title": {
+   "t": "A vendor cancels late",
+   "src": "tuple:09-01"
+  },
+  "when": {
+   "t": "A vendor's cancellation arrives.",
+   "src": "dispatcher/listing_spokes_09.py:303"
+  },
   "steps": [
-   "Agent 09 (Vendor Coordination) tells Agent 07 (Transaction Coordinator) and Agent 06 (Showing Scheduler) at once.",
-   "Agent 07 raises a legal-line alert for the authorized user: the vendor cancelled late.",
-   "Agent 09 asks the authorized user about a replacement; a regulated role like an inspector is never rebooked automatically."
+   {
+    "t": "Agent 09 tells Agent 07 and Agent 06 at once, with the other roster vendors of the same kind, and logs the cancellation.",
+    "src": "dispatcher/listing_spokes_09.py:311-324; check:09-01:envelope.persisted:vendor.cancellation_notice"
+   },
+   {
+    "t": "For a regulated role (any vendor the roster does not mark otherwise), it asks the authorized user to pick the replacement; nothing is rebooked.",
+    "src": "dispatcher/listing_spokes_09.py:310, 325-332; check:09-01:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Agent 07 raises a legal-line alert naming the milestone at risk; Agent 06 asks the authorized user to check whether a showing depends on the vendor. One cancellation therefore puts three items in front of the authorized user.",
+    "src": "dispatcher/listing_spokes_07.py:231-248; dispatcher/listing_spokes_06.py:423-440; check:09-01:escalation.raised; flow:09-01:06->queue clarification.request"
+   }
   ],
   "never": [
-   "Rebook a regulated vendor without the authorized user."
+   {
+    "t": "Rebook a regulated role without the authorized user.",
+    "src": "tuple:09-01"
+   }
   ],
-  "why": "Inspections and appraisals run on contract deadlines, and who performs them matters. The authorized user chooses the replacement.",
-  "you_see": "A legal-line alert about the late cancellation and a question about rebooking.",
-  "test": "A transaction with an inspection deadline; the inspector cancels the same day."
+  "you_see": {
+   "t": "A question to pick a replacement, with the roster alternatives; a legal-line alert from Agent 07; a question from Agent 06.",
+   "src": "check:09-01:envelope.persisted:clarification.request; flow:09-01:07->queue alert:escalation.legal_line; flow:09-01:06->queue clarification.request"
+  },
+  "test": {
+   "t": "A transaction with inspection on October 25; the inspector cancels on October 15.",
+   "src": "spec:09-01"
+  }
  },
  {
   "id": "09-02",
-  "rev": 2,
-  "title": "A vendor's license has expired",
-  "when": "A vendor's credential (license, insurance) has expired when new work would be scheduled.",
+  "rev": 3,
+  "title": {
+   "t": "A vendor's license or insurance has expired",
+   "src": "tuple:09-02"
+  },
+  "when": {
+   "t": "A vendor is needed and every roster vendor of that kind has a license or insurance date before the request's date.",
+   "src": "dispatcher/listing_spokes_09.py:73-83, 170-176"
+  },
   "steps": [
-   "Agent 09 does not book the vendor.",
-   "It raises a legal-line alert for the authorized user naming the vendor and the expired credential."
+   {
+    "t": "Agent 09 books nothing and raises a legal-line alert naming the vendor.",
+    "src": "dispatcher/listing_spokes_09.py:176-188; check:09-02:escalation.raised; check:09-02:envelope.persisted:vendor.schedule"
+   },
+   {
+    "t": "A request with no date is not booked either: credentials cannot be checked without one.",
+    "src": "dispatcher/listing_spokes_09.py:153-158"
+   }
   ],
   "never": [
-   "Schedule a vendor whose credential has expired."
+   {
+    "t": "Book a vendor whose credentials have lapsed.",
+    "src": "tuple:09-02"
+   }
   ],
-  "why": "Sending an unlicensed or uninsured vendor into a client's home puts the office on the hook for anything that goes wrong.",
-  "you_see": "A legal-line alert naming the vendor and the expiry.",
-  "test": "The only photographer on the roster has a license that expired December 31, 2027; a listing signed January 15, 2028 needs photos. Nothing is booked."
+  "you_see": {
+   "t": "A legal-line alert naming the vendor with expired credentials.",
+   "src": "check:09-02:escalation.raised"
+  },
+  "test": {
+   "t": "The roster's only photographer is licensed and insured to December 31, 2027; a listing signed January 15, 2028 needs photos.",
+   "src": "spec:09-02; synth/tuples/config/vendor_panel.json:8"
+  }
  },
  {
   "id": "09-03",
-  "rev": 2,
-  "title": "A vendor changes the rate in the middle of a job",
-  "when": "A vendor proposes a new rate while the job is under way.",
+  "rev": 3,
+  "title": {
+   "t": "A vendor proposes a new rate mid-job",
+   "src": "tuple:09-03"
+  },
+  "when": {
+   "t": "A vendor's rate change arrives.",
+   "src": "dispatcher/listing_spokes_09.py:335"
+  },
   "steps": [
-   "Agent 09 stops and accepts nothing.",
-   "It raises a legal-line alert for the authorized user about the rate change."
+   {
+    "t": "Agent 09 raises a legal-line alert; nothing else is done.",
+    "src": "dispatcher/listing_spokes_09.py:335-342; check:09-03:escalation.raised"
+   },
+   {
+    "t": "The vendor's event reaches Agent 09 as an incoming message of that kind; there is no connection to any vendor system.",
+    "src": "dispatcher/listing_spokes_09.py:303, 335, 344, 355, 404, 421, 443; dispatcher/listing_spokes_09.py:7-11; spec:09-03"
+   }
   ],
   "never": [
-   "Accept or negotiate a rate change."
+   {
+    "t": "Accept or negotiate a rate change.",
+    "src": "tuple:09-03"
+   }
   ],
-  "why": "Fee arrangements with settlement service providers fall under federal rules (RESPA). Money terms are for the authorized user.",
-  "you_see": "A legal-line alert about the rate change.",
-  "test": "The photographer proposes a new rate of $450 mid-job."
+  "you_see": {
+   "t": "A legal-line alert about the rate change.",
+   "src": "check:09-03:escalation.raised"
+  },
+  "test": {
+   "t": "The photographer proposes a new rate of 450.",
+   "src": "spec:09-03"
+  }
  },
  {
   "id": "09-04",
-  "rev": 2,
-  "title": "A vendor delivers only part of the work",
-  "when": "A vendor's delivery is partial.",
+  "rev": 3,
+  "title": {
+   "t": "A vendor delivers part of the work",
+   "src": "tuple:09-04"
+  },
+  "when": {
+   "t": "A delivery arrives with proof attached, marked partial.",
+   "src": "dispatcher/listing_spokes_09.py:355-371"
+  },
   "steps": [
-   "Agent 09 passes it on marked partial.",
-   "Agent 08 (Document Collection) records its status as partial; it is not filed as complete."
+   {
+    "t": "Agent 09 passes it on marked partial: photos to Agent 05, documents to Agent 08.",
+    "src": "dispatcher/listing_spokes_09.py:371-377; check:09-04:envelope.persisted:deliverable.release"
+   },
+   {
+    "t": "Agent 08 reports it to Agent 07 as partial and does not file it.",
+    "src": "dispatcher/listing_spokes_08.py:388-402; check:09-04:envelope.persisted:doc.status; check:09-04:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Mark partial work as collected."
+   {
+    "t": "Mark partial work as collected.",
+    "src": "tuple:09-04"
+   }
   ],
-  "why": "A partial inspection report filed as complete could let a deadline pass with half the information.",
-  "you_see": "The document's status shown as partial.",
-  "test": "The inspector delivers a partial inspection report."
+  "you_see": {
+   "t": "The document reported as partial; it is not on file.",
+   "src": "check:09-04:envelope.persisted:doc.status; check:09-04:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "An inspection report arrives with proof, marked partial.",
+   "src": "spec:09-04"
+  }
  },
  {
   "id": "09-05",
-  "rev": 2,
-  "title": "Two agents want the same vendor slot",
-  "when": "Two agents ask for the same vendor at the same time.",
+  "rev": 3,
+  "title": {
+   "t": "Two agents want the same vendor slot",
+   "src": "tuple:09-05"
+  },
+  "when": {
+   "t": "Two requests ask for the same vendor at the same time.",
+   "src": "tuple:09-05"
+  },
   "steps": [
-   "The request tied to a deadline wins.",
-   "If both are equally urgent, it goes to the authorized user."
+   {
+    "t": "The rule: the deadline-driven request wins; a tie goes to the authorized user. The code for this exists.",
+    "src": "dispatcher/listing_spokes_09.py:223-247"
+   },
+   {
+    "t": "No way in yet: no requester sends a slot or a priority, no appointment date reaches Agent 09, and each roster vendor serves one kind.",
+    "src": "spec:09-05"
+   }
   ],
   "never": [
-   "Pick between two equal requests."
+   {
+    "t": "Decide a tie itself.",
+    "src": "tuple:09-05"
+   }
   ],
-  "why": "Deadlines decide priority; anything else is the authorized user's call.",
-  "you_see": "A question when two equal requests collide.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing yet: not reachable.",
+   "src": "spec:09-05"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:09-05"
+  }
  },
  {
   "id": "09-06",
-  "rev": 2,
-  "title": "No approved vendor is available",
-  "when": "Work is needed and there is no approved vendor of that kind on the authorized user's roster.",
+  "rev": 3,
+  "title": {
+   "t": "No approved vendor of that kind",
+   "src": "tuple:09-06"
+  },
+  "when": {
+   "t": "A vendor is needed and the roster has no vendor of that kind, or a request names a vendor not on the roster.",
+   "src": "dispatcher/listing_spokes_09.py:170-209"
+  },
   "steps": [
-   "Agent 09 books no one.",
-   "It asks the authorized user, naming the kind of vendor that is missing, so one can be approved."
+   {
+    "t": "Agent 09 books nothing and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_09.py:189-209; check:09-06:envelope.persisted:clarification.request; check:09-06:envelope.persisted:vendor.schedule"
+   },
+   {
+    "t": "Requests from the agents never name a vendor: Agent 09 picks from the roster by kind (the first in order whose credentials are current).",
+    "src": "dispatcher/listing_spokes_09.py:160-198; spec:09-06"
+   },
+   {
+    "t": "The roster is a file the office ratifies; a vendor is added there, not by Agent 09.",
+    "src": "dispatcher/swarm.py:98-130"
+   }
   ],
   "never": [
-   "Book a vendor who is not on the authorized user's approved list, however urgent."
+   {
+    "t": "Book a vendor who is not on the roster, however urgent.",
+    "src": "tuple:09-06"
+   }
   ],
-  "why": "The approved list is how the authorized user controls who works for the office's clients. Urgency does not create approval.",
-  "you_see": "A question saying there is no approved vendor for the kind of work.",
-  "test": "A transaction needs an inspection and there is no inspector on the roster."
+  "you_see": {
+   "t": "A question saying there is no approved vendor of that kind.",
+   "src": "check:09-06:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A transaction needs an inspector; the roster has none.",
+   "src": "spec:09-06"
+  }
  },
  {
   "id": "09-07",
-  "rev": 2,
-  "title": "A vendor asks for access codes",
-  "when": "A vendor asks for a lockbox or door code.",
+  "rev": 3,
+  "title": {
+   "t": "A vendor asks for access codes",
+   "src": "tuple:09-07"
+  },
+  "when": {
+   "t": "A vendor's request for property access codes arrives.",
+   "src": "dispatcher/listing_spokes_09.py:344"
+  },
   "steps": [
-   "Agent 09 sends no code.",
-   "It raises a legal-line alert for the authorized user; access goes through the custody process only."
+   {
+    "t": "Agent 09 raises a legal-line alert; no code is sent.",
+    "src": "dispatcher/listing_spokes_09.py:344-353; check:09-07:escalation.raised"
+   },
+   {
+    "t": "The vendor's event reaches Agent 09 as an incoming message of that kind; there is no connection to any vendor system.",
+    "src": "dispatcher/listing_spokes_09.py:303, 335, 344, 355, 404, 421, 443; dispatcher/listing_spokes_09.py:7-11; spec:09-07"
+   }
   ],
   "never": [
-   "Put an access code in a vendor message."
+   {
+    "t": "Send access codes in a vendor message.",
+    "src": "tuple:09-07"
+   }
   ],
-  "why": "Codes in messages travel. Access custody is how the authorized user knows who was inside a client's home.",
-  "you_see": "A legal-line alert about the access code request.",
-  "test": "The photographer asks for the property's access codes."
+  "you_see": {
+   "t": "A legal-line alert about the access-code request.",
+   "src": "check:09-07:escalation.raised"
+  },
+  "test": {
+   "t": "The photographer asks for the access codes.",
+   "src": "spec:09-07"
+  }
  },
  {
   "id": "09-08",
-  "rev": 2,
-  "title": "A vendor says the job is done but sends no proof",
-  "when": "A vendor reports completion with no proof (for example no photo files).",
+  "rev": 3,
+  "title": {
+   "t": "A vendor says the job is done but sends no proof",
+   "src": "tuple:09-08"
+  },
+  "when": {
+   "t": "A delivery arrives not marked as carrying proof.",
+   "src": "dispatcher/listing_spokes_09.py:355-360"
+  },
   "steps": [
-   "Agent 09 keeps the job open.",
-   "Nothing is passed on as delivered until the proof arrives."
+   {
+    "t": "Agent 09 passes nothing on; the job stays open.",
+    "src": "dispatcher/listing_spokes_09.py:360-369; check:09-08:spoke.trace; check:09-08:envelope.persisted:deliverable.release"
+   },
+   {
+    "t": "Nobody is told; the result is in Agent 09's own record of what it did.",
+    "src": "dispatcher/listing_spokes_09.py:360-369"
+   }
   ],
   "never": [
-   "Release a deliverable without its proof."
+   {
+    "t": "Treat a job as done without proof.",
+    "src": "tuple:09-08"
+   }
   ],
-  "why": "A job marked done without proof can leave a listing without photos or a transaction without its report.",
-  "you_see": "The job still open.",
-  "test": "A new listing's photographer is booked; the authorized user releases the booking; the vendor reports completion with no proof attached."
+  "you_see": {
+   "t": "Nothing in the queue; the job still open.",
+   "src": "check:09-08:spoke.trace; check:09-08:envelope.persisted:deliverable.release"
+  },
+  "test": {
+   "t": "A listing's photographer booking is released; the photographer reports done with no proof.",
+   "src": "spec:09-08"
+  }
  },
  {
   "id": "09-09",
-  "rev": 2,
-  "title": "An invoice does not match the quote",
-  "when": "A vendor's invoice differs from the quoted price.",
+  "rev": 3,
+  "title": {
+   "t": "An invoice differs from the quote",
+   "src": "tuple:09-09"
+  },
+  "when": {
+   "t": "A vendor invoice arrives with an amount different from the quote, both given on the message.",
+   "src": "dispatcher/listing_spokes_09.py:404-407"
+  },
   "steps": [
-   "Agent 09 records both amounts in the client's history.",
-   "It raises a legal-line alert for the authorized user; it never approves the difference."
+   {
+    "t": "Agent 09 logs both amounts in the history and raises a legal-line alert. Nothing is approved.",
+    "src": "dispatcher/listing_spokes_09.py:407-418; check:09-09:envelope.persisted:interaction.log; check:09-09:escalation.raised"
+   },
+   {
+    "t": "The vendor's event reaches Agent 09 as an incoming message of that kind; there is no connection to any vendor system.",
+    "src": "dispatcher/listing_spokes_09.py:303, 335, 344, 355, 404, 421, 443; dispatcher/listing_spokes_09.py:7-11; spec:09-09"
+   }
   ],
   "never": [
-   "Approve a variance."
+   {
+    "t": "Approve a variance.",
+    "src": "tuple:09-09"
+   }
   ],
-  "why": "Paying more than quoted is a money decision and can raise questions about the vendor relationship.",
-  "you_see": "A legal-line alert saying the invoice differs from the quote, with both amounts.",
-  "test": "Quote $300, invoice $375."
+  "you_see": {
+   "t": "A legal-line alert with both amounts.",
+   "src": "check:09-09:escalation.raised"
+  },
+  "test": {
+   "t": "A quote of 300 and an invoice of 375.",
+   "src": "spec:09-09"
+  }
  },
  {
   "id": "09-10",
-  "rev": 2,
-  "title": "A vendor does not show up for a deadline job",
-  "when": "A vendor misses a job that a deadline depends on.",
+  "rev": 3,
+  "title": {
+   "t": "A vendor does not show up for a deadline job",
+   "src": "tuple:09-10"
+  },
+  "when": {
+   "t": "A vendor no-show arrives that is marked deadline-critical, or not marked either way.",
+   "src": "dispatcher/listing_spokes_09.py:421-425"
+  },
   "steps": [
-   "Agent 09 tells the authorized user at once.",
-   "It offers the authorized user the next approved vendors; it never swaps one in itself."
+   {
+    "t": "Agent 09 asks the authorized user to pick the next vendor, with the roster alternatives. Nothing is booked.",
+    "src": "dispatcher/listing_spokes_09.py:425-436; check:09-10:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "A no-show marked not critical is only logged.",
+    "src": "dispatcher/listing_spokes_09.py:437-440"
+   }
   ],
   "never": [
-   "Substitute a vendor on its own."
+   {
+    "t": "Substitute a vendor itself.",
+    "src": "tuple:09-10"
+   }
   ],
-  "why": "Who replaces a vendor on a deadline job is the authorized user's call; the deadline makes it urgent, not automatic.",
-  "you_see": "A question about the no-show with the approved alternatives.",
-  "test": "The photographer misses a deadline-critical job."
+  "you_see": {
+   "t": "A question with the roster alternatives.",
+   "src": "check:09-10:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The photographer does not show up on a job marked deadline-critical.",
+   "src": "spec:09-10"
+  }
  },
  {
   "id": "09-11",
-  "rev": 2,
-  "title": "The job grows on site",
-  "when": "A vendor reports that the work is bigger than what was ordered.",
+  "rev": 3,
+  "title": {
+   "t": "The work grows on site",
+   "src": "tuple:09-11"
+  },
+  "when": {
+   "t": "A vendor's report that the scope grew on site arrives.",
+   "src": "dispatcher/listing_spokes_09.py:443"
+  },
   "steps": [
-   "Agent 09 prepares a stop-work message to the vendor from the template.",
-   "The stop-work message waits for the authorized user's signed release before it is sent.",
-   "It asks the authorized user: changes to the scope are for the authorized user to approve."
+   {
+    "t": "Agent 09 writes the stop-work message to the vendor; the dispatcher holds it for the authorized user's signed release.",
+    "src": "dispatcher/listing_spokes_09.py:449-452; check:09-11:absolute_signal.hold; check:09-11:envelope.persisted:vendor.schedule"
+   },
+   {
+    "t": "It tells the authorized user the message is held and that scope changes are theirs to approve.",
+    "src": "dispatcher/listing_spokes_09.py:453-460; check:09-11:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Approve extra work on the vendor's word."
+   {
+    "t": "Approve a change of scope.",
+    "src": "tuple:09-11"
+   }
   ],
-  "why": "Extra work means extra cost and maybe a different job than the client agreed to.",
-  "you_see": "A stop-work message waiting for the authorized user's release and a question about the scope.",
-  "test": "The photographer reports a scope change on site."
+  "you_see": {
+   "t": "A held stop-work message waiting for release, and a question.",
+   "src": "check:09-11:human.notified; check:09-11:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The photographer reports the job grew on site.",
+   "src": "spec:09-11"
+  }
  },
  {
   "id": "09-12",
-  "rev": 2,
-  "title": "A delivery arrives for a booking that never reached the vendor",
-  "when": "A vendor delivers work for a booking that was still waiting for the authorized user's release (or that was declined).",
+  "rev": 3,
+  "title": {
+   "t": "A delivery arrives for a booking that never went out",
+   "src": "tuple:09-12"
+  },
+  "when": {
+   "t": "A delivery with proof arrives while Agent 09's booking message is still waiting for release, or was never sent.",
+   "src": "dispatcher/listing_spokes_09.py:379-386"
+  },
   "steps": [
-   "Agent 09 holds the delivery and asks the authorized user to continue or cancel.",
-   "Continue accepts it and the work moves on (for photos, the listing goes ahead).",
-   "Cancel refuses it."
+   {
+    "t": "Agent 09 holds the delivery and asks the authorized user: continue accepts it (the booking was made some other way); cancel refuses it and logs that.",
+    "src": "dispatcher/listing_spokes_09.py:386-400, 123-138; check:09-12:envelope.persisted:agent.status"
+   },
+   {
+    "t": "On continue, the delivery goes on as usual: photos to Agent 05.",
+    "src": "dispatcher/listing_spokes_09.py:97-121; check:09-12:envelope.persisted:deliverable.release; check:09-12:hitl.decision.authorized"
+   }
   ],
   "never": [
-   "Accept work for a booking that was never released."
+   {
+    "t": "Accept a delivery for a booking that never reached the vendor without asking.",
+    "src": "tuple:09-12"
+   }
   ],
-  "why": "The authorized user did not authorize the job. Accepting the work could commit the office to paying for it.",
-  "you_see": "A held delivery asking the authorized user to continue or cancel.",
-  "test": "A new listing's photographer booking is still waiting for the authorized user's release when the photos arrive. The authorized user continues: the photos are accepted once and the listing goes live."
+  "you_see": {
+   "t": "A held delivery waiting for continue or cancel.",
+   "src": "check:09-12:envelope.persisted:agent.status"
+  },
+  "test": {
+   "t": "A listing's photographer booking is still waiting for release when the photos arrive; the authorized user continues and the listing goes live.",
+   "src": "spec:09-12; check:09-12:envelope.persisted:status.update"
+  }
  }
 ]

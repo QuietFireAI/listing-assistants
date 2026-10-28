@@ -238,6 +238,8 @@ def load_pages() -> dict:
     out = {}
     for p in sorted(glob.glob(os.path.join(HERE, "pages", "*.json"))):
         for page in json.load(open(p, encoding="utf-8")):
+            tx = lambda v: v["t"] if isinstance(v, dict) and "t" in v else v
+            page = {k: ([tx(x) for x in v] if isinstance(v, list) else tx(v)) for k, v in page.items()}
             if page["id"] in out:
                 raise SystemExit(f"{page['id']} is written twice ({p})")
             out[page["id"]] = page
@@ -283,6 +285,7 @@ def build_data() -> dict:
         "categories": tmap["_categories"], "names": names,
         "tuples": tuples, "agents": agents, "playbooks": playbooks,
         "overview": build_overview(pbs),
+        "guide": json.load(open(os.path.join(HERE, "guide.json"), encoding="utf-8")),
         "routes_total": len(json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]),
     }
 
@@ -301,7 +304,9 @@ def build_agents(tuples: list, pbs: dict, names: dict, phrase: dict) -> list:
     routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
     word = lambda i: MANUAL_PHRASE.get(i) or phrase.get(i) or i.replace(".", " ")
     out = []
+    tx = lambda v: v["t"] if isinstance(v, dict) else v
     for a in src:
+        a = {k: ([tx(x) for x in v] if isinstance(v, list) else tx(v)) for k, v in a.items()}
         aid = a["id"]
         rin = [{"intent": r["intent"], "words": word(r["intent"]), "who": [x for x in r["senders"]]}
                for r in routes if aid in r["receivers"]]
@@ -330,6 +335,10 @@ def build_playbooks(tuples: list, pbs: dict, names: dict, phrase: dict) -> list:
         shown = chart_messages(flow, "")
         main = fold_repeats(shown)
         page = pages.get(pid)
+        if page:
+            tx = lambda v: v["t"] if isinstance(v, dict) and "t" in v else v
+            page = {k: ([tx(x) for x in v] if isinstance(v, list) and k != "steps" else tx(v))
+                    for k, v in page.items()}
         out.append({
             "id": pid, "code": f"LA-P-{pid[1:]}", "name": pb["name"], "rev": (page or {}).get("rev", 1),
             "page": page, "agents": pb.get("agents", []),
@@ -348,7 +357,12 @@ def build_playbooks(tuples: list, pbs: dict, names: dict, phrase: dict) -> list:
 
 def build_overview(pbs: dict) -> dict:
     ov = json.load(open(os.path.join(HERE, "overview.json"), encoding="utf-8"))
+    tx = lambda v: v["t"] if isinstance(v, dict) and "t" in v else v
+    ov["story"] = [tx(x) for x in ov.get("story", [])]
+    ov["always_person"] = [tx(x) for x in ov.get("always_person", [])]
     for st in ov["stages"]:
+        st["system"] = tx(st["system"])
+        st["person"] = [tx(x) for x in st["person"]]
         seen = []
         for pid in st["playbooks"]:
             for a in pbs[pid].get("agents", []):

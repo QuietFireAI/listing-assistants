@@ -1,211 +1,490 @@
 [
  {
   "id": "08-01",
-  "rev": 2,
-  "title": "The wrong kind of document arrives",
-  "when": "Agent 08 (Document Collection) is waiting for one document and a different one arrives (\"close enough\").",
+  "rev": 3,
+  "title": {
+   "t": "The wrong kind of document arrives",
+   "src": "tuple:08-01"
+  },
+  "when": {
+   "t": "A document arrives whose type is not one Agent 08 knows, while it is waiting for a requested document.",
+   "src": "dispatcher/listing_spokes_08.py:415-416"
+  },
   "steps": [
-   "Agent 08 does not file it as the document it was waiting for.",
-   "It asks, through Agent 11, for the correct document by name."
+   {
+    "t": "Agent 08 does not file it. It asks Agent 11 to tell the sender which document is needed, naming what was asked for and what was received.",
+    "src": "dispatcher/listing_spokes_08.py:417-428; check:08-01:envelope.persisted:client.message.request; check:08-01:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "A known document type that was not asked for is filed as itself and never counts toward another request.",
+    "src": "dispatcher/listing_spokes_08.py:408-416"
+   },
+   {
+    "t": "This is a field set on the incoming message; Agent 08 does not open or read the document.",
+    "src": "dispatcher/listing_spokes_08.py:327-338; spec:08-01"
+   }
   ],
   "never": [
-   "File a substitute in place of the document that is required."
+   {
+    "t": "File a substitute as the requested document.",
+    "src": "tuple:08-01"
+   }
   ],
-  "why": "A transaction file with the wrong document in a required slot looks complete when it is not.",
-  "you_see": "A request for the correct document sent to the party; nothing filed.",
-  "test": "Agent 08 is chasing an inspection report; a home warranty brochure arrives."
+  "you_see": {
+   "t": "A request to the sender for the correct document.",
+   "src": "check:08-01:envelope.persisted:client.message.request"
+  },
+  "test": {
+   "t": "Agent 08 is waiting for an inspection report; a home warranty brochure arrives.",
+   "src": "spec:08-01"
+  }
  },
  {
   "id": "08-02",
-  "rev": 2,
-  "title": "A document cannot be opened",
-  "when": "A document arrives but cannot be opened or read.",
+  "rev": 3,
+  "title": {
+   "t": "A document cannot be opened",
+   "src": "tuple:08-02"
+  },
+  "when": {
+   "t": "A document arrives that is not marked as opening correctly.",
+   "src": "dispatcher/listing_spokes_08.py:430-434"
+  },
   "steps": [
-   "Agent 08 records the error exactly as it came (for example \"PDF header damaged\").",
-   "It asks the party, through Agent 11, to send it again."
+   {
+    "t": "Agent 08 asks Agent 11 to request a re-send.",
+    "src": "dispatcher/listing_spokes_08.py:435-437; check:08-02:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "It logs the error exactly as reported, in the client's history.",
+    "src": "dispatcher/listing_spokes_08.py:438-440; check:08-02:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "A document with no mark either way is treated as unreadable.",
+    "src": "dispatcher/listing_spokes_08.py:430-434"
+   },
+   {
+    "t": "This is a field set on the incoming message; Agent 08 does not open or read the document.",
+    "src": "dispatcher/listing_spokes_08.py:327-338; spec:08-02"
+   }
   ],
   "never": [
-   "Treat an unreadable document as received."
+   {
+    "t": "File a document that cannot be opened.",
+    "src": "tuple:08-02"
+   }
   ],
-  "why": "A file nobody can open is not a document on file.",
-  "you_see": "The error in the client's history; a re-send request sent.",
-  "test": "An inspection report arrives that will not open: \"PDF header damaged\"."
+  "you_see": {
+   "t": "The re-send request; the raw error in the client's history.",
+   "src": "check:08-02:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "An inspection report arrives marked as not opening, with the error \"PDF header damaged\".",
+   "src": "spec:08-02"
+  }
  },
  {
   "id": "08-03",
-  "rev": 2,
-  "title": "Two versions of one document disagree",
-  "when": "Two different versions of the same document arrive.",
+  "rev": 3,
+  "title": {
+   "t": "Two versions of a document conflict",
+   "src": "tuple:08-03"
+  },
+  "when": {
+   "t": "A second document arrives with the same type and the same version key as one already filed, but different content.",
+   "src": "dispatcher/listing_spokes_08.py:471-477"
+  },
   "steps": [
-   "Agent 08 keeps both.",
-   "It reports the conflict and a legal-line alert reaches the authorized user about the two versions."
+   {
+    "t": "Agent 08 keeps both, tells Agent 07 the versions conflict, and raises a legal-line alert: the authorized user picks.",
+    "src": "dispatcher/listing_spokes_08.py:478-491; check:08-03:escalation.raised; check:08-03:envelope.persisted:doc.status"
+   },
+   {
+    "t": "Two versions are recognized only when the incoming messages carry the same version key; without one, the second is filed as another copy.",
+    "src": "dispatcher/listing_spokes_08.py:472-477, 493-505"
+   }
   ],
   "never": [
-   "Pick one version."
+   {
+    "t": "Pick one of the versions.",
+    "src": "tuple:08-03"
+   }
   ],
-  "why": "Which version governs is a question for the parties, not a filing decision.",
-  "you_see": "A legal-line alert naming two versions of the document.",
-  "test": "Two inspection reports with different contents arrive for the same transaction."
+  "you_see": {
+   "t": "A legal-line alert saying two versions conflict and both were kept.",
+   "src": "check:08-03:escalation.raised"
+  },
+  "test": {
+   "t": "Two inspection reports with the same version key and different content arrive for one transaction.",
+   "src": "spec:08-03"
+  }
  },
  {
   "id": "08-04",
-  "rev": 2,
-  "title": "A sensitive document comes from someone unexpected",
-  "when": "A sensitive document (for example a pre-approval letter or proof of funds) arrives from a sender who is not on the expected list, or no expected senders are set.",
+  "rev": 3,
+  "title": {
+   "t": "A sensitive document comes from an unexpected sender",
+   "src": "tuple:08-04"
+  },
+  "when": {
+   "t": "A preapproval letter, proof of funds or settlement statement arrives from a sender not on the authorized user's expected-sender list for that transaction, or with no list set.",
+   "src": "dispatcher/listing_spokes_08.py:347-351, 373"
+  },
   "steps": [
-   "Agent 08 quarantines it; it is not filed.",
-   "It raises a legal-line alert for the authorized user to verify the sender."
+   {
+    "t": "Agent 08 does not file it and raises a legal-line alert naming the sender, or saying no list is set.",
+    "src": "dispatcher/listing_spokes_08.py:351-386; check:08-04:escalation.raised; check:08-04:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Only those three document types are checked against the list.",
+    "src": "dispatcher/listing_spokes_08.py:348-349"
+   },
+   {
+    "t": "The authorized user sets the list per transaction as a signed setting.",
+    "src": "dispatcher/listing_spokes_08.py:192-223"
+   }
   ],
   "never": [
-   "File a sensitive document before the sender is verified."
+   {
+    "t": "File a sensitive document before its sender is verified.",
+    "src": "tuple:08-04"
+   }
   ],
-  "why": "Forged financial documents are a common fraud. Verifying the sender protects the client and the office.",
-  "you_see": "A legal-line alert naming the unexpected sender, or saying no expected sender was set.",
-  "test": "A pre-approval letter arrives from someone.else@example.test when only lender@example.test is expected; on another transaction, proof of funds arrives with no expected senders set. Neither is filed."
+  "you_see": {
+   "t": "A legal-line alert about the sender.",
+   "src": "check:08-04:escalation.raised"
+  },
+  "test": {
+   "t": "On one transaction the list names lender@example.test for preapproval letters and the letter comes from someone.else@example.test. On another, proof of funds arrives with no list set.",
+   "src": "spec:08-04"
+  }
  },
  {
   "id": "08-05",
-  "rev": 2,
-  "title": "Chasing a document has run out of attempts",
-  "when": "A required document has been asked for the allowed number of times and has not arrived.",
+  "rev": 3,
+  "title": {
+   "t": "A requested document never arrives",
+   "src": "tuple:08-05"
+  },
+  "when": {
+   "t": "A document requested by Agent 07 is still missing on the daily runs.",
+   "src": "dispatcher/listing_spokes_08.py:235-255; dispatcher/clock.py:53"
+  },
   "steps": [
-   "Agent 08 reports the document as missing.",
-   "It raises one legal-line alert for the authorized user: chase attempts exhausted."
+   {
+    "t": "Agent 08 counts one attempt per daily run and, until the limit, asks Agent 11 to send a follow-up (Agent 11 sends it only with the client's consent on record). A document whose unsigned copy is waiting on the authorized user is not chased (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes_08.py:255-274; dispatcher/listing_spokes_08.py:243-250; check:08-05:envelope.persisted:doc.status"
+   },
+   {
+    "t": "At the third attempt it tells Agent 07 the document is missing and raises a legal-line alert, once.",
+    "src": "dispatcher/listing_spokes_08.py:111-117, 251-270; docs/TUNING_MANUAL.md:299; check:08-05:escalation.raised"
+   },
+   {
+    "t": "Two daily runs on one day count as two attempts.",
+    "src": "dispatcher/listing_spokes_08.py:255"
+   }
   ],
   "never": [
-   "Treat silence as \"received\"."
+   {
+    "t": "Treat silence as received.",
+    "src": "tuple:08-05"
+   }
   ],
-  "why": "A missing document near a deadline can sink a transaction. The authorized user needs to know it is still missing.",
-  "you_see": "One legal-line alert saying the chase attempts are exhausted.",
-  "test": "An inspection report is requested; the daily clock runs four days in a row and nothing arrives."
+  "you_see": {
+   "t": "Follow-ups requested through Agent 11 (in this test none is sent: the client has no consent on record, and the authorized user is told so once), then one legal-line alert that the document is missing.",
+   "src": "check:08-05:escalation.raised; flow:08-05:08->11 client.message.request; flow:08-05:11->queue clarification.request"
+  },
+  "test": {
+   "t": "Inspection is requested on October 15; the daily run runs October 16 to 19. Follow-ups are requested on the 16th and 17th (not sent: no consent on record); the alert comes on the 18th and is not repeated on the 19th.",
+   "src": "spec:08-05; flow:08-05:08->11 client.message.request; flow:08-05:11->queue clarification.request"
+  }
  },
  {
   "id": "08-06",
-  "rev": 2,
-  "title": "A document arrives unsigned",
-  "when": "A document that needs a signature arrives without one.",
+  "rev": 3,
+  "title": {
+   "t": "A document arrives unsigned where a signature is expected",
+   "src": "tuple:08-06"
+  },
+  "when": {
+   "t": "A document arrives marked as needing a signature and not signed.",
+   "src": "dispatcher/listing_spokes_08.py:443-445"
+  },
   "steps": [
-   "Agent 08 marks it incomplete.",
-   "It is not filed as done."
+   {
+    "t": "Agent 08 does not file it; it tells Agent 07 the document is incomplete.",
+    "src": "dispatcher/listing_spokes_08.py:445-469; check:08-06:envelope.persisted:doc.status; check:08-06:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The authorized user is asked to get a signed copy, and a message asking the sender for one is requested from Agent 11; that message's wording waits for the authorized user's signature, so Agent 11 holds it for now. If the document had been requested, its reminder chase pauses until the authorized user marks the question done (owner decision of 2026-10-28; before, nobody was told).",
+    "src": "dispatcher/listing_spokes_08.py:451-468; dispatcher/listing_spokes_08.py:243-250; check:08-06:envelope.persisted:clarification.request; check:08-06:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "This is a field set on the incoming message; Agent 08 does not open or read the document.",
+    "src": "dispatcher/listing_spokes_08.py:327-338; spec:08-06"
+   }
   ],
   "never": [
-   "File an unsigned document as complete."
+   {
+    "t": "File an unsigned document as done.",
+    "src": "tuple:08-06"
+   }
   ],
-  "why": "An unsigned document has no force. Calling it complete could let a deadline pass on a document that does not count.",
-  "you_see": "The document's status shown as incomplete.",
-  "test": "An inspection report that should be signed arrives unsigned."
+  "you_see": {
+   "t": "A question to get a signed copy; the document is not on file; the request to the sender is held, its wording not yet signed.",
+   "src": "check:08-06:envelope.persisted:clarification.request; check:08-06:envelope.persisted:interaction.log; check:08-06:envelope.persisted:client.message.send"
+  },
+  "test": {
+   "t": "An inspection report arrives marked as needing a signature and unsigned.",
+   "src": "spec:08-06"
+  }
  },
  {
   "id": "08-07",
-  "rev": 2,
-  "title": "A newer version of a document arrives",
-  "when": "A second version of a document already on file arrives and differs from it.",
+  "rev": 3,
+  "title": {
+   "t": "A newer version of a filed document arrives",
+   "src": "tuple:08-07"
+  },
+  "when": {
+   "t": "A document arrives with the same type and version key as one already filed, with different content.",
+   "src": "dispatcher/listing_spokes_08.py:471-477"
+  },
   "steps": [
-   "The older version stays filed.",
-   "The newer one is kept and flagged; a legal-line alert tells the authorized user both are kept."
+   {
+    "t": "The older version stays filed; the newer one is kept beside it.",
+    "src": "dispatcher/listing_spokes_08.py:478-480; check:08-07:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Agent 08 tells Agent 07 the versions conflict and raises a legal-line alert saying both were kept.",
+    "src": "dispatcher/listing_spokes_08.py:481-491; check:08-07:escalation.raised"
+   }
   ],
   "never": [
-   "Throw away the older version on its own."
+   {
+    "t": "Discard the older version on its own.",
+    "src": "tuple:08-07"
+   }
   ],
-  "why": "The older version may be the one that was signed or relied on. Only the authorized user decides which governs.",
-  "you_see": "A legal-line alert saying both versions are kept.",
-  "test": "An inspection report is filed, then a different version of it arrives. The record shows exactly one document filed and the newer one flagged."
+  "you_see": {
+   "t": "A legal-line alert saying both versions were kept.",
+   "src": "check:08-07:escalation.raised"
+  },
+  "test": {
+   "t": "An inspection report is filed; a second one with the same version key and different content arrives.",
+   "src": "spec:08-07"
+  }
  },
  {
   "id": "08-08",
-  "rev": 2,
-  "title": "A disclosure deadline is close and the document is missing",
-  "when": "A disclosure document has not arrived and its deadline is near.",
+  "rev": 3,
+  "title": {
+   "t": "A disclosure deadline is close and the disclosure is missing",
+   "src": "tuple:08-08"
+  },
+  "when": {
+   "t": "On a daily run, a requested seller disclosure is not on file and its deadline is 3 days away or less.",
+   "src": "dispatcher/listing_spokes_08.py:276-305"
+  },
   "steps": [
-   "Agent 08 reports it to Agent 07 (Transaction Coordinator).",
-   "It raises a legal-line alert for the authorized user: disclosure deadline approaching."
+   {
+    "t": "Agent 08 tells Agent 07 the disclosure is missing with its deadline approaching, and raises a legal-line alert.",
+    "src": "dispatcher/listing_spokes_08.py:308-324; check:08-08:escalation.raised; check:08-08:envelope.persisted:doc.status"
+   },
+   {
+    "t": "Agent 07 records no change on receiving it.",
+    "src": "dispatcher/listing_spokes_07.py:555-563"
+   },
+   {
+    "t": "The 3 days is a tuning default.",
+    "src": "dispatcher/listing_spokes_08.py:276-277; docs/TUNING_MANUAL.md:58"
+   }
   ],
   "never": [
-   "Soften or delay the warning."
+   {
+    "t": "Soften the alert or wait for the deadline.",
+    "src": "tuple:08-08"
+   }
   ],
-  "why": "A late disclosure can let a buyer walk away or bring a claim. The missing document is itself the alert.",
-  "you_see": "A legal-line alert saying the disclosure deadline is approaching.",
-  "test": "Seller disclosure due October 20; the daily clock runs October 17 with no disclosure on file."
+  "you_see": {
+   "t": "A legal-line alert that the disclosure deadline is approaching.",
+   "src": "check:08-08:escalation.raised"
+  },
+  "test": {
+   "t": "Seller disclosure due October 20; the daily run runs October 17.",
+   "src": "spec:08-08"
+  }
  },
  {
   "id": "08-09",
-  "rev": 2,
-  "title": "A document shows wire instructions",
-  "when": "A document or its message contains wire instructions.",
+  "rev": 3,
+  "title": {
+   "t": "A document carries wire instructions",
+   "src": "tuple:08-09"
+  },
+  "when": {
+   "t": "A client's message with a document contains a wire phrase (for example \"updated wire instructions\").",
+   "src": "dispatcher/listing_spokes_11.py:21-22, 578-579"
+  },
   "steps": [
-   "Agent 11 catches it before it reaches Agent 08: it is quarantined.",
-   "It raises a legal-line alert for the authorized user.",
-   "The document is not forwarded and not stored in the general records."
+   {
+    "t": "Agent 11 stops it and raises a legal-line alert; the document never reaches Agent 08 and is not filed.",
+    "src": "dispatcher/listing_spokes_11.py:578-585; check:08-09:escalation.raised; check:08-09:envelope.persisted:document.submission; check:08-09:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Agent 08 runs the same check on anything that does reach it.",
+    "src": "dispatcher/listing_spokes_08.py:22-23, 125-137, 339-341"
+   }
   ],
   "never": [
-   "Forward or file a document carrying wire instructions."
+   {
+    "t": "Forward or file a document with wire instructions.",
+    "src": "tuple:08-09"
+   }
   ],
-  "why": "Wire instructions are the target of closing fraud. They are confirmed by phone with a known number, never through documents in the system.",
-  "you_see": "A legal-line alert about the wire instructions.",
-  "test": "An inspection report arrives with the note \"updated wire instructions are on page 3\"."
+  "you_see": {
+   "t": "A legal-line alert about the wire instructions.",
+   "src": "check:08-09:escalation.raised"
+  },
+  "test": {
+   "t": "An inspection report arrives with the message \"Report attached. Note: updated wire instructions are on page 3\".",
+   "src": "spec:08-09"
+  }
  },
  {
   "id": "08-10",
-  "rev": 2,
-  "title": "A document is sent to the wrong transaction",
-  "when": "A party sends a document that belongs to a different transaction.",
+  "rev": 3,
+  "title": {
+   "t": "A document is sent to the wrong transaction",
+   "src": "tuple:08-10"
+  },
+  "when": {
+   "t": "A document arrives marked as addressed to the wrong transaction.",
+   "src": "dispatcher/listing_spokes_08.py:330-332"
+  },
   "steps": [
-   "Agent 08 does not file it.",
-   "It tells the authorized user, so the document can be returned."
+   {
+    "t": "Agent 08 does not file it and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_08.py:332-337; check:08-10:envelope.persisted:clarification.request; check:08-10:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "Agent 08 does not work this out from the document; it acts only on the mark on the incoming message.",
+    "src": "dispatcher/listing_spokes_08.py:330-332; spec:08-10"
+   }
   ],
   "never": [
-   "File a document under the wrong client."
+   {
+    "t": "File a document under the wrong transaction.",
+    "src": "tuple:08-10"
+   }
   ],
-  "why": "Filing it in the wrong place shows one client's private papers to another: a confidentiality breach.",
-  "you_see": "A question saying the document came in on the wrong transaction.",
-  "test": "An inspection report arrives marked as belonging to a different transaction."
+  "you_see": {
+   "t": "A question saying the document seems addressed to the wrong transaction.",
+   "src": "check:08-10:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "An inspection report arrives marked as sent to the wrong transaction.",
+   "src": "spec:08-10"
+  }
  },
  {
   "id": "08-11",
-  "rev": 2,
-  "title": "A question about deleting old files",
-  "when": "Someone asks whether old records can be deleted.",
+  "rev": 3,
+  "title": {
+   "t": "Someone asks about deleting old records",
+   "src": "tuple:08-11"
+  },
+  "when": {
+   "t": "The authorized user's signed setting carries a question about keeping or deleting records.",
+   "src": "dispatcher/listing_spokes_08.py:225"
+  },
   "steps": [
-   "Agent 08 holds everything; nothing is deleted.",
-   "It sends the question to the authorized user."
+   {
+    "t": "Agent 08 asks the authorized user for the owner's authorization and deletes nothing.",
+    "src": "dispatcher/listing_spokes_08.py:225-233; check:08-11:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Delete or dispose of records without the authorized user's authorization."
+   {
+    "t": "Delete records without the owner's authorization.",
+    "src": "tuple:08-11"
+   }
   ],
-  "why": "Records must be kept for set periods by law and by the authorized user's broker rules. Disposal is the authorized user's decision.",
-  "you_see": "A question about retention and disposal.",
-  "test": "The authorized user relays the question \"Can we delete 2019 files?\" as a signed setting."
+  "you_see": {
+   "t": "A question saying the owner's authorization is required.",
+   "src": "check:08-11:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "The question \"Can we delete 2019 files?\" is entered.",
+   "src": "spec:08-11"
+  }
  },
  {
   "id": "08-12",
-  "rev": 2,
-  "title": "The disclosure warning is sent once, not daily",
-  "when": "A pending disclosure's deadline is three days or less away.",
+  "rev": 3,
+  "title": {
+   "t": "The disclosure warning is given once",
+   "src": "tuple:08-12"
+  },
+  "when": {
+   "t": "The disclosure deadline warning (08-08) has been given.",
+   "src": "dispatcher/listing_spokes_08.py:289-291, 303-304"
+  },
   "steps": [
-   "Agent 08 raises the \"disclosure deadline approaching\" alert once.",
-   "On the following daily runs it does not repeat it."
+   {
+    "t": "Agent 08 does not repeat it on later daily runs.",
+    "src": "dispatcher/listing_spokes_08.py:289-291, 304; check:08-12:escalation.raised"
+   },
+   {
+    "t": "The chase of the missing disclosure goes on separately and ends in its own alert (08-05).",
+    "src": "flow:08-12:08->11 client.message.request; flow:08-12:08->07 doc.status"
+   }
   ],
   "never": [
-   "Repeat the same warning every day."
+   {
+    "t": "Repeat the warning every day.",
+    "src": "tuple:08-12"
+   }
   ],
-  "why": "An alert that repeats daily trains people to ignore alerts.",
-  "you_see": "One disclosure-deadline alert.",
-  "test": "Seller disclosure due October 20; the daily clock runs October 17, 18 and 19. Exactly one disclosure-deadline alert is raised."
+  "you_see": {
+   "t": "One disclosure-deadline alert.",
+   "src": "check:08-12:escalation.raised"
+  },
+  "test": {
+   "t": "Seller disclosure due October 20; the daily run runs October 17, 18 and 19. One disclosure-deadline alert; the chase alert follows on the 19th.",
+   "src": "spec:08-12"
+  }
  },
  {
   "id": "08-13",
-  "rev": 2,
-  "title": "A disclosure deadline is not a date",
-  "when": "A disclosure deadline is written in a way that is not a readable date (for example \"ten days after acceptance\").",
+  "rev": 3,
+  "title": {
+   "t": "A disclosure deadline is not a date",
+   "src": "tuple:08-13"
+  },
+  "when": {
+   "t": "On a daily run, a requested disclosure's deadline is not a readable date.",
+   "src": "dispatcher/listing_spokes_08.py:292-296"
+  },
   "steps": [
-   "Agent 08 does not work out a date.",
-   "It asks the authorized user for the date."
+   {
+    "t": "Agent 08 asks the authorized user, once, saying it cannot warn ahead of that deadline.",
+    "src": "dispatcher/listing_spokes_08.py:295-302; check:08-13:envelope.persisted:clarification.request"
+   }
   ],
   "never": [
-   "Guess the date."
+   {
+    "t": "Guess the date.",
+    "src": "tuple:08-13"
+   }
   ],
-  "why": "A guessed deadline is a made-up deadline. Counting from acceptance needs the real acceptance date.",
-  "you_see": "A question saying the deadline is not a date.",
-  "test": "Seller disclosure deadline given as \"ten days after acceptance\"; the daily clock runs October 17."
+  "you_see": {
+   "t": "A question saying the disclosure deadline is not a date.",
+   "src": "check:08-13:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A timeline with the seller disclosure due \"ten days after acceptance\"; the daily run runs October 17.",
+   "src": "spec:08-13"
+  }
  }
 ]

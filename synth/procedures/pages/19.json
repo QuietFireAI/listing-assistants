@@ -1,161 +1,386 @@
 [
  {
   "id": "19-01",
-  "rev": 2,
-  "title": "It is unclear whether a prospect already has an agent",
-  "when": "A possible prospect is found, but it is not clear whether they are represented by another agent.",
+  "rev": 3,
+  "title": {
+   "t": "A prospect's representation is unclear",
+   "src": "tuple:19-01"
+  },
+  "when": {
+   "t": "A discovery in a monitored zip code gives a representation status that is not one of listed, expired, FSBO or unknown.",
+   "src": "dispatcher/listing_spokes_19.py:143, 176-178"
+  },
   "steps": [
-   "Agent 19 (Prospecting) marks the representation status as unknown, with the source it came from.",
-   "It passes the prospect to the authorized user; how to approach them is the authorized user's decision."
+   {
+    "t": "Agent 19 records it as unknown, with the source and the retrieval date, and passes the record to the authorized user.",
+    "src": "dispatcher/listing_spokes_19.py:176-193, 271-272; check:19-01:envelope.persisted:prospect.opportunity"
+   },
+   {
+    "t": "Discoveries outside the monitored zip codes are not recorded.",
+    "src": "dispatcher/listing_spokes_19.py:143-151"
+   },
+   {
+    "t": "Agent 19 fetches nothing: a discovery reaches it only as an incoming message.",
+    "src": "dispatcher/listing_spokes_19.py:137"
+   },
+   {
+    "t": "Agent 19 never contacts anyone; it has no route to a prospect.",
+    "src": "dispatcher/listing_spokes_19.py:103-114; identity/routes.json"
+   }
   ],
   "never": [
-   "Treat an unclear status as unrepresented."
+   {
+    "t": "Guess whether the property is represented.",
+    "src": "tuple:19-01"
+   }
   ],
-  "why": "Soliciting someone who is under contract with another agent can break license rules.",
-  "you_see": "The prospect, marked representation unknown, with its source.",
-  "test": "A listing in the authorized user's zip code comes in from the expired-listings feed with the status \"maybe still listed?\"."
+  "you_see": {
+   "t": "A prospect record marked representation unknown, with its source.",
+   "src": "check:19-01:envelope.persisted:prospect.opportunity"
+  },
+  "test": {
+   "t": "Zip 44101 is monitored. A new listing from the MLS expired feed arrives with representation \"maybe still listed?\".",
+   "src": "spec:19-01"
+  }
  },
  {
   "id": "19-02",
-  "rev": 2,
-  "title": "A prospect comes from a source that may not be allowed",
-  "when": "A prospect comes from a source that is not on the authorized user's approved list.",
+  "rev": 3,
+  "title": {
+   "t": "A discovery comes from an unapproved source",
+   "src": "tuple:19-02"
+  },
+  "when": {
+   "t": "An expired or FSBO discovery comes from a source not on the authorized user's approved list.",
+   "src": "dispatcher/listing_spokes_19.py:154"
+  },
   "steps": [
-   "Agent 19 excludes the source and the prospect.",
-   "It tells the authorized user, naming the source."
+   {
+    "t": "Agent 19 does not use it and tells the authorized user the source was excluded.",
+    "src": "dispatcher/listing_spokes_19.py:154-161; check:19-02:envelope.persisted:clarification.request; check:19-02:envelope.persisted:prospect.opportunity"
+   },
+   {
+    "t": "The approved list is a signed setting; only expired and FSBO discoveries are checked against it.",
+    "src": "dispatcher/listing_spokes_19.py:85-87, 154"
+   }
   ],
   "never": [
-   "Use a lead from a source whose rules are unclear."
+   {
+    "t": "Use a source whose compliance is unclear.",
+    "src": "tuple:19-02"
+   }
   ],
-  "why": "Data taken against a site's terms or the law taints everything built on it.",
-  "you_see": "A question saying the source was excluded.",
-  "test": "An expired listing arrives from \"scraped-forum\", which is not an approved source. No prospect is passed on."
+  "you_see": {
+   "t": "A note that the source was excluded.",
+   "src": "check:19-02:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "An expired listing from \"scraped-forum\", which is not approved.",
+   "src": "spec:19-02"
+  }
  },
  {
   "id": "19-03",
-  "rev": 2,
-  "title": "A prospect turns out to be an existing client",
-  "when": "A possible prospect matches someone already in the authorized user's client records.",
+  "rev": 3,
+  "title": {
+   "t": "A prospect is already a client",
+   "src": "tuple:19-03"
+  },
+  "when": {
+   "t": "A discovery is marked as matching a client on the authorized user's known-client list.",
+   "src": "dispatcher/listing_spokes_19.py:250-251"
+  },
   "steps": [
-   "Agent 19 flags the relationship to the authorized user.",
-   "The prospect is still passed to the authorized user, with no suggestion to contact them."
+   {
+    "t": "Agent 19 tells the authorized user about the relationship and still passes the record on; it implies no outreach.",
+    "src": "dispatcher/listing_spokes_19.py:251-256, 271-272; check:19-03:envelope.persisted:clarification.request; check:19-03:envelope.persisted:prospect.opportunity"
+   },
+   {
+    "t": "The match is a mark on the incoming discovery; Agent 19 does not work it out.",
+    "src": "dispatcher/listing_spokes_19.py:250; spec:19-03"
+   }
   ],
   "never": [
-   "Treat an existing client as a cold prospect."
+   {
+    "t": "Treat the client as a cold prospect.",
+    "src": "tuple:19-03"
+   }
   ],
-  "why": "Prospecting the authorized user's own client as a stranger is awkward at best and confusing about who represents whom.",
-  "you_see": "A question saying the prospect matches an existing client.",
-  "test": "A new listing comes in that matches client B1."
+  "you_see": {
+   "t": "A note naming the existing client, and the prospect record.",
+   "src": "check:19-03:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "B1 is on the known-client list; a discovery marked as matching B1 arrives.",
+   "src": "spec:19-03"
+  }
  },
  {
   "id": "19-04",
-  "rev": 2,
-  "title": "An expired listing relists with another broker",
-  "when": "An expired listing the authorized user was shown comes back listed with another broker.",
+  "rev": 3,
+  "title": {
+   "t": "An expired listing relists with another broker",
+   "src": "tuple:19-04"
+  },
+  "when": {
+   "t": "A discovery for a recorded expired listing says it relisted with another broker.",
+   "src": "dispatcher/listing_spokes_19.py:165-167"
+  },
   "steps": [
-   "Agent 19 updates the record.",
-   "It closes the opportunity and records why."
+   {
+    "t": "Agent 19 marks the opportunity closed and logs it.",
+    "src": "dispatcher/listing_spokes_19.py:168-173; check:19-04:envelope.persisted:interaction.log"
+   }
   ],
   "never": [
-   "Keep treating it as an open opportunity."
+   {
+    "t": "Keep pursuing a listing another broker now holds.",
+    "src": "tuple:19-04"
+   }
   ],
-  "why": "Approaching a seller who just signed with someone else is solicitation of another broker's client.",
-  "you_see": "The opportunity closed in the record: relisted with another broker.",
-  "test": "An expired listing is surfaced (with its legal-line alert), then reported again as relisted with \"Other Realty\"."
+  "you_see": {
+   "t": "The opportunity closed in the history.",
+   "src": "check:19-04:envelope.persisted:interaction.log"
+  },
+  "test": {
+   "t": "P1 arrives expired, then again relisted with Other Realty.",
+   "src": "spec:19-04"
+  }
  },
  {
   "id": "19-05",
-  "rev": 2,
-  "title": "A bulk outreach instruction arrives without the authorized user's signature",
-  "when": "An instruction to contact many prospects arrives unsigned (for example typed in a chat).",
+  "rev": 3,
+  "title": {
+   "t": "Someone tells Agent 19 to contact prospects in bulk",
+   "src": "tuple:19-05"
+  },
+  "when": {
+   "t": "An instruction to contact prospects in bulk arrives.",
+   "src": "spec:19-05"
+  },
   "steps": [
-   "The dispatcher refuses the unsigned instruction.",
-   "Even a signed one leads to no outreach: Agent 19 never contacts anyone; it records that no action was taken."
+   {
+    "t": "Unsigned, the dispatcher refuses it before Agent 19 sees it.",
+    "src": "dispatcher/hub.py:559-566; check:19-05:reject"
+   },
+   {
+    "t": "Signed, Agent 19 notes it and still contacts no one.",
+    "src": "dispatcher/listing_spokes_19.py:103-114; check:19-05:spoke.trace; check:19-05:envelope.persisted:client.message.request"
+   },
+   {
+    "t": "Agent 19 never contacts anyone; it has no route to a prospect.",
+    "src": "dispatcher/listing_spokes_19.py:103-114; identity/routes.json"
+   }
   ],
   "never": [
-   "Contact prospects in bulk, signed or not."
+   {
+    "t": "Take a chat message as authority.",
+    "src": "tuple:19-05"
+   }
   ],
-  "why": "Mass texting or calling strangers is heavily regulated. Agent 19 finds; people decide and reach out.",
-  "you_see": "The refusal; a note that no outreach was taken.",
-  "test": "\"Text every expired owner in 44101 today\", sent first unsigned, then signed."
+  "you_see": {
+   "t": "A refusal on the audit log; nothing sent.",
+   "src": "check:19-05:reject"
+  },
+  "test": {
+   "t": "\"text every expired owner in 44101 today\", first unsigned, then signed.",
+   "src": "spec:19-05"
+  }
  },
  {
   "id": "19-06",
-  "rev": 2,
-  "title": "An expired listing is found",
-  "when": "A listing in the authorized user's area has expired.",
+  "rev": 3,
+  "title": {
+   "t": "An expired listing is found",
+   "src": "tuple:19-06"
+  },
+  "when": {
+   "t": "An expired listing from an approved source is discovered in a monitored zip code.",
+   "src": "dispatcher/listing_spokes_19.py:143-161, 240"
+  },
   "steps": [
-   "Agent 19 raises a legal-line alert for the authorized user before any contact.",
-   "It passes the prospect to the authorized user with market data."
+   {
+    "t": "Agent 19 raises a legal-line alert: a person and Compliance decide before any contact.",
+    "src": "dispatcher/listing_spokes_19.py:240-246; check:19-06:escalation.raised"
+   },
+   {
+    "t": "It passes the record to the authorized user.",
+    "src": "dispatcher/listing_spokes_19.py:271-272"
+   },
+   {
+    "t": "Agent 19 never contacts anyone; it has no route to a prospect.",
+    "src": "dispatcher/listing_spokes_19.py:103-114; identity/routes.json"
+   }
   ],
   "never": [
-   "Contact the owner before the authorized user and Compliance have cleared it."
+   {
+    "t": "Contact the owner.",
+    "src": "tuple:19-06"
+   }
   ],
-  "why": "Rules about contacting owners of expired listings (and the prior brokerage's rights) bind before anyone reaches out.",
-  "you_see": "A legal-line alert and the prospect with its market data.",
-  "test": "An expired listing in 44101 from the approved feed."
+  "you_see": {
+   "t": "A legal-line alert and the prospect record.",
+   "src": "check:19-06:escalation.raised"
+  },
+  "test": {
+   "t": "P1, expired, from the MLS expired feed in 44101.",
+   "src": "spec:19-06"
+  }
  },
  {
   "id": "19-07",
-  "rev": 2,
-  "title": "A for-sale-by-owner listing is found",
-  "when": "A home for sale by its owner is found.",
+  "rev": 3,
+  "title": {
+   "t": "A for-sale-by-owner listing is found",
+   "src": "tuple:19-07"
+  },
+  "when": {
+   "t": "An FSBO listing from an approved source is discovered in a monitored zip code.",
+   "src": "dispatcher/listing_spokes_19.py:143-161, 240"
+  },
   "steps": [
-   "Agent 19 raises a legal-line alert for the authorized user before any contact.",
-   "It passes the prospect to the authorized user with market data."
+   {
+    "t": "Agent 19 raises the same legal-line alert as for an expired listing.",
+    "src": "dispatcher/listing_spokes_19.py:240-246; check:19-07:escalation.raised"
+   },
+   {
+    "t": "It passes the record to the authorized user.",
+    "src": "dispatcher/listing_spokes_19.py:271-272"
+   },
+   {
+    "t": "Agent 19 never contacts anyone; it has no route to a prospect.",
+    "src": "dispatcher/listing_spokes_19.py:103-114; identity/routes.json"
+   }
   ],
   "never": [
-   "Contact the owner before the authorized user has cleared it."
+   {
+    "t": "Contact the owner.",
+    "src": "tuple:19-07"
+   }
   ],
-  "why": "Solicitation rules differ by channel and by state. The authorized user decides how, and whether, to reach out.",
-  "you_see": "A legal-line alert and the prospect.",
-  "test": "A for-sale-by-owner listing from the licensed FSBO portal."
+  "you_see": {
+   "t": "A legal-line alert and the prospect record.",
+   "src": "check:19-07:escalation.raised"
+  },
+  "test": {
+   "t": "P1, FSBO, from the licensed FSBO portal in 44101.",
+   "src": "spec:19-07"
+  }
  },
  {
   "id": "19-08",
-  "rev": 2,
-  "title": "A prospect is on the Do Not Call list",
-  "when": "A prospect's contact number is on the authorized user's Do Not Call list.",
+  "rev": 3,
+  "title": {
+   "t": "A prospect is on the do-not-call list",
+   "src": "tuple:19-08"
+  },
+  "when": {
+   "t": "A discovery's owner contact matches the authorized user's do-not-call list (phone numbers compared as digits).",
+   "src": "dispatcher/listing_spokes_19.py:184-187"
+  },
   "steps": [
-   "Agent 19 suppresses contact and records the prospect as suppressed by rule.",
-   "The prospect still reaches the authorized user, marked as on the list, so the miss is on the books."
+   {
+    "t": "Agent 19 logs it as suppressed by rule.",
+    "src": "dispatcher/listing_spokes_19.py:230-234; check:19-08:envelope.persisted:interaction.log"
+   },
+   {
+    "t": "The record still goes to the authorized user, marked on the do-not-call list.",
+    "src": "dispatcher/listing_spokes_19.py:189-193, 271-272; check:19-08:envelope.persisted:prospect.opportunity"
+   },
+   {
+    "t": "The list is a signed setting.",
+    "src": "dispatcher/listing_spokes_19.py:88-90"
+   }
   ],
   "never": [
-   "Contact a number on the Do Not Call list."
+   {
+    "t": "Treat a do-not-call prospect as contactable.",
+    "src": "tuple:19-08"
+   }
   ],
-  "why": "The list always wins. Recording the suppressed prospect shows what the rule cost, honestly.",
-  "you_see": "The prospect marked on the Do Not Call list.",
-  "test": "A new listing whose owner contact is (330) 555-0190, on the authorized user's Do Not Call list."
+  "you_see": {
+   "t": "The prospect record marked on the do-not-call list.",
+   "src": "check:19-08:envelope.persisted:prospect.opportunity"
+  },
+  "test": {
+   "t": "(330) 555-0190 is on the list; a discovery with owner contact 330-555-0190.",
+   "src": "spec:19-08"
+  }
  },
  {
   "id": "19-09",
-  "rev": 2,
-  "title": "A ranking has too little behind it",
-  "when": "A prospect comes with a ranking score whose basis is weaker than the threshold.",
+  "rev": 3,
+  "title": {
+   "t": "A ranking has a weak basis",
+   "src": "tuple:19-09"
+  },
+  "when": {
+   "t": "A discovery carries a rank whose basis strength is below the threshold (0.5 unless the discovery gives one).",
+   "src": "dispatcher/listing_spokes_19.py:214-218"
+  },
   "steps": [
-   "Agent 19 presents the prospect unranked, with its data, and says why the rank was left out."
+   {
+    "t": "Agent 19 leaves the rank out and says why; the data stays.",
+    "src": "dispatcher/listing_spokes_19.py:221-226; check:19-09:envelope.persisted:prospect.opportunity"
+   },
+   {
+    "t": "The rank and its basis come on the incoming discovery; Agent 19 ranks nothing itself.",
+    "src": "dispatcher/listing_spokes_19.py:214-216"
+   }
   ],
   "never": [
-   "Show a confident-looking rank with no real basis."
+   {
+    "t": "Show a rank without a basis.",
+    "src": "tuple:19-09"
+   }
   ],
-  "why": "A rank without basis is a made-up number that would steer the authorized user's time.",
-  "you_see": "The prospect unranked, with the reason.",
-  "test": "A prospect with a rank of 0.9 but a basis strength of 0.2."
+  "you_see": {
+   "t": "The prospect marked unranked, with the reason.",
+   "src": "check:19-09:envelope.persisted:prospect.opportunity"
+  },
+  "test": {
+   "t": "A rank of 0.9 with basis strength 0.2.",
+   "src": "spec:19-09"
+  }
  },
  {
   "id": "19-10",
-  "rev": 2,
-  "title": "Neighborhood data is asked for to farm an area",
-  "when": "Data about an area is requested for farming (regular outreach to a neighborhood).",
+  "rev": 3,
+  "title": {
+   "t": "Farm outreach asks for household-level data",
+   "src": "tuple:19-10"
+  },
+  "when": {
+   "t": "The authorized user's farm data request asks for individual household data.",
+   "src": "dispatcher/listing_spokes_19.py:115-119"
+  },
   "steps": [
-   "Area-level data is gathered.",
-   "A request for individual household data is refused, with a legal-line alert for the authorized user."
+   {
+    "t": "Agent 19 refuses and raises a legal-line alert.",
+    "src": "dispatcher/listing_spokes_19.py:119-127; check:19-10:escalation.raised; check:19-10:envelope.persisted:data.request"
+   },
+   {
+    "t": "An area-level request is answered with one note to the authorized user: no neighborhood data source is connected, so there is nothing to aggregate (owner decision of 2026-10-28).",
+    "src": "dispatcher/listing_spokes_19.py:128-134; check:19-10:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Nothing is asked of Agent 10: it has no data source of its own and builds packages only from figures it is handed, so before 2026-10-28 the package that came back was always empty.",
+    "src": "dispatcher/listing_spokes_10.py:261-308; dispatcher/listing_spokes_19.py:128-134; check:19-10:envelope.persisted:data.request"
+   }
   ],
   "never": [
-   "Profile individual households."
+   {
+    "t": "Infer facts about individual households.",
+    "src": "tuple:19-10"
+   }
   ],
-  "why": "Inferring things about individual households can lead to discrimination and breaks privacy rules.",
-  "you_see": "A legal-line alert for the household-level request; area data for the other.",
-  "test": "Two signed farm requests for 44101: one at household level (refused), one at area level (gathered)."
+  "you_see": {
+   "t": "A legal-line alert for the household request; a note that no neighborhood data source is connected for the area request.",
+   "src": "check:19-10:escalation.raised; check:19-10:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A farm request for 44101 at household level, then one at area level.",
+   "src": "spec:19-10"
+  }
  }
 ]

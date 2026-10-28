@@ -1,180 +1,404 @@
 [
  {
   "id": "12-01",
-  "rev": 2,
-  "title": "A platform cuts the approved ad short",
-  "when": "A platform shortens an approved ad to fit its limits.",
+  "rev": 3,
+  "title": {
+   "t": "A platform cuts an approved ad short",
+   "src": "tuple:12-01"
+  },
+  "when": {
+   "t": "A report arrives that a platform truncated an approved ad.",
+   "src": "dispatcher/listing_spokes_12.py:425"
+  },
   "steps": [
-   "Agent 12 (Marketing Campaign) treats the shortened version as an edit.",
-   "It sends the shortened text back to Compliance (Agent 17) for review, as it would any new copy."
+   {
+    "t": "Agent 12 treats the cut as an edit and sends the cut copy back to Compliance (Agent 17).",
+    "src": "dispatcher/listing_spokes_12.py:426-447; check:12-01:envelope.persisted:content.review; check:12-01:spoke.trace"
+   },
+   {
+    "t": "Compliance checks the cut copy as the platform reports it. In the test the cut drops the brokerage identification, so Compliance flags it (no exceptions for format limits, 17-07) and Agent 12 asks the authorized user for corrected copy.",
+    "src": "flow:12-01:17->12 content.verdict; flow:12-01:12->queue clarification.request; dispatcher/listing_spokes_17.py:269-280; dispatcher/listing_spokes_12.py:405-419"
+   },
+   {
+    "t": "If Compliance approves the cut copy, that copy is what is published, held for the authorized user's release (fixed 2026-10-27: the approval used to publish nothing).",
+    "src": "dispatcher/listing_spokes_12.py::self.pending_review[ctx] = truncated_content; tests_listing/test_agent12.py::def test_truncation_verdict_applies_to_the_cut_copy"
+   },
+   {
+    "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
+    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-01"
+   }
   ],
   "never": [
-   "Run a shortened ad on the strength of the full version's approval."
+   {
+    "t": "Accept a platform's cut as if it were the approved ad.",
+    "src": "tuple:12-01"
+   }
   ],
-  "why": "Cutting text can change its meaning or drop a required disclosure. What runs is what must be approved.",
-  "you_see": "The shortened text going through Compliance again.",
-  "test": "A live listing's ad is cut by the platform to \"3 bedrooms, 2 bathrooms, 1800 sq ft...\"."
+  "you_see": {
+   "t": "A question saying Compliance flagged the copy, with its findings.",
+   "src": "flow:12-01:12->queue clarification.request; dispatcher/listing_spokes_12.py::Compliance (17) flagged the campaign copy"
+  },
+  "test": {
+   "t": "A listing goes live and its ad is held for release; then a report says Facebook cut the copy to \"3 bedrooms, 2 bathrooms, 1800 sq ft...\".",
+   "src": "spec:12-01"
+  }
  },
  {
   "id": "12-02",
-  "rev": 2,
-  "title": "A platform rejects an ad",
-  "when": "An advertising platform rejects an ad.",
+  "rev": 3,
+  "title": {
+   "t": "A platform rejects an ad",
+   "src": "tuple:12-02"
+  },
+  "when": {
+   "t": "A report arrives that a platform rejected an ad.",
+   "src": "dispatcher/listing_spokes_12.py:449"
+  },
   "steps": [
-   "Agent 12 records the rejection exactly as the platform gave it.",
-   "It tells the authorized user, and does not change the targeting to get past the filter."
+   {
+    "t": "Agent 12 logs the rejection word for word and asks the authorized user. It changes nothing to get past the platform's filter.",
+    "src": "dispatcher/listing_spokes_12.py:450-460; check:12-02:envelope.persisted:interaction.log; check:12-02:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
+    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-02"
+   }
   ],
   "never": [
-   "Adjust targeting or wording just to get past a platform's filter."
+   {
+    "t": "Change targeting to get past a filter.",
+    "src": "tuple:12-02"
+   }
   ],
-  "why": "Housing ads have special rules on most platforms. Working around a rejection can turn into illegal targeting.",
-  "you_see": "A question with the platform's rejection.",
-  "test": "Facebook rejects an ad: \"AD_REJECTED: housing category requires special ad category\"."
+  "you_see": {
+   "t": "A question quoting the rejection.",
+   "src": "check:12-02:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Facebook rejects the ad: \"AD_REJECTED: housing category requires special ad category\".",
+   "src": "spec:12-02"
+  }
  },
  {
   "id": "12-03",
-  "rev": 2,
-  "title": "Engagement numbers disagree between sources",
-  "when": "Different sources report different engagement numbers for the same listing.",
+  "rev": 3,
+  "title": {
+   "t": "Engagement numbers disagree",
+   "src": "tuple:12-03"
+  },
+  "when": {
+   "t": "Engagement figures for one listing have arrived from more than one platform and they differ.",
+   "src": "dispatcher/listing_spokes_12.py:534-541"
+  },
   "steps": [
-   "Agent 12 reports both, each named with its source.",
-   "It records the conflict and asks the authorized user."
+   {
+    "t": "Agent 12 logs both, named by platform, and asks the authorized user.",
+    "src": "dispatcher/listing_spokes_12.py:541-550; check:12-03:envelope.persisted:interaction.log; check:12-03:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "Figures are kept per platform: different numbers from two platforms count as a disagreement, and a second figure from the same platform replaces the first.",
+    "src": "dispatcher/listing_spokes_12.py:535-541; spec:12-03"
+   },
+   {
+    "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
+    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-03"
+   }
   ],
   "never": [
-   "Pick or blend the numbers."
+   {
+    "t": "Pick one figure silently.",
+    "src": "tuple:12-03"
+   }
   ],
-  "why": "Numbers shown to a seller must be traceable. Two named sources let the authorized user explain the difference.",
-  "you_see": "A question saying engagement numbers conflict, with both sources.",
-  "test": "Facebook reports engagement 40 and Zillow reports 55 for the same listing. (Today the agent keeps one figure per platform, so the same platform reporting twice replaces the first figure: listed as a finding in the test file.)"
+  "you_see": {
+   "t": "A question listing both figures with their platforms.",
+   "src": "check:12-03:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "Facebook reports 40 and Zillow 55 for the same listing.",
+   "src": "spec:12-03"
+  }
  },
  {
   "id": "12-04",
-  "rev": 2,
-  "title": "It is not clear the listing may be marketed yet",
-  "when": "The listing's status under the Clear Cooperation rule is unclear (not confirmed active on the MLS, and no exemption on file).",
+  "rev": 3,
+  "title": {
+   "t": "The listing is not confirmed active on the MLS",
+   "src": "tuple:12-04"
+  },
+  "when": {
+   "t": "An approved ad for a listing is ready and the listing is not active, and no exempt status with its disclosure is on file.",
+   "src": "dispatcher/listing_spokes_12.py:95-99"
+  },
   "steps": [
-   "Agent 12 publishes nothing.",
-   "The approved ad waits at the gate."
+   {
+    "t": "Agent 12 publishes nothing and keeps the ad.",
+    "src": "dispatcher/listing_spokes_12.py:279-298, 384-402; check:12-04:spoke.trace; check:12-04:human.notified"
+   },
+   {
+    "t": "The ad goes forward on its own once the listing goes active, or an exempt status with its disclosure on file is recorded; it then waits for the authorized user's release, because the dispatcher holds every publish.",
+    "src": "dispatcher/listing_spokes_12.py:139-153, 182-186, 314-316; dispatcher/listing_spokes_12.py:95-99; dispatcher/hub.py:609-631"
+   },
+   {
+    "t": "An ad from Agent 04 that is waiting for the gate is on the calendar's list of waits, like a campaign the authorized user started (fixed 2026-10-28; before, nobody was told it was waiting).",
+    "src": "dispatcher/listing_spokes_12.py:285-291; flow:12-04:12->18 agent.status"
+   }
   ],
   "never": [
-   "Publish marketing before the listing is cleared to be marketed."
+   {
+    "t": "Publish before the listing is confirmed active or documented exempt.",
+    "src": "tuple:12-04"
+   }
   ],
-  "why": "Marketing a listing publicly before it is on the MLS can break the MLS's Clear Cooperation rule and bring fines.",
-  "you_see": "The ad waiting; nothing published.",
-  "test": "A new listing whose go-live the authorized user has not authorized: the description is approved, but the MLS never confirms it active."
+  "you_see": {
+   "t": "Nothing: the ad waits.",
+   "src": "check:12-04:spoke.trace"
+  },
+  "test": {
+   "t": "A listing package is signed without go-live; photos arrive and the description is approved.",
+   "src": "spec:12-04"
+  }
  },
  {
   "id": "12-05",
-  "rev": 2,
-  "title": "An ad idea ties into a trending topic",
-  "when": "A campaign is built around a trending topic or current event.",
+  "rev": 3,
+  "title": {
+   "t": "A campaign ties into a trending topic",
+   "src": "tuple:12-05"
+  },
+  "when": {
+   "t": "A signed new campaign is marked as tying into a trending topic.",
+   "src": "dispatcher/listing_spokes_12.py:336"
+  },
   "steps": [
-   "Agent 12 asks the authorized user to approve the idea before anything else happens.",
-   "The copy is not sent for review until the authorized user approves."
+   {
+    "t": "Agent 12 asks the authorized user to approve it first; it is not sent to Compliance.",
+    "src": "dispatcher/listing_spokes_12.py:336-342; check:12-05:envelope.persisted:clarification.request; check:12-05:envelope.persisted:content.review"
+   }
   ],
   "never": [
-   "Run a trending-topic tie-in without the authorized user's approval."
+   {
+    "t": "Publish a trending-topic tie-in without the authorized user's approval.",
+    "src": "tuple:12-05"
+   }
   ],
-  "why": "Trending topics can turn sour fast; the authorized user's name is on the ad.",
-  "you_see": "A question about the trending-topic tie-in.",
-  "test": "A signed campaign \"Open house Sunday\" marked as a trending-topic tie-in."
+  "you_see": {
+   "t": "A question asking for approval of the tie-in.",
+   "src": "check:12-05:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A signed campaign \"Open house Sunday\" marked as a trending-topic tie-in.",
+   "src": "spec:12-05"
+  }
  },
  {
   "id": "12-06",
-  "rev": 2,
-  "title": "An ad mentions details not in the listing record",
-  "when": "An ad refers to specifics that are not in the listing data.",
+  "rev": 3,
+  "title": {
+   "t": "An ad mentions something not in the listing record",
+   "src": "tuple:12-06"
+  },
+  "when": {
+   "t": "An ad from Agent 04 is marked as citing facts not in the listing record.",
+   "src": "dispatcher/listing_spokes_12.py:270-272"
+  },
   "steps": [
-   "Agent 12 pulls the ad."
+   {
+    "t": "The rule: pull it and ask. The code does this.",
+    "src": "dispatcher/listing_spokes_12.py:270-278"
+   },
+   {
+    "t": "No way in: Agent 04 drafts only from the listing record and never sets the mark.",
+    "src": "spec:12-06"
+   }
   ],
   "never": [
-   "Let marketing say more than the MLS record."
+   {
+    "t": "Let marketing say more than the listing record.",
+    "src": "tuple:12-06"
+   }
   ],
-  "why": "Claims beyond the record are unverified claims in public.",
-  "you_see": "The ad pulled.",
-  "test": ""
+  "you_see": {
+   "t": "Nothing: not reachable.",
+   "src": "spec:12-06"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:12-06"
+  }
  },
  {
   "id": "12-07",
-  "rev": 2,
-  "title": "The fair housing review is still pending",
-  "when": "An ad or listing copy is waiting for Compliance's verdict.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance has not given a verdict",
+   "src": "tuple:12-07"
+  },
+  "when": {
+   "t": "Copy is waiting for Compliance's verdict.",
+   "src": "dispatcher/listing_spokes_12.py:356-364"
+  },
   "steps": [
-   "Nothing publishes while the verdict is pending.",
-   "The verdict is a gate, not a race: no deadline lets copy through without it."
+   {
+    "t": "Nothing publishes until the verdict arrives.",
+    "src": "dispatcher/listing_spokes_12.py:377-404; check:12-07:envelope.persisted:content.verdict; check:12-07:human.notified"
+   },
+   {
+    "t": "Without a ruleset loaded, Compliance gives no verdict and asks the authorized user instead.",
+    "src": "dispatcher/listing_spokes_17.py:216-226; flow:12-07:17->queue clarification.request"
+   }
   ],
   "never": [
-   "Publish before the verdict."
+   {
+    "t": "Publish ahead of the verdict.",
+    "src": "tuple:12-07"
+   }
   ],
-  "why": "Fair housing violations in ads bring complaints and fines. Review comes first, every time.",
-  "you_see": "The copy waiting for review; nothing published.",
-  "test": "No compliance rules are loaded, so Agent 17 returns no verdict: both the listing description and a new \"Open house Sunday\" campaign wait, and nothing publishes."
+  "you_see": {
+   "t": "A question from Compliance that no ruleset is active.",
+   "src": "flow:12-07:17->queue clarification.request"
+  },
+  "test": {
+   "t": "No compliance ruleset is loaded. A listing's description and a signed campaign \"Bright kitchen near the park\" both go to Compliance.",
+   "src": "spec:12-07"
+  }
  },
  {
   "id": "12-08",
-  "rev": 2,
-  "title": "A campaign asks to target people by age or other demographics",
-  "when": "A campaign's settings include demographic targeting (for example an age range).",
+  "rev": 3,
+  "title": {
+   "t": "A campaign targets by demographics",
+   "src": "tuple:12-08"
+  },
+  "when": {
+   "t": "A signed new campaign carries demographic targeting.",
+   "src": "dispatcher/listing_spokes_12.py:326"
+  },
   "steps": [
-   "Agent 12 refuses it outright.",
-   "It raises a legal-line alert for the authorized user.",
-   "The campaign is not sent for review or run."
+   {
+    "t": "Agent 12 refuses it and raises a legal-line alert; it is not sent to Compliance.",
+    "src": "dispatcher/listing_spokes_12.py:326-334; check:12-08:escalation.raised; check:12-08:envelope.persisted:content.review"
+   },
+   {
+    "t": "A farm campaign (an area, no listing) may only use general targeting; anything else raises the same alert.",
+    "src": "dispatcher/listing_spokes_12.py:343-351"
+   }
   ],
   "never": [
-   "Target housing ads by age, family status or any protected characteristic."
+   {
+    "t": "Target by age, family status or any other demographic.",
+    "src": "tuple:12-08"
+   }
   ],
-  "why": "Demographic targeting of housing ads is illegal under fair housing law. Geography is allowed under farm rules; people are not.",
-  "you_see": "A legal-line alert about demographic targeting.",
-  "test": "A signed campaign targeting ages 25 to 40."
+  "you_see": {
+   "t": "A legal-line alert about the demographic targeting.",
+   "src": "check:12-08:escalation.raised"
+  },
+  "test": {
+   "t": "A signed campaign targeting ages 25 to 40.",
+   "src": "spec:12-08"
+  }
  },
  {
   "id": "12-09",
-  "rev": 2,
-  "title": "A published ad turns out to be out of date",
-  "when": "An ad already running is found to be wrong (for example the price changed on the MLS).",
+  "rev": 3,
+  "title": {
+   "t": "A published ad is out of date",
+   "src": "tuple:12-09"
+  },
+  "when": {
+   "t": "A report arrives that an ad is stale, saying whether to retract or correct it.",
+   "src": "dispatcher/listing_spokes_12.py:462-497"
+  },
   "steps": [
-   "Agent 12 records what changed.",
-   "It prepares the retraction the same day; the retraction is held for the authorized user's signed release.",
-   "It tells the authorized user the retraction is waiting for release."
+   {
+    "t": "To retract: Agent 12 sends a retraction, which the dispatcher holds for the authorized user's release, logs what changed, and tells the authorized user.",
+    "src": "dispatcher/listing_spokes_12.py:497-515; check:12-09:envelope.persisted:interaction.log; check:12-09:envelope.persisted:clarification.request"
+   },
+   {
+    "t": "To correct (the default): it reopens the ad for correction, logs the change and tells the authorized user; the corrected copy goes back through Compliance and release.",
+    "src": "dispatcher/listing_spokes_12.py:516-531"
+   },
+   {
+    "t": "Only an ad that was released is retracted (in the test it was). An ad still held for release is not retracted: the authorized user is asked to decline it; with no ad ever published there is nothing to retract, and the authorized user is told so (fixed 2026-10-28).",
+    "src": "dispatcher/listing_spokes_12.py::if payload.get(\"retract_requested\") and (not published or held):; dispatcher/listing_spokes_12.py:486-491; flow:12-09:12->external campaign.publish; tests_listing/test_owner_decisions_2026_10_28.py::def test_no_retraction_for_an_ad_still_held_for_release"
+   },
+   {
+    "t": "There is no connection to any ad platform: this reaches Agent 12 only as an incoming message of that kind.",
+    "src": "dispatcher/listing_spokes_12.py:425, 443, 456; dispatcher/listing_spokes_12.py:12-13; spec:12-09"
+   }
   ],
   "never": [
-   "Leave a known-wrong ad running without telling the authorized user."
+   {
+    "t": "Leave a stale ad up past the day without correcting or retracting it.",
+    "src": "tuple:12-09"
+   }
   ],
-  "why": "A wrong price in public is a misrepresentation. It must be fixed the same day.",
-  "you_see": "A question saying the retraction is held for the authorized user's signed release.",
-  "test": "A live listing's ad is found stale: price $450,000 became $439,000 on the MLS."
+  "you_see": {
+   "t": "A note that a retraction is held for release, with what changed.",
+   "src": "check:12-09:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A listing goes live and its ad is released; a report then says the price changed from 450,000 to 439,000 on the MLS and asks for retraction.",
+   "src": "spec:12-09; flow:12-09:12->external campaign.publish"
+  }
  },
  {
   "id": "12-10",
-  "rev": 2,
-  "title": "Someone changes the marketing budget by word of mouth",
-  "when": "A budget change is reported verbally.",
-  "steps": [
-   "Agent 12 records the report.",
-   "The signed budget stays in force until a new figure is signed."
-  ],
-  "never": [
-   "Change the budget on someone's word."
-  ],
-  "why": "Spending the office's money takes a signed decision.",
-  "you_see": "The signed budget unchanged.",
-  "test": "The authorized user signed a budget of $500. A report that \"seller said go to 800\" arrives."
+  "rev": 3,
+  "title": {
+   "t": "Someone changes the budget by word of mouth",
+   "src": "tuple:12-10"
+  },
+  "when": {
+   "t": "Retired.",
+   "src": "spec:12-10"
+  },
+  "steps": [],
+  "never": [],
+  "why": {
+   "t": "Retired 2026-10-28 (owner decision): no ad carries a cost and nothing is bought, so the signed budget guarded nothing. A budget setting is now refused.",
+   "src": "spec:12-10; dispatcher/listing_spokes_12.py::campaign budgets were retired 2026-10-28"
+  },
+  "you_see": {
+   "t": "",
+   "src": "spec:12-10"
+  },
+  "test": {
+   "t": "",
+   "src": "spec:12-10"
+  }
  },
  {
   "id": "12-11",
-  "rev": 2,
-  "title": "Compliance flags campaign copy",
-  "when": "Compliance (Agent 17) flags a campaign's text.",
+  "rev": 3,
+  "title": {
+   "t": "Compliance flags a campaign",
+   "src": "tuple:12-11"
+  },
+  "when": {
+   "t": "Compliance returns a flagged verdict on campaign copy.",
+   "src": "dispatcher/listing_spokes_12.py:405"
+  },
   "steps": [
-   "Agent 12 publishes nothing.",
-   "It tells the authorized user, with Compliance's findings (the phrase and the rule).",
-   "It waits for the authorized user's corrected, signed copy."
+   {
+    "t": "Agent 12 publishes nothing and tells the authorized user, with Compliance's findings, to send corrected copy as a new signed campaign.",
+    "src": "dispatcher/listing_spokes_12.py:405-419; check:12-11:envelope.persisted:clarification.request; check:12-11:human.notified"
+   }
   ],
   "never": [
-   "Publish flagged copy, or rewrite it on its own."
+   {
+    "t": "Publish flagged copy or edit it itself.",
+    "src": "tuple:12-11"
+   }
   ],
-  "why": "The fix to fair housing language is for the authorized user to make and sign.",
-  "you_see": "A question with the flagged phrase and the rule it broke.",
-  "test": "A campaign says \"Perfect for young families near the park\"; Compliance flags it under rule FH-1."
+  "you_see": {
+   "t": "A question with Compliance's findings (for example FH-1, \"perfect for young families\").",
+   "src": "check:12-11:envelope.persisted:clarification.request"
+  },
+  "test": {
+   "t": "A signed campaign \"Perfect for young families near the park\".",
+   "src": "spec:12-11"
+  }
  }
 ]
