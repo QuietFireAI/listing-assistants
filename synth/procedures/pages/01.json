@@ -357,7 +357,7 @@
  },
  {
   "id": "01-10",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A lead says they have worked with the office before",
    "src": "tuple:01-10"
@@ -368,7 +368,7 @@
   },
   "steps": [
    {
-    "t": "Agent 01 records the claim as stated by the person.",
+    "t": "Agent 01 records the claim, as given, in the captured lead (marked as stated by the person, like the rest of what the person said).",
     "src": "dispatcher/listing_spokes.py::\"prior_relationship_claim\": payload.get(\"prior_relationship_claim\"),; check:01-10:envelope.persisted"
    },
    {

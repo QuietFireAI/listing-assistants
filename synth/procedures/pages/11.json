@@ -1,7 +1,7 @@
 [
  {
   "id": "11-01",
-  "rev": 4,
+  "rev": 5,
   "title": {
    "t": "A client's reply mixes a routine question with an advice question",
    "src": "tuple:11-01"
@@ -16,7 +16,7 @@
     "src": "dispatcher/listing_spokes_11.py:156-160, 623-626; check:11-01:escalation.raised"
    },
    {
-    "t": "It forwards the whole message, labelled routine only, to the agent named as owning the client; that agent holds it for the authorized user. (With no valid owner named, Agent 11 holds it for the authorized user itself.)",
+    "t": "It forwards the whole message, labelled routine only, to the agent named as owning the client, which handles it by its own rules (Agents 04, 12, 13 and 20 hold it for the authorized user). With no valid owner named, Agent 11 holds it for the authorized user itself.",
     "src": "dispatcher/listing_spokes_11.py:167-195, 627-630; check:11-01:envelope.persisted:lead.reply; flow:11-01:13->queue clarification.request"
    },
    {
@@ -71,7 +71,7 @@
  },
  {
   "id": "11-03",
-  "rev": 4,
+  "rev": 5,
   "title": {
    "t": "Two agents report different statuses for the same thing",
    "src": "tuple:11-03"
@@ -82,7 +82,7 @@
   },
   "steps": [
    {
-    "t": "The rule: send the client nothing and ask the authorized user. The code sends the first status that arrives; when a second, different one for the same milestone arrives, it sends nothing more and asks the authorized user.",
+    "t": "The rule: send the client nothing and ask the authorized user. The code compares statuses only when the sender marks them with a shared key, and no agent does (so this cannot happen today). With a key, it sends the first status; a later one that differs from the last is not sent and the authorized user is asked.",
     "src": "dispatcher/listing_spokes_11.py:526-550"
    },
    {
@@ -123,7 +123,7 @@
    },
    {
     "t": "No way in for the first half: Agent 07's deadline alerts name no alert kind, and the kinds allowed in quiet hours can be set only in code. Since 2026-10-28 an alert that carries no hour is judged by this computer's clock and, in quiet hours, held and the authorized user told (11-07); test runs pin the clock at noon.",
-    "src": "dispatcher/listing_spokes_11.py::def _hour(self, value) -> tuple[int, str]:; dispatcher/listing_spokes_11.py:282-317; synth/tuples/run_tuples.py::CLOCK_NOW = ; spec:11-04"
+    "src": "dispatcher/listing_spokes_11.py:231 (def _hour(self, value) -> tuple[int, str]:); dispatcher/listing_spokes_11.py:282-317; synth/tuples/run_tuples.py:112 (CLOCK_NOW =); spec:11-04; dispatcher/listing_spokes_07.py:690-693, 715-716; dispatcher/listing_spokes_11.py:121-125; dispatcher/swarm.py:334"
    }
   ],
   "never": [
@@ -250,7 +250,7 @@
   ],
   "you_see": {
    "t": "A note that the reply is held until 08:00; in the test it goes out on the daily run at 09:00 the next day.",
-   "src": "check:11-07:envelope.persisted:clarification.request; check:11-07:envelope.persisted:client.message.send"
+   "src": "check:11-07:envelope.persisted:clarification.request; check:11-07:envelope.persisted:client.message.send; spec:11-07"
   },
   "test": {
    "t": "The client writes at 22:00, referring to a phone call that is not on the record; the daily run runs at 09:00 the next day.",
@@ -307,7 +307,7 @@
   "steps": [
    {
     "t": "Agent 11 sends the client a message asking for the particulars, if consent is on record. It never claims to remember.",
-    "src": "dispatcher/listing_spokes_11.py:730-733; check:11-09:envelope.persisted:client.message.send"
+    "src": "dispatcher/listing_spokes_11.py:730-733; check:11-09:envelope.persisted:client.message.send; config/message_templates.json:119-123"
    },
    {
     "t": "The mark is on the incoming message; Agent 11 does not check the record itself.",
@@ -375,7 +375,7 @@
  },
  {
   "id": "11-11",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A client asks to be contacted another way",
    "src": "tuple:11-11"
@@ -390,12 +390,12 @@
     "src": "dispatcher/listing_spokes_11.py:666-683; check:11-11:envelope.persisted:interaction.log"
    },
    {
-    "t": "If Agent 14 now shows consent for that channel, the client gets one confirmation.",
+    "t": "If Agent 14 now shows consent for that channel, the client gets one confirmation (still subject to every send check: a frozen record, a complaint hold, quiet hours).",
     "src": "dispatcher/listing_spokes_11.py::self._send_client_message(ctx, \"channel_change_confirmed\", {},; check:11-11:envelope.persisted:client.message.send"
    },
    {
     "t": "If the client had opted out of that channel earlier, the opt-out stands: nothing is confirmed and the authorized user is asked to record a reconfirmation.",
-    "src": "dispatcher/listing_spokes_11.py:703-723"
+    "src": "dispatcher/listing_spokes_11.py:703-723; dispatcher/listing_spokes.py:325-337, 640-646"
    }
   ],
   "never": [

@@ -911,3 +911,19 @@ def test_a_stated_pre_approval_yes_scores_as_pre_approved():
                                     "preapproval_status": "yes",
                                     "preapproval_doc": {"expired": True}}, rubric)
     assert score == 40                  # an expired letter still earns nothing
+
+
+def test_an_off_market_listing_drops_held_ads_and_its_exemption(tmp_path):
+    from dispatcher.listing_spokes_12 import Spoke12MarketingCampaign
+    hub = make_hub(tmp_path)
+    s12 = Spoke12MarketingCampaign(hub)            # no brokerage identification yet
+    hub.on_turn_start()
+    hub.send(env("05", "12", "status.update", "om-1", {"status": "active"}))
+    hub.send(signed(hub, "12", "om-1", {"new_campaign": {"body": "x"}}))
+    hub.send(env("17", "12", "content.verdict", "om-1", {"verdict": "approved"}))
+    assert "om-1" in s12.held_for_brokerage_id
+    hub.send(signed(hub, "12", "om-1", {"exempt_status": {"exempt": True, "disclosure_on_file": True}}))
+    hub.send(env("05", "12", "status.update", "om-1", {"status": "withdrawn"}))
+    hub.send(signed(hub, "12", "om-1", {"brokerage_identification": "Synth Realty, Testville OH"}))
+    assert not persisted(hub, "campaign.publish", "om-1") and not hub._absolute_holds
+    assert not s12._ccp_gate_clear("om-1")

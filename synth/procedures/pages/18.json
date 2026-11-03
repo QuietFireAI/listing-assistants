@@ -117,7 +117,7 @@
  },
  {
   "id": "18-04",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "Someone asks to move a protected deadline",
    "src": "tuple:18-04"
@@ -132,7 +132,7 @@
     "src": "dispatcher/listing_spokes_18.py:340-346; check:18-04:envelope.persisted:clarification.request"
    },
    {
-    "t": "With the authorized user's own confirmation naming a new day, the block moves to that day and stays protected; the move is logged with both days. A confirmation that names no day is refused and nothing moves (owner decision of 2026-10-28; before, only the block's name was taken off the protected list and the entry stayed on the old day). The contract date itself is Agent 07's and changes only by a signed milestone amendment.",
+    "t": "With the authorized user's own confirmation naming a new day, the block moves to that day and stays protected; the move is logged with both days. A confirmation that names no day is refused and nothing moves (owner decision of 2026-10-28; before, only the block's name was taken off the protected list and the entry stayed on the old day). The contract date itself is Agent 07's: one date changes by a signed milestone amendment, and signing the whole timeline again replaces every date.",
     "src": "dispatcher/listing_spokes_18.py:347-384; dispatcher/listing_spokes_07.py:347-348, 612-655; tests_listing/test_mutation_hardening.py::def test_18_protected_block_move_decision_table"
    },
    {

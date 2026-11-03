@@ -77,7 +77,7 @@
  },
  {
   "id": "13-03",
-  "rev": 5,
+  "rev": 6,
   "title": {
    "t": "A listing lacks data on a must-have",
    "src": "tuple:13-03"
@@ -107,7 +107,7 @@
    }
   ],
   "you_see": {
-   "t": "A question naming the missing must-have; the match kept; no message to the buyer yet (in the test no buyer agreement is on file, and the question's wording is not turned on).",
+   "t": "A question naming the missing must-have; the match kept; no message to the buyer: the buyer agreement is on file in the test, so Agent 13 asks Agent 11, but the question's wording was not yet turned on.",
    "src": "check:13-03:envelope.persisted:clarification.request; check:13-03:envelope.persisted:interaction.log; check:13-03:envelope.persisted:client.message.send"
   },
   "test": {
@@ -149,7 +149,7 @@
  },
  {
   "id": "13-05",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "Too many matches in one day",
    "src": "tuple:13-05"
@@ -164,7 +164,7 @@
     "src": "dispatcher/listing_spokes_13.py:423-425; check:13-05:envelope.persisted:client.message.request"
    },
    {
-    "t": "The rest wait for the daily run, which sends them as one digest ranked by how many of the buyer's stated criteria each meets.",
+    "t": "Past five, each further match joins one ranked digest, sent on the daily run (or, if a match for a new day comes in first, sent then).",
     "src": "dispatcher/listing_spokes_13.py:408-422, 445-462; dispatcher/clock.py:56-57; check:13-05:envelope.persisted:client.message.request (the digest)"
    },
    {

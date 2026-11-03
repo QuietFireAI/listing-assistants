@@ -152,7 +152,7 @@
    "steps": [
     {
      "t": "An inquiry arrives: from outside (a call, form or text, delivered by a connected system or the console), or a lead passed on by Agent 20.",
-     "src": "dispatcher/listing_spokes.py::if env.intent in (\"lead.signal\", \"lead.inbound\"):; identity/routes.json (lead.inbound external->01, lead.signal 20->01); dispatcher/identity_mcp.py:31; tools/desk.py:1091"
+     "src": "dispatcher/listing_spokes.py:832 (if env.intent in (\"lead.signal\", \"lead.inbound\"):); identity/routes.json (lead.inbound external->01, lead.signal 20->01); dispatcher/identity_mcp.py:31; tools/desk.py:1091; tools/console.py:24-25, 505"
     },
     {
      "t": "An apparent minor: nothing is captured beyond the fact of contact, and a legal-line alert is raised.",
@@ -681,7 +681,7 @@
    "team": "Buyers and showings",
    "job": {
     "t": "Books showings, confirms them to the buyer through Agent 11, asks for feedback afterwards, schedules open houses, and prepares the weekly seller report. It never gives out access codes.",
-    "src": "dispatcher/listing_spokes_06.py:367-797"
+    "src": "dispatcher/listing_spokes_06.py:367-797; dispatcher/listing_spokes_06.py:105-151, 199-273"
    },
    "steps": [
     {
@@ -698,7 +698,7 @@
     },
     {
      "t": "The requester's identity not verified: the showing is cancelled and logged with Agent 14; the authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer is requested; Agent 11 does not send it until the authorized user signs its wording, and signing later does not send it (owner decision of 2026-10-28).",
-     "src": "dispatcher/listing_spokes_06.py:517-541"
+     "src": "dispatcher/listing_spokes_06.py:517-541; dispatcher/listing_spokes_11.py:30-31, 256-266, 429-440"
     },
     {
      "t": "For the office's own listings, whether the home is occupied, its status and its state come from Agent 05's record, not from the request.",
@@ -914,7 +914,7 @@
    "name": "Document Collection",
    "team": "Transaction",
    "job": {
-    "t": "Asks for a deal's documents, checks what comes in, files it, and reports each document's status to Agent 07. It does not set deadlines.",
+    "t": "Asks for a deal's documents, checks what comes in, files it, and reports each filed, partial, incomplete, conflicting or missing document's status to Agent 07 (a refused document, such as one misaddressed, quarantined, of the wrong type or unreadable, is not reported to Agent 07). It does not set deadlines.",
     "src": "dispatcher/listing_spokes_08.py:146-182, 327-551"
    },
    "steps": [
@@ -1257,7 +1257,7 @@
     },
     {
      "t": "A request to change channel must name call, text or email; otherwise nothing changes and the authorized user is asked. The request is logged with consent for the new channel, and confirmed to the client only if Agent 14 then shows consent on that channel. While Agent 14's record is frozen nothing is confirmed (the change waits there and Agent 14 has asked the authorized user); with an earlier opt-out, or no consent shown, nothing is confirmed and the authorized user is asked.",
-     "src": "dispatcher/listing_spokes_11.py:665-735"
+     "src": "dispatcher/listing_spokes_11.py:665-735; dispatcher/listing_spokes.py:339-385, 511-517"
     },
     {
      "t": "A showing request is checked with Agent 14: no buyer agreement sends it to Agent 13; otherwise it goes to Agent 06 with the agreement and identity flags. Showing feedback or a no-show goes to Agent 06. An attached document goes to Agent 08.",
@@ -1327,28 +1327,28 @@
    "team": "Listing",
    "job": {
     "t": "Publishes marketing: the approved listing description from Agent 04, and campaigns the authorized user signs. Every publication is held by the dispatcher for the authorized user's release.",
-    "src": "dispatcher/listing_spokes_12.py:106-137, 278-310, 332-375; dispatcher/core.py:33; dispatcher/hub.py:611-646; identity/routes.json (campaign.publish audience public)"
+    "src": "dispatcher/listing_spokes_12.py:106-137, 287-319, 341-384; dispatcher/core.py:33; dispatcher/hub.py:611-646; identity/routes.json (campaign.publish audience public)"
    },
    "steps": [
     {
      "t": "An approved listing description arrives from Agent 04, or the authorized user signs a new campaign (copy and audience).",
-     "src": "dispatcher/listing_spokes_12.py:278-289, 332-333"
+     "src": "dispatcher/listing_spokes_12.py:287-298, 341-342"
     },
     {
      "t": "A campaign asking for demographic targeting raises a legal-line alert and is refused. A farm campaign (an area, no listing) must use general targeting, or it raises a legal-line alert. A tie-in to a trending topic goes to the authorized user first.",
-     "src": "dispatcher/listing_spokes_12.py:336-361"
+     "src": "dispatcher/listing_spokes_12.py:345-370"
     },
     {
      "t": "Campaign copy goes to Compliance (Agent 17). Flagged: nothing is published and the authorized user is told. The listing description from Agent 04 was already approved and is not sent again.",
-     "src": "dispatcher/listing_spokes_12.py:364-375, 387-429"
+     "src": "dispatcher/listing_spokes_12.py:373-384, 396-438"
     },
     {
      "t": "Clear Cooperation: nothing for a listing is published until Agent 05 reports it active, or the authorized user records an exemption with the seller's disclosure on file. Approved material waits (the wait is reported to Agent 18) and is published automatically when that happens. A farm campaign is not tied to a listing and is not held this way.",
-     "src": "dispatcher/listing_spokes_12.py:95-99, 139-153, 181-185, 290-308, 328-331, 394-412"
+     "src": "dispatcher/listing_spokes_12.py:95-99, 139-153, 181-185, 299-317, 337-340, 403-421"
     },
     {
      "t": "Every ad carries the office's brokerage identification; with none on file, the approved ad is held and the authorized user is asked to sign it.",
-     "src": "dispatcher/listing_spokes_12.py:101-123, 312-327"
+     "src": "dispatcher/listing_spokes_12.py:101-123, 321-336"
     },
     {
      "t": "The publication goes out through the dispatcher, which holds it for the authorized user's release, and it is logged with Agent 14.",
@@ -1356,15 +1356,15 @@
     },
     {
      "t": "When the listing becomes pending, sold or withdrawn, marketing for it stops: a live ad gets a halt message, an ad still held is put to the authorized user to decline. A price change on an ad that shows the old price goes to the authorized user.",
-     "src": "dispatcher/listing_spokes_12.py:186-276"
+     "src": "dispatcher/listing_spokes_12.py:186-285"
     },
     {
      "t": "Platform figures are logged with the platform named; two platforms that disagree go to the authorized user. A figure at or over the spike threshold (50 unless set) is passed to Agent 03.",
-     "src": "dispatcher/listing_spokes_12.py:547-576"
+     "src": "dispatcher/listing_spokes_12.py:556-585"
     },
     {
      "t": "A platform that shortened the ad sends the shortened copy back to Compliance; a platform rejection is logged and the authorized user is told; a stale ad is reopened for correction, or retracted when retraction is asked for (the retraction is held for release). If no ad was ever published, or the ad is still held for release, nothing is retracted and the authorized user is told (asked to decline a held ad).",
-     "src": "dispatcher/listing_spokes_12.py:435-545"
+     "src": "dispatcher/listing_spokes_12.py:444-554"
     },
     {
      "t": "A client's reply about marketing is logged and held for the authorized user.",
@@ -1372,7 +1372,7 @@
     },
     {
      "t": "A setting that names a campaign budget is refused and the authorized user is told; nothing is stored (budgets were retired on 2026-10-28: no ad carries a cost).",
-     "src": "dispatcher/listing_spokes_12.py:376-385"
+     "src": "dispatcher/listing_spokes_12.py:385-394"
     }
    ],
    "today": [],
@@ -1380,7 +1380,7 @@
    "user_part": [
     {
      "t": "Signing campaigns, exemptions and the brokerage identification.",
-     "src": "dispatcher/listing_spokes_12.py:312-375"
+     "src": "dispatcher/listing_spokes_12.py:321-384"
     },
     {
      "t": "Releasing (or declining) every publication.",
@@ -1388,13 +1388,13 @@
     },
     {
      "t": "Answering flagged copy, platform rejections and replies.",
-     "src": "dispatcher/listing_spokes_12.py:415-429, 453-464, 158-178"
+     "src": "dispatcher/listing_spokes_12.py:424-438, 462-473, 158-178"
     }
    ],
    "never": [
     {
      "t": "Publish a listing's marketing before Clear Cooperation is met.",
-     "src": "dispatcher/listing_spokes_12.py:95-99, 290-308"
+     "src": "dispatcher/listing_spokes_12.py:95-99, 299-317"
     },
     {
      "t": "Publish an ad without the brokerage identification.",
@@ -1402,11 +1402,11 @@
     },
     {
      "t": "Target by demographics.",
-     "src": "dispatcher/listing_spokes_12.py:336-344"
+     "src": "dispatcher/listing_spokes_12.py:345-353"
     },
     {
      "t": "Accept a platform's edit without a new compliance review.",
-     "src": "dispatcher/listing_spokes_12.py:435-457"
+     "src": "dispatcher/listing_spokes_12.py:444-466"
     }
    ],
    "process": {
@@ -1420,11 +1420,11 @@
     },
     {
      "t": "It writes no copy of its own: campaigns are the authorized user's signed text.",
-     "src": "dispatcher/listing_spokes_12.py:332-375"
+     "src": "dispatcher/listing_spokes_12.py:341-384"
     },
     {
      "t": "Engagement figures are kept per platform per client; a second figure from the same platform replaces the first.",
-     "src": "dispatcher/listing_spokes_12.py:547-551"
+     "src": "dispatcher/listing_spokes_12.py:556-560"
     }
    ]
   },
@@ -1433,7 +1433,7 @@
    "name": "Buyer Search & Match",
    "team": "Buyers and showings",
    "job": {
-    "t": "Keeps each buyer's criteria as the authorized user signed them, matches new listings against them, and sends matches through Agent 11 once the buyer agreement is on file. It never adds a criterion the buyer did not state.",
+    "t": "Keeps each buyer's criteria as the authorized user signed them (a protected-class criterion is refused; one marked fair-housing sensitive waits for Compliance), matches new listings against them, and sends matches through Agent 11 once the buyer agreement is on file. It never adds a criterion the buyer did not state.",
     "src": "dispatcher/listing_spokes_13.py:478-513, 122-469"
    },
    "steps": [
@@ -1522,7 +1522,7 @@
    },
    "not_built": [
     {
-     "t": "A showing request it sends to Agent 06 carries no time. If the buyer's identity is not verified on record, Agent 06 cancels it; if it is, a listing not marked vacant gets the next-slot offer instead (no time, no notice), a listing not active goes to a status check first, and only a vacant, active listing reaches the calendar, which cannot place it, so it is held for the authorized user.",
+     "t": "A showing request it sends to Agent 06 carries no time. If the buyer's identity is not verified on record, Agent 06 cancels it. Otherwise, for one of the office's listings, a listing not marked vacant gets the next-slot offer and a listing not active goes to a status check first; any other request reaches the calendar, which cannot place it, so it is held for the authorized user.",
      "src": "dispatcher/listing_spokes_13.py:678-713; dispatcher/listing_spokes_06.py:285-290, 517-560, 639-655, 753-776"
     },
     {
@@ -1569,7 +1569,7 @@
      "src": "dispatcher/listing_spokes.py:260-306, 308-323; dispatcher/clock.py:60"
     },
     {
-     "t": "A request to delete a record freezes it and raises a legal-line alert. On a frozen record an opt-out still takes effect and is recorded; a change to consent, the buyer agreement and identity flags, client dates or an access record waits, nothing changes, and the authorized user is told; a plain log entry is refused (not kept) and the authorized user is told. When the authorized user lifts the freeze, the waiting changes are applied in the order they came. Answers to record requests say the record is frozen.",
+     "t": "A request to delete a record freezes it and raises a legal-line alert. On a frozen record an opt-out still takes effect and is recorded; a change to consent, the buyer agreement and identity flags, client dates or an access record waits, nothing changes, and the authorized user is told; a plain log entry is refused (not kept) and the authorized user is told. When the authorized user lifts the freeze, the waiting changes are applied in the order they came. A full record request is answered that the record is frozen (Agent 01's duplicate check is not).",
      "src": "dispatcher/listing_spokes.py:187-209, 339-385, 516-522, 579-582, 712-739"
     },
     {
@@ -1917,7 +1917,7 @@
      "src": "dispatcher/listing_spokes_18.py:117-124"
     },
     {
-     "t": "Deadlines from Agent 07 become protected blocks. Two sources giving different dates for one milestone are both kept and the authorized user is asked (a second date from the same source replaces the first); a softer event already on a deadline's day is raised with the authorized user when the deadline arrives. A date moved by a signed amendment (at Agent 07) leaves its old day.",
+     "t": "Deadlines from Agent 07 become protected blocks. Two sources giving different dates for one milestone are both kept and the authorized user is asked (a second date from the same source replaces the first); a softer event already on that day when the deadline reaches Agent 18 is raised with the authorized user (one added later is not). A date moved by a signed amendment (at Agent 07) leaves its old day.",
      "src": "dispatcher/listing_spokes_18.py:269-327"
     },
     {

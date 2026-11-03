@@ -222,6 +222,15 @@ class Spoke12MarketingCampaign:
             # logged as such - never an error, never invented work.
             new_status = payload.get("status")
             self.mls_confirmed[ctx] = False
+            # 2026-11-03 (manual re-check): an ad held for a missing brokerage
+            # identification published later anyway, and a recorded exemption
+            # still opened the gate after the listing left the market
+            dropped = [k for k, d in (("held_for_brokerage_id", self.held_for_brokerage_id),
+                                      ("exempt_status", self.exempt_status)) if d.pop(ctx, None)]
+            if dropped:
+                self.hub.send(_env("12", "14", "interaction.log", ctx,
+                                   {"kind": "marketing_cleared_off_market", "status": new_status,
+                                    "cleared": dropped}))
             if ctx in self.published:
                 halted = self.published.pop(ctx)
                 self.approved_awaiting_ccp.pop(ctx, None)

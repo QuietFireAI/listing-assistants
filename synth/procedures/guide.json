@@ -72,7 +72,7 @@
     },
     {
      "p": {
-      "t": "The settings the tests start with are made up too (a few tests leave some of them out on purpose): a scoring rubric, follow-up sequences, two prohibited compliance phrases (\"perfect for young families\" and \"no kids\"), the monitored social channels, Agent 01's service area, the brokerage identification \"Synth Realty, Testville OH\", and a made-up vendor roster.",
+      "t": "The settings the tests start with are made up too (a few tests leave some of them out on purpose): a scoring rubric, follow-up sequences, two prohibited compliance phrases (\"perfect for young families\" and \"no kids\"), the monitored social channels, the office's own listing numbers for Agent 01, a Do Not Call entry, the brokerage identification \"Synth Realty, Testville OH\", and a made-up vendor roster.",
       "src": "synth/tuples/setup.jsonl:1-7; synth/tuples/run_tuples.py:92-102, 186-191; synth/tuples/config/vendor_panel.json"
      }
     },
@@ -587,7 +587,7 @@
       {
        "k": "12",
        "t": "Prepares marketing: the approved listing description and campaigns the authorized user signs, each held for release.",
-       "src": "dispatcher/listing_spokes_12.py:106-137, 278-310"
+       "src": "dispatcher/listing_spokes_12.py:106-137, 287-319"
       },
       {
        "k": "13",

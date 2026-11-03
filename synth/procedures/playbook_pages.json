@@ -78,7 +78,7 @@
    {
     "by": "12",
     "text": "With the listing active, sends the approved description for publication.",
-    "src": "run:P01:12->external campaign.publish; dispatcher/listing_spokes_12.py:181-185, 278-310"
+    "src": "run:P01:12->external campaign.publish; dispatcher/listing_spokes_12.py:181-185, 287-319"
    },
    {
     "by": "00",
@@ -132,7 +132,7 @@
  },
  {
   "id": "P02",
-  "rev": 2,
+  "rev": 3,
   "purpose": {
    "t": "Carries out a price change the authorized user signed: the record, the seller's message, buyers' matches and marketing follow the new price.",
    "src": "identity/playbooks.json P02"
@@ -163,7 +163,7 @@
    },
    {
     "by": "13",
-    "text": "Matches again: a buyer whose budget now fits is matched; a buyer already matched gets the change, not a second match (unless the new price is over that buyer's budget: then nothing is sent).",
+    "text": "Matches again: a buyer whose budget now fits is matched; a buyer already matched gets the change, not a second match (if the new price is over that buyer's budget, the buyer is sent nothing; the authorized user is asked only when the listing is in the buyer's stated area).",
     "src": "dispatcher/listing_spokes_13.py:130-154, 241-264"
    },
    {
@@ -233,7 +233,7 @@
    {
     "by": "12",
     "text": "Stops marketing; the ad still held for release would publish a pending listing, so it asks the authorized user to decline it.",
-    "src": "run:P03:12->queue clarification.request; dispatcher/listing_spokes_12.py:222-267"
+    "src": "run:P03:12->queue clarification.request; dispatcher/listing_spokes_12.py:222-276"
    },
    {
     "by": "user",
@@ -267,7 +267,7 @@
    },
    {
     "t": "Declining an ad that would publish a pending listing.",
-    "src": "dispatcher/listing_spokes_12.py:260-267"
+    "src": "dispatcher/listing_spokes_12.py:269-276"
    },
    {
     "t": "Choosing a vendor when the roster has none.",
@@ -370,7 +370,7 @@
  },
  {
   "id": "P05",
-  "rev": 2,
+  "rev": 3,
   "purpose": {
    "t": "Winds down a withdrawn or expired listing: the status changes, marketing stops, and Agents 11 (the seller), 12, 14, 06 and 01 are told.",
    "src": "identity/playbooks.json P05; dispatcher/listing_spokes_05.py:465-473, 105-123"
@@ -397,7 +397,7 @@
    {
     "by": "12",
     "text": "Stops marketing: a live ad gets a halt message; an ad still held is put to the authorized user to decline.",
-    "src": "run:P05:12->queue clarification.request; dispatcher/listing_spokes_12.py:222-267"
+    "src": "run:P05:12->queue clarification.request; dispatcher/listing_spokes_12.py:222-276"
    }
   ],
   "user_decides": [
@@ -407,13 +407,13 @@
    },
    {
     "t": "Declining any held ad.",
-    "src": "dispatcher/listing_spokes_12.py:260-267"
+    "src": "dispatcher/listing_spokes_12.py:269-276"
    }
   ],
   "never": [
    {
-    "t": "Publish anything for a listing that is off the market.",
-    "src": "dispatcher/listing_spokes_12.py:222-267"
+    "t": "Publish anything for a listing that is off the market: a live ad gets a halt (held for release), an ad still held is put to the authorized user to decline, and an ad waiting for the brokerage identification and any recorded exemption are dropped (fixed 2026-11-03).",
+    "src": "dispatcher/listing_spokes_12.py:222-270, 95-99, 106-123"
    }
   ],
   "run_note": {
@@ -461,7 +461,7 @@
    {
     "by": "clock",
     "text": "On the next daily run, Agent 13 asks again and sends the held match.",
-    "src": "dispatcher/listing_spokes_13.py:378-383; dispatcher/clock.py:56"
+    "src": "dispatcher/listing_spokes_13.py:378-383; dispatcher/clock.py:56; dispatcher/listing_spokes_13.py::if env.intent == \"record.response\":"
    },
    {
     "by": "13",
@@ -497,7 +497,7 @@
  },
  {
   "id": "P07",
-  "rev": 2,
+  "rev": 3,
   "purpose": {
    "t": "Coordinates a showing from the buyer's request to logged feedback.",
    "src": "identity/playbooks.json P07"
@@ -578,7 +578,7 @@
     "src": "dispatcher/listing_spokes_06.py (no seller availability check; grep availab finds none)"
    },
    {
-    "t": "A showing that starts from a match (Agent 13) carries no time: with the buyer's identity not verified on record it is cancelled; otherwise a listing not marked vacant gets the next-slot offer, and only a vacant, active listing reaches the calendar, where it is held for the authorized user.",
+    "t": "A showing that starts from a match (Agent 13) carries no time: with the buyer's identity not verified on record it is cancelled; otherwise, for one of the office's listings, a listing not marked vacant gets the next-slot offer and one not active goes to a status check first; any other request reaches the calendar, where it is held for the authorized user.",
     "src": "dispatcher/listing_spokes_13.py:678-713; dispatcher/listing_spokes_06.py:285-290, 517-560, 639-655, 753-776"
    }
   ]
@@ -822,13 +822,13 @@
    },
    {
     "t": "A check-in that is blocked by Agent 16 (not on the list, opted out, hard time, contact not working) is logged, again on each daily run, and the playbook stays open. A check-in Agent 16 hands to Agent 11 ends the playbook, even if Agent 11 then does not send it.",
-    "src": "identity/playbooks.json P10 ends; dispatcher/listing_spokes_16.py:71-96, 123-132"
+    "src": "identity/playbooks.json P10 ends; dispatcher/listing_spokes_16.py:71-96, 123-132; dispatcher/clock.py:61"
    }
   ]
  },
  {
   "id": "P11",
-  "rev": 2,
+  "rev": 3,
   "purpose": {
    "t": "Turns an inquiry into a scored, routed lead.",
    "src": "identity/playbooks.json P11"
@@ -880,8 +880,8 @@
   ],
   "never": [
    {
-    "t": "Score a lead before the duplicate check.",
-    "src": "dispatcher/listing_spokes.py:1122-1129, 1183-1215, 1235"
+    "t": "Score an inquiry before the duplicate check. (A past client's new business, passed on by Agent 16, goes to scoring directly without one; an open item for the owner.)",
+    "src": "dispatcher/listing_spokes.py:1122-1129, 1183-1215, 1235; dispatcher/listing_spokes_16.py:297-304; identity/routes.json (lead.captured senders 01, 16)"
    },
    {
     "t": "Contact anyone without consent on some channel (the one opt-out confirmation excepted).",
@@ -923,7 +923,7 @@
    {
     "by": "12",
     "text": "Checks the targeting (only general targeting for an area) and sends the copy to Compliance.",
-    "src": "run:P12:12->17 content.review; dispatcher/listing_spokes_12.py:332-375"
+    "src": "run:P12:12->17 content.review; dispatcher/listing_spokes_12.py:341-384"
    },
    {
     "by": "17",
@@ -944,7 +944,7 @@
   "user_decides": [
    {
     "t": "The campaign and its area.",
-    "src": "dispatcher/listing_spokes_12.py:332-375"
+    "src": "dispatcher/listing_spokes_12.py:341-384"
    },
    {
     "t": "Releasing the publication.",
@@ -954,7 +954,7 @@
   "never": [
    {
     "t": "Target individual households or demographics.",
-    "src": "dispatcher/listing_spokes_12.py:336-361; dispatcher/listing_spokes_19.py:115-127"
+    "src": "dispatcher/listing_spokes_12.py:345-370; dispatcher/listing_spokes_19.py:115-127"
    }
   ],
   "run_note": {
@@ -1315,9 +1315,9 @@
  },
  {
   "id": "P19",
-  "rev": 2,
+  "rev": 3,
   "purpose": {
-   "t": "Records property access as custody: who has access and until when, never the code by name.",
+   "t": "Records property access as custody: who has access and until when; a grant value that names the code (code, combination, PIN, password) is refused. Other fields are not screened.",
    "src": "identity/playbooks.json P19; dispatcher/listing_spokes.py:166-169, 260-306"
   },
   "starts": {
@@ -1353,8 +1353,8 @@
   ],
   "never": [
    {
-    "t": "Store an access code given by name in a signed grant, or send one (no route carries it). Messages and log entries are not screened for codes.",
-    "src": "dispatcher/listing_spokes.py:260-286, 580-586; identity/routes.json"
+    "t": "Store an access code named in a signed grant's own values, or send one (no route carries it). The screen is a word list on those values only: a closing's party, other fields and messages are not screened, and a code written without one of those words is not caught.",
+    "src": "dispatcher/listing_spokes.py:260-306, 580-586; identity/routes.json"
    }
   ],
   "run_note": {
@@ -1648,7 +1648,7 @@
   ],
   "run_note": {
    "t": "In the run a new listing from the approved feed in 44101 reaches the authorized user, marked that no comp source is connected.",
-   "src": "synth/procedures/evidence_playbooks.json P24; dispatcher/listing_spokes_19.py:62-75, 257-279"
+   "src": "synth/procedures/evidence_playbooks.json P24; dispatcher/listing_spokes_19.py:62-75, 257-279; synth/playbooks/specs/PLAYBOOKS.jsonl P24"
   },
   "not_built": [
    {

@@ -65,7 +65,7 @@
    },
    {
     "t": "The authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer that identity must be verified first is requested from Agent 11. That message's wording waits for the authorized user's signature; until then Agent 11 does not send it (it is logged), and signing later does not send it (owner decision of 2026-10-28).",
-    "src": "dispatcher/listing_spokes_06.py::showing cancelled: the requester's identity; dispatcher/listing_spokes_06.py::{\"template\": \"identity_verification_needed\"}; check:06-02:envelope.persisted:clarification.request; check:06-02:envelope.persisted:client.message.request; check:06-02:envelope.persisted:client.message.send"
+    "src": "dispatcher/listing_spokes_06.py:535 (showing cancelled: the requester's identity); dispatcher/listing_spokes_06.py:540 ({\"template\": \"identity_verification_needed\"}); check:06-02:envelope.persisted:clarification.request; check:06-02:envelope.persisted:client.message.request; check:06-02:envelope.persisted:client.message.send; dispatcher/listing_spokes_11.py:256-266, 429-440"
    },
    {
     "t": "Identity counts as verified only when the client's record at Agent 14 says so: the authorized user records it with a signed setting, or an agent's log entry carries it. Agent 06 does no checking of its own.",
