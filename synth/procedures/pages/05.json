@@ -189,7 +189,7 @@
   "steps": [
    {
     "t": "The dispatcher refuses it before Agent 05 sees it, records an integrity violation and notifies the authorized user.",
-    "src": "dispatcher/hub.py:559-566; check:05-06:integrity.violation; check:05-06:reject"
+    "src": "dispatcher/hub.py:592-599; check:05-06:integrity.violation; check:05-06:reject"
    },
    {
     "t": "The status does not change.",

@@ -240,9 +240,10 @@ def test_protected_deadline_claim_holds_for_human_and_bumps_only_on_confirm(tmp_
     assert any("human confirmation required" in r for r in reasons)
 
     # human confirms via signed config.update -> bump executes + notices
+    (bump_id,) = list(spoke.pending_bumps[ctx])        # the bump the queue item names
     env = Envelope(from_agent="human", to_agent="06", intent="config.update",
                    client_context_id=ctx,
-                   payload={"confirm_protected_bump": True},
+                   payload={"confirm_protected_bump": True, "bump_id": bump_id},
                    provenance={"source": "human", "captured_at": "runtime",
                                "verbatim_available": True})
     signer.sign(env)

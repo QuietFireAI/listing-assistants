@@ -33,12 +33,12 @@
    {
     "by": "00",
     "text": "Holds the booking: it goes to an outside vendor.",
-    "src": "run:P01:09->external vendor.schedule; dispatcher/hub.py:604-646"
+    "src": "run:P01:09->external vendor.schedule; dispatcher/hub.py:637-685"
    },
    {
     "by": "user",
     "text": "Releases the booking.",
-    "src": "dispatcher/hub.py:325-353"
+    "src": "dispatcher/hub.py:336-386"
    },
    {
     "by": "outside",
@@ -83,12 +83,12 @@
    {
     "by": "00",
     "text": "Holds the publication: it goes to the public.",
-    "src": "run:P01:12->external campaign.publish; dispatcher/hub.py:604-646"
+    "src": "run:P01:12->external campaign.publish; dispatcher/hub.py:637-685"
    },
    {
     "by": "user",
     "text": "Releases the publication when ready.",
-    "src": "dispatcher/hub.py:325-353"
+    "src": "dispatcher/hub.py:336-386"
    }
   ],
   "user_decides": [
@@ -98,7 +98,7 @@
    },
    {
     "t": "Releasing the photographer's booking and the publication.",
-    "src": "dispatcher/hub.py:325-353"
+    "src": "dispatcher/hub.py:336-386"
    },
    {
     "t": "Any conflict between the photos and the data.",
@@ -112,7 +112,7 @@
    },
    {
     "t": "Publish before the listing is active (or recorded as exempt, with the seller's disclosure on file) and the authorized user releases it.",
-    "src": "dispatcher/listing_spokes_12.py:95-99; dispatcher/hub.py:604-646"
+    "src": "dispatcher/listing_spokes_12.py:95-99; dispatcher/hub.py:637-685"
    },
    {
     "t": "Describe a feature that is not in the data.",
@@ -295,7 +295,7 @@
   "rev": 2,
   "purpose": {
    "t": "Runs an open house on an active listing: the calendar, signage, visitors who become leads, and the result.",
-   "src": "identity/playbooks.json P04; dispatcher/listing_spokes_06.py:105-173"
+   "src": "identity/playbooks.json P04; dispatcher/listing_spokes_06.py:107-175"
   },
   "starts": {
    "t": "The authorized user signs the open house's start and end to Agent 06.",
@@ -309,7 +309,7 @@
    {
     "by": "user",
     "text": "Signs the open house time, for a listing active on Agent 05's record (otherwise nothing is scheduled and the authorized user is asked).",
-    "src": "run:P04:human->06 config.update; dispatcher/listing_spokes_06.py:105-136"
+    "src": "run:P04:human->06 config.update; dispatcher/listing_spokes_06.py:107-138"
    },
    {
     "by": "06",
@@ -329,18 +329,18 @@
    {
     "by": "user",
     "text": "Signs the result: attendance and the feedback heard.",
-    "src": "dispatcher/listing_spokes_06.py:153-173"
+    "src": "dispatcher/listing_spokes_06.py:155-175"
    },
    {
     "by": "06",
     "text": "Logs the result with Agent 14.",
-    "src": "dispatcher/listing_spokes_06.py:170-173"
+    "src": "dispatcher/listing_spokes_06.py:172-175"
    }
   ],
   "user_decides": [
    {
     "t": "The time and the result.",
-    "src": "dispatcher/listing_spokes_06.py:105-173"
+    "src": "dispatcher/listing_spokes_06.py:107-175"
    },
    {
     "t": "Vendors when the roster has none.",
@@ -354,7 +354,7 @@
   "never": [
    {
     "t": "Schedule an open house for a listing that is not active.",
-    "src": "dispatcher/listing_spokes_06.py:127-136"
+    "src": "dispatcher/listing_spokes_06.py:129-138"
    }
   ],
   "run_note": {
@@ -524,12 +524,12 @@
    {
     "by": "06",
     "text": "Runs its checks (access, buyer agreement, identity, notice, status, clashes; see Agent 06).",
-    "src": "dispatcher/listing_spokes_06.py:470-560, 644-753"
+    "src": "dispatcher/listing_spokes_06.py:488-578, 662-776"
    },
    {
     "by": "06",
     "text": "Puts the showing on the calendar; if the calendar refuses it, the showing is held for the authorized user.",
-    "src": "run:P07:06->18 calendar.event; dispatcher/listing_spokes_06.py:753-776"
+    "src": "run:P07:06->18 calendar.event; dispatcher/listing_spokes_06.py:776-799"
    },
    {
     "by": "06",
@@ -539,7 +539,7 @@
    {
     "by": "clock",
     "text": "On the daily run after the showing, Agent 06 asks for feedback through Agent 11.",
-    "src": "dispatcher/listing_spokes_06.py:316-365"
+    "src": "dispatcher/listing_spokes_06.py:325-374"
    },
    {
     "by": "outside",
@@ -549,23 +549,23 @@
    {
     "by": "11",
     "text": "Passes the feedback to Agent 06, which logs it.",
-    "src": "run:P07:11->06 showing.feedback_response; dispatcher/listing_spokes_06.py:580-602"
+    "src": "run:P07:11->06 showing.feedback_response; dispatcher/listing_spokes_06.py:598-620"
    }
   ],
   "user_decides": [
    {
     "t": "A showing the calendar could not take, and clashes.",
-    "src": "dispatcher/listing_spokes_06.py:679-776"
+    "src": "dispatcher/listing_spokes_06.py:697-799"
    }
   ],
   "never": [
    {
     "t": "Schedule a showing without the buyer agreement.",
-    "src": "dispatcher/listing_spokes_06.py:500-513"
+    "src": "dispatcher/listing_spokes_06.py:518-531"
    },
    {
     "t": "Give out access.",
-    "src": "dispatcher/listing_spokes_06.py:474-496"
+    "src": "dispatcher/listing_spokes_06.py:492-514"
    }
   ],
   "run_note": {
@@ -579,7 +579,7 @@
    },
    {
     "t": "A showing that starts from a match (Agent 13) carries no time: with the buyer's identity not verified on record it is cancelled; otherwise, for one of the office's listings, a listing not marked vacant gets the next-slot offer and one not active goes to a status check first; any other request reaches the calendar, where it is held for the authorized user.",
-    "src": "dispatcher/listing_spokes_13.py:678-713; dispatcher/listing_spokes_06.py:285-290, 517-560, 639-655, 753-776"
+    "src": "dispatcher/listing_spokes_13.py:678-713; dispatcher/listing_spokes_06.py:294-299, 535-578, 657-673, 776-799"
    }
   ]
  },
@@ -933,12 +933,12 @@
    {
     "by": "00",
     "text": "Holds the publication.",
-    "src": "run:P12:12->external campaign.publish; dispatcher/hub.py:604-646"
+    "src": "run:P12:12->external campaign.publish; dispatcher/hub.py:637-685"
    },
    {
     "by": "user",
     "text": "Releases it.",
-    "src": "dispatcher/hub.py:325-353"
+    "src": "dispatcher/hub.py:336-386"
    }
   ],
   "user_decides": [
@@ -948,7 +948,7 @@
    },
    {
     "t": "Releasing the publication.",
-    "src": "dispatcher/hub.py:325-353"
+    "src": "dispatcher/hub.py:336-386"
    }
   ],
   "never": [
@@ -1257,7 +1257,7 @@
   },
   "starts": {
    "t": "On the signed weekday, Agent 06 prepares each listing's report.",
-   "src": "identity/playbooks.json P18 starts; dispatcher/listing_spokes_06.py:199-242"
+   "src": "identity/playbooks.json P18 starts; dispatcher/listing_spokes_06.py:201-244"
   },
   "ends": {
    "t": "The report is sent to the seller (or skipped).",
@@ -1267,12 +1267,12 @@
    {
     "by": "user",
     "text": "Signs the weekday and which listings report to which seller.",
-    "src": "dispatcher/listing_spokes_06.py:175-197"
+    "src": "dispatcher/listing_spokes_06.py:177-199"
    },
    {
     "by": "clock",
     "text": "On that weekday's daily run, Agent 06 counts each listing's showings in the last 7 days and how many have feedback.",
-    "src": "dispatcher/listing_spokes_06.py:199-235"
+    "src": "dispatcher/listing_spokes_06.py:201-237"
    },
    {
     "by": "06",
@@ -1293,13 +1293,13 @@
   "user_decides": [
    {
     "t": "Whether each report goes.",
-    "src": "dispatcher/listing_spokes_06.py:263-273"
+    "src": "dispatcher/listing_spokes_06.py:270-282"
    }
   ],
   "never": [
    {
     "t": "Send a report the authorized user did not continue.",
-    "src": "dispatcher/listing_spokes_06.py:236-240, 263-273"
+    "src": "dispatcher/listing_spokes_06.py:238-242, 270-282"
    }
   ],
   "run_note": {
@@ -1309,7 +1309,7 @@
   "not_built": [
    {
     "t": "Market movement is not in the report: showings and feedback counts only.",
-    "src": "dispatcher/listing_spokes_06.py:231-233"
+    "src": "dispatcher/listing_spokes_06.py:233-235"
    }
   ]
  },
@@ -1413,7 +1413,7 @@
   "user_decides": [
    {
     "t": "Vacant or occupied, and releasing each booking.",
-    "src": "dispatcher/listing_spokes_05.py:125-151; dispatcher/hub.py:325-353"
+    "src": "dispatcher/listing_spokes_05.py:125-151; dispatcher/hub.py:336-386"
    }
   ],
   "never": [
@@ -1502,7 +1502,7 @@
    {
     "by": "06",
     "text": "Logs the buyer's feedback.",
-    "src": "dispatcher/listing_spokes_06.py:580-602"
+    "src": "dispatcher/listing_spokes_06.py:598-620"
    },
    {
     "by": "13",

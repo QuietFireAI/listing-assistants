@@ -578,7 +578,7 @@ def test_p18_weekly_seller_report_holds_for_the_broker_then_goes_to_the_seller(t
     out = send_tick(sw.hub, "06", "2026-10-12", checks=["seller_weekly_report"])   # Monday
     assert out["results"][0]["result"] == "held:['L8']"
     [w] = sw.hitl.get_pending_waits("S8-seller")
-    assert sw.spokes["06"].held_reports["S8-seller"] == {
+    assert sw.spokes["06"].held_reports["S8-seller|L8"] == {
         "listing_id": "L8", "week_ending": "2026-10-12", "showings": 2, "feedback_received": 1}
     assert not _persisted(sw, "client.message.request", "S8-seller")              # nothing before you decide
     out = send_tick(sw.hub, "06", "2026-10-12", checks=["seller_weekly_report"])

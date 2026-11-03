@@ -17,7 +17,7 @@
    },
    {
     "t": "When the event is a showing from Agent 06, Agent 18 tells Agent 06 it was not added; Agent 06 then holds the showing for the authorized user instead of confirming it to the buyer: continue confirms it, cancel sends nothing.",
-    "src": "dispatcher/listing_spokes_18.py:117-124; dispatcher/listing_spokes_06.py:760-776, 244-262"
+    "src": "dispatcher/listing_spokes_18.py:117-124; dispatcher/listing_spokes_06.py:783-799, 246-269"
    },
    {
     "t": "Only an exact time match counts; events at different times on the same day do not conflict here.",
@@ -173,7 +173,7 @@
    },
    {
     "t": "When the event is a showing from Agent 06, Agent 18 tells Agent 06 it was not added; Agent 06 then holds the showing for the authorized user instead of confirming it to the buyer: continue confirms it, cancel sends nothing.",
-    "src": "dispatcher/listing_spokes_18.py:117-124; dispatcher/listing_spokes_06.py:760-776, 244-262"
+    "src": "dispatcher/listing_spokes_18.py:117-124; dispatcher/listing_spokes_06.py:783-799, 246-269"
    }
   ],
   "never": [
@@ -317,7 +317,7 @@
    },
    {
     "t": "No way in: both agents that send calendar events mark every one as time-zone confirmed.",
-    "src": "spec:18-09; dispatcher/listing_spokes_06.py:758; dispatcher/listing_spokes_09.py:293-295"
+    "src": "spec:18-09; dispatcher/listing_spokes_06.py:781; dispatcher/listing_spokes_09.py:293-295"
    }
   ],
   "never": [

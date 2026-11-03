@@ -8,20 +8,20 @@
   },
   "when": {
    "t": "A well-formed message arrives whose kind of work is on no route of the track.",
-   "src": "tuple:00-01; spec:00-01; dispatcher/hub.py:590-603"
+   "src": "tuple:00-01; spec:00-01; dispatcher/hub.py:623-636"
   },
   "steps": [
    {
     "t": "The dispatcher checks every message against the closed track: the fixed list of who may send what to whom.",
-    "src": "dispatcher/hub.py:590-591"
+    "src": "dispatcher/hub.py:623-624"
    },
    {
     "t": "A kind of message the track does not know at all is not delivered to anyone.",
-    "src": "dispatcher/hub.py:592-603; flow:00-01:external->01 listing.mystery"
+    "src": "dispatcher/hub.py:625-636; flow:00-01:external->01 listing.mystery"
    },
    {
     "t": "It is held in the clarification queue, with its sender and contents, and the authorized user is notified.",
-    "src": "dispatcher/hub.py:597-603; check:00-01:hold.clarification"
+    "src": "dispatcher/hub.py:630-636; check:00-01:hold.clarification"
    }
   ],
   "never": [
@@ -36,7 +36,7 @@
   },
   "you_see": {
    "t": "The held message in the clarification queue.",
-   "src": "dispatcher/hub.py:597-598"
+   "src": "dispatcher/hub.py:630-631"
   },
   "test": {
    "t": "An outside system sends \"listing.mystery\" to Agent 01, a kind of message no route carries.",
@@ -52,20 +52,20 @@
   },
   "when": {
    "t": "A message that only the authorized user may send (a listing or price change, a setting, a release or decision) arrives without a valid signature.",
-   "src": "tuple:00-02; dispatcher/hub.py:55-64"
+   "src": "tuple:00-02; dispatcher/hub.py:66-75"
   },
   "steps": [
    {
     "t": "The dispatcher checks the signature on every message that carries the authorized user's authority, before the route and before recording it as work.",
-    "src": "dispatcher/hub.py:559-566"
+    "src": "dispatcher/hub.py:592-599"
    },
    {
     "t": "The signature does not verify, so the message is refused and never reaches an agent.",
-    "src": "dispatcher/hub.py:566; check:00-02:reject"
+    "src": "dispatcher/hub.py:599; check:00-02:reject"
    },
    {
     "t": "The refusal is recorded as an integrity violation, and the authorized user is notified.",
-    "src": "dispatcher/hub.py:562-565; check:00-02:integrity.violation; check:00-02:human.notified"
+    "src": "dispatcher/hub.py:595-598; check:00-02:integrity.violation; check:00-02:human.notified"
    }
   ],
   "never": [
@@ -133,15 +133,15 @@
   "steps": [
    {
     "t": "A failure inside the dispatcher's own handling of a message halts it at once. (A failure inside an agent is caught: the message goes to the dead-letter list and a system-error alert is raised, without halting.)",
-    "src": "dispatcher/hub.py:490-513; dispatcher/hub.py:696-717"
+    "src": "dispatcher/hub.py:523-546; dispatcher/hub.py:735-756"
    },
    {
     "t": "It tries to alert the authorized user directly, outside the record, because the record may be what failed.",
-    "src": "dispatcher/hub.py:515-528"
+    "src": "dispatcher/hub.py:548-561"
    },
    {
     "t": "Every later message is refused with \"halted\" until the system is restarted.",
-    "src": "dispatcher/hub.py:496-499; check:00-04:harness.halted_result"
+    "src": "dispatcher/hub.py:529-532; check:00-04:harness.halted_result"
    }
   ],
   "never": [
@@ -156,7 +156,7 @@
   },
   "you_see": {
    "t": "A system-halt alert; the system takes nothing in until it is restarted.",
-   "src": "dispatcher/hub.py:515-528"
+   "src": "dispatcher/hub.py:548-561"
   },
   "test": {
    "t": "A hot lead (T1) comes in normally. Then every queue write is made to fail; the next hot lead (T2) raises an alert that cannot be queued and the dispatcher halts. A third lead (T3) is refused and never enters the record.",
@@ -257,7 +257,7 @@
   "steps": [
    {
     "t": "The dispatcher checks the message's form; a sender-set sequence number fails the check.",
-    "src": "dispatcher/core.py:62-63; dispatcher/hub.py:555-558"
+    "src": "dispatcher/core.py:62-63; dispatcher/hub.py:588-591"
    },
    {
     "t": "The message is refused; nothing is delivered.",
@@ -297,11 +297,11 @@
   "steps": [
    {
     "t": "The trace is checked when it arrives; one with no reasoning is marked tainted.",
-    "src": "dispatcher/hub.py:218-238"
+    "src": "dispatcher/hub.py:229-249"
    },
    {
     "t": "It goes to the integrity queue for the authorized user.",
-    "src": "dispatcher/hub.py:228-236"
+    "src": "dispatcher/hub.py:239-247"
    },
    {
     "t": "No way in yet: the twenty agents always write a trace; this fires only on an empty model trace, which this test runner does not have.",
@@ -316,7 +316,7 @@
   ],
   "you_see": {
    "t": "An integrity item naming the tainted result.",
-   "src": "dispatcher/hub.py:228-236"
+   "src": "dispatcher/hub.py:239-247"
   },
   "test": {
    "t": "",
@@ -337,11 +337,11 @@
   "steps": [
    {
     "t": "The signature verifies.",
-    "src": "dispatcher/hub.py:559-589"
+    "src": "dispatcher/hub.py:592-622"
    },
    {
     "t": "The route is then checked; it is not on the track, so the message is refused.",
-    "src": "dispatcher/hub.py:590-595; check:00-09:reject"
+    "src": "dispatcher/hub.py:623-628; check:00-09:reject"
    },
    {
     "t": "The agent never receives it.",
@@ -509,15 +509,15 @@
   "steps": [
    {
     "t": "A message is recorded before it is delivered; if the write fails, it is not delivered, not numbered and not acknowledged.",
-    "src": "dispatcher/hub.py:647-658"
+    "src": "dispatcher/hub.py:686-697"
    },
    {
     "t": "The failure halts the dispatcher, which tries to alert the authorized user directly.",
-    "src": "dispatcher/hub.py:500-528"
+    "src": "dispatcher/hub.py:533-561"
    },
    {
     "t": "Every later message is refused until the system is restarted on a record it can write.",
-    "src": "dispatcher/hub.py:496-499; check:00-13:harness.halted_result"
+    "src": "dispatcher/hub.py:529-532; check:00-13:harness.halted_result"
    }
   ],
   "never": [
@@ -532,7 +532,7 @@
   },
   "you_see": {
    "t": "A system-halt alert; the system takes nothing in until it is restarted.",
-   "src": "dispatcher/hub.py:515-528"
+   "src": "dispatcher/hub.py:548-561"
   },
   "test": {
    "t": "A lead (T1) comes in normally. Then every write to the record is made to fail. The next two leads (T2, T3) never enter the record.",
@@ -673,7 +673,7 @@
   "steps": [
    {
     "t": "The failure is recorded with the alert and the service's answer (its status, the channel and the error), never the service's reply body.",
-    "src": "dispatcher/hub.py:460-466; check:00-17:human.notify_failed"
+    "src": "dispatcher/hub.py:493-499; check:00-17:human.notify_failed"
    },
    {
     "t": "The alert itself stands.",
@@ -681,13 +681,13 @@
    },
    {
     "t": "Nothing else waits for the text.",
-    "src": "dispatcher/hub.py:432-435"
+    "src": "dispatcher/hub.py:465-468"
    }
   ],
   "never": [
    {
     "t": "Record a failed text as delivered.",
-    "src": "dispatcher/hub.py:423-466"
+    "src": "dispatcher/hub.py:456-499"
    }
   ],
   "you_see": {

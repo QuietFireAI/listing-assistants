@@ -85,20 +85,22 @@ class Spoke06ShowingScheduler:
         # daily runs on one day do not send two asks
         self.feedback_last_ask: dict[str, str] = {}
         self.pending_status_checks: dict[str, dict] = {}  # ctx -> held request
-        self.pending_bumps: dict[str, dict] = {}  # ctx -> held protected-bump request
+        self.pending_bumps: dict[str, dict] = {}  # ctx -> {bump_id: held protected-bump request}
         # per-state or per-property minimum notice hours for occupied homes
         self.min_notice_hours = min_notice_hours or {"default": 24}
         # P18 Seller Weekly Report (J3, 2026-10-12). Broker-signed:
         # {"weekday": 0-6, "listings": {listing_id: seller context}}. None = off.
         self.seller_reports: dict | None = None
         self.seller_report_weeks: dict[str, str] = {}   # listing_id -> ISO week reported
-        self.held_reports: dict[str, dict] = {}         # seller ctx -> report awaiting the broker
+        # "<seller ctx>|<listing id>" -> report awaiting the broker (2026-11-03,
+        # audit 18: keyed by seller only, one decision released another report)
+        self.held_reports: dict[str, dict] = {}
         self.open_houses: dict[str, dict] = {}          # listing ctx -> the scheduled open house (P04)
         # Owner decision 2026-10-27: a showing is confirmed to the buyer only
         # once it is on the calendar. 18 answers calendar.conflict when it
         # did not add it; the showing is then held for the broker.
         self.calendar_refused: dict[str, dict] = {}     # ctx -> 18's answer, read once
-        self.held_showings: dict[str, dict] = {}        # ctx -> showing awaiting the broker
+        self.held_showings: dict[str, dict] = {}        # showing key -> showing awaiting the broker
         register_spoke(hub, "06", self)
         register_resumer(hub, "06", self._resume)
 
@@ -232,7 +234,7 @@ class Spoke06ShowingScheduler:
                       "showings": len(shown),
                       "feedback_received": sum(1 for s in shown if s.get("feedback_received"))}
             self.seller_report_weeks[listing_id] = week
-            self.held_reports[seller_ctx] = report
+            self.held_reports[f"{seller_ctx}|{listing_id}"] = report
             hold_for_human(self.hub, "06", seller_ctx, "client.message.request",
                            f"weekly seller report for {listing_id}: {report['showings']} "
                            f"showing(s), {report['feedback_received']} with feedback. "
@@ -246,8 +248,13 @@ class Spoke06ShowingScheduler:
         a showing the calendar did not take."""
         ctx = ws.client_context_id
         d = decision_of(decision_payload)
-        if ctx in self.held_showings and d != "other":
-            showing = self.held_showings.pop(ctx)
+        # the decision acts on what THIS wait held, named in its own payload
+        # (2026-11-03, audit 18: a decision on one wait released another item)
+        held = getattr(ws, "original_payload", None) or {}
+        skey = (self._showing_key(ctx, held["showing"]) if isinstance(held.get("showing"), dict)
+                else None)
+        if skey is not None and skey in self.held_showings and d != "other":
+            showing = self.held_showings.pop(skey)
             if d == "cancel":
                 self.hub.send(_env("06", "14", "interaction.log", ctx,
                                    {"kind": "showing_not_confirmed", "time": showing.get("time"),
@@ -260,10 +267,12 @@ class Spoke06ShowingScheduler:
                                {"kind": "showing_confirmed", "time": showing.get("time"),
                                 "after": "broker continued past a calendar conflict"}))
             return "continued: showing confirmed"
-        report = self.held_reports.get(ctx)
+        rkey = (f"{ctx}|{held['report'].get('listing_id')}" if isinstance(held.get("report"), dict)
+                else None)
+        report = self.held_reports.get(rkey) if rkey else None
         if report is None or d == "other":
             return "nothing held for this context" if report is None else "decision not continue/cancel"
-        self.held_reports.pop(ctx)
+        self.held_reports.pop(rkey)
         if d == "cancel":
             self.hub.send(_env("06", "14", "interaction.log", ctx,
                                {"kind": "seller_report_skipped", **report}))
@@ -386,13 +395,22 @@ class Spoke06ShowingScheduler:
             # Human's confirmation of a held protected-deadline bump - the
             # only path that ever executes it. config.update reaches this
             # handler only via the hub's signed-authority pipeline.
-            held = self.pending_bumps.pop(ctx, None)
+            # the signed confirmation names one bump (2026-11-03, audit 31: a
+            # bare yes acted on whichever bump was held last for this buyer)
+            bump_id = env.payload.get("bump_id")
+            held = (self.pending_bumps.get(ctx) or {}).pop(bump_id, None)
+            if self.pending_bumps.get(ctx) == {}:
+                self.pending_bumps.pop(ctx)
             if held is None:
                 self.hub.ingest_spoke_trace(
                     "06", env.envelope_id,
-                    thought=f"bump confirmation for ctx={ctx!r}, but no bump is "
-                            f"held for this context - nothing moved",
+                    thought=f"bump confirmation for ctx={ctx!r} names bump {bump_id!r}, "
+                            f"which is not held - nothing moved",
                     result="no held bump")
+                self.hub.send(_env("06", "queue", "clarification.request", ctx,
+                                   {"reason": f"bump confirmation refused: it must name a held "
+                                              f"bump_id (named {bump_id!r}); nothing moved",
+                                    "held_bump_ids": sorted(self.pending_bumps.get(ctx) or {})}))
                 return
             if not env.payload["confirm_protected_bump"]:
                 self.hub.ingest_spoke_trace(
@@ -726,17 +744,22 @@ class Spoke06ShowingScheduler:
                         f"caller-writable, so the bump goes to human "
                         f"confirmation, never executed on the claim alone",
                 result="held: bump_requires_human_confirmation")
-            self.pending_bumps[ctx] = {"requested_time": requested_time,
-                                       "buffer_minutes": buffer_minutes,
-                                       "payload": payload,
-                                       "displaced": [(c, s["time"]) for c, s in conflicting_pairs],
-                                       "conflicting_times":
-                                           [s["time"] for s in conflicting]}
+            # the id names what is being approved: the listing and the time
+            bump_id = f"{payload.get('listing_id')}@{requested_time}"
+            self.pending_bumps.setdefault(ctx, {})[bump_id] = {
+                "requested_time": requested_time,
+                "buffer_minutes": buffer_minutes,
+                "payload": payload,
+                "displaced": [(c, s["time"]) for c, s in conflicting_pairs],
+                "conflicting_times": [s["time"] for s in conflicting]}
             self.hub.send(_env("06", "queue", "clarification.request", ctx,
                                {"reason": "protected-deadline claim would "
                                          "bump confirmed showing(s) - human "
                                          "confirmation required, the claim "
-                                         "alone never bumps",
+                                         "alone never bumps; confirm with a signed "
+                                         "confirm_protected_bump naming this bump_id",
+                                "bump_id": bump_id,
+                                "listing_id": payload.get("listing_id"),
                                 "requested_time": requested_time,
                                 "conflicting_times":
                                     [s["time"] for s in conflicting]}))
@@ -760,7 +783,7 @@ class Spoke06ShowingScheduler:
         refused = self.calendar_refused.pop(ctx, None)
         if refused is not None:
             showing = {"time": requested_time, "listing_id": listing_id}
-            self.held_showings[ctx] = showing
+            self.held_showings[self._showing_key(ctx, showing)] = showing
             self.hub.ingest_spoke_trace(
                 "06", env.envelope_id,
                 thought=f"the calendar (18) did not take the showing at {requested_time!r} - "

@@ -28,14 +28,19 @@ What each menu item does, as the agent on that line:
   on_record()               the ids of the envelopes on the record (Agent 18
                             used to read the whole log; it needs only these)
   file_record(...)          files into a client's drawer (agents 04 05 07 08
-                            14 15); the drawers stay with the dispatcher
+                            14 15), only the drawer of the client whose
+                            message it is handling; the drawers stay with
+                            the dispatcher
   hold(...)                 a hold for the broker (HITL), as this agent
   phase_gate(position)      a MANNERS re-injection point
-  decide(...)/decision_status   the decision engine (Agent 02 only)
+  decide(...)/decision_status   the decision engine (Agent 02 only), with
+                            lead data leaving the machine only when the
+                            broker's signed allow_external says so
   draft_gate()/draft_remarks(...)   model drafting (Agent 04 only)
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import secrets
 import socket
@@ -53,10 +58,11 @@ ONLY_FOR = {
 
 # the kinds of record line an agent writes itself (everything else on the
 # record is written by the dispatcher: envelopes, acks, state, signatures)
+# 2026-11-03 (audit 39): the drawer.* lines are written by the dispatcher's
+# own file_record, never by an agent, so an agent cannot forge a filing
 AGENT_NOTE_KINDS = frozenset({
     "config.load", "decision.lead", "decision.engine", "drafting.mode",
-    "drafting.model_used", "drafting.model_unavailable", "drawer.provisioned",
-    "drawer.identity_conflict", "drawer.filed", "drawer.refused", "sweep.error",
+    "drafting.model_used", "drafting.model_unavailable", "sweep.error",
     "handoff.failed", "config.unchanged", "config.unrecognized"})
 
 CALL_TIMEOUT_S = 120.0
@@ -80,6 +86,32 @@ def stopped_on_record(audit) -> dict:
         elif k == "portal.agent_cleared":
             out.pop(str(e.get("agent")), None)
     return out
+
+
+def _signed_allow_external(env_record: dict):
+    """The allow_external a hub-verified config.update to Agent 02 sets, or
+    None when it sets none (a rejected setting sets nothing, as in 02)."""
+    if env_record.get("intent") != "config.update" or str(env_record.get("to_agent")) != "02":
+        return None
+    de = (env_record.get("payload") or {}).get("decision_engine")
+    if de is None:
+        return None
+    from .listing_spokes_02 import engine_setting_problems
+    if engine_setting_problems(de) or "allow_external" not in de:
+        return None
+    return de["allow_external"]
+
+
+def allow_external_on_record(audit) -> bool:
+    """The broker's last signed allow_external on the record (default no).
+    config.update is persisted only after the hub verified its signature."""
+    value = False
+    for e in audit.read():
+        if e.get("kind") == "envelope.persisted":
+            v = _signed_allow_external(e)
+            if v is not None:
+                value = v
+    return value
 
 
 def system_id(state_dir: str) -> str:
@@ -145,8 +177,15 @@ class RemoteSpoke:
         self._portal_apply(out.get("state"))
 
     def handle(self, env: Envelope):
-        out = self._portal_team.call(self._portal_id, "deliver", {"envelope": env},
-                                     message=env)
+        team = self._portal_team
+        # the hub delivers a config.update only once its signature is
+        # verified: the dispatcher keeps the broker's allow_external itself
+        # (audit 37), set before delivery so 02's own status check sees it
+        signed = _signed_allow_external(env.to_record()) if self._portal_id == "02" else None
+        if signed is not None:
+            team.allow_external = signed
+        with team.handling(self._portal_id, env.client_context_id):
+            out = team.call(self._portal_id, "deliver", {"envelope": env}, message=env)
         self._portal_apply(out.get("state"))
         if out.get("tick_results"):
             from . import clock
@@ -154,8 +193,10 @@ class RemoteSpoke:
         return out.get("result")
 
     def resume(self, wait_state, decision):
-        out = self._portal_team.call(self._portal_id, "resume",
-                                     {"wait_state": wait_state, "decision": decision})
+        team = self._portal_team
+        with team.handling(self._portal_id, getattr(wait_state, "client_context_id", None)):
+            out = team.call(self._portal_id, "resume",
+                            {"wait_state": wait_state, "decision": decision})
         self._portal_apply(out.get("state"))
         return out.get("result")
 
@@ -189,7 +230,24 @@ class Team:
         # an agent stopped and not yet cleared stays stopped across restarts
         # of the dispatcher: the record says so, not a file beside it
         self.stopped.update(stopped_on_record(hub.audit))
+        # the broker's signed decision_engine.allow_external, kept here: an
+        # agent cannot widen it (audit 37, 2026-11-03)
+        self.allow_external = allow_external_on_record(hub.audit)
+        # the client(s) each agent is handling right now: it files only for
+        # those (audit 38, 2026-11-03)
+        self.active: dict[str, list] = {}
         os.makedirs(sockets_dir, exist_ok=True)
+
+    @contextlib.contextmanager
+    def handling(self, agent_id: str, ctx):
+        """While an agent handles a message (or a decision on its hold), the
+        client it is for."""
+        stack = self.active.setdefault(agent_id, [])
+        stack.append(ctx)
+        try:
+            yield
+        finally:
+            stack.pop()
 
     # ------------------------------------------------------------ lines
     def socket_path(self, agent_id: str) -> str:
@@ -405,6 +463,11 @@ class Team:
         def file_record(agent_id, ctx, category, name, record, identity=None):
             live("file_record")
             as_me(agent_id, "a drawer filing")
+            if ctx not in self.active.get(aid, []):
+                self.violation(aid, "drawer_context",
+                               f"filed into client {ctx!r}'s drawer while handling "
+                               f"{self.active.get(aid) or 'no message'}")
+                raise Refused(f"agent {aid} files only for the client it is handling")
             from .drawer_filing import file_record as _file
             from .handoff_guard import guard
             return _file(guard(hub, aid), aid, ctx, category, name, record, identity)
@@ -422,11 +485,19 @@ class Team:
             return m.phase_gate(position) if m is not None else None
 
         def _adapter(allow_external):
+            # lead data leaves the machine only on the broker's signature,
+            # which the dispatcher holds (audit 37): the agent may narrow it,
+            # never widen it
+            if allow_external is not False and not (allow_external is True and self.allow_external):
+                self.violation(aid, "unsigned_setting",
+                               f"asked for allow_external={allow_external!r}; the broker's "
+                               f"signed setting is {self.allow_external!r}")
+                raise Refused("allow_external is the broker's signed setting")
             a = getattr(hub, "decision_adapter", None)
             if a is None:
                 from .decision_adapter import JevDecisionAdapter
                 a = JevDecisionAdapter()
-            a.allow_external = bool(allow_external)
+            a.allow_external = allow_external
             return a
 
         def decide(client_context_id, payload, rubric, confidence_threshold, allow_external):

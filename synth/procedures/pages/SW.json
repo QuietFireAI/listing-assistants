@@ -49,7 +49,7 @@
   "steps": [
    {
     "t": "The dispatcher refuses the message.",
-    "src": "dispatcher/hub.py:590-595; check:SW-02:reject"
+    "src": "dispatcher/hub.py:623-628; check:SW-02:reject"
    },
    {
     "t": "The run is halted and an integrity violation records it as a defect in the playbook, to be fixed in the playbook, not decided on the spot.",
@@ -224,12 +224,12 @@
   },
   "when": {
    "t": "A message with an ID the dispatcher has already seen arrives.",
-   "src": "dispatcher/hub.py:532-535"
+   "src": "dispatcher/hub.py:565-568"
   },
   "steps": [
    {
     "t": "The dispatcher answers it as a duplicate and does nothing else with it.",
-    "src": "dispatcher/hub.py:535-538; check:SW-07:dedupe.hit; check:SW-07:envelope.persisted:lead.captured"
+    "src": "dispatcher/hub.py:568-571; check:SW-07:dedupe.hit; check:SW-07:envelope.persisted:lead.captured"
    }
   ],
   "never": [
@@ -360,16 +360,16 @@
   },
   "when": {
    "t": "A message would go outside the system to a vendor, another party or the public.",
-   "src": "dispatcher/hub.py:604-611"
+   "src": "dispatcher/hub.py:637-644"
   },
   "steps": [
    {
     "t": "The dispatcher holds it until the authorized user signs its release.",
-    "src": "dispatcher/hub.py:611-646; check:SW-11:absolute_signal.hold"
+    "src": "dispatcher/hub.py:644-685; check:SW-11:absolute_signal.hold"
    },
    {
     "t": "Messages between the agents, and to the authorized user, go on.",
-    "src": "dispatcher/hub.py:604-610"
+    "src": "dispatcher/hub.py:637-643"
    }
   ],
   "never": [
@@ -432,16 +432,16 @@
   },
   "when": {
    "t": "A message is sent on a path the track does not declare.",
-   "src": "dispatcher/hub.py:590-591"
+   "src": "dispatcher/hub.py:623-624"
   },
   "steps": [
    {
     "t": "If the track knows the kind of message, the dispatcher refuses it before delivery.",
-    "src": "dispatcher/hub.py:592-595; check:SW-13:reject"
+    "src": "dispatcher/hub.py:625-628; check:SW-13:reject"
    },
    {
     "t": "If the kind of message is on no track at all, it is held and the authorized user is asked.",
-    "src": "dispatcher/hub.py:596-603"
+    "src": "dispatcher/hub.py:629-636"
    }
   ],
   "never": [

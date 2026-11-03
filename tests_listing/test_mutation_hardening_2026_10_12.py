@@ -279,7 +279,7 @@ def test_06_week_window_edges_and_every_listing_reported(tmp_path):
     _show(sp, "b6", "LA", None)                  # no time: skipped
     _show(sp, "b7", "LB", "2026-10-10T09:00")
     assert sp.weekly_seller_reports("2026-10-12") == "held:['LA', 'LB']"
-    assert sp.held_reports["SA"]["showings"] == 2 and sp.held_reports["SB"]["showings"] == 1
+    assert sp.held_reports["SA|LA"]["showings"] == 2 and sp.held_reports["SB|LB"]["showings"] == 1
     [w] = sw.hitl.get_pending_waits("SA")
     assert w["paused_intent"] == "client.message.request" and w["agent_id"] == "06"
     assert w["reason"].startswith("weekly seller report for LA: 2 showing(s), 0 with feedback.")
@@ -297,11 +297,11 @@ def test_06_a_listing_already_reported_this_week_does_not_stop_the_others(tmp_pa
 def test_06_resume_paths_return_exact_results(tmp_path):
     sw, s = _swarm(tmp_path)
     sp = sw.spokes["06"]
-    ws = SimpleNamespace(client_context_id="SR")
-    assert sp._resume(ws, {"decision": "APPROVE"}) == "nothing held for this context"
     rep = {"listing_id": "L", "week_ending": "2026-10-12", "showings": 1, "feedback_received": 0}
-    sp.held_reports["SR"] = dict(rep)
-    assert sp._resume(ws, {"decision": "HOLD"}) == "decision not continue/cancel" and "SR" in sp.held_reports
+    ws = SimpleNamespace(client_context_id="SR", original_payload={"report": dict(rep)})
+    assert sp._resume(ws, {"decision": "APPROVE"}) == "nothing held for this context"
+    sp.held_reports["SR|L"] = dict(rep)
+    assert sp._resume(ws, {"decision": "HOLD"}) == "decision not continue/cancel" and "SR|L" in sp.held_reports
     assert sp._resume(ws, {"decision": "REJECT_AND_ABORT"}) == "cancelled: report not sent"
     assert _logs(sw, "SR") == [{"kind": "seller_report_skipped", **rep}]
     assert not _persisted(sw, "client.message.request", "SR")
@@ -805,7 +805,7 @@ def test_06_a_skipped_showing_does_not_stop_the_rest_of_that_buyers_showings(tmp
     _show(sp, "b2", "LA", "garbage")             # unreadable, then a good one
     _show(sp, "b2", "LA", "2026-10-11T10:00")
     assert sp.weekly_seller_reports("2026-10-12") == "held:['LA']"
-    assert sp.held_reports["SA"]["showings"] == 2
+    assert sp.held_reports["SA|LA"]["showings"] == 2
 
 
 def test_clock_a_skipped_check_does_not_stop_the_next_and_every_context_is_chased(tmp_path):

@@ -127,7 +127,7 @@
     {
      "p": {
       "t": "Only a signed message carries authority: a price or status change, a release of a held message, a setting. An unsigned one is refused and recorded as an integrity violation.",
-      "src": "dispatcher/hub.py:559-566; identity/routes.json"
+      "src": "dispatcher/hub.py:592-599; identity/routes.json"
      }
     },
     {
@@ -151,27 +151,27 @@
      "ol": [
       {
        "t": "answers a message it has already seen as a duplicate, and does nothing else with it;",
-       "src": "dispatcher/hub.py:532-538"
+       "src": "dispatcher/hub.py:565-571"
       },
       {
        "t": "refuses a message whose sender filled in the sequence number (the dispatcher numbers messages itself);",
-       "src": "dispatcher/core.py:62-63; dispatcher/hub.py:555-558"
+       "src": "dispatcher/core.py:62-63; dispatcher/hub.py:588-591"
       },
       {
        "t": "checks the signature on anything that carries the authorized user's authority, and refuses it if the signature does not verify;",
-       "src": "dispatcher/hub.py:559-566"
+       "src": "dispatcher/hub.py:592-599"
       },
       {
        "t": "checks the route: may this sender send this kind of message to that receiver? The allowed routes are a fixed list, the track. A message off the track is not delivered;",
-       "src": "dispatcher/hub.py:590-603; identity/routes.json"
+       "src": "dispatcher/hub.py:623-636; identity/routes.json"
       },
       {
        "t": "holds anything going to a vendor, the other side or the public until the authorized user signs its release;",
-       "src": "dispatcher/hub.py:604-646"
+       "src": "dispatcher/hub.py:637-685"
       },
       {
        "t": "writes the message to the record, and only then delivers it. If the record cannot be written, it stops all work and refuses every message until restarted on a record it can write.",
-       "src": "dispatcher/hub.py:647-660, 500-528"
+       "src": "dispatcher/hub.py:686-699, 533-561"
       }
      ]
     },
@@ -191,7 +191,7 @@
      "ul": [
       {
        "t": "Consistency. Every check is made in one place, the same way, for every message.",
-       "src": "dispatcher/hub.py:530-660"
+       "src": "dispatcher/hub.py:563-699"
       },
       {
        "t": "Proof. There is one record of everything, in order; each entry carries the fingerprint of the one before, so a change to an earlier entry shows.",
@@ -462,12 +462,12 @@
       {
        "k": "Signed",
        "t": "Sent with the authorized user's key. Anything that carries authority must be signed, or it is refused.",
-       "src": "dispatcher/hub.py:559-566"
+       "src": "dispatcher/hub.py:592-599"
       },
       {
        "k": "Held",
        "t": "Prepared but not sent until the authorized user signs its release. This applies to every message to a vendor, the other side or the public, including published marketing. Messages to the office's own clients are not held: Agent 11 puts them on the outbound list within the rules in this manual.",
-       "src": "dispatcher/hub.py:604-646; identity/routes.json"
+       "src": "dispatcher/hub.py:637-685; identity/routes.json"
       },
       {
        "k": "Outbound list",
@@ -477,7 +477,7 @@
       {
        "k": "Sent",
        "t": "When a page says a message is sent to a client, a vendor or the public, it means the message was put on the outbound list (after any signed release it needed). Nothing goes further today.",
-       "src": "dispatcher/swarm.py:220-222; dispatcher/hub.py:604-646"
+       "src": "dispatcher/swarm.py:220-222; dispatcher/hub.py:637-685"
       },
       {
        "k": "Legal line",
@@ -527,7 +527,7 @@
       {
        "k": "00",
        "t": "In charge of every exchange: every message goes through the dispatcher, which checks it, records it and only then delivers it.",
-       "src": "dispatcher/hub.py:530-660"
+       "src": "dispatcher/hub.py:563-699"
       },
       {
        "k": "01",
@@ -557,7 +557,7 @@
       {
        "k": "06",
        "t": "Schedules showings, checks notice and conflicts, and asks for feedback afterwards.",
-       "src": "dispatcher/listing_spokes_06.py:644-797, 314-363"
+       "src": "dispatcher/listing_spokes_06.py:662-820, 323-372"
       },
       {
        "k": "07",

@@ -162,10 +162,17 @@ the dispatcher records it:
   on the Desk and signed on the signer's page with the authenticator code,
   and again with a security key (Chrome's virtual authenticator), after
   which playbook P01 runs to its end.
+- `tests_isolation/test_audit_cb1ebcb_portal.py`: an agent cannot write a
+  drawer line on the record itself, files only into the drawer of the
+  client whose message it is handling, and cannot turn on sending lead data
+  out (allow_external) unless your signed setting says so; the dispatcher
+  keeps that setting and reads it back from the record after a restart.
 - `tests_isolation/test_review.py`: a case file built from the record for
   a stop (what it handled, what it tried, its allowed and normal routes),
   the code check naming a changed agent file, one case file per stop and
-  never rewritten, nothing written on the record by the review agent.
+  never rewritten, nothing written on the record by the review agent. The
+  review says "the code you signed" only when the attestation's signature
+  checks against your key (tests_listing/test_audit_cb1ebcb.py).
 - `tests_isolation/test_containers.py`: the same in real containers
   (CI job `linux-containers`, `LA_DOCKER_TESTS=1`): playbook P01, an agent
   container with no network, no capabilities and a read-only disk, the

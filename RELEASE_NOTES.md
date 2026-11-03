@@ -15,6 +15,22 @@ end-to-end test.
 
 ## Changes in this release
 
+- **Outside audit of cb1ebcb, security items (2026-11-03).** A held
+  message to a vendor, the other side or the public goes out exactly as
+  held: the dispatcher keeps its own copy, records its digest, and refuses
+  a release if the copy changed or the signed release names other content.
+  Agent 06 binds each decision to one item: a decision on one weekly seller
+  report releases only that report, and a protected-deadline bump is
+  confirmed only by a signed confirmation naming that bump. In the isolated
+  setup an agent can no longer write drawer lines on the record, files only
+  into the drawer of the client whose message it is handling, and cannot
+  turn on sending lead data out unless your signed setting says so (the
+  dispatcher keeps that setting). The review agent says "the code you
+  signed" only when the attestation's signature checks against your key.
+  Tests: `tests_listing/test_audit_cb1ebcb.py`,
+  `tests_isolation/test_audit_cb1ebcb_portal.py`; each fails on the code
+  before the fix.
+
 - **Windows install in one line, and the playbook show (2026-10-21, owner
   decisions).** `install.ps1`: paste one PowerShell line; no admin, a
   private Python 3.12, everything in `%LOCALAPPDATA%\ListingAssistants`,
@@ -357,7 +373,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1375 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1382 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

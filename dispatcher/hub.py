@@ -31,6 +31,9 @@ delivery is synchronous: two threads crossing contexts in opposite
 directions would each hold the lock the other needs. tests/test_hub_lock.py
 pins all three.
 """
+import copy
+import hashlib
+import json
 import os
 import threading
 from typing import Callable, Optional
@@ -50,6 +53,14 @@ AUTHORITY_INTENTS = {"config.update"}
 # write human.notified after every notifier call, so a Twilio 401 with the
 # placeholder account was recorded as a person notified.
 NOTIFY_DELIVERED = {"sent", "delivered", "shown"}
+
+
+def held_content_sha256(env: Envelope) -> str:
+    """The digest of what a held message says and to whom: what the broker
+    reviews is what is released (2026-11-03, audit 19)."""
+    body = {"intent": env.intent, "from_agent": env.from_agent, "to_agent": env.to_agent,
+            "client_context_id": env.client_context_id, "payload": env.payload}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
 def is_authority(intent: str, declared=frozenset()) -> bool:
@@ -340,6 +351,28 @@ class Hub:
             if rejected is not None:
                 return rejected
             held_id = original.envelope_id
+            # what goes out is what was held (audit 19): the held copy must
+            # still match the digest on the record, and a key that names a
+            # digest must name this one. Nothing is released otherwise; the
+            # message stays held and can still be declined.
+            now = held_content_sha256(original)
+            recorded = next((e.get("content_sha256") for e in reversed(self.audit.read())
+                             if e.get("kind") == "absolute_signal.hold"
+                             and e.get("envelope_id") == held_id), None)
+            why = None
+            if recorded is None:
+                why = "no content digest on the record for this hold; decline it and send it again"
+            elif now != recorded:
+                why = "the held message changed after it was held"
+            elif auth.payload.get("content_sha256") not in (None, recorded):
+                why = "the release names different content than the held message"
+            if why is not None:
+                self.queue_and_notify("integrity.violation", auth.to_record())
+                self.audit.append("integrity.violation",
+                                  {"envelope_id": auth.envelope_id, "held_envelope_id": held_id,
+                                   "reason": f"disclosure release refused: {why}",
+                                   "recorded_sha256": recorded, "held_sha256": now})
+                return self._reject(auth, f"release refused: {why}")
             # arm the one-shot release and re-send the ORIGINAL. The gate will
             # see the released id, pass it once, and consume it. seen_ids on the
             # original id also guards replay: a message already delivered cannot be
@@ -349,7 +382,7 @@ class Hub:
             self.audit.append("disclosure.authorized",
                               {"held_envelope_id": held_id,
                                "authorized_by_envelope": auth.envelope_id,
-                               "intent": original.intent})
+                               "intent": original.intent, "content_sha256": now})
             return self.send(original)
 
     def outbound_state(self, envelope_id: str) -> str:
@@ -626,16 +659,22 @@ class Hub:
                 # release names exactly this message and nothing else. A queue
                 # scan could match the wrong same-intent hold; an id lookup
                 # cannot.
-                self._absolute_holds[env.envelope_id] = env
+                # a copy, with its digest on the record: the sender keeps no
+                # handle on what the broker will release (audit 19)
+                held = copy.deepcopy(env)
+                digest = held_content_sha256(held)
+                self._absolute_holds[env.envelope_id] = held
                 self.queue_and_notify("clarification.request", {
-                    **env.to_record(), "absolute_signal": payload})
+                    **held.to_record(), "absolute_signal": payload,
+                    "content_sha256": digest})
                 self.audit.append("absolute_signal.hold", {
                     "envelope_id": env.envelope_id,
                     "intent": env.intent,
                     "audience": audience,
                     "audience_verified":
                         self.routes.audience_is_verified(env.intent),
-                    "signal_sha256": payload["signal_sha256"]})
+                    "signal_sha256": payload["signal_sha256"],
+                    "content_sha256": digest})
                 self._reflect(
                     env.envelope_id,
                     f"outbound to {audience!r} carries position risk; "

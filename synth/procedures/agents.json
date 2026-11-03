@@ -7,56 +7,56 @@
    "team": "The hub",
    "job": {
     "t": "Every message goes through the dispatcher: messages between agents, the authorized user's signed messages, and what arrives from outside. Each agent is given only the dispatcher to send through; in the isolated setup each agent runs in its own process or container and its one line out leads to the dispatcher.",
-    "src": "dispatcher/hub.py:490-501 (send, 'the one door'); dispatcher/listing_spokes.py:140 (an agent holds only a guarded hub); dispatcher/portal.py:1-9 (isolated setup)"
+    "src": "dispatcher/hub.py:523-534 (send, 'the one door'); dispatcher/listing_spokes.py:140 (an agent holds only a guarded hub); dispatcher/portal.py:1-9 (isolated setup)"
    },
    "steps": [
     {
      "t": "It checks whether the message's ID has been seen before. A repeat is answered as a duplicate and does nothing.",
-     "src": "dispatcher/hub.py:532-538; test SW-07"
+     "src": "dispatcher/hub.py:565-571; test SW-07"
     },
     {
      "t": "It counts the messages of each kind for each client. Past 20 (a placeholder the owner ratified on 2026-07-17), that kind of message for that client is suspended and the authorized user is asked.",
-     "src": "dispatcher/hub.py:92-99, 539-554"
+     "src": "dispatcher/hub.py:103-110, 572-587"
     },
     {
      "t": "It checks the message is complete and well formed, including that the sender left the sequence number empty (only the dispatcher assigns it). A malformed message is refused with the reason.",
-     "src": "dispatcher/hub.py:555-558; dispatcher/core.py:55-63"
+     "src": "dispatcher/hub.py:588-591; dispatcher/core.py:55-63"
     },
     {
      "t": "A message that carries the authorized user's authority (signed settings, a signed listing or price change, a release or decline of a held message, a decision on held work) must carry a valid Ed25519 signature. When the signer list is armed, the signer must also be a login authorized for that kind of message. Otherwise the message is refused, recorded as an integrity violation, and the authorized user is notified.",
-     "src": "dispatcher/hub.py:40-64, 559-589; identity/routes.json signed_intents; dispatcher/signatures.py:1"
+     "src": "dispatcher/hub.py:43-75, 592-622; identity/routes.json signed_intents; dispatcher/signatures.py:1"
     },
     {
      "t": "It checks the route against the closed track (identity/routes.json): which agents may send which kind of message to which. A known kind of message on a route that is not on the track is refused. A kind of message the track does not know at all is held and the authorized user is asked.",
-     "src": "dispatcher/hub.py:590-603; dispatcher/core.py:139"
+     "src": "dispatcher/hub.py:623-636; dispatcher/core.py:139"
     },
     {
-     "t": "A message leaving for a counterparty or the public (for example a vendor booking or an ad) is held until the authorized user signs a release or a decline naming that one message. An outside route with no audience label is treated as counterparty and held. Messages to the office's own client pass.",
-     "src": "dispatcher/hub.py:604-646, 325-394; dispatcher/core.py:24-37, 109-111"
+     "t": "A message leaving for a counterparty or the public (for example a vendor booking or an ad) is held until the authorized user signs a release or a decline naming that one message. An outside route with no audience label is treated as counterparty and held. Messages to the office's own client pass. The dispatcher holds its own copy and records its digest; a release goes out only if the copy still matches that digest and the signed release names no other digest.",
+     "src": "dispatcher/hub.py:637-685, 336-427, 58-63; dispatcher/core.py:24-37, 109-111"
     },
     {
      "t": "It gives the message the next sequence number for its client and writes it to the record. Each line of the record carries the hash of the line before it, so an edited, deleted or reordered line breaks the chain, and the chain can be checked.",
-     "src": "dispatcher/hub.py:647-660; dispatcher/core.py:310-318, 556-587, 642-672"
+     "src": "dispatcher/hub.py:686-699; dispatcher/core.py:310-318, 556-587, 642-672"
     },
     {
      "t": "It delivers the message to the receiving agent. A message addressed to the queue is put in the queue named by its kind, and the authorized user is notified.",
-     "src": "dispatcher/hub.py:671-697"
+     "src": "dispatcher/hub.py:710-736"
     },
     {
      "t": "It acknowledges the message only after it is recorded and delivered.",
-     "src": "dispatcher/hub.py:718-724"
+     "src": "dispatcher/hub.py:757-763"
     },
     {
      "t": "If the receiving agent fails on the message, the message goes to the dead-letter queue and a system-error alert is raised for the authorized user. A message for an agent that is not registered goes to the dead-letter queue.",
-     "src": "dispatcher/hub.py:690-717"
+     "src": "dispatcher/hub.py:729-756"
     },
     {
      "t": "If anything fails inside these steps (for example the record cannot be written), the dispatcher halts: it refuses every later message until it is restarted on a record it can write, and tries to alert the authorized user directly.",
-     "src": "dispatcher/hub.py:174-181, 490-528"
+     "src": "dispatcher/hub.py:185-192, 523-561"
     },
     {
      "t": "Each notice to the authorized user is recorded with its outcome: delivered, failed, or not reported by the notifier. If no notifier is configured, the record says so when the dispatcher starts.",
-     "src": "dispatcher/hub.py:128-133, 423-466"
+     "src": "dispatcher/hub.py:139-144, 456-499"
     },
     {
      "t": "An alert nobody has marked done is sent again after 30 minutes, and the owner is paged after 60. This runs inside every daily clock run (unless the run is held for a clock that disagrees with the record), on the console's watch command, and from a scheduled check meant to run every few minutes. A question that is not an alert is not re-sent this way.",
@@ -67,43 +67,43 @@
    "compare": [
     {
      "t": "The record shows every delivered message with its sender, receiver, time and client, and for a signed message the signature check (and the signer's login when the signer list is armed). A duplicate is recorded with its id only; a refused message with its id and the reason, and one refused for a failed signature check also goes whole into the authorized user's integrity queue.",
-     "src": "dispatcher/core.py:556-587; dispatcher/hub.py:530-537, 559-589, 655; dispatcher/hub.py::self.audit.append(\"dedupe.hit\", {\"envelope_id\": env.envelope_id})"
+     "src": "dispatcher/core.py:556-587; dispatcher/hub.py:563-570, 592-622, 694; dispatcher/hub.py::self.audit.append(\"dedupe.hit\", {\"envelope_id\": env.envelope_id})"
     }
    ],
    "user_part": [
     {
      "t": "Signing anything that carries authority: settings, listing and price changes, releases and declines of held messages, decisions on held work.",
-     "src": "dispatcher/hub.py:55-64; identity/routes.json signed_intents"
+     "src": "dispatcher/hub.py:66-75; identity/routes.json signed_intents"
     },
     {
      "t": "Answering what lands in the queues.",
-     "src": "dispatcher/hub.py:165-173"
+     "src": "dispatcher/hub.py:176-184"
     },
     {
      "t": "Releasing or declining, one at a time, each held message to a vendor, the other side or the public.",
-     "src": "dispatcher/hub.py:325-394"
+     "src": "dispatcher/hub.py:336-427"
     }
    ],
    "never": [
     {
      "t": "Deliver a known kind of message on a route that is not on the closed track.",
-     "src": "dispatcher/hub.py:590-595"
+     "src": "dispatcher/hub.py:623-628"
     },
     {
      "t": "Accept a claim of the authorized user's authority without a valid signature.",
-     "src": "dispatcher/hub.py:559-566"
+     "src": "dispatcher/hub.py:592-599"
     },
     {
      "t": "Send a message to a counterparty or the public without the authorized user's signed release.",
-     "src": "dispatcher/hub.py:611-646"
+     "src": "dispatcher/hub.py:644-685"
     },
     {
      "t": "Acknowledge a message before it is recorded and delivered.",
-     "src": "dispatcher/hub.py:647-724"
+     "src": "dispatcher/hub.py:686-763"
     },
     {
      "t": "Drop a message without a record of it. (Once the system has halted, later messages are refused without a line each; the halt itself is raised to the authorized user as an alert, not written to the record, which may be what failed.)",
-     "src": "dispatcher/hub.py:535-717; dispatcher/hub.py:490-528"
+     "src": "dispatcher/hub.py:568-756; dispatcher/hub.py:523-561"
     }
    ],
    "process": {
@@ -113,11 +113,11 @@
    "not_built": [
     {
      "t": "A way for the authorized user to resume a suspended exchange: the code has the function, but no console or Desk command calls it.",
-     "src": "dispatcher/hub.py:468-488; no caller outside tests (grep resume_loop_suspension)"
+     "src": "dispatcher/hub.py:501-521; no caller outside tests (grep resume_loop_suspension)"
     },
     {
      "t": "The pre-send self-check (a reviewer model on every delivery) exists in the code, but nothing turns it on; the record says it is off at every start.",
-     "src": "dispatcher/hub.py:85-91, 117-120, 661-670; no caller passes selfcheck_model"
+     "src": "dispatcher/hub.py:96-102, 128-131, 700-709; no caller passes selfcheck_model"
     },
     {
      "t": "A heartbeat to an outside watchdog: the function exists, nothing calls it.",
@@ -129,7 +129,7 @@
     },
     {
      "t": "Automatic retry of a failed delivery.",
-     "src": "dispatcher/hub.py:690-717"
+     "src": "dispatcher/hub.py:729-756"
     },
     {
      "t": "Encryption of the record at rest: it is chained and checkable, not encrypted.",
@@ -262,7 +262,7 @@
    "team": "Leads",
    "job": {
     "t": "Scores each lead with the scoring rubric the authorized user signed and routes it by tier: hot to the authorized user, warm to Agent 03 for follow-up, cold archived. It applies the rubric; it never writes or changes it.",
-    "src": "dispatcher/listing_spokes_02.py:1-9, 42-43; dispatcher/listing_spokes_02.py::def _apply_tier("
+    "src": "dispatcher/listing_spokes_02.py:1-9, 61-62; dispatcher/listing_spokes_02.py::def _apply_tier("
    },
    "steps": [
     {
@@ -271,7 +271,7 @@
     },
     {
      "t": "With no signed rubric, nothing is scored: the lead's tier is unknown and the authorized user is asked.",
-     "src": "dispatcher/listing_spokes_02.py:93, 127-128; dispatcher/listing_spokes_02.py::\"scoring halted: \" + ("
+     "src": "dispatcher/listing_spokes_02.py:112, 146-147; dispatcher/listing_spokes_02.py::\"scoring halted: \" + ("
     },
     {
      "t": "A lead coming back for a new score while its hot alert is still open is held, and the authorized user is asked.",
@@ -287,7 +287,7 @@
     },
     {
      "t": "A score whose confidence is under the floor is held for the authorized user: continue scores it with the signed rubric, cancel archives it.",
-     "src": "dispatcher/listing_spokes_02.py:107; dispatcher/listing_spokes_02.py::if tier == \"HELD_FOR_CALIBRATION\":; dispatcher/listing_spokes_02.py::def _resume(self, ws, decision_payload: dict):"
+     "src": "dispatcher/listing_spokes_02.py:126; dispatcher/listing_spokes_02.py::if tier == \"HELD_FOR_CALIBRATION\":; dispatcher/listing_spokes_02.py::def _resume(self, ws, decision_payload: dict):"
     },
     {
      "t": "A score exactly on a tier boundary gets the lower tier, and the authorized user is told. A tier that swings back and forth a third time is sent to the authorized user.",
@@ -299,11 +299,11 @@
     },
     {
      "t": "A lead who demands a person is hot whatever its score, with the same do-not-contact marking; since 2026-10-28 Agent 01 passes the demand on (before, this rule could not be reached).",
-     "src": "dispatcher/listing_spokes_02.py:319-341; dispatcher/listing_spokes.py:1043-1044"
+     "src": "dispatcher/listing_spokes_02.py:327-349; dispatcher/listing_spokes.py:1043-1044"
     },
     {
      "t": "An unanswered hot alert is sent again after 30 minutes and the owner paged after 60 (the dispatcher's watch, see Agent 00). The 5-minute call window travels with the alert; nothing acts on it.",
-     "src": "dispatcher/escalation_watch.py:68-104; dispatcher/listing_spokes_02.py:89-100"
+     "src": "dispatcher/escalation_watch.py:68-104; dispatcher/listing_spokes_02.py:108-119"
     },
     {
      "t": "Every scored tier is logged with Agent 14 with the score, the rubric version and the notes (a demand for a person is logged as hot with the reason); a cold lead is marked archived, never deleted.",
@@ -311,7 +311,7 @@
     },
     {
      "t": "Every scored tier is logged with Agent 14 with the score, the rubric version and the notes; a cold lead is marked archived, never deleted. A demand for a person, and a held lead the authorized user cancels, are logged with the tier and the reason.",
-     "src": "dispatcher/listing_spokes_02.py:465-469, 341-342, 193-195"
+     "src": "dispatcher/listing_spokes_02.py:473-477, 349-350, 201-203"
     }
    ],
    "today": [],
@@ -341,7 +341,7 @@
     },
     {
      "t": "Send lead data to the outside scoring service unless the authorized user signs that it may.",
-     "src": "dispatcher/listing_spokes_02.py:101-107; dispatcher/listing_spokes_02.py::def _configure_engine("
+     "src": "dispatcher/listing_spokes_02.py:120-126; dispatcher/listing_spokes_02.py::def _configure_engine("
     }
    ],
    "process": {
@@ -643,13 +643,13 @@
     },
     {
      "t": "Releasing the photographer's booking (held at the dispatcher).",
-     "src": "dispatcher/hub.py:604-646; identity/routes.json vendor.schedule audience counterparty"
+     "src": "dispatcher/hub.py:637-685; identity/routes.json vendor.schedule audience counterparty"
     }
    ],
    "never": [
     {
      "t": "Change a price without the authorized user's signed change.",
-     "src": "dispatcher/listing_spokes_05.py:1-8; dispatcher/hub.py:559-566 (listing.change.authorized is signed)"
+     "src": "dispatcher/listing_spokes_05.py:1-8; dispatcher/hub.py:592-599 (listing.change.authorized is signed)"
     },
     {
      "t": "Fill in buyer-broker compensation.",
@@ -681,68 +681,68 @@
    "team": "Buyers and showings",
    "job": {
     "t": "Books showings, confirms them to the buyer through Agent 11, asks for feedback afterwards, schedules open houses, and prepares the weekly seller report. It never gives out access codes.",
-    "src": "dispatcher/listing_spokes_06.py:367-797; dispatcher/listing_spokes_06.py:105-151, 199-273"
+    "src": "dispatcher/listing_spokes_06.py:376-820; dispatcher/listing_spokes_06.py:107-153, 201-282"
    },
    "steps": [
     {
      "t": "A showing request arrives (from Agent 13, or from a client through Agent 11).",
-     "src": "dispatcher/listing_spokes_06.py:471-472; identity/routes.json showing.request"
+     "src": "dispatcher/listing_spokes_06.py:489-490; identity/routes.json showing.request"
     },
     {
      "t": "A request for access raises a legal-line alert; nothing is scheduled. Access is recognized by a flag on the request or by these phrases: \"let them in\", \"access code\", \"lockbox combo\", \"gate code\", \"just let\", \"combo for the\" (other wording, such as a door code, is caught only by the flag).",
-     "src": "dispatcher/listing_spokes_06.py:18-19, 474-496"
+     "src": "dispatcher/listing_spokes_06.py:18-19, 492-514"
     },
     {
      "t": "No buyer agreement on file: a legal-line alert, nothing scheduled.",
-     "src": "dispatcher/listing_spokes_06.py:500-513"
+     "src": "dispatcher/listing_spokes_06.py:518-531"
     },
     {
      "t": "The requester's identity not verified: the showing is cancelled and logged with Agent 14; the authorized user gets an item to verify the identity and rebook, and a neutral message to the buyer is requested; Agent 11 does not send it until the authorized user signs its wording, and signing later does not send it (owner decision of 2026-10-28).",
-     "src": "dispatcher/listing_spokes_06.py:517-541; dispatcher/listing_spokes_11.py:30-31, 256-266, 429-440"
+     "src": "dispatcher/listing_spokes_06.py:535-559; dispatcher/listing_spokes_11.py:30-31, 256-266, 429-440"
     },
     {
      "t": "For the office's own listings, whether the home is occupied, its status and its state come from Agent 05's record, not from the request.",
-     "src": "dispatcher/listing_spokes_06.py:275-305, 442-447"
+     "src": "dispatcher/listing_spokes_06.py:284-314, 460-465"
     },
     {
      "t": "A listing that may not be active: it asks Agent 05; anything but active goes to the authorized user and nothing is scheduled.",
-     "src": "dispatcher/listing_spokes_06.py:546-578"
+     "src": "dispatcher/listing_spokes_06.py:564-596"
     },
     {
      "t": "An occupied home needs the minimum notice (24 hours unless set per state), counted from when the client wrote to the requested time. Too short: the client is sent the notice rule, and nothing is scheduled.",
-     "src": "dispatcher/listing_spokes_06.py:90, 298-304, 647-663"
+     "src": "dispatcher/listing_spokes_06.py:90, 307-313, 665-681"
     },
     {
-     "t": "A clash within 30 minutes (the default) with a confirmed showing for the same buyer or the same listing goes to the authorized user. A claimed protected deadline from a hot lead is held for the authorized user's signed decision; the claim alone never bumps a showing.",
-     "src": "dispatcher/listing_spokes_06.py:670-743, 385-421"
+     "t": "A clash within 30 minutes (the default) with a confirmed showing for the same buyer or the same listing goes to the authorized user. A claimed protected deadline from a hot lead is held for the authorized user's signed decision; the claim alone never bumps a showing. The signed confirmation must name the held bump (its listing and time); one that names none, or a bump that is not held, moves nothing and is refused with the held bumps listed.",
+     "src": "dispatcher/listing_spokes_06.py:688-766, 394-439"
     },
     {
      "t": "It sends the showing to the calendar (Agent 18). If the calendar refuses it, the showing is held: continue confirms it to the buyer, cancel sends nothing (owner decision 2026-10-27).",
-     "src": "dispatcher/listing_spokes_06.py:755-776, 244-262, 462-469"
+     "src": "dispatcher/listing_spokes_06.py:778-799, 246-269, 480-487"
     },
     {
      "t": "Otherwise it confirms the showing to the buyer through Agent 11 and logs it with Agent 14.",
-     "src": "dispatcher/listing_spokes_06.py:785-797"
+     "src": "dispatcher/listing_spokes_06.py:808-820"
     },
     {
      "t": "On the first daily run after the showing's date, it asks for feedback through Agent 11: at most once a day and twice in all for each showing. A no-show report also asks at once, on its own count, so a no-show showing can be asked about three times. A reply is logged with Agent 14.",
-     "src": "dispatcher/listing_spokes_06.py:314-366, 580-614; dispatcher/clock.py:49"
+     "src": "dispatcher/listing_spokes_06.py:323-375, 598-632; dispatcher/clock.py:49"
     },
     {
      "t": "A no-show is logged and feedback is asked. A showing agent with 2 no-shows goes to the authorized user before another confirmation.",
-     "src": "dispatcher/listing_spokes_06.py:604-622"
+     "src": "dispatcher/listing_spokes_06.py:622-640"
     },
     {
      "t": "Open house: the authorized user signs the time; only for a listing active on the record. It goes on the calendar, signage is requested from Agent 09, and it is logged; the authorized user signs the result afterwards.",
-     "src": "dispatcher/listing_spokes_06.py:105-173"
+     "src": "dispatcher/listing_spokes_06.py:107-175"
     },
     {
-     "t": "Weekly seller report: on the authorized user's signed weekday, it counts each listing's showings in the last 7 days and how many have feedback, and holds the report; continue sends it to the seller through Agent 11, cancel skips the week.",
-     "src": "dispatcher/listing_spokes_06.py:175-242, 263-273; dispatcher/clock.py:50"
+     "t": "Weekly seller report: on the authorized user's signed weekday, it counts each listing's showings in the last 7 days and how many have feedback, and holds each listing's report as its own decision; continue sends that report to the seller through Agent 11, cancel skips it for the week.",
+     "src": "dispatcher/listing_spokes_06.py:177-244, 270-282; dispatcher/clock.py:50"
     },
     {
      "t": "A late vendor cancellation is logged and the authorized user is asked whether a showing depends on it.",
-     "src": "dispatcher/listing_spokes_06.py:423-440"
+     "src": "dispatcher/listing_spokes_06.py:441-458"
     }
    ],
    "today": [],
@@ -750,33 +750,33 @@
    "user_part": [
     {
      "t": "Deciding clashes, held showings and protected-deadline bumps.",
-     "src": "dispatcher/listing_spokes_06.py:679-743, 755-776"
+     "src": "dispatcher/listing_spokes_06.py:697-766, 778-799"
     },
     {
      "t": "Signing open house times and results, and the seller report weekday.",
-     "src": "dispatcher/listing_spokes_06.py:105-199"
+     "src": "dispatcher/listing_spokes_06.py:107-201"
     },
     {
      "t": "Releasing (continue) or skipping each weekly seller report.",
-     "src": "dispatcher/listing_spokes_06.py:236-240, 263-273"
+     "src": "dispatcher/listing_spokes_06.py:238-242, 270-282"
     }
    ],
    "never": [
     {
      "t": "Schedule a showing without the buyer agreement on file.",
-     "src": "dispatcher/listing_spokes_06.py:500-513"
+     "src": "dispatcher/listing_spokes_06.py:518-531"
     },
     {
      "t": "Give out an access code or let anyone in.",
-     "src": "dispatcher/listing_spokes_06.py:474-496"
+     "src": "dispatcher/listing_spokes_06.py:492-514"
     },
     {
      "t": "Confirm a showing the calendar refused without the authorized user's decision.",
-     "src": "dispatcher/listing_spokes_06.py:760-776"
+     "src": "dispatcher/listing_spokes_06.py:783-799"
     },
     {
      "t": "Bump a confirmed showing on a claim alone.",
-     "src": "dispatcher/listing_spokes_06.py:721-743"
+     "src": "dispatcher/listing_spokes_06.py:739-766"
     }
    ],
    "process": {
@@ -786,7 +786,7 @@
    "not_built": [
     {
      "t": "No seller availability is checked; no alternative time is worked out (the client gets the notice rule, not a time).",
-     "src": "dispatcher/listing_spokes_06.py:60-65, 660-662"
+     "src": "dispatcher/listing_spokes_06.py:60-65, 678-680"
     },
     {
      "t": "Open house RSVPs and showing reminders.",
@@ -1327,7 +1327,7 @@
    "team": "Listing",
    "job": {
     "t": "Publishes marketing: the approved listing description from Agent 04, and campaigns the authorized user signs. Every publication is held by the dispatcher for the authorized user's release.",
-    "src": "dispatcher/listing_spokes_12.py:106-137, 287-319, 341-384; dispatcher/core.py:33; dispatcher/hub.py:611-646; identity/routes.json (campaign.publish audience public)"
+    "src": "dispatcher/listing_spokes_12.py:106-137, 287-319, 341-384; dispatcher/core.py:33; dispatcher/hub.py:644-685; identity/routes.json (campaign.publish audience public)"
    },
    "steps": [
     {
@@ -1384,7 +1384,7 @@
     },
     {
      "t": "Releasing (or declining) every publication.",
-     "src": "dispatcher/hub.py:325-394"
+     "src": "dispatcher/hub.py:336-427"
     },
     {
      "t": "Answering flagged copy, platform rejections and replies.",
@@ -1523,7 +1523,7 @@
    "not_built": [
     {
      "t": "A showing request it sends to Agent 06 carries no time. If the buyer's identity is not verified on record, Agent 06 cancels it. Otherwise, for one of the office's listings, a listing not marked vacant gets the next-slot offer and a listing not active goes to a status check first; any other request reaches the calendar, which cannot place it, so it is held for the authorized user.",
-     "src": "dispatcher/listing_spokes_13.py:678-713; dispatcher/listing_spokes_06.py:285-290, 517-560, 639-655, 753-776"
+     "src": "dispatcher/listing_spokes_13.py:678-713; dispatcher/listing_spokes_06.py:294-299, 535-578, 657-673, 776-799"
     },
     {
      "t": "No MLS search: it matches only listings that come from Agent 05 or Agent 19.",
@@ -1934,7 +1934,7 @@
     },
     {
      "t": "On the daily run, from the day after a showing, a showing whose time passed more than 60 minutes ago (the default) with no feedback activity is reported to Agent 06 as a no-show. Agent 06's check runs first in the daily run, and its feedback request on the day after counts as activity, so for a showing Agent 06 confirmed no no-show is reported this way.",
-     "src": "dispatcher/listing_spokes_18.py:148-154, 445-488; dispatcher/clock.py:49, 63; dispatcher/sweep_runner.py:62-65; dispatcher/listing_spokes_06.py:346-349, 353-365"
+     "src": "dispatcher/listing_spokes_18.py:148-154, 445-488; dispatcher/clock.py:49, 63; dispatcher/sweep_runner.py:62-65; dispatcher/listing_spokes_06.py:355-358, 362-374"
     }
    ],
    "today": [],

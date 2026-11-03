@@ -55,15 +55,41 @@ def agent_files(agent_id: str) -> list[str]:
     return [f"dispatcher/{mod}.py", *SHARED_FILES]
 
 
+def _signature(state_dir: str, doc: dict) -> dict:
+    """Whether the attestation's signature checks against the operator's
+    public key in the state folder (2026-11-03, audit 69: the files were
+    compared with the list, and the list itself was never checked)."""
+    from .boot_attest import AttestationRefused, canonical, fingerprint, operator_public_key
+    try:
+        pub = operator_public_key(state_dir)
+    except AttestationRefused as e:
+        return {"verified": False, "reason": str(e)}
+    sig = doc.get("signature")
+    if not isinstance(sig, str):
+        return {"verified": False, "reason": "the attestation carries no signature"}
+    from .signatures import Ed25519Verifier
+    try:
+        ok = Ed25519Verifier(pub).verify_bytes(canonical(doc["manifest"]), sig)
+    except Exception as e:  # a malformed signature is a failed check, named
+        return {"verified": False, "reason": f"{type(e).__name__}: {e}"}
+    if not ok:
+        return {"verified": False, "reason": "the signature does not match the operator's key "
+                                             f"({fingerprint(pub)})"}
+    return {"verified": True, "key_fingerprint": fingerprint(pub)}
+
+
 def code_check(state_dir: str, agent_id: str) -> dict:
     """The agent's files against the list of installed files the operator's
-    key attested (boot-attestation.json in the state folder)."""
+    key attested (boot-attestation.json in the state folder), and whether
+    that list's signature checks against the operator's key."""
     path = os.path.join(state_dir, "boot-attestation.json")
     try:
-        manifest = json.load(open(path, encoding="utf-8"))["manifest"]
-    except (OSError, ValueError, KeyError):
+        doc = json.load(open(path, encoding="utf-8"))
+        manifest = doc["manifest"]
+    except (OSError, ValueError, KeyError, TypeError):
         return {"checked": False, "reason": f"no readable attestation at {path}"}
-    out = {"checked": True, "match": [], "differ": [], "not_attested": []}
+    out = {"checked": True, "signature": _signature(state_dir, doc),
+           "match": [], "differ": [], "not_attested": []}
     for rel in agent_files(agent_id):
         p = os.path.join(ROOT, rel)
         if rel not in manifest:
@@ -140,8 +166,15 @@ def first_reading(case: dict) -> list[str]:
         out.append("The agent's files differ from the attested install "
                    f"({', '.join(cc.get('differ', []) + cc.get('not_attested', []))}). Treat it as "
                    "tampering until shown otherwise; do not restart it on these files.")
+    elif cc.get("checked") and (cc.get("signature") or {}).get("verified"):
+        out.append("The agent's files match the attested install, and the attestation's signature "
+                   "checks against your key, so this is the code you signed.")
     elif cc.get("checked"):
-        out.append("The agent's files match the attested install, so this is the code you signed.")
+        out.append("The agent's files match the list in boot-attestation.json, but that list's "
+                   "signature did not check against your key ("
+                   + str((cc.get("signature") or {}).get("reason") or "not checked")
+                   + "). This is a comparison with an unverified list, not proof that this is "
+                     "the code you signed.")
     v = case.get("violation")
     if v == "impersonation":
         out.append("It put another agent's number in the sender field. No agent's own code path "
@@ -184,10 +217,15 @@ def render(case: dict) -> str:
     lines += ["", "## What it normally sends (30 days on the record)"]
     lines += [f"- {k}: {n}" for k, n in case["sent_in_last_30_days"].items()] or ["- nothing"]
     cc = case["code_check"]
+    sig = cc.get("signature") or {}
     lines += ["", "## Its code",
               ("matches the attested install" if cc.get("ok") else
                f"DIFFERS: {cc.get('differ')} not attested: {cc.get('not_attested')}")
               if cc.get("checked") else f"not checked: {cc.get('reason')}"]
+    if cc.get("checked"):
+        lines += [f"attestation signature: checks against your key ({sig.get('key_fingerprint')})"
+                  if sig.get("verified") else
+                  f"attestation signature: NOT verified ({sig.get('reason')})"]
     lines += ["", "## First reading"] + [f"- {x}" for x in case["first_reading"]]
     return "\n".join(lines) + "\n"
 

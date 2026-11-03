@@ -137,7 +137,7 @@
    },
    {
     "t": "The ad goes forward on its own once the listing goes active, or an exempt status with its disclosure on file is recorded (with no brokerage identification on file it waits for that first, and the authorized user is asked); it then waits for the authorized user's release, because the dispatcher holds every publish.",
-    "src": "dispatcher/listing_spokes_12.py:139-153, 182-186, 333-335, 95-99, 106-123; dispatcher/hub.py:609-631; dispatcher/core.py:33; identity/routes.json (campaign.publish audience public)"
+    "src": "dispatcher/listing_spokes_12.py:139-153, 182-186, 333-335, 95-99, 106-123; dispatcher/hub.py:642-668; dispatcher/core.py:33; identity/routes.json (campaign.publish audience public)"
    },
    {
     "t": "An ad from Agent 04 that is waiting for the gate is on the calendar's list of waits, like a campaign the authorized user started (fixed 2026-10-28; before, nobody was told it was waiting).",

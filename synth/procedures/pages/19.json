@@ -161,7 +161,7 @@
   "steps": [
    {
     "t": "Unsigned, the dispatcher refuses it before Agent 19 sees it.",
-    "src": "dispatcher/hub.py:559-566; check:19-05:reject"
+    "src": "dispatcher/hub.py:592-599; check:19-05:reject"
    },
    {
     "t": "Signed, Agent 19 notes it and still contacts no one.",

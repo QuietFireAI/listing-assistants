@@ -39,6 +39,25 @@ def _env(frm, to, intent, ctx, payload, confidence=UNKNOWN):
                                 "verbatim_available": True})
 
 
+def engine_setting_problems(de) -> list[str]:
+    """What is wrong with a signed decision_engine setting (empty = good).
+    One function: Agent 02 applies the setting with it and the dispatcher
+    keeps the signed allow_external with it (audit 37, 2026-11-03)."""
+    problems = []
+    if not isinstance(de, dict) or not de:
+        problems.append("decision_engine must be a non-empty object")
+    else:
+        unknown = sorted(set(de) - {"allow_external", "confidence_floor"})
+        if unknown:
+            problems.append(f"unknown keys {unknown}")
+        if "allow_external" in de and not isinstance(de["allow_external"], bool):
+            problems.append("allow_external must be true or false")
+        f = de.get("confidence_floor", 0.5)
+        if isinstance(f, bool) or not isinstance(f, (int, float)) or not 0 <= f <= 1:
+            problems.append("confidence_floor must be a number from 0 to 1")
+    return problems
+
+
 class Spoke02LeadQualification:
     """Scores leads on readiness; assigns tier; routes hot/warm/dead.
 
@@ -144,18 +163,7 @@ class Spoke02LeadQualification:
     def _configure_engine(self, env: Envelope, de) -> None:
         """Signed {"decision_engine": {"allow_external": bool,
         "confidence_floor": 0..1}}. Rejected whole when anything is off."""
-        problems = []
-        if not isinstance(de, dict) or not de:
-            problems.append("decision_engine must be a non-empty object")
-        else:
-            unknown = sorted(set(de) - {"allow_external", "confidence_floor"})
-            if unknown:
-                problems.append(f"unknown keys {unknown}")
-            if "allow_external" in de and not isinstance(de["allow_external"], bool):
-                problems.append("allow_external must be true or false")
-            f = de.get("confidence_floor", 0.5)
-            if isinstance(f, bool) or not isinstance(f, (int, float)) or not 0 <= f <= 1:
-                problems.append("confidence_floor must be a number from 0 to 1")
+        problems = engine_setting_problems(de)
         if problems:
             self.hub.ingest_spoke_trace("02", env.envelope_id,
                                         thought=f"decision_engine setting rejected whole: {problems}",
