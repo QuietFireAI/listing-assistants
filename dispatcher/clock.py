@@ -53,7 +53,7 @@ CHECKS: dict[str, list[tuple]] = {
     "08": [("chase_timeout", "check_chase_timeout", "pending_requests", ("ctx", "doc_type"), True),
            ("disclosure_deadline", "check_disclosure_deadlines", "pending_requests", ("ctx", "today"), True)],
     "11": [("quiet_hours_release", "release_quiet_held", "quiet_held", ("ctx", "now_iso"), True)],
-    "13": [("held_match_recheck", "recheck_held_matches", "held_matches", ("ctx",), True),
+    "13": [("held_match_recheck", "recheck_held_matches", "held_or_asking", ("ctx",), True),
            ("match_digest_flush", "flush_match_digest", "matches_today", ("ctx",), True)],
     "14": [("eod_report", "generate_report", None, ("eod", "today"), False),
            ("date_triggers", "check_client_dates", "client_dates", ("ctx", "today"), True),

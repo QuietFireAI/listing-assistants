@@ -10,7 +10,8 @@ raised TypeError. Both now call score_lead().
 
 Accepted input keys (either spelling): budget | stated_budget,
 preapproval_doc | preapproval_document ({amount, expired?, verified?}),
-timeline_days, stated_urgency, financing_progress. A pre-approval document
+timeline_days, stated_urgency, financing_progress, preapproval_status ("yes"
+scores as pre-approved, owner decision 2026-10-28). A pre-approval document
 counts unless it is expired or explicitly verified=False.
 """
 from __future__ import annotations
@@ -44,6 +45,13 @@ def score_lead(payload: dict, rubric: dict) -> tuple[str, int | None, list[str],
     timeline_days = _unwrap(payload.get("timeline_days"))
     stated_urgency = _unwrap(payload.get("stated_urgency"))
     financing_progress = _unwrap(payload.get("financing_progress"))
+    # Owner decision 2026-10-28: a pre-approval stated "yes" at capture (Agent
+    # 01's preapproval_status) scores as pre-approved when no financing
+    # progress is stated. An expired or unverified letter is handled below,
+    # as before. (Found re-checking the manual: the rubric never read it.)
+    if financing_progress is None and _unwrap(payload.get("preapproval_status")) == "yes":
+        financing_progress = "preapproved"
+        notes.append("pre-approval stated yes at capture - scored as pre-approved")
 
     if isinstance(preapproval_doc, dict) and preapproval_doc.get("verified") is False:
         notes.append("pre-approval document marked unverified - not used for scoring")

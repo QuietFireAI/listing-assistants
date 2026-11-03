@@ -107,6 +107,9 @@ class Spoke13BuyerSearchMatch:
         # listing}
         self.unknown_kept: dict[str, dict[str, dict]] = {}
         self.criteria_confirm_asked: set[str] = set()   # buyers asked to confirm a change
+        # must-have questions waiting for the buyer agreement (2026-10-28)
+        self.unknown_ask_pending: dict[str, list[dict]] = {}
+        self._ask_notified: set[str] = set()
         register_spoke(hub, "13", self)
 
     def _protected_class_hit(self, text: str) -> str | None:
@@ -193,7 +196,7 @@ class Spoke13BuyerSearchMatch:
             # D-A12 (owner decision 2026-10-28, finding AS): the signed rule
             # says ask the client. The match is kept, the buyer is asked once
             # per listing (template wording awaits the owner's signature;
-            # Agent 11 holds it until then), and the owner records the
+            # Agent 11 does not send it until then), and the owner records the
             # answer as the buyer's standing preference, which re-checks the
             # kept matches. Before, only the owner was asked and the match
             # was dropped.
@@ -209,12 +212,16 @@ class Spoke13BuyerSearchMatch:
                                          f"standing preference for "
                                          f"unknown-flagged delivery, "
                                          f"holding to ask; the match is kept and the "
-                                         f"buyer is asked. Record the buyer's answer with "
+                                         f"buyer is asked once the buyer agreement is on "
+                                         f"file. Record the buyer's answer with "
                                          f"a signed deliver_unknown_standing_preference",
                                 "listing_id": lid}))
-            self.hub.send(_env("13", "11", "client.message.request", ctx,
-                               {"template": "unknown_criterion_ask",
-                                "field": ", ".join(missing_hard), "listing_id": lid}))
+            # owner decision 2026-10-28: the question names a listing, so it
+            # waits for the signed buyer agreement like a match does
+            self.unknown_ask_pending.setdefault(ctx, []).append(
+                {"template": "unknown_criterion_ask",
+                 "field": ", ".join(missing_hard), "listing_id": lid})
+            self.hub.send(_env("13", "14", "record.request", ctx, {"purpose": "match_gate"}))
             self.hub.send(_env("13", "14", "interaction.log", ctx,
                                {"kind": "match_kept_unknown_criterion", "listing_id": lid,
                                 "missing": missing_hard}))
@@ -280,6 +287,19 @@ class Spoke13BuyerSearchMatch:
         self.hub.send(_env("13", "14", "record.request", ctx, {"purpose": "match_gate"}))
 
     def _settle_held(self, ctx: str, agreement_on_file: bool, env: Envelope):
+        asks = self.unknown_ask_pending.get(ctx) or []
+        if asks and agreement_on_file:
+            self._ask_notified.discard(ctx)
+            for ask in self.unknown_ask_pending.pop(ctx):
+                self.hub.send(_env("13", "11", "client.message.request", ctx, dict(ask)))
+        elif asks and ctx not in self._ask_notified:
+            self._ask_notified.add(ctx)
+            self.hub.send(_env("13", "queue", "clarification.request", ctx,
+                               {"reason": "a question to the buyer about a listing missing a "
+                                          "must-have waits: no signed buyer agreement on "
+                                          "file. Record it with a signed config.update to "
+                                          "Agent 14; the question goes on the next check",
+                                "listings": [a["listing_id"] for a in asks]}))
         held = self.held_matches.get(ctx) or []
         if not held:
             return
@@ -350,9 +370,14 @@ class Spoke13BuyerSearchMatch:
                                 "since": today}))
         return clean
 
+    @property
+    def held_or_asking(self) -> dict:
+        """Buyers with held matches or held must-have questions (the clock's list)."""
+        return {c: True for c in set(self.held_matches) | set(self.unknown_ask_pending)}
+
     def recheck_held_matches(self, ctx: str):
         """Clock check: ask 14 again for each buyer with held matches."""
-        if not self.held_matches.get(ctx):
+        if not self.held_matches.get(ctx) and not self.unknown_ask_pending.get(ctx):
             return "nothing_held"
         self.hub.send(_env("13", "14", "record.request", ctx, {"purpose": "match_gate"}))
         return f"asked:{len(self.held_matches.get(ctx) or [])} held"

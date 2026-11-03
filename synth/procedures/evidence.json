@@ -1,6 +1,6 @@
 {
  "_what": "what each tuple's own run put on the record; written by collect_evidence.py",
- "ran_on": "2026-10-28",
+ "ran_on": "2026-11-03",
  "tuples": {
   "00-01": {
    "result": "PASS",
@@ -41405,6 +41405,22 @@
     },
     {
      "from": "13",
+     "to": "14",
+     "intent": "record.request",
+     "client": "B1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "14",
+     "to": "13",
+     "intent": "record.response",
+     "client": "B1",
+     "outcome": "delivered",
+     "template": null
+    },
+    {
+     "from": "13",
      "to": "11",
      "intent": "client.message.request",
      "client": "B1",
@@ -41481,7 +41497,7 @@
     "P01",
     "P06"
    ],
-   "entries": 259
+   "entries": 269
   },
   "13-04": {
    "result": "PASS",
@@ -51424,7 +51440,7 @@
     "P13",
     "P16"
    ],
-   "entries": 129
+   "entries": 130
   },
   "16-05": {
    "result": "PASS",
@@ -52029,7 +52045,7 @@
     "P13",
     "P16"
    ],
-   "entries": 235
+   "entries": 236
   },
   "16-07": {
    "result": "PASS",

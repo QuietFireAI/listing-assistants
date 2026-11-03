@@ -530,7 +530,7 @@ class Spoke06ShowingScheduler:
                 # longer silent. The owner gets an item to verify and rebook,
                 # and the buyer gets a neutral message that identity must be
                 # verified first (template wording awaits the owner's
-                # signature; Agent 11 holds it until then).
+                # signature; until then Agent 11 does not send it).
                 self.hub.send(_env("06", "queue", "clarification.request", ctx,
                                    {"reason": "showing cancelled: the requester's identity "
                                               "is not verified - verify it and rebook",

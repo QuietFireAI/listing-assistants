@@ -1,6 +1,6 @@
 {
  "_what": "what each tuple's own run put on the record; written by collect_evidence.py",
- "ran_on": "2026-10-28",
+ "ran_on": "2026-11-03",
  "tuples": {
   "P01": {
    "result": "PASS",
@@ -5401,7 +5401,7 @@
     {
      "outcome": "completed",
      "your_decisions": [
-      "APPROVE on wait-L1-07-2483a3 (agent 07)"
+      "APPROVE on wait-L1-07-6f2422 (agent 07)"
      ],
      "proposed_tuples": []
     }
@@ -6606,7 +6606,7 @@
     "P13",
     "P16"
    ],
-   "entries": 152,
+   "entries": 153,
    "steps": [
     "14->16 date.trigger",
     "16->11 client.message.request",
@@ -7614,7 +7614,7 @@
     {
      "outcome": "completed",
      "your_decisions": [
-      "APPROVE on wait-S1-06-2db333 (agent 06)"
+      "APPROVE on wait-S1-06-3e8c86 (agent 06)"
      ],
      "proposed_tuples": []
     }

@@ -878,3 +878,36 @@ def test_the_buyer_s_answer_to_a_criteria_question_reaches_you(tmp_path):
             if e["payload"].get("template") == "confirm_criteria_update"]
     assert len(asks) == 1
     assert any("buyer answered the criteria question" in r for r in queue_reasons(hub, "rc-9"))
+
+
+# ------------------------------------------------- owner answers, 2026-10-28 (late)
+def test_the_must_have_question_waits_for_the_buyer_agreement(tmp_path):
+    from dispatcher.listing_spokes_13 import Spoke13BuyerSearchMatch
+    from tests_listing.test_agent13 import answering_14
+    hub = make_hub(tmp_path)
+    s13 = Spoke13BuyerSearchMatch(hub)
+    gate = answering_14(hub, on_file=False)
+    hub.on_turn_start()
+    hub.send(signed(hub, "13", "ow-1", {"buyer_criteria": [
+        {"field": "budget", "value": 500000}, {"field": "pool", "value": True, "hard": True}]}))
+    _listing(hub, "ow-1", {"listing_id": "L1", "price": 450000})
+    assert not persisted(hub, "client.message.request", "ow-1")
+    assert any("waits: no signed buyer agreement" in r for r in queue_reasons(hub, "ow-1"))
+    gate["on_file"] = True
+    assert s13.recheck_held_matches("ow-1").startswith("asked")
+    asks = [e["payload"] for e in persisted(hub, "client.message.request", "ow-1")]
+    assert asks == [{"template": "unknown_criterion_ask", "field": "pool", "listing_id": "L1"}]
+
+
+def test_a_stated_pre_approval_yes_scores_as_pre_approved():
+    from dispatcher.lead_rubric import score_lead
+    rubric = {"budget_threshold": 400000, "budget_weight": 40, "timeline_days_threshold": 30,
+              "timeline_weight": 40, "financing_weight": 20, "hot_threshold": 70,
+              "warm_threshold": 40}
+    tier, score, notes, _ = score_lead({"budget": 450000, "timeline_days": 60,
+                                        "preapproval_status": "yes"}, rubric)
+    assert score == 60 and tier == "WARM"
+    tier, score, _, _ = score_lead({"budget": 450000, "timeline_days": 60,
+                                    "preapproval_status": "yes",
+                                    "preapproval_doc": {"expired": True}}, rubric)
+    assert score == 40                  # an expired letter still earns nothing

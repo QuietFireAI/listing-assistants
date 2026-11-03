@@ -13,7 +13,7 @@
   "steps": [
    {
     "t": "Agent 02 gives the lead the lower tier.",
-    "src": "dispatcher/lead_rubric.py:36-110; check:02-01:envelope.persisted:interaction.log"
+    "src": "dispatcher/lead_rubric.py:37-118; check:02-01:envelope.persisted:interaction.log"
    },
    {
     "t": "It tells the authorized user the score sat on a tier line and the lower tier was given.",
@@ -32,7 +32,7 @@
   },
   "test": {
    "t": "The signed rubric: a budget of 400,000 or more scores 40, a timeline of 30 days or less scores 40, a pre-approval scores 20; a score above 40 is warm and above 70 is hot (a score exactly on 40 or 70 gets the lower tier and a question). A lead with a 450,000 budget, a 90-day timeline and no financing scores exactly 40 and is recorded cold.",
-   "src": "spec:02-01; synth/tuples/setup.jsonl:1; dispatcher/lead_rubric.py:92-110"
+   "src": "spec:02-01; synth/tuples/setup.jsonl:1; dispatcher/lead_rubric.py:100-118"
   }
  },
  {
@@ -116,12 +116,12 @@
   },
   "when": {
    "t": "A lead states high urgency and no financing progress.",
-   "src": "dispatcher/lead_rubric.py:75-81"
+   "src": "dispatcher/lead_rubric.py:83-89"
   },
   "steps": [
    {
     "t": "Agent 02 scores financing and timeline as given; stated urgency adds nothing.",
-    "src": "dispatcher/lead_rubric.py:75-110"
+    "src": "dispatcher/lead_rubric.py:83-118"
    },
    {
     "t": "It writes the conflict into the tier record.",
@@ -197,7 +197,7 @@
   "steps": [
    {
     "t": "Agent 02 reads only the seven scoring settings; the extra ones are never read.",
-    "src": "dispatcher/lead_rubric.py:21-23; dispatcher/listing_spokes_02.py::extra = set(new_rubric.keys()) - REQUIRED_RUBRIC_KEYS"
+    "src": "dispatcher/lead_rubric.py:22-24; dispatcher/listing_spokes_02.py::extra = set(new_rubric.keys()) - REQUIRED_RUBRIC_KEYS"
    },
    {
     "t": "It tells the authorized user which settings it ignored.",
@@ -232,12 +232,12 @@
   },
   "when": {
    "t": "A lead's pre-approval letter is marked expired.",
-   "src": "dispatcher/lead_rubric.py:52-63"
+   "src": "dispatcher/lead_rubric.py:60-71"
   },
   "steps": [
    {
     "t": "Agent 02 gives no financing points, even if the lead also says they are pre-approved.",
-    "src": "dispatcher/lead_rubric.py:52-63"
+    "src": "dispatcher/lead_rubric.py:60-71"
    },
    {
     "t": "The note \"pre-approval letter expired\" goes in the tier record.",
@@ -340,12 +340,12 @@
   },
   "when": {
    "t": "A stated budget differs from the amount on the pre-approval document.",
-   "src": "dispatcher/lead_rubric.py:65-73"
+   "src": "dispatcher/lead_rubric.py:73-81"
   },
   "steps": [
    {
     "t": "Agent 02 scores on the document's amount.",
-    "src": "dispatcher/lead_rubric.py:65-73"
+    "src": "dispatcher/lead_rubric.py:73-81"
    },
    {
     "t": "The conflict goes in the tier record word for word.",
@@ -412,12 +412,12 @@
   },
   "when": {
    "t": "A lead gives none of the facts the rubric uses.",
-   "src": "dispatcher/lead_rubric.py:83-87"
+   "src": "dispatcher/lead_rubric.py:91-95"
   },
   "steps": [
    {
     "t": "Agent 02 records the tier as unknown, not cold.",
-    "src": "dispatcher/lead_rubric.py:85-87; check:02-12:envelope.persisted:interaction.log"
+    "src": "dispatcher/lead_rubric.py:93-95; check:02-12:envelope.persisted:interaction.log"
    },
    {
     "t": "It asks the authorized user.",

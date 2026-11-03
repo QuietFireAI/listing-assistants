@@ -201,7 +201,7 @@
  },
  {
   "id": "08-06",
-  "rev": 3,
+  "rev": 4,
   "title": {
    "t": "A document arrives unsigned where a signature is expected",
    "src": "tuple:08-06"
@@ -216,7 +216,7 @@
     "src": "dispatcher/listing_spokes_08.py:445-469; check:08-06:envelope.persisted:doc.status; check:08-06:envelope.persisted:interaction.log"
    },
    {
-    "t": "The authorized user is asked to get a signed copy, and a message asking the sender for one is requested from Agent 11; that message's wording waits for the authorized user's signature, so Agent 11 holds it for now. If the document had been requested, its reminder chase pauses until the authorized user marks the question done (owner decision of 2026-10-28; before, nobody was told).",
+    "t": "The authorized user is asked to get a signed copy, and a message asking the sender for one is requested from Agent 11; that message's wording waits for the authorized user's signature, so Agent 11 does not send it (signing later does not send it). If the document had been requested, its reminder chase pauses until the authorized user marks the question done (owner decision of 2026-10-28; before, nobody was told).",
     "src": "dispatcher/listing_spokes_08.py:451-468; dispatcher/listing_spokes_08.py:243-250; check:08-06:envelope.persisted:clarification.request; check:08-06:envelope.persisted:client.message.request"
    },
    {

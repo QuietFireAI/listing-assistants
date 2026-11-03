@@ -449,8 +449,8 @@ class Spoke08DocumentCollection:
                                 "status": "incomplete"}))
             # D-A11 (owner decision 2026-10-28, finding AF): the owner is
             # asked once, the sender is asked for a signed copy (template
-            # wording awaits the owner's signature; Agent 11 holds it until
-            # then), and the chase for this document pauses until the owner
+            # wording awaits the owner's signature; Agent 11 does not send it
+            # until then), and the chase for this document pauses until the owner
             # marks the question done. Before, nobody was told.
             self.hub.send(_env("08", "queue", "clarification.request", ctx,
                                {"reason": f"{doc_type} arrived UNSIGNED where a signature "
