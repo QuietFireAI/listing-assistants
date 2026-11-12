@@ -125,7 +125,18 @@ def spoke_env(frm, to, intent, ctx, payload):
                                 "verbatim_available": True})
 
 
+DEMO_CLOCK = "2026-07-01T10:00:00"
+
+
 def main():
+    # Since 2026-10-28 (owner decision D-A4) a client message that carries no
+    # hour uses this computer's clock, and anything between 21:00 and 08:00
+    # is held for quiet hours. Run at night, the "you're live" notice would
+    # be held until 08:00 and the demo would not complete. The demo therefore
+    # sets its own clock, as the test suite and the playbook runner do.
+    os.environ["LISTING_CLOCK_NOW"] = DEMO_CLOCK
+    say(f"  (demo clock set to {DEMO_CLOCK}: at night the seller's messages "
+        "would be held for quiet hours until 08:00)")
     hub, signer, s, ext, path = build()
     ctx = "demo-listing-1"
     failed = []

@@ -34,8 +34,23 @@ def test_demo_exits_nonzero_when_a_stage_does_not_happen(monkeypatch, capsys):
     """Without the brokerage identification Agent 12 asks a human instead of
     publishing. The demo must then name the stages and return 1."""
     import run_demo
+    # main() sets LISTING_CLOCK_NOW for its own run; registering the variable
+    # here makes pytest put the suite's value back afterwards (without this
+    # the demo's clock leaked into later tests)
+    monkeypatch.setenv("LISTING_CLOCK_NOW", os.environ.get("LISTING_CLOCK_NOW", ""))
     monkeypatch.setattr(run_demo, "BROKERAGE_ID", None)
     assert run_demo.main() == 1
     out = capsys.readouterr().out
     assert "DEMO DID NOT COMPLETE" in out
     assert "[FAILED] campaign published after the broker's key" in out
+
+
+def test_demo_does_not_depend_on_the_time_of_day():
+    """Found 2026-11-12: with the clock at 23:15 the "you're live" notice is
+    held for quiet hours (owner decision D-A4) and the demo did not complete.
+    The demo sets its own clock; a night-time run still completes."""
+    env = dict(os.environ, LISTING_CLOCK_NOW="2026-11-12T23:15:00")
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "run_demo.py")],
+                       capture_output=True, text=True, timeout=300, cwd=ROOT, env=env)
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
+    assert "[ok    ] seller told 'you're live'" in r.stdout
