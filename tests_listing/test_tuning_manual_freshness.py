@@ -22,6 +22,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # (file, param, documented default as unparsed-AST string)
 CONSTRUCTOR_TUNABLES = [
     ("dispatcher/listing_spokes.py", "record_response_timeout_days", "1"),
+    ("dispatcher/hermes_seam.py", "drift_threshold", "0.35"),
+    ("dispatcher/portal_dispatcher.py", "accept_timeout_s", "60.0"),
     ("dispatcher/listing_spokes_02.py", "hot_lead_sla_seconds", "300"),
     ("dispatcher/listing_spokes_03.py", "frequency_cap_per_week", "3"),
     ("dispatcher/listing_spokes_03.py", "legal_contact_hours", "(8,21)"),

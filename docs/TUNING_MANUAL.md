@@ -497,6 +497,48 @@ hardcoded. Not covered: the per-milestone business logic in Agent 07's
 doc.status handling and the financing_contingency deadline case - see
 the file's own `_not_covered_here` field and the class docstring for why.
 
+## Swept 2026-11-11 - fixed values and one unbuilt item this manual did not list
+
+How this sweep was done, so its limits are known: every number assigned at
+the top level of a file in `dispatcher/` and `tools/`, and every constructor
+default that is a number or a fixed collection, was read from the code and
+looked up by name in this manual and in `docs/OPERATOR_TUNING_GUIDE.md`.
+20 top-level numbers and 30 constructor defaults were found; the ones below
+were in neither document. Most arrived with the agent-isolation work of
+2026-10-26, after the last sweep (2026-10-15). Not covered by this sweep:
+numbers written inside a function body, and the config files.
+
+| Value | Where | Now | What it controls |
+|---|---|---|---|
+| `MAX_FAILURES` | `dispatcher/signer_service.py` | **5** | Wrong sign-in codes before the signer locks. |
+| `LOCK_S` | `dispatcher/signer_service.py` | **15 minutes** | How long the signer stays locked after that. |
+| `PENDING_TTL_S` | `dispatcher/signer_service.py` | **10 minutes** | How long a pending signing request is kept before it is dropped. |
+| `STEP`, `DIGITS` | `dispatcher/totp.py` | **30 seconds, 6 digits** | The one-time code. These are the values authenticator apps expect; changing them breaks enrolled phones. |
+| `CALL_TIMEOUT_S` | `dispatcher/portal_dispatcher.py` | **120 seconds** | How long the dispatcher waits for one agent to answer a call (default of `call_timeout_s`). |
+| `accept_timeout_s` | `PortalDispatcher` constructor | **60 seconds** | How long the dispatcher waits for an agent to connect at start. Slow machines may need more. |
+| `MAX_FRAME` | `dispatcher/portal.py` | **16 MiB** | Largest single message between the dispatcher and an agent; a bigger one cuts the line. |
+| `NORMAL_DAYS` | `dispatcher/review_agent.py` | **30 days** | How far back the review agent looks when it describes what is normal for an agent. |
+| `TALLY_ITEMS_SHOWN` | `tools/desk.py` | **30** | Items listed under each tally on the Desk before "more". |
+| `drift_threshold` | `HermesSeam` constructor (`dispatcher/hermes_seam.py`) | **0.35** | Drift score at or above which a spoke trace is quarantined as high variance. No measured basis for this number is recorded. |
+| `UNCERTAINTY_WEIGHT`, `UNCERTAINTY_CAP`, `CONFIDENCE_WEIGHT`, `COMPRESSION_WEIGHT`, `COMPRESSION_RATIO` | `dispatcher/pillar_lib/open_mind/comparator.py` | **0.3, 0.6, 0.3, 0.2, 0.2** | The weights behind the drift score above. They come from the open-mind pillar; change them there, not here. |
+| `SCHEMA_VERSION` | `dispatcher/persistence_sqlite.py` | **3** | Version of the SQLite file layout. Not a tuning value; listed so the sweep accounts for it. |
+
+**Unbuilt item not listed above:** the after-action report declares a
+"human response time" field that the runtime cannot fill. The notification
+is recorded; the moment the human responds is not
+(`dispatcher/after_action.py`).
+
+**Checked and already listed:** scrape-source blocking (Agent 10 tuple 6),
+the Twilio placeholders, `loop_threshold=20`, the JEV key placeholder, the
+SQLite tables the agents do not write, the unsigned attestation manifest,
+the external adapters, MANNERS re-injection, the console's future work.
+
+**Empty functions:** a scan of all 108 non-test Python files for functions
+whose whole body is `pass`, `...`, a bare constant return or
+`NotImplemented` found two, both `log_message` overrides that silence a
+web server's request log (`dispatcher/signer_service.py`, `tools/desk.py`).
+Neither hides missing work.
+
 ## Maintenance note
 
 Since 2026-10-11 this repository is the single source for the config files
