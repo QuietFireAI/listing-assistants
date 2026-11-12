@@ -2,7 +2,11 @@ name: ci
 on: [push, pull_request]
 jobs:
   fresh-clone-suite:
-    runs-on: ubuntu-latest
+    # pinned 2026-11-12: ubuntu-latest moved to 26.04, which the pinned
+    # Playwright (1.56.0) refuses ("does not support chromium on
+    # ubuntu26.04-x64"), so the browser install failed before any isolation
+    # test ran. Move this together with the Playwright pin, not on its own.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
