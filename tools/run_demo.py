@@ -20,6 +20,16 @@ signatures, and the real hash-chained audit log.
   Act 6  Chain verification - every event, hash-linked, tamper-evident.
 
 Run it:  python3 tools/run_demo.py
+
+Every stage below is checked. The run ends with a count and exits with
+code 1 if any stage did not happen (2026-11-11: before, the script printed
+False for the go-live and still exited 0, because it never gave the
+broker's release for the photographer booking that Act 2 waits on).
+
+Three lines are sent by the script in an agent's name, to stand in for work
+that happens outside this one listing: the listing agreement logged by
+Agent 07, the seller onboarding request from Agent 06, and the listing data
+that carries the steering phrase in Act 3. Each is marked "(stand-in)".
 """
 import os
 import sys
@@ -46,8 +56,10 @@ from dispatcher.listing_spokes_15 import Spoke15FinancialTracking
 from dispatcher.listing_spokes_16 import Spoke16AfterCloseReferral
 from dispatcher.listing_spokes_17 import Spoke17ComplianceFairHousing
 from dispatcher.listing_spokes_18 import Spoke18CalendarTask
+from dispatcher.listing_spokes_19 import Spoke19Prospecting
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BROKERAGE_ID = "Synth Realty, Testville OH"
 RULESET = {"prohibited_phrases": [
     {"phrase": "perfect for families", "rule_id": "FH-STEER-1"}],
     "state_rules": {}}
@@ -81,13 +93,16 @@ def build():
                         "regulated": False}}),
         "10": Spoke10MarketData(hub),
         "11": Spoke11ClientCommunication(hub),
-        "12": Spoke12MarketingCampaign(hub),
+        # every ad carries the brokerage identification (owner decision
+        # 2026-10-14); without it Agent 12 asks a human instead of publishing
+        "12": Spoke12MarketingCampaign(hub, brokerage_identification=BROKERAGE_ID),
         "13": Spoke13BuyerSearchMatch(hub),
         "14": Spoke14CRMPipeline(hub),
         "15": Spoke15FinancialTracking(hub),
         "16": Spoke16AfterCloseReferral(hub),
-        "17": Spoke17ComplianceFairHousing(hub),
+        "17": Spoke17ComplianceFairHousing(hub, brokerage_identification=BROKERAGE_ID),
         "18": Spoke18CalendarTask(hub),
+        "19": Spoke19Prospecting(hub),
     }
     hub.on_turn_start()
     return hub, signer, s, ext, path
@@ -113,6 +128,14 @@ def spoke_env(frm, to, intent, ctx, payload):
 def main():
     hub, signer, s, ext, path = build()
     ctx = "demo-listing-1"
+    failed = []
+
+    def check(label, ok, shown=None):
+        """Print one stage and remember it if it did not happen."""
+        mark = "ok    " if ok else "FAILED"
+        say(f"  [{mark}] {label}" + (f": {shown}" if shown is not None else ""))
+        if not ok:
+            failed.append(label)
 
     def seen(intent):
         return [e for e in hub.audit.read()
@@ -120,6 +143,26 @@ def main():
 
     def ext_has(intent):
         return any(e.intent == intent for e in ext)
+
+    def held_now(intent):
+        return [hid for hid, h in hub._absolute_holds.items() if h.intent == intent]
+
+    def release(intent, to_agent):
+        """The broker's key: a signed disclosure.authority for each held
+        message of this kind. Returns how many were released."""
+        n = 0
+        for hid in held_now(intent):
+            h = hub._absolute_holds[hid]
+            auth = Envelope(from_agent="human", to_agent=to_agent,
+                            intent="disclosure.authority",
+                            client_context_id=h.client_context_id,
+                            payload={"held_envelope_id": hid},
+                            provenance={"source": "human", "captured_at": "runtime",
+                                        "verbatim_available": True})
+            signer.sign(auth)
+            hub.release_disclosure(auth)
+            n += 1
+        return n
 
     hub.send(signed(signer, "17", "config.update", ctx,
                     {"ruleset": RULESET, "version": "r1"}))
@@ -130,21 +173,26 @@ def main():
                                      "features": ["garage"],
                                      "photo_detected_features": ["garage"]},
                      "authorize_go_live": True, "today": "2026-07-01"}))
-    hub.send(spoke_env("07", "14", "interaction.log", ctx,
+    hub.send(spoke_env("07", "14", "interaction.log", ctx,     # (stand-in)
                        {"kind": "listing_agreement",
                         "consent": {"call": "yes", "text": "yes",
                                     "email": "yes"}}))
     v = s["09"].scheduled.get(ctx, {}).get("photography", {}).get("vendor_id")
-    say(f"  photography ordered from vetted roster: {v}")
+    check("photography ordered from the vetted roster", v == "v-photo", v)
     vheld = any(e["kind"] == "absolute_signal.hold"
                 and e["intent"] == "vendor.schedule" for e in hub.audit.read())
-    say(f"  vendor booking (a COUNTERPARTY) auto-sent? {ext_has('vendor.schedule')}"
-        f"   <- False by design: held by the Absolute Signal ({vheld})")
+    check("vendor booking (a COUNTERPARTY) held, not sent on its own",
+          vheld and not ext_has("vendor.schedule"))
     say("  the roster PICK happened inside the swarm; reaching OUT to the "
         "vendor waits for a human's release. Scheduling != disclosing.")
-    hub.send(spoke_env("06", "11", "client.message.request", ctx,
+    n_vendor = release("vendor.schedule", "09")
+    check("broker signs the release for the photographer booking",
+          n_vendor >= 1, f"{n_vendor} released")
+    check("booking sent to the photographer after the release",
+          ext_has("vendor.schedule"))
+    hub.send(spoke_env("06", "11", "client.message.request", ctx,  # (stand-in)
                        {"template": "seller_onboarding", "hour": 10}))
-    say(f"  seller onboarding message sent: {ext_has('client.message.send')}")
+    check("seller onboarding message sent", ext_has("client.message.send"))
     say("  NOTE: $500,000 list price came in on the signed envelope. No "
         "agent set it, no agent will change it.")
 
@@ -155,66 +203,61 @@ def main():
                         "doc_type": "photo_package",
                         "proof_artifact_present": True,
                         "content_hash": "photos-hash"}))
-    say(f"  photo deliverable verified present-and-opens: "
-        f"{bool(seen('deliverable.release'))}")
-    say(f"  description drafted, submitted to compliance: "
-        f"{bool(seen('content.review'))}")
-    verd = seen("content.verdict")
-    say(f"  compliance verdict on the clean draft: "
-        f"{verd[-1]['payload']['verdict'] if verd else 'none'}")
-    rel = {r["to_agent"] for r in seen("asset.release")}
-    say(f"  approved assets released to: {sorted(rel)} "
-        "(both MLS and marketing)")
+    check("photo deliverable verified present-and-opens",
+          bool(seen("deliverable.release")))
+    check("description drafted, submitted to compliance",
+          bool(seen("content.review")))
+    verd = [e for e in seen("content.verdict") if e["client_context_id"] == ctx]
+    verdict = verd[-1]["payload"]["verdict"] if verd else "none"
+    check("compliance verdict on the clean draft is approved",
+          verdict == "approved", verdict)
+    rel = {r["to_agent"] for r in seen("asset.release")
+           if r["client_context_id"] == ctx}
+    check("approved assets released to both MLS (05) and marketing (12)",
+          {"05", "12"} <= rel, sorted(rel))
 
     act(3, "FAIR-HOUSING GATE LIVE -> A STEERING PHRASE IS FLAGGED")
     fctx = "demo-flag"
-    hub.send(spoke_env("05", "04", "listing.data", fctx,
+    hub.send(spoke_env("05", "04", "listing.data", fctx,       # (stand-in)
                        {"beds": 2, "features": ["perfect for families"],
                         "today": "2026-07-05"}))
     fv = [e["payload"]["verdict"] for e in seen("content.verdict")
           if e["client_context_id"] == fctx]
-    say(f"  data carried a prohibited steering phrase; verdict: {fv}")
+    check("data carrying a prohibited steering phrase is flagged first",
+          bool(fv) and fv[0] == "flagged", fv)
     leaked = any("perfect for families" in str(r["payload"])
                  for r in seen("asset.release")
                  if r["client_context_id"] == fctx)
-    say(f"  did the flagged phrase EVER reach a marketing release? {leaked}")
+    check("the flagged phrase never reached a marketing release", not leaked)
     say("  The gate is a hard stop: flagged copy cannot market. Period.")
 
     act(4, "GO-LIVE -> MLS ACTIVE, CLEAR COOPERATION, THE ABSOLUTE SIGNAL")
-    su = {e["to_agent"] for e in seen("status.update")}
-    say(f"  status.update(active) reached: {sorted(su)} (11/12/14 required)")
+    su = {e["to_agent"] for e in seen("status.update")
+          if e["client_context_id"] == ctx
+          and e["payload"].get("status") == "active"}
+    check("status.update(active) reached 11, 12 and 14",
+          {"11", "12", "14"} <= su, sorted(su))
     # THE ABSOLUTE SIGNAL, live: the campaign is a PUBLIC send. It does not
     # auto-publish - it HOLDS until a human authorizes THIS message.
     held = [e for e in hub.audit.read()
             if e["kind"] == "absolute_signal.hold"
             and e["intent"] == "campaign.publish"]
-    say(f"  campaign to the PUBLIC held by the Absolute Signal: {bool(held)}"
-        f"  (audience={held[0]['audience'] if held else '-'})")
-    say(f"  auto-published without a human? {ext_has('campaign.publish')}"
-        f"   <- must be False: the signal holds it")
-    # the human key: a signed disclosure.authority naming the held campaign
-    n_released = 0
-    for hid in list(hub._absolute_holds.keys()):
-        h = hub._absolute_holds[hid]
-        if h.intent != "campaign.publish":
-            continue
-        auth = Envelope(from_agent="human", to_agent="12",
-                        intent="disclosure.authority",
-                        client_context_id=h.client_context_id,
-                        payload={"held_envelope_id": hid},
-                        provenance={"source": "human", "captured_at": "runtime",
-                                    "verbatim_available": True})
-        signer.sign(auth)
-        hub.release_disclosure(auth)
-        n_released += 1
-    say(f"  human signs a release for the campaign ({n_released} authorized)")
-    say(f"  NOW campaign published (after the human's key): "
-        f"{ext_has('campaign.publish')}")
-    feeds = any(e["to_agent"] == "13" and e["intent"] == "listing.data"
+    check("campaign to the PUBLIC held by the Absolute Signal", bool(held),
+          f"audience={held[0]['audience'] if held else '-'}")
+    check("nothing published before the broker's key",
+          not ext_has("campaign.publish"))
+    n_released = release("campaign.publish", "12")
+    check("broker signs the release for the campaign", n_released >= 1,
+          f"{n_released} released")
+    check("campaign published after the broker's key",
+          ext_has("campaign.publish"))
+    feeds = any(e["to_agent"] == "13" and e["client_context_id"] == ctx
                 for e in seen("listing.data"))
-    say(f"  listing pushed into buyer-match feeds (agent 13): {feeds}")
-    sends = [e for e in ext if e.intent == "client.message.send"]
-    say(f"  seller told 'you're live': {len(sends) >= 2}")
+    check("listing pushed into buyer-match feeds (agent 13)", feeds)
+    sends = [e for e in ext if e.intent == "client.message.send"
+             and e.client_context_id == ctx]
+    check("seller told 'you're live' (a second message to the seller)",
+          len(sends) >= 2, f"{len(sends)} messages to the seller")
 
     act(5, "A PRICING QUESTION -> ESCALATION, NEVER AN ANSWER")
     pctx = "demo-price"
@@ -231,21 +274,32 @@ def main():
     answered = any(e.intent == "client.message.send"
                    and e.client_context_id == pctx
                    and "480" in str(e.payload) for e in ext)
-    say(f"  pricing question escalated to the legal line: {escalated}")
-    say(f"  did any agent ANSWER the price question? {answered}")
+    check("pricing question escalated to the legal line", escalated)
+    check("no agent answered the price question", not answered)
     say("  Price is fiduciary. The swarm routes it to a human, always.")
 
     act(6, "THE CHAIN")
     r = hub.audit.verify_chain()
     say(f"  audit entries: {len(hub.audit.read())}")
-    say(f"  verify_chain(): ok={r['ok']}")
-    say(f"  dead letters: {len(hub.queues['dead.letter'])}")
+    check("verify_chain()", bool(r["ok"]), f"ok={r['ok']}")
+    check("no dead letters", len(hub.queues["dead.letter"]) == 0,
+          len(hub.queues["dead.letter"]))
     say(f"  log file: {path}")
     say()
     say("  Tamper with any line and verify_chain() names it. "
         "Not trust us - check us.")
     say()
+    say("=" * 68)
+    if failed:
+        say(f"  DEMO DID NOT COMPLETE: {len(failed)} stage(s) did not happen:")
+        for label in failed:
+            say(f"    - {label}")
+        say("=" * 68)
+        return 1
+    say("  DEMO COMPLETE: every stage above happened.")
+    say("=" * 68)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

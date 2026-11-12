@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - audit fixes (branch `audit-fixes-2026-10-11`)
 
 ### Fixed
+- Demo (`tools/run_demo.py`), 2026-11-11: it printed False for the go-live and still exited 0. It never gave the broker's release for the photographer booking, and it built Agents 12 and 17 without the brokerage identification (so the campaign asked a human instead of publishing). It now gives both releases, checks 22 stages, prints `[ok]` or `[FAILED]` for each, and exits 1 if any stage did not happen. Agent 19 added to its set-up. Guarded by `tests_listing/test_run_demo.py` (2 tests). Documented counts updated to 1384 passed, 1 skipped.
 - Client drawers: path traversal, cross-client filing, identity overwrite; real traversal tests.
 - HITL: decisions must be signed `hitl.decision.authority` envelopes bound to the client; the CLI no longer reports fake success.
 - Update-pack verifier: takes a public key; unlisted files, unsafe paths and downgrades refused; no environment bypass; `tools/sign_manifest.py` added.
