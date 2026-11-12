@@ -168,6 +168,9 @@ class AgentHub:
     def outbound_state(self, envelope_id):
         return self._peer.call("outbound_state", {"envelope_id": envelope_id})
 
+    def queue_item_state(self, envelope_id):
+        return self._peer.call("queue_item_state", {"envelope_id": envelope_id})
+
     def file_record_via_dispatcher(self, agent_id, ctx, category, name, record, identity=None):
         return self._peer.call("file_record", {"agent_id": agent_id, "ctx": ctx,
                                                "category": category, "name": name,

@@ -242,10 +242,13 @@ class Spoke08DocumentCollection:
             return None
         q = pending.get("unsigned_question")
         if q:
-            # D-A11: paused while the owner's "arrived unsigned" item is open
-            acked = {e.get("item") for e in self.hub.audit.read()
-                     if e.get("kind") == "desk.acknowledged"}
-            if q is True or q not in acked:
+            # D-A11: paused while the owner's "arrived unsigned" item is open.
+            # 2026-11-12: asked of the hub (queue_item_state) instead of read
+            # from the queues and the record, which an agent in its own
+            # container cannot see. An item that is not on the owner's list
+            # does not pause the chase: the reminders and the escalation at
+            # the cap go on, rather than a silence nobody was told about.
+            if isinstance(q, str) and self.hub.queue_item_state(q) == "open":
                 return "paused: unsigned copy question open"
             pending.pop("unsigned_question")
         if pending.get("escalated"):
@@ -452,18 +455,16 @@ class Spoke08DocumentCollection:
             # wording awaits the owner's signature; Agent 11 does not send it
             # until then), and the chase for this document pauses until the owner
             # marks the question done. Before, nobody was told.
-            self.hub.send(_env("08", "queue", "clarification.request", ctx,
-                               {"reason": f"{doc_type} arrived UNSIGNED where a signature "
-                                          f"is expected - get a signed copy; the reminder "
-                                          f"chase for it is paused until you mark this done",
-                                "doc_type": doc_type}))
+            question = _env("08", "queue", "clarification.request", ctx,
+                            {"reason": f"{doc_type} arrived UNSIGNED where a signature "
+                                       f"is expected - get a signed copy; the reminder "
+                                       f"chase for it is paused until you mark this done",
+                             "doc_type": doc_type})
+            self.hub.send(question)
             pending = self.pending_requests.get(ctx, {}).get(doc_type)
             if pending is not None:
-                from .escalation_watch import key_of
-                recs = [r for r in self.hub.queues.get("clarification.request", [])
-                        if isinstance(r, dict) and r.get("client_context_id") == ctx]
-                pending["unsigned_question"] = (key_of("clarification.request", recs[-1])
-                                                if recs else True)
+                # the question's own id; the hub says when you marked it done
+                pending["unsigned_question"] = question.envelope_id
             self.hub.send(_env("08", "11", "client.message.request", ctx,
                                {"template": "doc_unsigned_resend", "doc_type": doc_type}))
             return

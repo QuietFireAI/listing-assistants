@@ -596,6 +596,30 @@ def test_signed_replace_drops_a_criterion_and_rechecks_kept_matches(tmp_path):
     assert [m["listing_id"] for m in s13.match_history.get("as-2", [])] == ["L2"]
 
 
+def test_a_criteria_replace_does_not_ask_again_about_the_same_missing_must_have(tmp_path):
+    """Found 2026-11-12: each signed replace re-checked the kept match and
+    asked the buyer and the owner again about the same listing."""
+    hub = make_hub(tmp_path)
+    s13 = _s13(hub)
+    hub.on_turn_start()
+    crit = [{"field": "budget", "value": 500000}, {"field": "pool", "value": True, "hard": True}]
+    hub.send(signed(hub, "13", "as-3", {"buyer_criteria": crit}))
+    _listing(hub, "as-3", {"listing_id": "L3", "price": 450000})
+
+    def asked():
+        return ([e["payload"].get("field") for e in persisted(hub, "client.message.request", "as-3")],
+                len([r for r in queue_reasons(hub, "as-3") if "hard criteria" in r]))
+    assert asked() == (["pool"], 1)
+    hub.send(signed(hub, "13", "as-3", {"buyer_criteria_replace":
+                                        crit + [{"field": "garage", "value": True}]}))
+    assert asked() == (["pool"], 1)                  # same listing, same gap: not asked again
+    assert "L3" in s13.unknown_kept["as-3"]          # still kept
+    # a replace that adds a second must-have the listing does not state: asked about both
+    hub.send(signed(hub, "13", "as-3", {"buyer_criteria_replace":
+                                        crit + [{"field": "garage", "value": True, "hard": True}]}))
+    assert asked() == (["pool", "pool, garage"], 2)
+
+
 # ------------------------------------------------------------- D-A6 (6, AP)
 def test_frozen_record_takes_an_opt_out_and_holds_an_opt_in(tmp_path):
     hub = make_hub(tmp_path)

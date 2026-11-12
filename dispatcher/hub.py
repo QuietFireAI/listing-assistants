@@ -398,6 +398,25 @@ class Hub:
                 return "sent"
             return "not sent"
 
+    def queue_item_state(self, envelope_id: str) -> str:
+        """Whether you have marked done the item a message to "queue" became
+        (2026-11-12). Agent 08 pauses a document chase until you mark its
+        "arrived unsigned" question done; it used to read the queues and the
+        record itself, which an agent in its own container cannot do, so
+        there the message was dead-lettered. "open" while the item waits,
+        "done" once the Desk's Done (or the console's ack) is on the record
+        for it, "not found" when no queue holds an item with that id."""
+        from .escalation_watch import key_of
+        with self._lock:
+            found = [(q, r) for q, recs in self.queues.items() for r in recs
+                     if isinstance(r, dict) and r.get("envelope_id") == envelope_id]
+        if not envelope_id or not found:
+            return "not found"
+        keys = {key_of(q, r) for q, r in found}
+        acked = {e.get("item") for e in self.audit.read()
+                 if e.get("kind") == "desk.acknowledged"}
+        return "done" if keys & acked else "open"
+
     def decline_disclosure(self, auth: Envelope) -> dict:
         """The other answer to a held message: do NOT send it. Added
         2026-10-12 - before this, a held message could be released or left

@@ -24,8 +24,9 @@ The menus (what each side may ask of the other):
 
   dispatcher -> agent   init, deliver, resume, state, restore
   agent -> dispatcher   send, trace, escalate, log_note, outbound_state,
-                        on_record, file_record, hold, phase_gate,
-                        decide, decision_status, draft_gate, draft_remarks
+                        queue_item_state, on_record, file_record, hold,
+                        phase_gate, decide, decision_status, draft_gate,
+                        draft_remarks
 
 What each agent -> dispatcher call does, and which agents may use the
 narrow ones, is in dispatcher/portal_dispatcher.py. A request for anything
@@ -46,8 +47,8 @@ MAX_FRAME = 16 * 1024 * 1024          # one message; a bigger frame cuts the lin
 
 DISPATCHER_TO_AGENT = frozenset({"init", "deliver", "resume", "state", "restore"})
 AGENT_TO_DISPATCHER = frozenset({
-    "send", "trace", "escalate", "log_note", "outbound_state", "on_record",
-    "file_record", "hold", "phase_gate", "decide", "decision_status",
+    "send", "trace", "escalate", "log_note", "outbound_state", "queue_item_state",
+    "on_record", "file_record", "hold", "phase_gate", "decide", "decision_status",
     "draft_gate", "draft_remarks"})
 
 

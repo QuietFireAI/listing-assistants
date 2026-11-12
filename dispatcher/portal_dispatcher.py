@@ -25,6 +25,9 @@ What each menu item does, as the agent on that line:
   log_note(kind, data)      a line on the record, only of the kinds agents
                             write (AGENT_NOTE_KINDS) and only as this agent
   outbound_state(id)        was a message held, sent or not sent
+  queue_item_state(id)      has the broker marked done the item this agent's
+                            own question became (Agent 08 only): open, done
+                            or not found; another agent's item is not found
   on_record()               the ids of the envelopes on the record (Agent 18
                             used to read the whole log; it needs only these)
   file_record(...)          files into a client's drawer (agents 04 05 07 08
@@ -54,6 +57,7 @@ ONLY_FOR = {
     "file_record": {"04", "05", "07", "08", "14", "15"},
     "decide": {"02"}, "decision_status": {"02"},
     "draft_gate": {"04"}, "draft_remarks": {"04"},
+    "queue_item_state": {"08"},
 }
 
 # the kinds of record line an agent writes itself (everything else on the
@@ -455,6 +459,14 @@ class Team:
             live("outbound_state")
             return hub.outbound_state(envelope_id)
 
+        def queue_item_state(envelope_id):
+            live("queue_item_state")
+            # only about an item this agent itself put on the broker's list
+            mine = any(isinstance(r, dict) and r.get("envelope_id") == envelope_id
+                       and r.get("from_agent") == aid
+                       for recs in hub.queues.values() for r in recs)
+            return hub.queue_item_state(envelope_id) if mine else "not found"
+
         def on_record():
             live("on_record")
             return [e.get("envelope_id") for e in hub.audit.read()
@@ -523,7 +535,8 @@ class Team:
             return dm.draft_remarks(aid, envelope_id, facts, char_limit)
 
         return {"send": send, "trace": trace, "escalate": escalate, "log_note": log_note,
-                "outbound_state": outbound_state, "on_record": on_record,
+                "outbound_state": outbound_state, "queue_item_state": queue_item_state,
+                "on_record": on_record,
                 "file_record": file_record, "hold": hold, "phase_gate": phase_gate,
                 "decide": decide, "decision_status": decision_status,
                 "draft_gate": draft_gate, "draft_remarks": draft_remarks}

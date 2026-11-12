@@ -106,6 +106,12 @@ class Spoke13BuyerSearchMatch:
         # buyer's standing preference or criteria change. ctx -> {listing_id:
         # listing}
         self.unknown_kept: dict[str, dict[str, dict]] = {}
+        # what each kept listing was asked about: ctx -> {listing_id: [fields]}.
+        # 2026-11-12: a signed criteria replace re-checks the kept matches,
+        # and every re-check asked the buyer and the owner again about the
+        # same listing and the same missing must-have. Asked again only when
+        # what is missing has changed.
+        self.unknown_asked: dict[str, dict[str, list]] = {}
         self.criteria_confirm_asked: set[str] = set()   # buyers asked to confirm a change
         # must-have questions waiting for the buyer agreement (2026-10-28)
         self.unknown_ask_pending: dict[str, list[dict]] = {}
@@ -201,11 +207,11 @@ class Spoke13BuyerSearchMatch:
             # kept matches. Before, only the owner was asked and the match
             # was dropped.
             lid = listing.get("listing_id")
-            kept = self.unknown_kept.setdefault(ctx, {})
-            first = lid not in kept
-            kept[lid] = listing
-            if not first:
+            self.unknown_kept.setdefault(ctx, {})[lid] = listing
+            asked = self.unknown_asked.setdefault(ctx, {})
+            if asked.get(lid) == sorted(missing_hard):
                 return
+            asked[lid] = sorted(missing_hard)
             self.hub.send(_env("13", "queue", "clarification.request", ctx,
                                {"reason": f"listing incomplete on hard "
                                          f"criteria {missing_hard} - no "
