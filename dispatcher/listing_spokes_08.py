@@ -13,7 +13,7 @@ import re
 
 from .core import Envelope
 from .handoff_guard import guard, register as register_spoke
-from .drawer_filing import file_record
+from .drawer_filing import file_record, NO_DRAWER_STORE
 
 SOURCE_VERIFIED = "source_verified"
 STATED_BY_PARTY = "stated_by_party"
@@ -494,8 +494,39 @@ class Spoke08DocumentCollection:
         # clean file
         existing.append({"doc_type": doc_type, "payload": payload,
                          "content_hash": payload.get("content_hash")})
-        file_record(self.hub, "08", ctx, "documents", f"{doc_type}_{env.envelope_id[:12]}",
-                    {"doc_type": doc_type, "received": payload, "from_agent": env.from_agent})
+        filed = file_record(self.hub, "08", ctx, "documents",
+                            f"{doc_type}_{env.envelope_id[:12]}",
+                            {"doc_type": doc_type, "received": payload,
+                             "from_agent": env.from_agent}) or {}
+        if not filed.get("filed") and filed.get("reason") != NO_DRAWER_STORE:
+            # Outside audit of cb1ebcb, item 12 (fixed 2026-11-12): the
+            # client's drawer refused the document and 08 went on as if it
+            # were filed - "document_filed" on the record and
+            # artifact_on_file to Agent 07, which marked the milestone
+            # satisfied (for a settlement statement, closed the deal). A
+            # refused filing is not on file: 07 is told "incomplete", the
+            # record says why, and the client is not chased again for a
+            # document they did send (the drawer's refusal is already on
+            # your list, raised by the filing itself).
+            existing[-1]["filed"] = False
+            self.hub.send(_env("08", "14", "interaction.log", ctx,
+                               {"kind": "document_not_filed", "doc_type": doc_type,
+                                "reason": filed.get("reason")}))
+            self.hub.send(_env("08", "07", "doc.status", ctx,
+                               {"doc_type": doc_type,
+                                "milestone": DOC_MILESTONE_MAP.get(doc_type),
+                                "status": "incomplete",
+                                "filing_refused": filed.get("reason")}))
+            pending = self.pending_requests.get(ctx, {}).get(doc_type)
+            if pending is not None:
+                pending["escalated"] = True
+            self.hub.ingest_spoke_trace(
+                "08", env.envelope_id,
+                thought=f"{doc_type!r} for {ctx!r} was refused by the client's drawer "
+                        f"({filed.get('reason')}) - not reported as filed, milestone not "
+                        f"satisfied, no further reminders to the sender",
+                result="not filed: drawer refused")
+            return
         had_pending = doc_type in self.pending_requests.get(ctx, {})
         self.pending_requests.get(ctx, {}).pop(doc_type, None)
         if had_pending:

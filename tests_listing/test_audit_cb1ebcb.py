@@ -172,3 +172,56 @@ def test_audit69_the_review_says_signed_only_when_the_signature_checks(tmp_path)
     assert cc["ok"] and cc["signature"]["verified"] is False
     assert "code you signed" not in first.replace("not proof that this is the code you signed", "")
     assert "unverified list" in first
+
+
+# ------------------------------------------------------------ audit 12
+def _settlement(sw, ctx):
+    # a settlement statement is filed only from a sender you named
+    sw.spokes["08"].expected_senders[ctx] = {"closing_settlement_statement": {"title_co"}}
+    sw.hub.send(_env("11", "08", "document.submission", ctx,
+                     {"doc_type": "closing_settlement_statement", "opens_correctly": True,
+                      "submitting_party": "title_co",
+                      "signature_expected": True, "signed": True, "content_hash": "cs-1",
+                      "sale_price": 400000, "commission_amount": 10000,
+                      "today": "2026-11-20"}))
+
+
+def _closing_timeline(sw, s, ctx):
+    sw.hub.send(_signed(s, "07", ctx, {"timeline_init": {"closing": "2026-11-20"},
+                                       "today": "2026-11-01"}))
+    return sw.spokes["07"].timelines[ctx]["closing"]
+
+
+def test_audit12_a_document_the_drawer_refuses_is_not_reported_as_filed(tmp_path, monkeypatch):
+    """Fixed 2026-11-12. Before: the drawer refused the settlement statement,
+    Agent 08 still logged document_filed and told Agent 07 the artifact was
+    on file, and 07 closed the deal."""
+    sw, s = _swarm(tmp_path)
+    closing = _closing_timeline(sw, s, "c12")
+
+    def refuse(*a, **k):
+        raise PermissionError("drawer is read-only")
+    monkeypatch.setattr(sw.hub.drawers, "record_agent_artifact", refuse)
+    _settlement(sw, "c12")
+
+    kinds = [e["payload"].get("kind") for e in _persisted(sw, "interaction.log", "c12")]
+    assert "document_filed" not in kinds and "document_not_filed" in kinds
+    [status] = [e["payload"] for e in _persisted(sw, "doc.status", "c12")]
+    assert status["status"] == "incomplete" and not status.get("artifact_on_file")
+    assert "drawer is read-only" in status["filing_refused"]
+    assert closing["satisfied"] is False                       # the deal is not closed
+    assert not _persisted(sw, "transaction.closed", "c12")
+    # the refusal is on the record and on the owner's list (raised by the filing itself)
+    assert [e for e in sw.hub.audit.read() if e["kind"] == "drawer.refused"]
+    assert any(q.get("client_context_id") == "c12"
+               and q["payload"].get("reason") == "client drawer filing refused"
+               for q in sw.hub.queues["clarification.request"])
+
+
+def test_audit12_the_same_document_filed_normally_still_closes(tmp_path):
+    sw, s = _swarm(tmp_path)
+    closing = _closing_timeline(sw, s, "c13")
+    _settlement(sw, "c13")
+    kinds = [e["payload"].get("kind") for e in _persisted(sw, "interaction.log", "c13")]
+    assert "document_filed" in kinds and "document_not_filed" not in kinds
+    assert closing["satisfied"] is True

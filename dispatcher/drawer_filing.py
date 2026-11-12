@@ -85,6 +85,11 @@ def _identity(hub: Any, drawers: Any, agent_id: str, ctx: str, identity: Optiona
                                   "you decide which is right", {"conflicts": conflicts})
 
 
+# the answer on a hub built without client drawers (bare-hub tests); not a
+# refusal: there is no file to be missing from
+NO_DRAWER_STORE = "no drawer store on this hub"
+
+
 def file_record(hub: Any, agent_id: str, ctx: str, category: str, name: str,
                 record: Any, identity: Optional[dict] = None) -> dict:
     """Files one record as <category>/<name>.json in the client's drawer.
@@ -96,7 +101,7 @@ def file_record(hub: Any, agent_id: str, ctx: str, category: str, name: str,
         return via(getattr(hub, "unwrapped", hub), agent_id, ctx, category, name, record, identity)
     drawers = getattr(hub, "drawers", None)
     if drawers is None:
-        return {"filed": False, "reason": "no drawer store on this hub"}
+        return {"filed": False, "reason": NO_DRAWER_STORE}
     filename = f"{name}.json"
     try:
         _identity(hub, drawers, agent_id, ctx, identity)
