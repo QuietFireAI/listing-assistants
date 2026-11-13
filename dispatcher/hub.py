@@ -89,8 +89,8 @@ class Hub:
         # exit gate on every outbound delivery. Deployment config; UNARMED
         # IS AUDITED AT BOOT, once, never silently off. (The splitvantage
         # reviewer pair was removed by owner decision 2026-10-20.)
-        # loop_threshold: max envelopes per (client_context_id, intent) before
-        # the loop suspends into clarification. RATIFIED (owner, 2026-07-17):
+        # loop_threshold: max envelopes per (client_context_id, intent) within
+        # one cascade before the loop suspends into clarification. RATIFIED (owner, 2026-07-17):
         # 20 stands as a deliberate placeholder - no empirical basis existed
         # at ratification (no real production traffic yet to measure a
         # normal repeat-count against), and none was invented to justify it.
@@ -102,7 +102,14 @@ class Hub:
         self.verify_sig = signature_verifier or (lambda env: False)
         self.human_notifier = human_notifier
         self.loop_threshold = loop_threshold
+        # loop_counts holds the count for the cascade being delivered now:
+        # the outermost send() and every send nested inside its delivery.
+        # It is cleared when the next outermost send() starts (2026-11-13:
+        # it used to count for the life of the install, so the morning
+        # briefing, sent on one context every day, was suspended from day 5,
+        # and long-running client files were suspended the same way).
         self.loop_counts: dict[tuple, int] = {}
+        self._send_depth = 0
         self.selfcheck_model = selfcheck_model
         # signer_registry: SignerRegistry armed from the identity's ratified
         # config/authority_signers.json (login-based signer decision,
@@ -497,6 +504,11 @@ class Hub:
                 return {"status": "halted", "processed": False,
                         "envelope_id": env.envelope_id,
                         "reason": self.halted["reason"]}
+            if self._send_depth == 0:
+                # a new cascade: what earlier, finished cascades sent is not
+                # a loop (also clears counts restored from an older save)
+                self.loop_counts.clear()
+            self._send_depth += 1
             try:
                 return self._send(env)
             except Exception as e:
@@ -511,6 +523,8 @@ class Hub:
                 return {"status": "halted", "processed": False,
                         "envelope_id": env.envelope_id,
                         "reason": self.halted["reason"]}
+            finally:
+                self._send_depth -= 1
 
     def _halt_alarm(self) -> None:
         """Loudly, and out of band: the log may be the thing that failed, so
@@ -536,7 +550,8 @@ class Hub:
             self.audit.append("dedupe.hit", {"envelope_id": env.envelope_id})
             return {"status": "duplicate", "processed": False,
                     "envelope_id": env.envelope_id}
-        # 0.5 loop protection - per (context, intent) threshold, suspend +
+        # 0.5 loop protection - per (context, intent) threshold within one
+        # cascade (this send and the sends nested in its delivery), suspend +
         # clarification (core protocol mechanics). Counts real attempts only:
         # rides after dedupe so ack-loss retries never inflate the count.
         key = (env.client_context_id, env.intent)
