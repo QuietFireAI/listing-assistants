@@ -341,6 +341,45 @@ Operator tools, not part of the message path:
 | `tools/verify_update_pack.py`, `tools/sign_manifest.py` | Signs and verifies offline update packs: Ed25519 signature, every file hashed, unlisted files and downgrades refused |
 | `dispatcher/provider_gateway.py` | Records which external providers you intend to connect (masked); makes no network calls |
 
+## What it does not do yet
+
+Written 2026-11-14 from what was run and read, not from intent. This is an
+evaluation release: it shows how the work is routed, held and recorded.
+
+- **Nothing here has run with real clients or live systems.** Every test run
+  uses synthetic people and listings. No MLS, listing portal, ad platform,
+  comparables source, social platform or phone system is connected.
+  "Published" and "sent" mean released onto the record and into the outbox.
+- **A client message is a template name and its values, not finished wording.**
+  The wording is yours to supply. Three templates (identity check, signed-copy
+  request, missing must-have question) are not sent until you sign their
+  wording, and a message that asks for one before you sign is not sent later.
+- **The other side of the deal is manual.** There is no path for a buyer's
+  agent, title or escrow, a lender or an HOA to reach the agents, and none
+  for the agents to write to them. A showing request comes in only on a
+  client's record. Offers are your own signed entries: there is no offer
+  deadline clock and no multiple-offer summary. There is no listing-agreement
+  or lead-paint tracking, no listing expiry clock and no seller net sheet. A
+  review on 2026-11-13 listed 23 such gaps; none is built.
+- **Playbooks: 1 of 24 verified in full, 23 in part.**
+  [docs/PLAYBOOK_SUCCESS_CRITERIA.md](docs/PLAYBOOK_SUCCESS_CRITERIA.md) ties
+  each playbook's success statement to what its test run leaves on the record
+  and names what each run does not show. The run tables for P16 and P17 are
+  proposed, not yet signed off by the owner.
+- **Tuples: 244 pass, 2 do not, 22 cannot be run.** The two are 01-01 (two
+  inquiries at once from one person are captured twice) and 04-03 (copy you
+  supply that looks like a fair-housing problem reaches you but is not sent to
+  the compliance agent). 17 need something not connected and 5 are not built:
+  [synth/tuples/REPORT.md](synth/tuples/REPORT.md).
+- **The morning briefing's "record conflicts" list is noisy.** Across the 24
+  playbook runs it flagged ordinary activity 10 times (two different messages
+  to one client, a status change). Treat it as a list to glance at, not a
+  finding.
+- **Quiet hours pause a playbook overnight.** A client message with no hour on
+  it uses the machine's clock; between 21:00 and 08:00 it waits for the first
+  clock run after 08:00.
+- **No outside review or security test is recorded in this repository.**
+
 ## Current limits
 
 - **External adapters queue until connected.** Client sends, vendor bookings
