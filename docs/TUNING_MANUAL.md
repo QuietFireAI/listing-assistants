@@ -6,7 +6,7 @@
 
 | Item | Status |
 |---|---|
-| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1397 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
+| Listing runtime | **WORKING BUILD** - dispatcher + 20 spokes, 1398 tests, all playbooks P01-P24 e2e (incl. the P01 new-listing lifecycle with photo/compliance/Clear-Cooperation gates). Every playbook scores leads through the JEV adapter (Agent 02). Client drawers, the HITL protocol, model drafting (Hermes seam) and the SQLite store are wired by `dispatcher/swarm.py`, which the console runs; their tests are in `tests_listing/test_wiring_2026_10_12.py` and `tests_listing/test_mutation_hardening_2026_10_12.py`. The playbook e2e builder uses a bare hub without them. The update-pack verifier is a tool (`tools/verify_update_pack.py`) with its own tests. |
 | Live demo | `tools/run_demo.py` - one listing, six acts, real hub: signed authorization, fair-housing flag caught, go-live verified, pricing question escalated, chain verified. |
 | MCP mount | **WORKING** - `dispatcher/identity_mcp.py` (4-tool closed surface, boot conformance gate), proven by `tools/mcp_roundtrip.py` live stdio round trip. Mounts on Hermes/OpenClaw/Claude Desktop (docs/MOUNTING.md). Full live-host install not yet exercised; the MCP protocol is. |
 | Front door | `listing.authorize` runs P01 when signed; the host cannot route inside the swarm. Over MCP the server signs it only in `--demo-signing` mode (docs/MOUNTING.md, "Signing over MCP"). |
@@ -519,6 +519,9 @@ numbers written inside a function body, and the config files.
 | `MAX_FRAME` | `dispatcher/portal.py` | **16 MiB** | Largest single message between the dispatcher and an agent; a bigger one cuts the line. |
 | `NORMAL_DAYS` | `dispatcher/review_agent.py` | **30 days** | How far back the review agent looks when it describes what is normal for an agent. |
 | `TALLY_ITEMS_SHOWN` | `tools/desk.py` | **30** | Items listed under each tally on the Desk before "more". |
+| `SHOW_CLOCK` | `tools/desk.py` | **2026-10-15T12:00:00** | The hour the Desk's two shows (the ten scenes, the 24 playbooks) run at, so a show is the same at any time of day. Added 2026-11-14. Live use and your own scripts stay on the real clock. |
+| `DEMO_CLOCK` | `tools/run_demo.py` | **2026-07-01T10:00:00** | The hour the demo runs at, for the same reason. Added 2026-11-12. |
+| `CLOCK_NOW` | `synth/tuples/run_tuples.py` | **2026-10-15T12:00:00** | The hour the tuple and playbook runs use unless `LISTING_CLOCK_NOW` is set. |
 | `drift_threshold` | `HermesSeam` constructor (`dispatcher/hermes_seam.py`) | **0.35** | Drift score at or above which a spoke trace is quarantined as high variance. No measured basis for this number is recorded. |
 | `UNCERTAINTY_WEIGHT`, `UNCERTAINTY_CAP`, `CONFIDENCE_WEIGHT`, `COMPRESSION_WEIGHT`, `COMPRESSION_RATIO` | `dispatcher/pillar_lib/open_mind/comparator.py` | **0.3, 0.6, 0.3, 0.2, 0.2** | The weights behind the drift score above. They come from the open-mind pillar; change them there, not here. |
 | `SCHEMA_VERSION` | `dispatcher/persistence_sqlite.py` | **3** | Version of the SQLite file layout. Not a tuning value; listed so the sweep accounts for it. |

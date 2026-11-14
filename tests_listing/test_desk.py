@@ -389,6 +389,22 @@ def test_the_playbook_show_plays_all_24_each_to_its_end(tmp_path):
         d.close()
 
 
+def test_the_playbook_show_is_the_same_at_night(tmp_path, monkeypatch):
+    """2026-11-14: played after 21:00 on the machine's clock, the show held
+    every client message for quiet hours and P01's outbox had no message to
+    the seller. The shows run on the sessions' own noon."""
+    monkeypatch.setenv("LISTING_CLOCK_NOW", "2026-11-14T22:00:00")
+    d = desk_mod.Desk(str(tmp_path / "night"), playbooks=True)
+    try:
+        assert os.environ["LISTING_CLOCK_NOW"] == desk_mod.SHOW_CLOCK
+        press_through(d)
+        d.open_office("P01", fresh=False)
+        kinds = {o["intent"] for o in d.state()["outbox"]["items"]}
+        assert {"vendor.schedule", "client.message.send", "campaign.publish"} <= kinds
+    finally:
+        d.close()
+
+
 def test_the_outbox_lists_what_would_have_gone_out_and_says_not_sent(tmp_path):
     d = desk_mod.Desk(str(tmp_path / "ob"), playbooks=True)
     try:

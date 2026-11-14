@@ -752,6 +752,10 @@ def playbook_lines():
     return lines
 
 
+# the hour the two shows run at: noon on the synthetic sessions' first day
+SHOW_CLOCK = "2026-10-15T12:00:00"
+
+
 class Showcase:
     """Plays session lines into the desk, one line per step. Lines that are
     yours (release, decide, decline) are not run for you: the step waits
@@ -788,6 +792,14 @@ class Showcase:
         self.lines = []
         self.kind = "playbooks" if playbooks else ("script" if files else "showcase")
         self.report = None
+        if self.kind != "script":
+            # 2026-11-14: the two shows replay dated synthetic sessions, so
+            # they run on the sessions' own noon, as the playbook runner and
+            # the demo do. On the machine's clock, a show played between
+            # 21:00 and 08:00 held every client message for quiet hours and
+            # P01's outbox had no message to the seller. A script of your
+            # own (live mode) stays on the real clock.
+            os.environ["LISTING_CLOCK_NOW"] = SHOW_CLOCK
         if playbooks:
             # owner request 2026-10-21: all 24 playbooks on the desk, each in
             # a fresh office (its own folder), exactly the sessions that
