@@ -201,7 +201,13 @@ def _office(tmp):
     script = os.path.join(tmp, "p01-to-booking.jsonl")
     open(script, "w").write("\n".join(lines[:release_at]) + "\n")
     rest = os.path.join(tmp, "p01-rest.jsonl")
-    open(rest, "w").write("\n".join(lines[release_at + 1:]) + "\n")
+    # 2026-11-14: P01 now ends with a second release (the ad). With the key in
+    # the signer a release is signed on the Desk, one at a time (`prepare`
+    # lists it as not prepared), so the console part stops before it.
+    later = lines[release_at + 1:]
+    stop_at = next((i for i, ln in enumerate(later) if json.loads(ln).get("do") == "release"),
+                   len(later))
+    open(rest, "w").write("\n".join(later[:stop_at]) + "\n")
     unsigned, signed = os.path.join(tmp, "unsigned.jsonl"), os.path.join(tmp, "signed.jsonl")
     console("prepare", script, "--out", unsigned)
     r = subprocess.run([sys.executable, "-m", "dispatcher.signer_service", "sign-batch", "--dir", folder,
@@ -315,7 +321,16 @@ def test_release_on_the_desk_signed_with_the_authenticator_code(tmp_path):
     import run_tuples
     log = [json.loads(ln) for ln in open(os.path.join(office["state"], "console-audit.jsonl"))]
     idx = run_tuples.ctx_index(log)
-    assert [c for c in office["spec"]["expect"] if not run_tuples.check(log, idx, c)[0]] == []
+    # every P01 line holds except the two that need the ad's release, which
+    # this run does not give (tests_listing/test_playbook_runs.py checks them)
+    needs_ad_release = [c for c in office["spec"]["expect"]
+                        if c.get("intent") == "campaign.publish"
+                        or (c["kind"] == "absolute_signal.released"
+                            and c.get("contains") == "campaign.publish")]
+    assert len(needs_ad_release) == 2
+    assert [c for c in office["spec"]["expect"]
+            if c not in needs_ad_release and not run_tuples.check(log, idx, c)[0]] == []
+    assert [c for c in needs_ad_release if run_tuples.check(log, idx, c)[0]] == []
 
 
 def test_release_on_the_desk_signed_with_a_security_key(tmp_path):
