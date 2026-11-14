@@ -149,9 +149,10 @@ def entry_ctx(e, idx):
     return None
 
 
-def check(entries, idx, c):
+def _hits(entries, idx, c):
+    """Positions in the record of the entries one evidence line matches."""
     hits = []
-    for e in entries:
+    for i, e in enumerate(entries):
         if e.get("kind") != c["kind"]:
             continue
         if "intent" in c and e.get("intent") != c["intent"]:
@@ -165,12 +166,22 @@ def check(entries, idx, c):
             continue
         if "contains_all" in c and not all(x.lower() in text for x in c["contains_all"]):
             continue
-        hits.append(e)
+        hits.append(i)
+    return hits
+
+
+def check(entries, idx, c):
+    """One evidence line against the record. "then" (2026-11-14) adds an
+    order: the first entry this line matches must come before the first
+    entry its "then" line matches, and both must be there."""
+    hits = _hits(entries, idx, c)
     if c.get("absent"):
         return not hits, len(hits)
-    if "count" in c:
-        return len(hits) == c["count"], len(hits)
-    return bool(hits), len(hits)
+    ok = len(hits) == c["count"] if "count" in c else bool(hits)
+    if ok and c.get("then"):
+        later = _hits(entries, idx, c["then"])
+        ok = bool(later) and hits[0] < later[0]
+    return ok, len(hits)
 
 
 def run_one(spec, template, workdir):
@@ -259,11 +270,17 @@ def write_report(specs, results, path):
 # in plain words. "not_verified" lists what the run does not check, each with
 # its reason and a kind:
 #   outside    it needs a system that is not connected (an MLS, an ad platform)
+#   not_built  the success statement says it and the product does not do it
 #   not_shown  the success statement says it and this run does not show it
 #   gate       a human gate from docs/PLAYBOOKS.md this run does not reach
 # docs/PLAYBOOK_SUCCESS_CRITERIA.md is written from the specs and the run.
 CRITERIA_DOC = os.path.join(ROOT, "docs", "PLAYBOOK_SUCCESS_CRITERIA.md")
-NOT_VERIFIED_KINDS = ("outside", "not_shown", "gate")
+NOT_VERIFIED_KINDS = ("outside", "not_built", "not_shown", "gate")
+# "also" (2026-11-14): a part of the success statement, or a human gate, that
+# another run checks: {"says": ..., "tuple": "12-08"} names a tuple session
+# (one fresh run that reaches exactly that case), {"says": ..., "playbook":
+# "P23"} names another playbook's run. The runner runs every named tuple and
+# the line holds when that run passes.
 RUN_SAYS = {"playbook.started": "The run starts on the playbook's trigger",
             "playbook.completed": "The run ends as completed",
             "after_action.written": "An after-action report is written for the run"}
@@ -285,66 +302,98 @@ def how_of(c):
     tail = (" " + ", ".join(bits)) if bits else ""
     if c.get("absent"):
         return f"no {what[2:] if what.startswith('a ') else what}{tail}"
-    if "count" in c:
-        return f"exactly {c['count']} x {what}{tail}"
-    return f"{what}{tail}"
+    text = f"exactly {c['count']} x {what}{tail}" if "count" in c else f"{what}{tail}"
+    if c.get("then"):
+        text += "; and before the first " + how_of(c["then"])
+    return text
 
 
-def playbook_status(spec, result=None):
-    """VERIFIED: every line holds and nothing in the success statement is left
-    unshown (parts that need an unconnected outside system are named).
-    PARTLY VERIFIED: every line holds; parts of the statement are not shown.
-    FAILED: a line does not hold."""
+def playbook_status(spec, result=None, also=None):
+    """VERIFIED: every line holds, here and in the runs it names, and every
+    part of the success statement is checked or needs an unconnected outside
+    system. VERIFIED, WITH PARTS NOT BUILT: the same, except that parts of
+    the statement are things the product does not do (named). PARTLY
+    VERIFIED: every line holds; parts of the statement are not shown by any
+    run. FAILED: a line does not hold."""
     if result is not None and result.get("result") != "PASS":
         return "FAILED"
-    unshown = [n for n in spec.get("not_verified", []) if n.get("kind") == "not_shown"]
-    return "PARTLY VERIFIED" if unshown else "VERIFIED"
+    if also is not None and any(not ok for ok in also):
+        return "FAILED"
+    kinds = {n.get("kind") for n in spec.get("not_verified", [])}
+    if "not_built" in kinds:
+        return "VERIFIED, WITH PARTS NOT BUILT" if "not_shown" not in kinds else "PARTLY VERIFIED"
+    return "PARTLY VERIFIED" if "not_shown" in kinds else "VERIFIED"
 
 
-def criteria_text(specs, results=None):
+def linked_tuple_ids(specs):
+    return sorted({a["tuple"] for s in specs for a in s.get("also", []) if a.get("tuple")})
+
+
+def criteria_text(specs, results=None, tuple_results=None):
+    """The criteria document. results: this run's result per playbook;
+    tuple_results: {tuple id: result} for the tuple runs the specs name.
+    Left out, every line is taken to hold (the tests check each)."""
     by = {r["id"]: r for r in (results or [])}
+    titles = {t["id"]: t["tuple"].strip("()") for t in load_specs(set(linked_tuple_ids(specs)))}
     try:
         table = json.load(open(os.path.join(ROOT, "identity", "playbooks.json"), encoding="utf-8"))["playbooks"]
     except (OSError, ValueError, KeyError):
         table = {}
-    out = ["# Playbook success criteria: what each run checks, and what it does not", "",
+
+    def also_ok(a):
+        if a.get("tuple"):
+            return tuple_results is None or tuple_results.get(a["tuple"]) == "PASS"
+        other = by.get(a.get("playbook"))
+        return other is None or other.get("result") == "PASS"
+
+    out = ["# Playbook success criteria: what is checked, and what is not", "",
            "Written by `python synth/tuples/run_tuples.py --set playbooks`; do not edit by hand.",
            "Edit `synth/playbooks/specs/PLAYBOOKS.jsonl` and run it again.", "",
            "Each playbook runs once, from its trigger to its end, in a fresh state, through",
-           "`tools/console.py session` with synthetic data. Every line under \"Checked\" is a",
-           "part of that playbook's success statement in [WHAT_SUCCESS_MEANS.md](WHAT_SUCCESS_MEANS.md),",
-           "tied to what must be on the audit record afterwards. The same lines run in the test",
-           "suite (`tests_listing/test_playbook_runs.py`), so a line that stops holding fails CI.", "",
-           "- **VERIFIED**: every checked line holds, and every part of the success statement is",
-           "  either checked or needs an outside system that is not connected (named below).",
-           "- **PARTLY VERIFIED**: every checked line holds; parts of the success statement are",
-           "  not shown by this run (named below).",
-           "- **FAILED**: a checked line does not hold.", "",
-           "One run is one path. Human gates this run does not reach are listed; the tuple runs",
-           "([synth/tuples/REPORT.md](../synth/tuples/REPORT.md)) exercise the gates one at a time.",
+           "`tools/console.py session` with synthetic data. Every line under \"Checked by this run\" is",
+           "a part of that playbook's success statement in [WHAT_SUCCESS_MEANS.md](WHAT_SUCCESS_MEANS.md),",
+           "tied to what must be on the audit record afterwards. One run is one path, so a part of the",
+           "statement or a human gate that needs a different path is checked by a run of its own: a",
+           "tuple session ([synth/tuples/REPORT.md](../synth/tuples/REPORT.md)) that reaches exactly that",
+           "case, named under \"Checked by another run\". The runner runs those too. All of it runs in",
+           "the test suite (`tests_listing/test_playbook_runs.py`), so a line that stops holding fails CI.", "",
+           "- **VERIFIED**: every line holds, here and in the runs named, and every part of the success",
+           "  statement is checked or needs an outside system that is not connected (named).",
+           "- **VERIFIED, WITH PARTS NOT BUILT**: the same, except that the success statement says",
+           "  things the product does not do. They are named; they are gaps in the product, not in the checking.",
+           "- **PARTLY VERIFIED**: every line holds; parts of the success statement are not shown by any run (named).",
+           "- **FAILED**: a line does not hold.", "",
            "Nothing here was run against a live MLS, a live ad platform or real clients.", "",
-           "| Playbook | Owner's sign-off of the run table | Status | Lines checked | Not shown | Needs an outside system | Gates not reached |",
-           "|---|---|---|---|---|---|---|"]
+           "| Playbook | Owner's sign-off of the run table | Status | Checked by this run | Checked by another run | Not built | Not shown | Needs an outside system | Gates not reached |",
+           "|---|---|---|---|---|---|---|---|---|"]
     body = []
     for s in specs:
         r = by.get(s["id"])
         nv = s.get("not_verified", [])
+        also = s.get("also", [])
         n = {k: sum(1 for x in nv if x.get("kind") == k) for k in NOT_VERIFIED_KINDS}
         rat = "RATIFIED" if str((table.get(s["id"]) or {}).get("ratified", "")).startswith("RATIFIED") else "PROPOSED"
-        status = playbook_status(s, r)
+        status = playbook_status(s, r, [also_ok(a) for a in also])
         name = s["tuple"].split(":")[0]
-        out.append(f"| {name} | {rat} | {status} | {len(s.get('expect', []))} | {n['not_shown']} | "
-                   f"{n['outside']} | {n['gate']} |")
+        out.append(f"| {name} | {rat} | {status} | {len(s.get('expect', []))} | {len(also)} | {n['not_built']} | "
+                   f"{n['not_shown']} | {n['outside']} | {n['gate']} |")
         body += ["", f"## {name}", "", f"**{status}.**" + (f" {s['note'][0].upper() + s['note'][1:]}." if s.get("note") else ""), "",
-                 "### Checked", "", "| What success means | What must be on the record | Result |", "|---|---|---|"]
+                 "### Checked by this run", "", "| What success means | What must be on the record | Result |", "|---|---|---|"]
         checks = (r or {}).get("checks") or [{"check": c, "ok": True} for c in s.get("expect", [])]
         for ch in checks:
             c = ch["check"]
             res = "holds" if ch["ok"] else f"DOES NOT HOLD (found {ch.get('found')})"
             body.append(f"| {says_of(c)} | {how_of(c).replace('|', '/')} | {res} |")
-        for kind, title in (("not_shown", "Not shown by this run"),
+        if also:
+            body += ["", "### Checked by another run", "", "| What success means, or the gate | The run that checks it | Result |", "|---|---|---|"]
+            for a in also:
+                where = (f"tuple {a['tuple']}: {titles.get(a['tuple'], '').replace('|', '/')}" if a.get("tuple")
+                         else f"playbook {a['playbook']}, above or below")
+                body.append(f"| {a['says']} | {where} | {'holds' if also_ok(a) else 'DOES NOT HOLD'} |")
+        for kind, title in (("not_built", "The success statement says it; the product does not do it"),
+                            ("not_shown", "Not shown by any run"),
                             ("outside", "Needs an outside system that is not connected"),
-                            ("gate", "Human gates this run does not reach")):
+                            ("gate", "Human gates no run here reaches")):
             items = [x for x in nv if x.get("kind") == kind]
             if items:
                 body += ["", f"### {title}", ""]
@@ -378,6 +427,11 @@ def main(argv=None):
         template = make_template(workdir)
         with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
             results = list(pool.map(lambda s: run_one(s, template, workdir), specs))
+            tuple_results = {}
+            if args.spec_set == "playbooks" and not (args.ids or args.agent):
+                linked = load_specs(set(linked_tuple_ids(specs)))
+                tuple_results = {t["id"]: r["result"] for t, r in
+                                 zip(linked, pool.map(lambda t: run_one(t, template, workdir), linked))}
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
     for r in results:
@@ -393,10 +447,20 @@ def main(argv=None):
         print(json.dumps({"report": os.path.relpath(report, ROOT), **counts}))
         if args.spec_set == "playbooks":
             with open(CRITERIA_DOC, "w", encoding="utf-8") as f:
-                f.write(criteria_text(specs, results))
-            st = [playbook_status(sp, r) for sp, r in zip(specs, results)]
+                f.write(criteria_text(specs, results, tuple_results))
+            by = {r["id"]: r for r in results}
+            def _ok(a):
+                return (tuple_results.get(a["tuple"]) == "PASS" if a.get("tuple")
+                        else by.get(a.get("playbook"), {}).get("result") == "PASS")
+            st = [playbook_status(sp, r, [_ok(a) for a in sp.get("also", [])])
+                  for sp, r in zip(specs, results)]
             print(json.dumps({"criteria": os.path.relpath(CRITERIA_DOC, ROOT),
-                              **{k: st.count(k) for k in ("VERIFIED", "PARTLY VERIFIED", "FAILED")}}))
+                              "tuple_runs_named": len(tuple_results),
+                              "tuple_runs_not_passing": sorted(k for k, v in tuple_results.items() if v != "PASS"),
+                              **{k: st.count(k) for k in ("VERIFIED", "VERIFIED, WITH PARTS NOT BUILT",
+                                                          "PARTLY VERIFIED", "FAILED")}}))
+            if any(v != "PASS" for v in tuple_results.values()) or "FAILED" in st:
+                return 1
     bad = [r for r in results if r["result"] in ("VARIANCE", "ERROR")]
     return 1 if bad else 0
 

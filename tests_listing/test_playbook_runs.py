@@ -66,6 +66,41 @@ def test_every_playbook_line_says_which_part_of_success_it_checks():
         for n in s["not_verified"]:
             assert n.get("kind") in run_tuples.NOT_VERIFIED_KINDS, f"{s['id']}: {n}"
             assert n.get("says", "").strip() and n.get("why", "").strip(), f"{s['id']}: {n}"
+        for link in s.get("also", []):
+            assert link.get("says", "").strip(), f"{s['id']}: {link}"
+            assert bool(link.get("tuple")) != bool(link.get("playbook")), f"{s['id']}: {link}"
+            assert link.get("playbook") is None or link["playbook"] in PLAYBOOKS
+
+
+def test_a_line_with_then_checks_the_order():
+    """2026-11-14: "then" makes a line an order: its first match must come
+    before the first match of its "then" line, and both must be there."""
+    log = [{"kind": "a", "n": 1}, {"kind": "b"}, {"kind": "a", "n": 2}]
+    check = lambda c: run_tuples.check(log, {}, c)[0]
+    assert check({"kind": "a", "then": {"kind": "b"}})
+    assert not check({"kind": "b", "then": {"kind": "a", "contains": "\"n\": 1"}})   # a(1) came first
+    assert check({"kind": "b", "then": {"kind": "a", "contains": "\"n\": 2"}})
+    assert not check({"kind": "a", "then": {"kind": "c"}})                            # nothing after
+    assert not check({"kind": "c", "then": {"kind": "a"}})                            # nothing before
+
+
+def test_the_tuple_runs_the_playbooks_name_all_pass(template):
+    """A part of a success statement, or a human gate, that needs a path of
+    its own is checked by the tuple run the spec names. Each named tuple must
+    exist, be runnable and pass."""
+    import concurrent.futures
+    workdir, tpl = template
+    ids = run_tuples.linked_tuple_ids(run_tuples.load_specs(spec_set="playbooks"))
+    specs = run_tuples.load_specs(set(ids))
+    assert sorted(s["id"] for s in specs) == ids, "a named tuple does not exist"
+    assert not [s["id"] for s in specs if s.get("status")], "a named tuple is not runnable"
+    own = tempfile.mkdtemp(prefix="playbook-links-")     # the round's tuples run in workdir
+    try:
+        with concurrent.futures.ThreadPoolExecutor(4) as pool:
+            results = list(pool.map(lambda s: run_tuples.run_one(s, tpl, own), specs))
+    finally:
+        shutil.rmtree(own, ignore_errors=True)
+    assert [r["id"] for r in results if r["result"] != "PASS"] == []
 
 
 def test_the_success_criteria_document_matches_the_specs():

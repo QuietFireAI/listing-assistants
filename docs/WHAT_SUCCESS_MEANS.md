@@ -13,7 +13,9 @@
 > [PLAYBOOK_SUCCESS_CRITERIA.md](PLAYBOOK_SUCCESS_CRITERIA.md). That document also
 > names, for each playbook, the parts of the statement its run does not show and
 > the parts that need a system that is not connected (an MLS, an ad platform).
-> As of 2026-11-14: 1 playbook verified in full (P01), 23 verified in part.
+> As of 2026-11-14: 4 playbooks verified in full; 11 verified except for parts of
+> their statement that the product does not do (16 such parts, each named there); 9
+> verified in part.
 
 ---
 

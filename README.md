@@ -361,11 +361,15 @@ evaluation release: it shows how the work is routed, held and recorded.
   deadline clock and no multiple-offer summary. There is no listing-agreement
   or lead-paint tracking, no listing expiry clock and no seller net sheet. A
   review on 2026-11-13 listed 23 such gaps; none is built.
-- **Playbooks: 1 of 24 verified in full, 23 in part.**
+- **Playbooks: 4 of 24 verified in full; 11 more except for parts the product
+  does not do; 9 in part.**
   [docs/PLAYBOOK_SUCCESS_CRITERIA.md](docs/PLAYBOOK_SUCCESS_CRITERIA.md) ties
   each playbook's success statement to what its test run leaves on the record
-  and names what each run does not show. The run tables for P16 and P17 are
-  proposed, not yet signed off by the owner.
+  and to the tuple runs that check its gates. It names 16 things a success
+  statement says and the product does not do (for example: only the person
+  who asked is told a showing is booked; no open house is promoted; no offer
+  document is tracked) and 11 parts no run shows yet. The run tables for P16
+  and P17 are proposed, not yet signed off by the owner.
 - **Tuples: 244 pass, 2 do not, 22 cannot be run.** The two are 01-01 (two
   inquiries at once from one person are captured twice) and 04-03 (copy you
   supply that looks like a fair-housing problem reaches you but is not sent to
@@ -410,7 +414,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1397 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1399 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

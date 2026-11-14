@@ -372,8 +372,9 @@ def test_the_playbook_show_plays_all_24_each_to_its_end(tmp_path):
         assert s["mode"] == "playbooks" and s["showcase"]["kind"] == "playbooks"
         assert s["showcase"]["title"].startswith("P01 ") and s["showcase"]["purpose"]
         steps, presses, errors = press_through(d)
-        # 14 since 2026-11-14: the P01 run now also releases the ad (it was 13)
-        assert errors == [] and presses == 14
+        # 16 since 2026-11-14 (it was 13): P01 now also releases the ad, and
+        # P05 releases the ad and then the halt of it
+        assert errors == [] and presses == 16
         offices = os.path.join(d.state_dir, "offices")
         assert sorted(os.listdir(offices)) == [f"P{i:02d}" for i in range(1, 25)]
         for pb in sorted(os.listdir(offices)):
