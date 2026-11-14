@@ -371,7 +371,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1390 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1392 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
@@ -483,7 +483,7 @@ isolation V1, in progress): [docs/CONTAINERS.md](docs/CONTAINERS.md).
 
 1. [docs/START_HERE.md](docs/START_HERE.md) - the 60-second version
    (and [docs/GLOSSARY.md](docs/GLOSSARY.md) - every word explained, whenever you need it)
-2. [docs/WHAT_SUCCESS_MEANS.md](docs/WHAT_SUCCESS_MEANS.md) - what each playbook delivers
+2. [docs/WHAT_SUCCESS_MEANS.md](docs/WHAT_SUCCESS_MEANS.md) - what each playbook delivers; [docs/PLAYBOOK_SUCCESS_CRITERIA.md](docs/PLAYBOOK_SUCCESS_CRITERIA.md) - which parts of that each test run checks, and which it does not
 3. [docs/PLAY-BY-PLAY.md](docs/PLAY-BY-PLAY.md) - what moves between agents, step by step
 4. [docs/JOB_DESCRIPTIONS.md](docs/JOB_DESCRIPTIONS.md) - every agent's role and rules
 5. [docs/PLAYBOOKS.md](docs/PLAYBOOKS.md) - all 24 playbooks: triggers, agents, gates

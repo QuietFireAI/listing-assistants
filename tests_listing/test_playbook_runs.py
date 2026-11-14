@@ -55,6 +55,30 @@ def test_one_session_per_playbook():
         assert len(kinds) > 3, f"{s['id']} checks only the run, not the playbook's own evidence"
 
 
+def test_every_playbook_line_says_which_part_of_success_it_checks():
+    """2026-11-12: each evidence line names, in plain words, the part of the
+    playbook's success statement (docs/WHAT_SUCCESS_MEANS.md) it checks, and
+    each playbook lists what its run does not check, with the reason."""
+    for s in run_tuples.load_specs(spec_set="playbooks"):
+        for c in s["expect"][3:]:
+            assert c.get("says", "").strip(), f"{s['id']}: a line without 'says': {c}"
+        assert isinstance(s.get("not_verified"), list), f"{s['id']}: no not_verified list"
+        for n in s["not_verified"]:
+            assert n.get("kind") in run_tuples.NOT_VERIFIED_KINDS, f"{s['id']}: {n}"
+            assert n.get("says", "").strip() and n.get("why", "").strip(), f"{s['id']}: {n}"
+
+
+def test_the_success_criteria_document_matches_the_specs():
+    """docs/PLAYBOOK_SUCCESS_CRITERIA.md is written by the runner. With every
+    line holding (test_playbook_runs_start_to_end checks that), it is exactly
+    what the specs produce; a spec edited without re-running the runner fails
+    here."""
+    specs = run_tuples.load_specs(spec_set="playbooks")
+    with open(run_tuples.CRITERIA_DOC, encoding="utf-8") as f:
+        assert f.read() == run_tuples.criteria_text(specs), \
+            "run: python synth/tuples/run_tuples.py --set playbooks"
+
+
 @pytest.mark.parametrize("spec_id", PLAYBOOKS)
 def test_playbook_runs_start_to_end(template, spec_id):
     workdir, tpl = template

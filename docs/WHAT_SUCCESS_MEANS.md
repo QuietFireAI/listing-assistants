@@ -8,6 +8,13 @@
 > capability, and any disclosure of a client's position to the other side waits
 > for the broker's signed release. Details: [FINANCIAL_CAPABILITY.md](FINANCIAL_CAPABILITY.md).
 
+> **What is checked.** Each playbook's success statement below is tied, line by
+> line, to what its test run leaves on the record in
+> [PLAYBOOK_SUCCESS_CRITERIA.md](PLAYBOOK_SUCCESS_CRITERIA.md). That document also
+> names, for each playbook, the parts of the statement its run does not show and
+> the parts that need a system that is not connected (an MLS, an ad platform).
+> As of 2026-11-14: 1 playbook verified in full (P01), 23 verified in part.
+
 ---
 
 ## The question this document answers
