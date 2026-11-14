@@ -184,7 +184,12 @@ def _office(tmp):
     import run_tuples
     folder, out, secret = _signer(tmp)
     state = os.path.join(tmp, "state")
-    env = {**os.environ, "LISTINGASSISTANTS_STATE_DIR": state}
+    # the clock is pinned to the specs' noon, as the playbook runner pins it.
+    # 2026-11-14: without this the run used the machine's clock, and between
+    # 21:00 and 08:00 the seller's "you are live" message was held for quiet
+    # hours, so the P01 line that checks it failed (CI on main, 21:03 UTC).
+    env = {**os.environ, "LISTINGASSISTANTS_STATE_DIR": state,
+           "LISTING_CLOCK_NOW": run_tuples.CLOCK_NOW}
     env.pop("LISTINGASSISTANTS_PORTAL", None)
 
     def console(*a):
