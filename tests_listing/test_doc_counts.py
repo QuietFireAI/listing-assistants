@@ -5,6 +5,7 @@ One test runs on Windows only and one on Linux / macOS only (2026-10-14:
 the state-folder permission check), so every system reports
 (collected - 1) passed and 1 skipped."""
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -60,3 +61,15 @@ def test_the_documented_test_counts_match_the_suite():
     wrong.update({k: v for k, v in windows.items() if not v or any(int(x) != n - 1 for x in v)})
     wrong.update({k: v for k, v in totals.items() if not v or any(int(x) != n for x in v)})
     assert not wrong, f"collected {n}: expected {n - 1} passed + 1 skipped on every system; found {wrong}"
+
+
+def test_the_documented_route_counts_match_the_closed_track():
+    """README.md said 52 routes and 146 lanes, and SKILL.md 52 routes, long after
+    identity/routes.json held 56 (found 2026-11-15). A wrong number now fails."""
+    routes = json.load(open(os.path.join(ROOT, "identity", "routes.json"), encoding="utf-8"))["routes"]
+    intents = len({r["intent"] for r in routes})
+    lanes = sum(len(r["senders"]) * len(r["receivers"]) for r in routes)
+    readme = " ".join(text("README.md").split())
+    assert (f"Only the {len(routes)} routes in `identity/routes.json` ({intents} intents, {lanes} "
+            f"sender-intent-receiver lanes)") in readme
+    assert f"{len(routes)} legal routes" in " ".join(text("SKILL.md").split())

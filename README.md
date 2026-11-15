@@ -152,7 +152,7 @@ flowchart TD
 *What the hub does with every message, in order (`dispatcher/hub.py`). The same picture, with each check explained: [00-dispatcher](00-dispatcher/README.md).*
 <!-- /diagram:hub-readme -->
 
-- **Closed track.** Only the 52 routes in `identity/routes.json` (146
+- **Closed track.** Only the 56 routes in `identity/routes.json` (54 intents, 161
   sender-intent-receiver lanes) are legal, and every message to or from an
   agent travels on one of them, including the daily clock (`clock.tick`). Anything else is rejected and logged;
   a well-formed message on an unknown route is held for a human.
@@ -455,7 +455,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1410 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1411 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
