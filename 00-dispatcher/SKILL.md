@@ -143,7 +143,7 @@ communication in that one guarantee.
 | `deliverable.release` | 09 | 05, 08, 07 |
 | `data.request` | human (broker) | 10 |
 | `data.package` | 10 | human (broker) |
-| `client.message.request` | 01, 06, 08, 13, 16, 20, 03 | 11 |
+| `client.message.request` | 01, 06, 07, 08, 13, 16, 20, 03 | 11 |
 | `client.message.send` | 11 | external (audience: principal) |
 | `deadline.alert` | 07 | 11, 18 |
 | `calendar.event` | 06, 09 | 18 |

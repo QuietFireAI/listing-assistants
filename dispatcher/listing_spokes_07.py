@@ -286,6 +286,19 @@ class Spoke07TransactionCoordinator:
                     if d:
                         self.hub.send(_env("07", "18", "deadline.alert", ctx,
                                            {"milestone": m, "deadline": d, "tracked": True}))
+                # Built 2026-11-15 (P03: "your client told what happens next").
+                # The seller got only the status notice. Now the dates you
+                # just signed go to the client as the next steps, in date
+                # order, through Agent 11 (consent, opt-outs and quiet hours
+                # apply). The template is new wording: 11 does not send it
+                # until you sign it. Only dated milestones are listed; the
+                # agents add no advice and no dates of their own.
+                dated = sorted(((d, m) for m, d in milestones.items() if d))
+                if dated:
+                    self.hub.send(_env("07", "11", "client.message.request", ctx,
+                                       {"template": "under_contract_next_steps",
+                                        "variables": {"milestones": [
+                                            {"milestone": m, "date": d} for d, m in dated]}}))
                 # job component: request required documents from 08 for
                 # every document-bearing milestone, as they come due
                 sent_date = payload.get("today")  # test/caller supplies today

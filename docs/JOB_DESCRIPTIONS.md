@@ -378,7 +378,7 @@ code.
 
 **Type:** Deadline & milestone tracking
 **Summary:** Transaction timeline tracking from offer submission through closing. Use for offer status and every deadline: inspection, appraisal, financing contingency, title, HOA docs, repairs, and closing coordination alerts.
-**Sends:** agent.status, deadline.alert, doc.request, interaction.log, transaction.closed, vendor.request
+**Sends:** agent.status, client.message.request, deadline.alert, doc.request, interaction.log, transaction.closed, vendor.request
 **Receives:** clock.tick, deliverable.release, doc.status, vendor.cancellation_notice
 **Predeliberated tuples:** 12 (see 07-transaction-coordinator/DECISIONS.md)
 **Picture:** who it works with, in [07-transaction-coordinator](../07-transaction-coordinator/README.md)

@@ -138,3 +138,45 @@ def test_b3_a_note_that_is_not_text_is_not_guessed_at(tmp_path):
     assert sent["variables"] == {"status": "withdrawn"}
     assert any("note_to_seller was not text" in q["payload"].get("reason", "")
                for q in sw.hub.queues["clarification.request"])
+
+
+# ---------------------------------------------------------------- B2 (P03)
+# "your client told what happens next": when the broker loads the contract
+# dates, the client gets them as the next steps, in date order.
+
+DATES = {"closing": "2026-11-20", "inspection": "2026-10-25", "appraisal": "2026-11-01"}
+
+
+def _next_steps(sw, ctx, intent="client.message.send"):
+    return [e["payload"] for e in _persisted(sw, intent, ctx)
+            if e["payload"].get("template") == "under_contract_next_steps"]
+
+
+def test_b2_the_client_gets_the_dates_you_signed_in_date_order(tmp_path):
+    sw, signer = _swarm(tmp_path)
+    sw.hub.send(_signed(signer, "11", "setup", {"template_signed": "under_contract_next_steps"}))
+    sw.hub.send(_signed(signer, "14", "L7", {"consent_record": {"email": "yes", "text": "yes"}}))
+    sw.hub.send(_signed(signer, "07", "L7", {"timeline_init": DATES, "today": "2026-10-16"}))
+    [sent] = _next_steps(sw, "L7")
+    assert sent["variables"] == {"milestones": [
+        {"milestone": "inspection", "date": "2026-10-25"},
+        {"milestone": "appraisal", "date": "2026-11-01"},
+        {"milestone": "closing", "date": "2026-11-20"}]}
+
+
+def test_b2_not_sent_until_you_sign_the_wording_and_a_milestone_with_no_date_is_left_out(tmp_path):
+    sw, signer = _swarm(tmp_path)
+    sw.hub.send(_signed(signer, "14", "L7", {"consent_record": {"email": "yes", "text": "yes"}}))
+    sw.hub.send(_signed(signer, "07", "L7", {"timeline_init": {**DATES, "title": None},
+                                             "today": "2026-10-16"}))
+    [asked] = _next_steps(sw, "L7", "client.message.request")
+    assert [m["milestone"] for m in asked["variables"]["milestones"]] == ["inspection", "appraisal", "closing"]
+    assert _next_steps(sw, "L7") == []
+
+
+def test_b2_agent_07_may_now_ask_agent_11_to_send(tmp_path):
+    """The route: 07 was not a sender of client.message.request."""
+    sw, signer = _swarm(tmp_path)
+    r = sw.hub.send(_env("07", "11", "client.message.request", "L7",
+                         {"template": "under_contract_next_steps", "variables": {"milestones": []}}))
+    assert r["status"] == "ack"

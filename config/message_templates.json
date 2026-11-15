@@ -254,6 +254,13 @@
    "purpose": "Tell the seller that a booked showing is off (Agent 06, built 2026-11-15)",
    "body": "The showing of your home booked for {{time}} has been cancelled. We will tell you when a new one is booked.",
    "approved_by": "NOT YET APPROVED. Wording proposed by Claude 2026-11-15; Agent 11 does not send it until the owner signs config.update {\"template_signed\": id}"
+  },
+  {
+   "template_id": "under_contract_next_steps",
+   "audience": "buyer_or_seller",
+   "purpose": "Tell the client what happens next once the contract dates are loaded: each dated milestone, in date order (Agent 07, built 2026-11-15; no advice, no dates the broker did not sign)",
+   "body": "You are under contract. Here is what happens next:\n{{#milestones}}- {{milestone}}: {{date}}\n{{/milestones}}We will be in touch before each date.",
+   "approved_by": "NOT YET APPROVED. Wording proposed by Claude 2026-11-15; Agent 11 does not send it until the owner signs config.update {\"template_signed\": id}"
   }
  ]
 }

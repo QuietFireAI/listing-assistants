@@ -35,7 +35,7 @@ flowchart LR
     IK -- "the daily clock runs" --> A07
     A07 -- "asks for a document" --> O08
     A07 -- "asks to book a vendor" --> O09
-    A07 -- "warns that a deadline is near" --> O11
+    A07 -- "asks for a message to the client<br/>warns that a deadline is near" --> O11
     A07 -- "warns that a deadline is near<br/>reports what it is waiting on" --> O18
     A07 -- "logs it in the CRM<br/>reports the deal closed" --> O14
     A07 -- "reports the deal closed" --> O16

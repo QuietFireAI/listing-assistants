@@ -12,13 +12,7 @@ Left: who sends this agent messages. Right: who it sends messages to. The blue c
 flowchart LR
     subgraph IN["Hears from"]
         direction TB
-        I01["01 Lead Capture"]
-        I06["06 Showing Scheduler"]
-        I08["08 Document Collection"]
-        I13["13 Buyer Search and Match"]
-        I16["16 After-Close and Referral"]
-        I20["20 Social Media Monitoring"]
-        I03["03 Lead Nurture"]
+        IM["Most of the other agents"]
         I07["07 Transaction Coordinator"]
         I14["14 CRM and Pipeline"]
         I05["05 MLS and Listing Management"]
@@ -42,13 +36,7 @@ flowchart LR
         O08["08 Document Collection"]
         O18["18 Calendar and Task Management"]
     end
-    I01 -- "asks for a message to the client" --> A11
-    I06 -- "asks for a message to the client" --> A11
-    I08 -- "asks for a message to the client" --> A11
-    I13 -- "asks for a message to the client" --> A11
-    I16 -- "asks for a message to the client" --> A11
-    I20 -- "asks for a message to the client" --> A11
-    I03 -- "asks for a message to the client" --> A11
+    IM -- "asks for a message to the client" --> A11
     I07 -- "warns that a deadline is near" --> A11
     I14 -- "returns the CRM record" --> A11
     I05 -- "reports the listing's status" --> A11

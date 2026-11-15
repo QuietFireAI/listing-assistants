@@ -372,6 +372,16 @@ playbook's test run and its documents are all in.
   as we discussed. I will call you at 4."}}`. Checked by 3 tests and by
   the P05 run, which is now verified in full.
 
+- **The client is told what happens next when a contract's dates are
+  loaded** (under contract, P03, and contract to close, P09). Before, the
+  client got the status notice and nothing else. Now, when you sign the
+  contract dates, Agent 07 asks Agent 11 to send each dated milestone in
+  date order. Only your dates go out; the agents add no advice. New
+  wording, so nothing goes until you sign
+  `config.update {"template_signed": "under_contract_next_steps"}`. One
+  route was added for this: Agent 07 may now ask Agent 11 to send a client
+  message. Checked by 3 tests and by the P03 and P09 runs.
+
 ## What it does not do yet
 
 Written 2026-11-14 from what was run and read, not from intent. This is an
@@ -396,7 +406,7 @@ evaluation release: it shows how the work is routed, held and recorded.
   does not do; 9 in part.**
   [docs/PLAYBOOK_SUCCESS_CRITERIA.md](docs/PLAYBOOK_SUCCESS_CRITERIA.md) ties
   each playbook's success statement to what its test run leaves on the record
-  and to the tuple runs that check its gates. It names 15 things a success
+  and to the tuple runs that check its gates. It names 14 things a success
   statement says and the product does not do (for example: no open house
   is promoted; no offer document is tracked; another brokerage's agent is
   never told of a showing) and 11 parts no run shows yet. The run tables for P16
@@ -445,7 +455,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1407 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1410 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

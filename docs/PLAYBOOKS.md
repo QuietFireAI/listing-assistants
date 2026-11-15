@@ -122,6 +122,9 @@ Human confirms offer acceptance (executed contract artifact filed via 08).
 ### HITL gates
 (none listed beyond swarm-wide gates)
 
+### What the client is told next (built 2026-11-15)
+When you load the contract dates (signed `timeline_init` to Agent 07), Agent 07 asks Agent 11 to send the client `under_contract_next_steps`: each milestone that has a date, in date order. A milestone with no date is left out. The agents add no advice and no dates you did not sign. Consent, opt-outs and quiet hours apply. The template is new wording: Agent 11 does not send it until you sign it (`config.update {"template_signed": "under_contract_next_steps"}`). Route added: Agent 07 may send `client.message.request` to Agent 11.
+
 ## Playbook P04 - Open House Cycle
 
 **Summary:** Swarm deployment: scheduled open house from promotion through lead capture. Agents 01, 02, 04, 06, 11, 12, 14, 17. Use when human/config schedules an open house.

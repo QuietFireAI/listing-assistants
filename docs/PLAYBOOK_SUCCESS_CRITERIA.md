@@ -25,13 +25,13 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 |---|---|---|---|---|---|---|---|---|
 | P01 New Listing Onboarding | RATIFIED | VERIFIED | 13 | 4 | 0 | 0 | 1 | 0 |
 | P02 Price Adjustment | RATIFIED | VERIFIED | 13 | 2 | 0 | 0 | 1 | 0 |
-| P03 Under-Contract Transition | RATIFIED | PARTLY VERIFIED | 12 | 1 | 1 | 1 | 0 | 0 |
+| P03 Under-Contract Transition | RATIFIED | PARTLY VERIFIED | 13 | 1 | 0 | 1 | 0 | 0 |
 | P04 Open House Cycle | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 11 | 1 | 2 | 0 | 0 | 0 |
 | P05 Expired/Withdrawn Wind-down | RATIFIED | VERIFIED | 9 | 2 | 0 | 0 | 1 | 0 |
 | P06 New Buyer Onboarding | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 8 | 0 | 2 | 0 | 0 | 0 |
 | P07 Tour Day Coordination | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 11 | 4 | 1 | 0 | 0 | 0 |
 | P08 Offer-to-Acceptance | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 7 | 1 | 1 | 0 | 0 | 0 |
-| P09 Contract-to-Close | RATIFIED | PARTLY VERIFIED | 12 | 6 | 0 | 1 | 0 | 0 |
+| P09 Contract-to-Close | RATIFIED | PARTLY VERIFIED | 13 | 6 | 0 | 1 | 0 | 0 |
 | P10 Close + Post-Close Handoff | RATIFIED | PARTLY VERIFIED | 8 | 1 | 0 | 1 | 0 | 0 |
 | P11 Speed-to-Lead | RATIFIED | PARTLY VERIFIED | 12 | 3 | 0 | 1 | 1 | 0 |
 | P12 Geographic Farm Campaign | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 9 | 2 | 1 | 0 | 1 | 0 |
@@ -135,6 +135,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | The deadline map is loaded with its milestones | a interaction.log message for L1, containing `timeline_loaded` and `inspection` and `appraisal` and `financing_contingency` and `closing` | holds |
 | Each of the four deadlines goes to the calendar | exactly 4 x a deadline.alert message for L1 | holds |
 | The first document requests go out | exactly 3 x a client.message.send message for L1, containing `document_request` | holds |
+| The client is told what happens next: the dates you signed, in date order | exactly 1 x a client.message.send message for L1, containing `under_contract_next_steps` and `"milestone": "closing"` and `"milestone": "inspection"` | holds |
 | No message was dropped along the way | no dead.letter | holds |
 
 ### Checked by another run
@@ -142,10 +143,6 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | What success means, or the gate | The run that checks it | Result |
 |---|---|---|
 | A status change without its required document is refused | tuple 05-05: status change requested without its required artifact, refuse; artifact first | holds |
-
-### The success statement says it; the product does not do it
-
-- The seller is told what happens next. The message is the status notice (a template name and the status). The product writes no next-steps text
 
 ### Not shown by any run
 
@@ -311,6 +308,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | Your decision to close with it open is recorded as yours | a interaction.log message for L1, containing `milestones_waived_at_closing` and `inspection` and `broker decision` | holds |
 | The close is recorded | a transaction.closed message for L1 | holds |
 | The settlement figures pass on as the statement gave them | a transaction.closed message for L1, containing `"commission_amount": 27000` and `"sale_price": 450000` | holds |
+| The client is told what happens next: the dates you signed, in date order | exactly 1 x a client.message.send message for L1, containing `under_contract_next_steps` and `"milestone": "closing"` and `"milestone": "inspection"` | holds |
 | No message was dropped along the way | no dead.letter | holds |
 
 ### Checked by another run

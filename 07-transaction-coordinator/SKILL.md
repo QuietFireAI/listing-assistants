@@ -76,6 +76,7 @@ Dispatcher returns an `ack`.
 | OUT | → 08 Document Collection | Required document per milestone | `doc.request` |
 | IN | ← 08 Document Collection | Document status | `doc.status` |
 | OUT | → 11 / 18 | Deadline alerts and calendar blocks | `deadline.alert` |
+| OUT | → 11 Client Communication | What happens next, once, when the broker loads the contract dates: each dated milestone in date order (template `under_contract_next_steps`; built 2026-11-15; waits for the broker's signed wording) | `client.message.request` |
 | OUT | → 09 Vendor Coordination | Inspector/appraiser scheduling per milestone | `vendor.request` |
 | OUT | → 16 / 14 / 15 via 00 | Closing executed | `transaction.closed` |
 | OUT | → HITL queue | Wire topic anywhere, missed or at-risk deadline, appraisal or title issue, repair negotiation, earnest money not received, contract questions | `escalation.legal_line` |

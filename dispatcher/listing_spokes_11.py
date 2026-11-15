@@ -30,7 +30,9 @@ _WIRE_WORDS = ("wire instructions", "wiring details", "wire transfer",
 TEMPLATES_AWAITING_SIGNATURE = ("identity_verification_needed", "doc_unsigned_resend",
                                 "unknown_criterion_ask",
                                 # 2026-11-15, Agent 06 to the seller of our own listing
-                                "showing_booked_seller", "showing_cancelled_seller")
+                                "showing_booked_seller", "showing_cancelled_seller",
+                                # 2026-11-15, Agent 07 when the contract dates are loaded
+                                "under_contract_next_steps")
 # The channels a message can go back on (owner decision D-A8)
 MESSAGE_CHANNELS = ("call", "text", "email")
 

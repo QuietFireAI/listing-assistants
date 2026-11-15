@@ -68,7 +68,7 @@ Dispatcher returns an `ack`.
 
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
-| IN | ← 05 (`status.update`), 07 (`deadline.alert`), 03 / 06 / 08 / 13 / 16 / 20 (`client.message.request`) | Update triggers | `status.update` / `deadline.alert` / `client.message.request` |
+| IN | ← 05 (`status.update`), 07 (`deadline.alert`), 03 / 06 / 07 / 08 / 13 / 16 / 20 (`client.message.request`) | Update triggers | `status.update` / `deadline.alert` / `client.message.request` |
 | IN | ← 01 Lead Capture | Opt-out confirmation, once (tuple 15, added 2026-07-17) | `client.message.request` |
 | OUT | → clients via approved channels | Routine updates | `client.message.send` |
 | OUT | → 03 Lead Nurture | A nurture touch that did not go out (complaint hold, no consent, opt-out, quiet hours, unresolved variable), so 03 does not count it as sent (P11 sign-off, 2026-10-21) | `client.message.not_sent` |

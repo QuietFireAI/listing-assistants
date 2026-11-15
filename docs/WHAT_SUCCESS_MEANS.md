@@ -14,7 +14,7 @@
 > names, for each playbook, the parts of the statement its run does not show and
 > the parts that need a system that is not connected (an MLS, an ad platform).
 > As of 2026-11-15: 5 playbooks verified in full; 10 verified except for parts of
-> their statement that the product does not do (15 such parts, each named there); 9
+> their statement that the product does not do (14 such parts, each named there); 9
 > verified in part.
 
 ---
@@ -159,7 +159,10 @@ that you didn't write.
 
 Under contract - **P03** - success is a pending status recorded,
 the full deadline map loaded and dated, the initial document chases
-opened, and your client told what happens next. The status change
+opened, and your client told what happens next: when you load the
+contract dates, the client gets each dated milestone in date order
+(built 2026-11-15; the dates are the ones you signed, and the agents
+add no advice of their own). The status change
 itself is artifact-gated: the swarm will not mark a listing pending
 without the executed contract on file, verified to open. From there
 **P09, contract to close**, runs the vigilance that otherwise consumes
