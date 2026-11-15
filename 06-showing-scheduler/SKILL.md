@@ -22,7 +22,7 @@ RSVP logistics. It schedules people; it never authorizes access.
 ## 2. Job Components
 
 - Coordinate buyer showing requests with seller availability.
-- Manage confirmation and cancellation flow; send reminders to all parties (via 11 for clients).
+- Manage confirmation and cancellation flow; send reminders to all parties (via 11 for clients). Built 2026-11-15: when the home is one of our own listings, the seller is told a showing is booked (`showing_booked_seller`: the listing and the time, nothing about the buyer) and told if a booked one is bumped (`showing_cancelled_seller`). Both go through 11 on the seller's record and wait for the broker's signed wording.
 - Track and send post-showing feedback requests; log responses to CRM (14).
 - Handle open house RSVP logistics.
 - Create calendar events via Calendar & Task (18); check conflicts via 18 before confirming. Built 2026-10-27 (owner decision): when 18 does not add a showing (conflict, full day, no day, unconfirmed time zone) it answers `calendar.conflict`; the buyer is not told the showing is confirmed, and the showing is held for the broker (continue = confirm it to the buyer, cancel = nothing sent).

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - audit fixes (branch `audit-fixes-2026-10-11`)
 
+### Added
+- Build 1 of 16 (owner instruction 2026-11-15: build the parts the success statements claim and the product did not do). **The seller is told a showing is booked** (P07). Agent 06, when it confirms a showing of one of our own listings, asks Agent 11 to tell the seller (`showing_booked_seller`: listing and time, nothing about the buyer); a booked showing that is bumped tells the seller (`showing_cancelled_seller`). Both templates wait for the owner's signed wording. Tests: `tests_listing/test_build_2026_11_15.py` (5; 4 fail on the old code). The P07 run now shows one of our own listings and checks the seller's message.
+
 ### Changed
 - Playbook success criteria, second pass, 2026-11-14 (owner priority: the 60 parts the runs did not show and the 13 gates they did not reach). Now: 47 of them are checked by another run that the spec names (41 tuple sessions, which the playbook runner now runs too, and 6 references to another playbook's run); 5 runs were extended to show more (P05 withdraws a live ad and releases the halt; P10 runs to the 90-day and 365-day check-ins; P13 adds an anniversary; P16 and P17 run a day that has a lead in it); 8 lines now check order with a new `then` field (review before release, contract before pending, continue before send). 16 parts are named as things the product does not do. 11 are still not shown by any run. Status: 4 VERIFIED (P01, P02, P14, P21), 11 VERIFIED WITH PARTS NOT BUILT, 9 PARTLY VERIFIED, 0 FAILED. The Desk's playbook show now takes 16 presses.
 

@@ -206,7 +206,11 @@ recorded verbatim, marked as their own words, never an inference, and
 matches flow from day one. **P07, tour day**, replaces the
 phone-and-spreadsheet choreography of sequencing five showings across
 five listing agents: buffer-enforced slots, notice rules respected,
-confirmations to every party, feedback captured afterward - asked for
+a confirmation to the buyer and, when the home is one of our own
+listings, to its seller too (the time, and nothing about the buyer;
+built 2026-11-15, and the seller is also told if a booked showing is
+taken off; another brokerage's listing agent cannot be reached yet),
+feedback captured afterward - asked for
 twice at most, never a third time - and the buyer's profile updated
 only from what the buyer explicitly said. Enthusiasm in the kitchen is
 not a criteria change. **P22** closes the feedback loop the same day

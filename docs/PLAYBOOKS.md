@@ -169,6 +169,9 @@ Buyer expresses interest in touring specific properties (via 13 matches or 11 in
 ### HITL gates
 (none listed beyond swarm-wide gates)
 
+### Who is told (built 2026-11-15)
+The buyer gets the confirmation, as before. When the home is one of our own listings (Agent 05 holds its record), Agent 06 also asks Agent 11 to tell the seller: template `showing_booked_seller` with the listing and the time, nothing about the buyer. If a booked showing is later bumped for a protected deadline, the seller gets `showing_cancelled_seller`. The seller is the listing's own client record unless your signed `seller_reports` setting names another. The seller's consent, opt-outs and quiet hours apply. Both templates are new wording: Agent 11 sends neither until you sign it (`config.update {"template_signed": "showing_booked_seller"}`). For a listing that is not ours, nobody on the listing side is told: there is no channel to another brokerage's agent.
+
 ## Playbook P08 - Offer-to-Acceptance
 
 **Summary:** Swarm deployment: offer submission through human-negotiated resolution. Agents 07, 08, 11, 18. Thinnest playbook by design - negotiation is entirely human; agents track status and documents around it.

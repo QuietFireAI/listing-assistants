@@ -240,6 +240,20 @@
    "purpose": "A new listing fits a buyer's search but does not say whether it has a must-have (Agent 13, owner decision D-A12)",
    "body": "A new listing fits your search but doesn't say whether it has {{field}}. Want listings like that sent to you, marked unknown?",
    "approved_by": "Jeff Phillips 2026-10-28 (wording approved as written; Agent 11 sends it after the signed config.update {\"template_signed\": id})"
+  },
+  {
+   "template_id": "showing_booked_seller",
+   "audience": "seller",
+   "purpose": "Tell the seller of one of our own listings that a showing is booked (Agent 06, built 2026-11-15; nothing about the buyer is included)",
+   "body": "A showing of your home is booked for {{time}}. Reply here if that time does not work.",
+   "approved_by": "NOT YET APPROVED. Wording proposed by Claude 2026-11-15; Agent 11 does not send it until the owner signs config.update {\"template_signed\": id}"
+  },
+  {
+   "template_id": "showing_cancelled_seller",
+   "audience": "seller",
+   "purpose": "Tell the seller that a booked showing is off (Agent 06, built 2026-11-15)",
+   "body": "The showing of your home booked for {{time}} has been cancelled. We will tell you when a new one is booked.",
+   "approved_by": "NOT YET APPROVED. Wording proposed by Claude 2026-11-15; Agent 11 does not send it until the owner signs config.update {\"template_signed\": id}"
   }
  ]
 }

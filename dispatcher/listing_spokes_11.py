@@ -28,7 +28,9 @@ _WIRE_WORDS = ("wire instructions", "wiring details", "wire transfer",
 # signed config.update {"template_signed": id} names it; the agent that
 # asked has already put its question in the owner's queue.
 TEMPLATES_AWAITING_SIGNATURE = ("identity_verification_needed", "doc_unsigned_resend",
-                                "unknown_criterion_ask")
+                                "unknown_criterion_ask",
+                                # 2026-11-15, Agent 06 to the seller of our own listing
+                                "showing_booked_seller", "showing_cancelled_seller")
 # The channels a message can go back on (owner decision D-A8)
 MESSAGE_CHANNELS = ("call", "text", "email")
 

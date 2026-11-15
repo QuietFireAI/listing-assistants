@@ -373,7 +373,7 @@ agents". The autopsy report lists each one with what the code actually did.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1399 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1404 passed, 1 skipped
 python tools/run_demo.py
 python tools/mcp_roundtrip.py
 ```

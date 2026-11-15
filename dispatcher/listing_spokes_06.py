@@ -266,6 +266,7 @@ class Spoke06ShowingScheduler:
             self.hub.send(_env("06", "14", "interaction.log", ctx,
                                {"kind": "showing_confirmed", "time": showing.get("time"),
                                 "after": "broker continued past a calendar conflict"}))
+            self._tell_seller(ctx, showing, "showing_booked_seller")
             return "continued: showing confirmed"
         rkey = (f"{ctx}|{held['report'].get('listing_id')}" if isinstance(held.get("report"), dict)
                 else None)
@@ -280,6 +281,31 @@ class Spoke06ShowingScheduler:
         self.hub.send(_env("06", "11", "client.message.request", ctx,
                            {"template": "seller_weekly_report", "variables": report}))
         return "continued: report sent to 11"
+
+    def _tell_seller(self, buyer_ctx: str, showing: dict, template: str) -> None:
+        """Built 2026-11-15 (P07: "confirmations to every party"). Until now
+        only the person who asked was told; the seller of one of our own
+        listings never heard that a showing was booked, or that a booked one
+        was taken off.
+
+        Our own listing = one Agent 05 has pushed facts for. Its seller is the
+        listing's own client record, unless your signed seller_reports setting
+        names another record for it. The message carries the listing and the
+        time and nothing about the buyer. It goes through Agent 11, so the
+        seller's consent, opt-outs and quiet hours apply; the two templates
+        are new wording, so 11 does not send them until you sign them."""
+        lid = showing.get("listing_id")
+        if not lid or lid not in self.listing_facts:
+            return
+        seller_ctx = ((self.seller_reports or {}).get("listings") or {}).get(lid, lid)
+        if seller_ctx == buyer_ctx:
+            return
+        self.hub.send(_env("06", "11", "client.message.request", seller_ctx,
+                           {"template": template,
+                            "variables": {"listing_id": lid, "time": showing.get("time")}}))
+        self.hub.send(_env("06", "14", "interaction.log", seller_ctx,
+                           {"kind": "seller_showing_notice_requested", "template": template,
+                            "listing_id": lid, "time": showing.get("time")}))
 
     def _with_listing_facts(self, payload: dict, env: Envelope) -> dict:
         """Owner decision 2026-10-14 (tuples 5, 7, 11): occupancy, status and
@@ -435,6 +461,7 @@ class Spoke06ShowingScheduler:
                     self.hub.send(_env("06", "14", "interaction.log", other_ctx,
                                        {"kind": "showing_bumped",
                                         "time": bumped["time"]}))
+                    self._tell_seller(other_ctx, bumped, "showing_cancelled_seller")
             self._schedule(ctx, held["payload"], env)
             return
 
@@ -818,3 +845,4 @@ class Spoke06ShowingScheduler:
                            {"template": "showing_confirmation"}))
         self.hub.send(_env("06", "14", "interaction.log", ctx,
                            {"kind": "showing_confirmed", "time": requested_time}))
+        self._tell_seller(ctx, showing, "showing_booked_seller")

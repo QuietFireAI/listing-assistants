@@ -29,7 +29,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | P04 Open House Cycle | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 11 | 1 | 2 | 0 | 0 | 0 |
 | P05 Expired/Withdrawn Wind-down | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 9 | 2 | 1 | 0 | 1 | 0 |
 | P06 New Buyer Onboarding | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 8 | 0 | 2 | 0 | 0 | 0 |
-| P07 Tour Day Coordination | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 9 | 4 | 1 | 0 | 0 | 0 |
+| P07 Tour Day Coordination | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 11 | 4 | 1 | 0 | 0 | 0 |
 | P08 Offer-to-Acceptance | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 7 | 1 | 1 | 0 | 0 | 0 |
 | P09 Contract-to-Close | RATIFIED | PARTLY VERIFIED | 12 | 6 | 0 | 1 | 0 | 0 |
 | P10 Close + Post-Close Handoff | RATIFIED | PARTLY VERIFIED | 8 | 1 | 0 | 1 | 0 | 0 |
@@ -253,6 +253,8 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | Feedback is asked for the day after | a client.message.request message for B1, containing `feedback_request` | holds |
 | The buyer's feedback is recorded in their own words | a interaction.log message for B1, containing `feedback_received` and `bedrooms too small` | holds |
 | A showing that was followed up is not marked a no-show | no showing.no_show message for B1 | holds |
+| The seller of our own listing is told a showing is booked, with the time and nothing about the buyer | exactly 1 x a client.message.send message for L1, containing `showing_booked_seller` and `2026-10-21T15:00` | holds |
+| For a listing that is not ours, no seller is messaged | no client.message.request message for SYN-L001 | holds |
 | No message was dropped along the way | no dead.letter | holds |
 
 ### Checked by another run
@@ -266,7 +268,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 
 ### The success statement says it; the product does not do it
 
-- Every party gets a confirmation. Only the person who asked is messaged. The seller and the listing side are not told a showing is booked
+- The other side's agent is told. For a listing that is not ours, the listing agent is not a client and there is no channel to them (the Duet brief's Agent 21)
 
 ## P08 Offer-to-Acceptance
 

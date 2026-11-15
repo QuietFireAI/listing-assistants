@@ -341,6 +341,26 @@ Operator tools, not part of the message path:
 | `tools/verify_update_pack.py`, `tools/sign_manifest.py` | Signs and verifies offline update packs: Ed25519 signature, every file hashed, unlisted files and downgrades refused |
 | `dispatcher/provider_gateway.py` | Records which external providers you intend to connect (masked); makes no network calls |
 
+## Built on the owner's instruction, 2026-11-15 onward
+
+`docs/PLAYBOOK_SUCCESS_CRITERIA.md` named 16 things a playbook's success
+statement said and the product did not do. They are being built one at a
+time. A part is listed here only when its code, its tests, a line in its
+playbook's test run and its documents are all in.
+
+- **The seller is told when a showing of their home is booked** (tour day,
+  P07). Before, only the person who asked got a confirmation. Now, when
+  the home is one of our own listings, Agent 06 asks Agent 11 to tell the
+  seller: the listing and the time, nothing about the buyer. If a booked
+  showing is later bumped for a protected deadline, the seller is told
+  that too. The seller's consent, opt-outs and quiet hours apply. The two
+  messages are new wording, so nothing goes until you sign each one:
+  `config.update {"template_signed": "showing_booked_seller"}` and
+  `"showing_cancelled_seller"`. For a listing that is not ours nobody on
+  the listing side is told; there is no channel to another brokerage's
+  agent. Checked by 5 tests (`tests_listing/test_build_2026_11_15.py`)
+  and by the P07 run, which now shows one of our own listings.
+
 ## What it does not do yet
 
 Written 2026-11-14 from what was run and read, not from intent. This is an
@@ -366,9 +386,9 @@ evaluation release: it shows how the work is routed, held and recorded.
   [docs/PLAYBOOK_SUCCESS_CRITERIA.md](docs/PLAYBOOK_SUCCESS_CRITERIA.md) ties
   each playbook's success statement to what its test run leaves on the record
   and to the tuple runs that check its gates. It names 16 things a success
-  statement says and the product does not do (for example: only the person
-  who asked is told a showing is booked; no open house is promoted; no offer
-  document is tracked) and 11 parts no run shows yet. The run tables for P16
+  statement says and the product does not do (for example: no open house
+  is promoted; no offer document is tracked; another brokerage's agent is
+  never told of a showing) and 11 parts no run shows yet. The run tables for P16
   and P17 are proposed, not yet signed off by the owner.
 - **Tuples: 244 pass, 2 do not, 22 cannot be run.** The two are 01-01 (two
   inquiries at once from one person are captured twice) and 04-03 (copy you
@@ -414,7 +434,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1399 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1404 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for
