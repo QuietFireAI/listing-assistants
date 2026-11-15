@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - audit fixes (branch `audit-fixes-2026-10-11`)
 
 ### Added
+- Build 2 of 16. **The seller hears it in your words** (P05). A signed `listing.change.authorized` (status or price) may carry `note_to_seller`; Agent 05 passes it to Agent 11 and the seller's notice carries it word for word as `your_words`. Not reviewed or reworded by any agent. A note that is not text is refused and the owner told. Tests: 3 in `tests_listing/test_build_2026_11_15.py` (2 fail on the old code). The P05 run carries a note and is now VERIFIED.
 - Build 1 of 16 (owner instruction 2026-11-15: build the parts the success statements claim and the product did not do). **The seller is told a showing is booked** (P07). Agent 06, when it confirms a showing of one of our own listings, asks Agent 11 to tell the seller (`showing_booked_seller`: listing and time, nothing about the buyer); a booked showing that is bumped tells the seller (`showing_cancelled_seller`). Both templates wait for the owner's signed wording. Tests: `tests_listing/test_build_2026_11_15.py` (5; 4 fail on the old code). The P07 run now shows one of our own listings and checks the seller's message.
 
 ### Changed

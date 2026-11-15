@@ -27,7 +27,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | P02 Price Adjustment | RATIFIED | VERIFIED | 13 | 2 | 0 | 0 | 1 | 0 |
 | P03 Under-Contract Transition | RATIFIED | PARTLY VERIFIED | 12 | 1 | 1 | 1 | 0 | 0 |
 | P04 Open House Cycle | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 11 | 1 | 2 | 0 | 0 | 0 |
-| P05 Expired/Withdrawn Wind-down | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 9 | 2 | 1 | 0 | 1 | 0 |
+| P05 Expired/Withdrawn Wind-down | RATIFIED | VERIFIED | 9 | 2 | 0 | 0 | 1 | 0 |
 | P06 New Buyer Onboarding | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 8 | 0 | 2 | 0 | 0 | 0 |
 | P07 Tour Day Coordination | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 11 | 4 | 1 | 0 | 0 | 0 |
 | P08 Offer-to-Acceptance | RATIFIED | VERIFIED, WITH PARTS NOT BUILT | 7 | 1 | 1 | 0 | 0 | 0 |
@@ -184,7 +184,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 
 ## P05 Expired/Withdrawn Wind-down
 
-**VERIFIED, WITH PARTS NOT BUILT.**
+**VERIFIED.**
 
 ### Checked by this run
 
@@ -194,7 +194,7 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 | The run ends as completed | playbook.completed for L1, containing `"playbook": "P05"` and `"outcome": "completed"` | holds |
 | An after-action report is written for the run | after_action.written for L1, containing `"playbook": "P05"` | holds |
 | Withdrawn is recorded on the listing | a status.update message for L1, containing `"status": "withdrawn"` | holds |
-| The seller is told | a client.message.send message for L1, containing `status.update` and `withdrawn` | holds |
+| The seller is told, with the note you signed, word for word | a client.message.send message for L1, containing `"status": "withdrawn"` and `your_words` and `as we discussed. I will call you at 4.` | holds |
 | A live ad is halted | a interaction.log message for L1, containing `marketing_halted` and `live, halt sent` | holds |
 | The halt waits for your release, like any public send | exactly 2 x absolute_signal.hold containing `campaign.publish` | holds |
 | After your release the halt goes out, with the reason | a campaign.publish message for L1, containing `"action": "halt"` and `listing_status_withdrawn` | holds |
@@ -206,10 +206,6 @@ Nothing here was run against a live MLS, a live ad platform or real clients.
 |---|---|---|
 | No one is sent a greeting who is not on the list you supplied | tuple 16-04: greeting requested for someone not on the supplied list, refuse; the list is the authority | holds |
 | An ad still waiting for your release when the listing leaves the market is not published; you are asked to decline it | playbook P03, above or below | holds |
-
-### The success statement says it; the product does not do it
-
-- The seller hears it in your words. The message is a template name and the status. The wording is yours to supply
 
 ### Needs an outside system that is not connected
 

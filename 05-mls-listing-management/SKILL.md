@@ -67,7 +67,7 @@ Dispatcher returns an `ack`.
 | Direction | Route (via 00) | Trigger | Intent |
 |---|---|---|---|
 | IN | ← 04 Listing Description | Approved MLS description | `asset.release` |
-| IN | ← Broker (signed) | Authorized price/status change, go-live | `listing.change.authorized` |
+| IN | ← Broker (signed) | Authorized price/status change, go-live. May carry `note_to_seller` (built 2026-11-15): your own words, passed to the seller word for word with the notice | `listing.change.authorized` |
 | IN | ← 09 Vendor Coordination | Photo deliverables | `deliverable.release` |
 | OUT | → 04 / 10 / 13 | Listing data packages | `listing.data` |
 | OUT | → 06 Showing Scheduler | The facts a showing depends on (status, occupancy, state), at intake, go-live and every change | `listing.data` |

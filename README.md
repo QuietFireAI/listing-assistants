@@ -361,6 +361,17 @@ playbook's test run and its documents are all in.
   agent. Checked by 5 tests (`tests_listing/test_build_2026_11_15.py`)
   and by the P07 run, which now shows one of our own listings.
 
+- **The seller hears a status or price change in your words** (wind-down,
+  P05). The change you sign can carry `note_to_seller`. It reaches the
+  seller word for word with the notice. No agent writes, shortens or
+  rewords it, and it does not go to compliance review, because it is your
+  signed text to your own client. Example, in a console script:
+  `{"do": "authorize", "to": "05", "ctx": "L1", "payload": {"field":
+  "status", "value": "withdrawn", "human_confirmation_ref": "w-1",
+  "note_to_seller": "Pat - we are taking the listing off the market today,
+  as we discussed. I will call you at 4."}}`. Checked by 3 tests and by
+  the P05 run, which is now verified in full.
+
 ## What it does not do yet
 
 Written 2026-11-14 from what was run and read, not from intent. This is an
@@ -381,11 +392,11 @@ evaluation release: it shows how the work is routed, held and recorded.
   deadline clock and no multiple-offer summary. There is no listing-agreement
   or lead-paint tracking, no listing expiry clock and no seller net sheet. A
   review on 2026-11-13 listed 23 such gaps; none is built.
-- **Playbooks: 4 of 24 verified in full; 11 more except for parts the product
+- **Playbooks: 5 of 24 verified in full; 10 more except for parts the product
   does not do; 9 in part.**
   [docs/PLAYBOOK_SUCCESS_CRITERIA.md](docs/PLAYBOOK_SUCCESS_CRITERIA.md) ties
   each playbook's success statement to what its test run leaves on the record
-  and to the tuple runs that check its gates. It names 16 things a success
+  and to the tuple runs that check its gates. It names 15 things a success
   statement says and the product does not do (for example: no open house
   is promoted; no offer document is tracked; another brokerage's agent is
   never told of a showing) and 11 parts no run shows yet. The run tables for P16
@@ -434,7 +445,7 @@ Python 3.10 or newer (3.12 recommended) and `git`.
 git clone https://github.com/QuietFireAI/listing-assistants.git
 cd listing-assistants
 pip install -r requirements.txt
-python -m pytest tests_listing/        # expect: 1404 passed, 1 skipped
+python -m pytest tests_listing/        # expect: 1407 passed, 1 skipped
 ```
 
 The suite includes the 24 playbook end-to-end tests, a full-swarm test for

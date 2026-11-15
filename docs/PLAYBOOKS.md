@@ -147,6 +147,12 @@ Listing reaches expiration date (07/05 tracked) or seller withdrawal confirmed b
 ### HITL gates
 (none listed beyond swarm-wide gates)
 
+### Your words to the seller (built 2026-11-15)
+The signed change (`listing.change.authorized`) may carry `note_to_seller`. Agent 05 passes it to Agent 11 with the status, and the seller's notice carries it word for word as `your_words`. No agent writes, shortens or rewords it, and it is not sent to compliance review: it is your signed text to your own client. The same field works on a signed price change. A note that is not text is not guessed at: the notice goes without it and you are told. With no note, the notice is the status alone, as before.
+
+### A live ad (shown in the test run since 2026-11-14)
+If the ad was already published, Agent 12 sends a halt. A halt is a public send, so it waits for your release like the ad did.
+
 ## Playbook P06 - New Buyer Onboarding
 
 **Summary:** Swarm deployment: signed buyer agreement to active matched-search. Agents 10, 11, 13, 14. Use when a written buyer agreement is executed. Hard-stops without the agreement.

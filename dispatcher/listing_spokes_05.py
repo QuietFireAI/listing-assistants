@@ -122,6 +122,28 @@ class Spoke05MLSListingManagement:
                             "status": self.mls_records.get(ctx, {}).get("status"),
                             "facts_for": "scope"}))
 
+    def _your_words(self, ctx: str, env: Envelope) -> dict:
+        """Built 2026-11-15 (P05: "the seller hears it from you in your
+        words"). A signed status or price change may carry note_to_seller.
+        It rides the seller's notice word for word as your_words; no agent
+        writes, shortens or rewords it. It is your signed text to your own
+        client, so it is not sent to compliance review (that review is for
+        marketing copy). A note that is not text is not guessed at: the
+        notice goes without it and you are told."""
+        note = env.payload.get("note_to_seller")
+        if note is None:
+            return {}
+        if not isinstance(note, str) or not note.strip():
+            self.hub.send(_env("05", "queue", "clarification.request", ctx,
+                               {"reason": "note_to_seller was not text; the seller's notice "
+                                          "went without it. Send the note again, signed.",
+                                "got": type(note).__name__}))
+            return {}
+        self.hub.send(_env("05", "14", "interaction.log", ctx,
+                           {"kind": "seller_note_from_broker", "chars": len(note),
+                            "authorizing_envelope": env.envelope_id}))
+        return {"your_words": note}
+
     def _set_occupancy(self, ctx: str, env: Envelope, occupancy, interval, today):
         if occupancy not in ("vacant", "occupied") or (
                 interval is not None and (isinstance(interval, bool) or not isinstance(interval, int)
@@ -471,7 +493,7 @@ class Spoke05MLSListingManagement:
                             f"executing",
                     result=f"status executed: {new_status}")
                 self.hub.send(_env("05", "11", "status.update", ctx,
-                                   {"status": new_status}))
+                                   {"status": new_status, **self._your_words(ctx, env)}))
                 self.hub.send(_env("05", "12", "status.update", ctx,
                                    {"status": new_status}))
                 self.hub.send(_env("05", "14", "status.update", ctx,
@@ -508,7 +530,7 @@ class Spoke05MLSListingManagement:
                             f"conflict, executing",
                     result=f"price executed: {new_price}")
                 self.hub.send(_env("05", "11", "status.update", ctx,
-                                   {"price": new_price}))
+                                   {"price": new_price, **self._your_words(ctx, env)}))
                 self.hub.send(_env("05", "12", "status.update", ctx,
                                    {"price": new_price, "prior_price": prior_price}))
                 self.hub.send(_env("05", "14", "status.update", ctx,

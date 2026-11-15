@@ -13,8 +13,8 @@
 > [PLAYBOOK_SUCCESS_CRITERIA.md](PLAYBOOK_SUCCESS_CRITERIA.md). That document also
 > names, for each playbook, the parts of the statement its run does not show and
 > the parts that need a system that is not connected (an MLS, an ad platform).
-> As of 2026-11-14: 4 playbooks verified in full; 11 verified except for parts of
-> their statement that the product does not do (16 such parts, each named there); 9
+> As of 2026-11-15: 5 playbooks verified in full; 10 verified except for parts of
+> their statement that the product does not do (15 such parts, each named there); 9
 > verified in part.
 
 ---
@@ -192,7 +192,10 @@ by absence: status flipped, and zero active marketing, verified per
 platform. An ad still running for a withdrawn listing is a compliance
 exposure and a wound to the seller relationship, so the wind-down
 doesn't report "halt requested"; it verifies the halt happened,
-everywhere. The seller hears from you in your words, the record is
+everywhere. The seller hears from you in your words: the status change
+you sign can carry a note to the seller, and it reaches them word for
+word with the notice (built 2026-11-15; no agent writes or rewords
+it). The record is
 annotated, and if they relist, they come back through the front door -
 nobody auto-enrolls a former client into anything.
 
